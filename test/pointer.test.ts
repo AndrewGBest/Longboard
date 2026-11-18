@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KEY_FORGET_MS, POINTER, PointerHolds, pointerGlide, pointerSpeed, pointerTap, REPEAT_GRACE_MS, startPoint } from '../src/main/pointer';
+import { cdpPoint, KEY_FORGET_MS, POINTER, PointerHolds, pointerGlide, pointerSpeed, pointerTap, REPEAT_GRACE_MS, startPoint } from '../src/main/pointer';
 import type { Direction } from '../src/shared/actions';
 
 const tv = { width: 1920, height: 1080 };
@@ -140,5 +140,15 @@ describe('what is held', () => {
     holds.keyDown('up', false, 0);
     holds.clear();
     expect(holds.idle(1)).toBe(true);
+  });
+});
+
+describe('cdpPoint', () => {
+  it('turns screen pixels into the page\'s own', () => {
+    expect(cdpPoint(200, 100, 2)).toEqual({ x: 100, y: 50 });
+    expect(cdpPoint(200, 100, 1)).toEqual({ x: 200, y: 100 });
+  });
+  it('leaves the point alone when the zoom is nonsense', () => {
+    for (const zoom of [0, -1, NaN, Infinity]) expect(cdpPoint(200, 100, zoom)).toEqual({ x: 200, y: 100 });
   });
 });

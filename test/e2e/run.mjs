@@ -621,7 +621,7 @@ await scenario('a video with the browser\'s own controls', { url: `${site.origin
   check('with ordinary key presses, not by calling the video', (await evaluate('__v.keys')).filter((k) => k === ' ').length, 2);
 });
 
-await scenario('pointer mode', { url: `${site.origin}/frames.html` }, async (app) => {
+await scenario('pointer mode', { url: `${site.origin}/frames.html`, args: ['--zoom='] }, async (app) => {
   const page = await app.page(`${site.origin}/frames.html`);
   const { evaluate, press, focused } = page;
   const messages = () => evaluate('__frame.messages');
@@ -662,12 +662,12 @@ await scenario('pointer mode', { url: `${site.origin}/frames.html` }, async (app
   await press('ArrowDown', 300);
   check('and the arrows move the highlight again, though the click left the keys in the frame', (await focused()) !== null, true);
   await press('F2', 400);
-  check('the pointer key brings it back, in the middle of the screen', await page.pointerAt(), { x: (await evaluate('innerWidth')) / 2, y: (await evaluate('innerHeight')) / 2 });
+  check('the pointer key brings it back, in the middle of the screen', ((at, w, h) => !!at && Math.abs(at.x - w / 2) <= 1 && Math.abs(at.y - h / 2) <= 1)(await page.pointerAt(), await evaluate('innerWidth'), await evaluate('innerHeight')), true);
   await press('Escape', 400);
   check('Back puts it away too', await page.pointerAt(), null);
 });
 
-await scenario('pointer mode: edges, the menu and the guard', { url: `${site.origin}/home.html` }, async (app) => {
+await scenario('pointer mode: edges, the menu and the guard', { url: `${site.origin}/home.html`, args: ['--zoom='] }, async (app) => {
   const page = await app.page(site.origin);
   const { evaluate, press } = page;
   await sleep(800);
@@ -761,7 +761,6 @@ await scenario(
     check('and up comes back to where the highlight was in the first row', await focused(), 'a3');
     await press('ArrowUp');
     check('the excluded banner is never highlighted', await focused(), 'a3');
-    await press('Escape', 400);
     // The site changes its address without loading a page, off the paths the profile is for and back.
     await evaluate('history.pushState({}, "", "/elsewhere"); 0');
     check('when the address leaves what the profile is for, the page is driven without it', (await until(() => evaluate('innerWidth'), (w) => w > 900)) > 900, true);
@@ -770,7 +769,17 @@ await scenario(
     await press('ArrowDown');
     await press('ArrowUp');
     check('its rows work as before', await focused(), 'a3');
-        check('Back first closes what the profile says it closes', [await evaluate('!!document.getElementById("panel")'), await evaluate('location.pathname')], [false, '/profiled.html']);
+
+    // Pointer mode in a view that does not start at the corner of the screen.
+    await press('F2', 400);
+    const a1 = await evaluate('(() => { const r = document.getElementById("a1").getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()');
+    check('with the edges kept clear the pointer can still be walked to a tile', await page.pointTo(a1.x, a1.y), true);
+    await press('Enter', 600);
+    check('and OK clicks the tile under it', (await evaluate('__t.clicks')).at(-1), 'a1');
+    await press('F2', 400);
+
+    await press('Escape', 400);
+    check('Back first closes what the profile says it closes', [await evaluate('!!document.getElementById("panel")'), await evaluate('location.pathname')], [false, '/profiled.html']);
 
     const chrome = await app.chrome();
     await press('ContextMenu', 500);

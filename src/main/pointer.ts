@@ -147,3 +147,12 @@ export class PointerHolds {
     this.pad.clear();
   }
 }
+
+/**
+ * A point in the view's pixels as the DevTools input channel wants it: in
+ * the page's own pixels, which are `zoom` times bigger on screen.
+ */
+export function cdpPoint(x: number, y: number, zoom: number): { x: number; y: number } {
+  const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+  return { x: x / z, y: y / z };
+}

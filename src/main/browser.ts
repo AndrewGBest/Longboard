@@ -30,7 +30,7 @@ import {
 } from './navigation';
 import { ASKABLE, describeAsk, hasPermission, mayAsk, permissionDecision, withAnswers, type Askable } from './permissions';
 import { sizeText, uniqueName, progressText } from '../shared/downloads';
-import { PointerHolds, pointerGlide, pointerTap, startPoint, type PointerStep } from './pointer';
+import { cdpPoint, PointerHolds, pointerGlide, pointerTap, startPoint, type PointerStep } from './pointer';
 import { sourceLabel, type ProfileStore } from './profiles';
 import { readJson, writeJson } from './store';
 import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeLauncher } from '../platform';
@@ -590,12 +590,16 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const mouse = (x: number, y: number, what: Mouse): void => {
     if (page.isDestroyed()) return;
     if (attached) {
+      // This channel counts in the page's own pixels, not the screen's.
+      // Measured: with the page drawn at 1.33 times, a click sent in screen
+      // pixels landed 1.33 times too far from the corner.
+      const at = cdpPoint(x, y, page.getZoomFactor());
       const params =
         what.type === 'move'
-          ? { type: 'mouseMoved', x, y }
+          ? { type: 'mouseMoved', ...at }
           : what.type === 'wheel'
-            ? { type: 'mouseWheel', x, y, deltaX: what.dx, deltaY: what.dy }
-            : { type: what.type === 'down' ? 'mousePressed' : 'mouseReleased', x, y, button: 'left', clickCount: 1 };
+            ? { type: 'mouseWheel', ...at, deltaX: what.dx, deltaY: what.dy }
+            : { type: what.type === 'down' ? 'mousePressed' : 'mouseReleased', ...at, button: 'left', clickCount: 1 };
       page.debugger.sendCommand('Input.dispatchMouseEvent', params).catch(() => undefined);
       return;
     }

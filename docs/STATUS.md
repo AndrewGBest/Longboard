@@ -21,10 +21,16 @@ one were brought up to date in place. What changed:
 - The menu lists this run's downloads, how far each has got, and can cancel
   one.
 
-Verified by `npm run check` (unit tests, 344 of them) and the end-to-end run
+- **Fixed: pointer mode clicked the wrong place on a scaled page**, which
+  is every real TV. Found while testing the safe margin. The end-to-end run
+  forces a scale of 1 unless a scenario says otherwise, which is why it was
+  missed; both pointer scenarios and one profile scenario now run scaled.
+  Most other scenarios still run at a scale of 1, so other mistakes of this
+  kind could be hiding.
+
+Verified by `npm run check` (unit tests, 346 of them) and the end-to-end run
 (22 scenarios), which has new checks for each item above. Not verified: any
-of it by a person on a TV; the safe margin together with pointer mode; a
-download bigger than 200 KB.
+of it by a person on a TV; a download bigger than 200 KB.
 
 ## 2026-11-18, later: phases 0 to 4 built by the agent working alone
 
