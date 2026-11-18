@@ -39,11 +39,11 @@ one were brought up to date in place. What changed:
   of 1, where the list misses the pointer.
 - The package workflow ("Build packages", started by hand, keeps its files
   for 14 days and publishes nothing) built the AppImage, the tarball and the
-  Flatpak, last from commit eaf872f
-  (https://github.com/AndrewGBest/Longboard/actions/runs/44351408379). The
-  AppImage was downloaded and started once on the headless machine, with
-  `--automation`: it came up on Home. The tarball and the Flatpak were not
-  started.
+  Flatpak, last from commit e52c2af
+  (https://github.com/AndrewGBest/Longboard/actions/runs/44359106519). An
+  earlier AppImage (from eaf872f) was downloaded and started once on the
+  headless machine, with `--automation`: it came up on Home. The latest
+  files, the tarball and the Flatpak were not started.
 
 - A site's icon is no longer decoded by the shell. Longboard's own
   sandboxed screen draws it and hands back a PNG (DECISIONS.md).
