@@ -2,6 +2,41 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-18, last of the day: features to stand beside the major browsers
+
+Andrew: put Apple on the verified list (done, published); a manual "off"
+is respected whatever the setting over all sites (it already was; now his
+decision); and research the major browsers and build what makes Longboard
+stand beside them on a TV. What was looked at, built and left out is in
+DECISIONS.md.
+
+**Built:** saved pages on Home; private tabs; suggestions under the address
+field from what is kept on this machine; find on this page; a "not secure"
+warning; settings for https-only, the dark or light look, videos starting by
+themselves, clearing on closing, and one button that clears everything.
+
+**Verified, and how:**
+
+- Unit tests: 418 in all. New: suggestions, saved pages, the https-only rule.
+- End to end, two new scenarios (34 in all, 365 checks). One page is kept on Home, found
+  again from three typed letters, and opened from the suggestion; words are
+  found on it with the count said; a private tab cannot see another tab's
+  cookie, writes no history and no recent site, is marked in the list, and
+  leaves nothing behind when closed. With the settings on: sites see the
+  dark preference, a sound does not start by itself (and does when the
+  setting is as shipped), and a plain http page is refused with the reason.
+  The "not secure" line is checked on a plain http page.
+
+**Not verified:**
+
+- "Clear when Longboard closes" and "Clear everything": no test presses them
+  (the second says "clear ... what sites stored"; the first runs as the
+  program exits). Their code was read, not run.
+- Saved pages' icons; taking a saved tile off from the menu on Home.
+- Suggestions with a long history (300 pages) on a slow box.
+- Find on a page inside a frame, or on a very long page.
+- Any of it by a person on a TV.
+
 ## 2026-11-18, late night: pages that are not in front stop, a menu for a remote, the castLabs request
 
 - **Everything stops when it is not in front.** A page behind Home, a tab
@@ -319,12 +354,9 @@ it was checked by a person, with a remote, on a TV.**
 
 ### Open questions for Andrew
 
-- Ad blocking "on for every site" leaves a site off if you switched that
-  site off yourself. Is that what you meant by fully enabled?
-- Hard rule 5's wording does not mention the setting over all sites. The
-  agent did not reword it.
 - Saved passwords and autofill conflict with Hard rule 10. Leave them out?
-- tv.apple.com is not on the verified list, so ad blocking starts on there.
+- Typing from a phone, Do Not Track, reader mode and a PIN were looked at and
+  not built; each needs a decision (DECISIONS.md, the "not built" table).
 - Otherwise none open. Answered on 2026-11-18: Google is the default search; the
   keyboard follows Android TV; the protected-playback row of the ad-blocking
   defaults is dropped; permissions are asked about; downloads work.

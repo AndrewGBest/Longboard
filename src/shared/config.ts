@@ -22,7 +22,7 @@ import { BLOCKING_MODES, blockingMode, MAX_LISTS, parseDomains, parseFilterLists
 
 /** The kinds of access the person can say no site may ask for (the names main/permissions.ts asks about). */
 export const NEVER_ASKABLE = ['camera', 'microphone', 'location', 'notifications', 'clipboard', 'midi', 'pointerLock'] as const;
-const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language'] as const;
+const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit'] as const;
 
 export const ACTION_NAMES = [
   'up', 'down', 'left', 'right', 'select', 'back', 'playPause',
@@ -54,6 +54,14 @@ export interface UserConfig {
   pageSize?: number;
   /** Kinds of access no site may even ask for: "camera", "location"... */
   neverAsk?: string[];
+  /** Open only pages sent privately (https); plain http pages are refused. */
+  httpsOnly?: boolean;
+  /** The look sites are asked for: "dark" or "light". The system's without it. */
+  theme?: 'dark' | 'light';
+  /** Set to false to stop videos starting by themselves. Read at start. */
+  autoplay?: boolean;
+  /** Clear what sites have stored each time the program closes. */
+  clearOnExit?: boolean;
   /** Set to false to keep no history of the pages opened. */
   history?: boolean;
   /** Where downloaded files are saved: a folder's full path. The desktop's Downloads folder without it. */
@@ -117,6 +125,15 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
   if (r['pageSize'] !== undefined) {
     if (typeof r['pageSize'] === 'number' && r['pageSize'] >= 0.5 && r['pageSize'] <= 2) config.pageSize = r['pageSize'];
     else problems.push('"pageSize" must be a number from 0.5 to 2');
+  }
+  for (const name of ['httpsOnly', 'autoplay', 'clearOnExit'] as const) {
+    if (r[name] === undefined) continue;
+    if (typeof r[name] === 'boolean') config[name] = r[name] as boolean;
+    else problems.push(`"${name}" must be true or false`);
+  }
+  if (r['theme'] !== undefined) {
+    if (r['theme'] === 'dark' || r['theme'] === 'light') config.theme = r['theme'];
+    else problems.push('"theme" must be "dark" or "light"');
   }
   if (r['history'] !== undefined) {
     if (typeof r['history'] === 'boolean') config.history = r['history'];

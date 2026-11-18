@@ -5,7 +5,7 @@
 import type { RecentSite } from './home';
 import type { BlockingMode, StartsOffEntry } from './adblock';
 
-export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings' | 'history' | 'tabs';
+export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings' | 'history' | 'tabs' | 'find';
 
 export interface ChromeState {
   /** What fills the window behind any panel. */
@@ -18,6 +18,10 @@ export interface ChromeState {
     apps: Array<{ id: string; name: string; site: string; icon: string | null; ownSession: boolean }>;
     /** `icon` is the site's own icon, fetched from the site while it was open, as a data: address. */
     recents: Array<RecentSite & { profile: 'reviewed' | 'own' | null; icon: string | null }>;
+    /** Pages the person asked to keep on Home. */
+    saved: Array<{ url: string; title: string; icon: string | null }>;
+    /** True when the tab in front is a private one: nothing opened in it is kept. */
+    privateTab: boolean;
   };
   /** About the page in the page view; null when none has been opened. */
   page: {
@@ -33,6 +37,10 @@ export interface ChromeState {
     answers: string | null;
     /** The ad-blocking switch for this site and a line about it. `locked` when Settings has ad blocking off everywhere; null when the page is not a website. */
     adBlocking: { on: boolean; note: string; locked: boolean } | null;
+    /** False for a page sent over plain http, where anyone on the way can read or change it. */
+    secure: boolean;
+    /** Whether this page is kept on Home. */
+    saved: boolean;
     /** The app this site was added as, if it was. */
     app: { id: string; name: string } | null;
     /** Whether the TV's app list can be written to on this system. */
@@ -73,6 +81,10 @@ export interface ChromeState {
     sitesWithChoices: number;
     downloads: string;
     dataFolder: string;
+    httpsOnly: boolean;
+    theme: 'dark' | 'light' | null;
+    autoplay: boolean;
+    clearOnExit: boolean;
     /** Whether a history of pages is kept, and how many pages are in it. */
     history: boolean;
     visits: number;
@@ -85,7 +97,7 @@ export interface ChromeState {
     folders: { path: string; up: string | null; inside: string[]; places: Array<{ name: string; path: string }> } | null;
   } | null;
   /** The tabs that are open, in the order they were opened. A tab with nothing in it yet has no title or site. */
-  tabs: Array<{ id: string; title: string; site: string; current: boolean }>;
+  tabs: Array<{ id: string; title: string; site: string; current: boolean; private: boolean }>;
   /** The pages opened lately, newest first, while the history panel is open. */
   history: Array<{ url: string; text: string }> | null;
   /** The question being asked, while panel is 'prompt'. */
@@ -101,10 +113,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'settings' | 'history' | 'tabs' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'settings' | 'history' | 'tabs' | 'find' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'settings', 'history', 'tabs', 'downloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'settings', 'history', 'tabs', 'find', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -121,7 +133,15 @@ export type ChromeMessage =
   | { kind: 'startsOff'; op: 'add' | 'toggle'; domain: string }
   | { kind: 'settingsAction'; action: SettingsAction }
   /** Tabs: open a new one, bring one in front, or close one. */
-  | { kind: 'tab'; op: 'new' | 'switch' | 'close'; id?: string }
+  | { kind: 'tab'; op: 'new' | 'private' | 'switch' | 'close'; id?: string }
+  /** A page kept on Home: open it, or take it off. */
+  | { kind: 'openSaved'; url: string }
+  | { kind: 'removeSaved'; url: string }
+  /** What has been typed in an address field so far, to get suggestions for; and opening one. */
+  | { kind: 'suggest'; text: string }
+  | { kind: 'openSuggestion'; url: string }
+  /** Find words on the page in front, forwards or backwards from the last one found. */
+  | { kind: 'find'; text: string; forward: boolean }
   /** Open a page from the history. */
   | { kind: 'openVisit'; url: string }
   /** The folder chooser: look in this folder, or null to put the chooser away. */
@@ -141,8 +161,8 @@ export type ChromeMessage =
   /** `remember` false is "not now": the question comes again another time. */
   | { kind: 'answer'; allow: boolean; remember?: boolean };
 
-export type SettingsAction = 'clearSiteData' | 'clearCache' | 'clearHome' | 'clearHistory' | 'forgetSites' | 'updateFilters' | 'updateCatalogue' | 'reset';
-export const SETTINGS_ACTIONS: readonly SettingsAction[] = ['clearSiteData', 'clearCache', 'clearHome', 'clearHistory', 'forgetSites', 'updateFilters', 'updateCatalogue', 'reset'];
+export type SettingsAction = 'clearSiteData' | 'clearCache' | 'clearHome' | 'clearHistory' | 'clearAll' | 'forgetSites' | 'updateFilters' | 'updateCatalogue' | 'reset';
+export const SETTINGS_ACTIONS: readonly SettingsAction[] = ['clearSiteData', 'clearCache', 'clearHome', 'clearHistory', 'clearAll', 'forgetSites', 'updateFilters', 'updateCatalogue', 'reset'];
 
 export type EditAction = 'include' | 'exclude' | 'row' | 'player' | 'wider' | 'narrower' | 'pickAgain' | 'save' | 'discard';
 export const EDIT_ACTIONS: readonly EditAction[] = ['include', 'exclude', 'row', 'player', 'wider', 'narrower', 'pickAgain', 'save', 'discard'];

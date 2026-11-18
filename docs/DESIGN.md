@@ -196,7 +196,10 @@ two ways to the same settings.
 | First page | Where settings are kept; put every setting back (button mappings stay); About and help |
 
 Also under Search and starting: the language sites are asked for (next
-start). Under Privacy: keep a history or not, and clear it.
+start). Under Size and video: the dark or light look sites are asked for,
+and whether videos may start by themselves. Under Privacy: keep a history
+or not, and clear it; open only pages sent privately; clear what sites
+stored when Longboard closes; clear everything at once.
 
 Buttons that clear something need a second press. Not in Settings: saved
 passwords and autofill. They are not built, because Hard rule 10 says
@@ -209,6 +212,15 @@ Longboard never stores passwords (DECISIONS.md).
   address or a tile opened from Home goes into the tab in front. Up to
   eight; they are not kept when Longboard is closed. A tab that is not in
   front is silent and its video is paused, as when Home is in front.
+- **Private tabs:** "New private tab" beside "New tab". Nothing opened in
+  one is kept: no history, no recent site, and what its sites store goes
+  when it is closed.
+- **Saved pages:** "Keep this page on Home" puts a page in a "Saved pages"
+  row on Home; the menu on its tile takes it off.
+- **Suggestions:** as an address is typed, matching places already known
+  (saved pages, apps, recent sites, history) are offered under the field.
+  Nothing typed is sent anywhere for them.
+- **Find on this page**, from the menu's site page.
 - **History:** the menu has "History": the pages opened, newest first, each
   once, at most 300, on this machine only. Pressing one opens it. Settings
   can stop keeping it and clear it.

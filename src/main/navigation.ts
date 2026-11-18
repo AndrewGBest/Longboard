@@ -4,7 +4,7 @@
 import { looksLikeSpendUrl } from '../layer/guard/purchase-guard';
 import { PRODUCT } from '../shared/product';
 
-export type BlockReason = 'not-web' | 'credentials' | 'automation-spend';
+export type BlockReason = 'not-web' | 'credentials' | 'automation-spend' | 'not-secure';
 
 /**
  * Longboard opens web addresses: http and https. Files on this machine,
@@ -13,7 +13,7 @@ export type BlockReason = 'not-web' | 'credentials' | 'automation-spend';
  * user name or password is refused too: it is a common disguise for a
  * look-alike site.
  */
-export function blockReason(url: string, opts: { automation: boolean }): BlockReason | null {
+export function blockReason(url: string, opts: { automation: boolean; httpsOnly?: boolean }): BlockReason | null {
   let u: URL;
   try {
     u = new URL(url);
@@ -27,6 +27,8 @@ export function blockReason(url: string, opts: { automation: boolean }): BlockRe
   if (u.username || u.password) return 'credentials';
   // Automation must never reach a payment or sign-up flow, even by URL.
   if (opts.automation && looksLikeSpendUrl(url)) return 'automation-spend';
+  // "Open only pages sent privately": plain http is refused, except on this machine, where nobody is on the way.
+  if (opts.httpsOnly && u.protocol === 'http:' && u.hostname !== 'localhost' && u.hostname !== '127.0.0.1' && u.hostname !== '[::1]') return 'not-secure';
   return null;
 }
 
@@ -50,6 +52,7 @@ export function describeBlockedUrl(url: string): string {
 export function blockedMessage(reason: BlockReason): string {
   if (reason === 'automation-spend') return 'Blocked: automation mode never opens purchase or sign-up pages';
   if (reason === 'credentials') return 'Blocked: that address carries a user name or password';
+  if (reason === 'not-secure') return 'Not opened: that page is not sent privately (http). Settings can allow such pages';
   return `Blocked: ${PRODUCT.name} only opens web addresses`;
 }
 
@@ -95,7 +98,9 @@ export function noticePageUrl(reason: BlockReason, url: string): string {
         `To use such a page, quit and start ${PRODUCT.name} without --automation.`
       : reason === 'credentials'
         ? `The address carries a user name or password in front of the site name. ${PRODUCT.name} does not open such addresses.`
-        : `${PRODUCT.name} only opens web addresses (http and https). Files on this machine and internal pages are not opened.`;
+        : reason === 'not-secure'
+          ? 'This page is sent over plain http, where anyone on the way can read or change it. Settings, under Privacy, has "Open only pages sent privately" turned on; turn it off to open pages like this one.'
+          : `${PRODUCT.name} only opens web addresses (http and https). Files on this machine and internal pages are not opened.`;
   return noticePage('page blocked', 'This page was blocked', [why], { label: 'Blocked address', value: describeBlockedUrl(url) });
 }
 

@@ -64,8 +64,8 @@ choices (see `src/shared/config.ts`).
 Compared with a mainstream browser, today:
 
 - **No Safe Browsing.** Nothing warns about known phishing or malware sites.
-- No saved passwords, autofill or bookmarks (Home tiles and apps stand in
-  for bookmarks). Tabs are not kept when Longboard is closed.
+- No saved passwords, autofill, sync, voice search or translation. Tabs are
+  not kept when Longboard is closed.
 - Ad blocking only refuses requests that a public filter list names. It
   does not hide the gaps ads leave, and it does nothing about advertising
   inside a video stream.

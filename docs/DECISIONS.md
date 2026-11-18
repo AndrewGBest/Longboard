@@ -3,6 +3,70 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: Andrew on Apple and manual switches; features to stand beside the major browsers
+
+Andrew, in chat:
+
+- **"Apple should go on the verified list."** Done: `tv.apple.com` is in
+  `verified-sites.json` in the profiles repository (published) and in the
+  copy that ships with Longboard. **Assumption:** `tv.apple.com`, the site
+  that was looked at, not all of `apple.com`.
+- **"A manual switch off by the user should be respected regardless of the
+  override."** That is what was built: with ad blocking "on for every site",
+  a site the person switched off from the menu stays off. Now a decision, not
+  an assumption. Unit tests hold it.
+- **"Do research into major browsers and implement features that make us
+  competitive with them, just on the TV instead."**
+
+What the agent looked at: Amazon's pages for Silk on Fire TV (bookmarks,
+private tabs, history, passwords, parental controls), round-ups of Android TV
+browsers (TV Bro: tabs, bookmarks, voice search, downloads, user-agent
+switching; Puffin TV; Brave and DuckDuckGo for blocking and a one-press
+"clear everything"), and what desktop Chrome, Firefox, Safari and Edge all
+have (find on page, address-bar suggestions, a "not secure" mark, an
+https-only mode, dark-mode preference, autoplay control, clear on exit,
+cookie controls, restoring tabs). Sources are at the end of this entry.
+**The round-ups are other people's summaries, some a year or more old; no
+other browser was run.**
+
+Built, each **an assumption** on shape:
+
+| Feature | As built | Why this way |
+|---|---|---|
+| Saved pages (bookmarks) | "Keep this page on Home" in the menu's site page; a "Saved pages" row on Home; the menu on a tile takes it off | Home is where a TV browser's bookmarks belong: one press away, as tiles |
+| Private tab | "New private tab" beside "New tab". Its own session, kept in memory only: no history, no recent site, answers to access questions not remembered, and what its sites stored is cleared when it is closed | What Silk, Chrome and the rest mean by it. Downloads and saved pages made in one are kept, as theirs are |
+| Address suggestions | As the address is typed, up to five matching places from saved pages, apps, recent sites and history appear under the field | Typing is the worst part of a TV browser; a known site should take three letters. Nothing typed leaves the machine: major browsers also ask a search engine, which sends every keystroke to it (rule 12) |
+| Find on this page | A field, Next and Previous; the count is said ("2 of 7") | The browser's own find. The panel covers part of the page, which is said on the panel |
+| "Not secure" | The menu says so for a page sent over plain http | Every major browser marks these |
+| Only pages sent privately | A setting: plain http pages are refused with a notice. Off as shipped. Addresses typed without a scheme already try https | The https-only mode of Firefox, Chrome and Brave. This machine's own addresses are exempt |
+| Dark or light | A setting for the look sites are asked for: the system's, dark, or light | `prefers-color-scheme`; a dark page suits a TV in a dark room |
+| Videos starting by themselves | A setting, on as shipped (streaming sites expect it). Off: a press is needed first | The browsers differ here; a TV app's job is mostly video, so the default is to allow |
+| Clear on closing, and clear everything | A setting to clear what sites stored each time Longboard closes; and one button that clears history, recent sites and what sites stored | Firefox and Brave have the first; the second is the one-press clear of the privacy browsers |
+
+Looked at and **not built**, with the reason:
+
+| Feature | Why not |
+|---|---|
+| User-agent switching, "request desktop site" | Hard rule 3 forbids it |
+| Saved passwords, autofill, sync | Hard rule 10, and no account system (and no telemetry, rule 12) |
+| Search suggestions from a search engine | Sends each keystroke to a third party in the background (rule 12) |
+| Do Not Track / Global Privacy Control | Adds a header to every request; rule 4 says no rewriting of headers. Andrew's call if he wants it |
+| Reader mode | Shows a site's text without the site's page around it; too close to altering a site (rule 4) to do without asking |
+| Blocking other sites' cookies | The browser has a switch for it, but it could not be tested here (it needs https test pages), and it is likely to break the sign-in frames streaming sites use. Not shipped untested |
+| Voice search, translation | Each needs a speech or translation service, which means sending what is said or read to a third party |
+| Typing from a phone | Worth having on a TV and on the roadmap, but it is a small server on the home network and would carry passwords typed on the phone through Longboard (rule 10). Needs a design and Andrew's decision |
+| Parental controls, a PIN | Not started; a real one needs more than a hidden setting |
+| Safe Browsing | Needs a service and a key from its provider; listed in the README as missing |
+| Restoring tabs after a restart | Not started; "open with the last site" covers one page |
+
+Sources:
+- https://docs.aws.amazon.com/silk/latest/developerguide/what-is-silk.html
+- https://digprjsurvey.amazon.com/csad/help/node/200775270
+- https://www.aftvnews.com/tag/silk/
+- https://www.airdroid.com/screen-mirror/browser-for-android-tv/
+- https://ovrclock.com/best-browser-for-android-tv/
+- https://www.tcl.com/jp/ja/blog/guides/top-5-best-browsers-for-android-tv
+
 ## 2026-11-18: a page that is not in front stands still, and the menu for a remote
 
 Andrew, in chat: "When the app isn't in focus all audio and video should

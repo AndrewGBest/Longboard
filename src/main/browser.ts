@@ -11,7 +11,7 @@ import { resolveAddress, siteKey, siteName } from '../shared/address';
 import { EDIT_ACTIONS, MENU_ACTIONS, SETTINGS_ACTIONS, type ChromeMessage, type ChromeState, type EditAction, type MenuAction, type Panel, type SettingsAction } from '../shared/chrome';
 import { EDIT_MARKS, hasMark, marksOf, parsePicked, startDraft, toggleMark, type PickedStep } from '../shared/editor';
 import type { UserConfig } from '../shared/config';
-import { addRecent, parseRecents, removeRecent, titleRecent, type RecentSite } from '../shared/home';
+import { addRecent, addSaved, parseRecents, parseSaved, removeRecent, removeSaved, titleRecent, type RecentSite, type SavedPage } from '../shared/home';
 import { typableText } from '../shared/osk';
 import { playerKeyInfo } from '../shared/player-keys';
 import { parseSites, zoomStep, type SiteSettings } from '../shared/sites';
@@ -40,6 +40,7 @@ import { hoverPoint, pageBounds, tvZoom } from './zoom';
 import { filterSession, type FilterSet } from './adblock';
 import { blockingOn, cleanDomain, editStartsOff, isVerified, startsOffEntries, type BlockingMode } from '../shared/adblock';
 import { BUTTON_ACTIONS, mapButton, searchName, unmapButtons } from '../shared/settings';
+import { suggest, type Known } from '../shared/suggest';
 import { addVisit, parseHistory, titleVisit, visitLine, type Visit } from '../shared/history';
 import { PRODUCT } from '../shared/product';
 import { DEFAULT_SEARCH } from '../shared/address';
@@ -103,6 +104,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const sitesFile = join(dataDir, 'sites.json');
   const complain = (file: string) => (why: string) => console.error(`[longboard] ${file} could not be read: ${why}`);
   let recents: RecentSite[] = parseRecents(readJson(homeFile, complain('home.json')));
+  /** Pages the person asked to keep on Home. */
+  let saved: SavedPage[] = parseSaved(readJson(homeFile));
   const sites: Record<string, SiteSettings> = parseSites(readJson(sitesFile, complain('sites.json')));
   const appsFile = join(dataDir, 'apps.json');
   const iconsDir = join(dataDir, 'icons');
@@ -164,9 +167,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // A view is known by its place: "" is the first tab, "tab:N" another tab,
   // and anything else is the session of an app that keeps its own sign-ins.
   // Tabs share the one session everything shares; they differ only in page.
-  const isTab = (place: string): boolean => place === '' || place.startsWith('tab:');
+  // A private tab ("private:N") is a tab with a session of its own that is kept
+  // in memory only: nothing opened in it is written down, and what its sites
+  // stored is gone when it is closed.
+  const isPrivate = (place: string): boolean => place.startsWith('private:');
+  const isTab = (place: string): boolean => place === '' || place.startsWith('tab:') || isPrivate(place);
   const makeView = (place: string): WebContentsView => {
-    const partition = isTab(place) ? '' : place;
+    const partition = isPrivate(place) ? `longboard-${place.replace(':', '-')}` : isTab(place) ? '' : place;
     const view = new WebContentsView({
       webPreferences: {
         ...hardened,
@@ -176,6 +183,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         // gives pages nothing: the view stays sandboxed and isolated.
         nodeIntegrationInSubFrames: true,
         additionalArguments: options.automation ? ['--longboard-automation'] : [],
+        // Video and sound start by themselves unless the person said otherwise in Settings; then a press is needed first.
+        ...(config.autoplay === false ? { autoplayPolicy: 'document-user-activation-required' as const } : {}),
         ...(partition ? { partition } : {}),
       },
     });
@@ -279,6 +288,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     version: app.getVersion(),
     home: {
       apps: apps.map((a) => ({ id: a.id, name: a.name, site: siteName(a.url), icon: iconOf(a.id), ownSession: a.ownSession })),
+      saved: saved.map((p) => ({ ...p, icon: iconOf(siteIconId(p.url)) })),
+      privateTab: isPrivate(partition),
       recents: recents.map((r) => {
         const source = profileFor(r.url)?.source;
         return { ...r, icon: iconOf(siteIconId(r.url)), profile: source === 'local' ? ('own' as const) : source === 'catalogue' || source === 'builtin' ? ('reviewed' as const) : null };
@@ -297,6 +308,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
             const parts = [said('granted') && `Allowed to: ${said('granted')}`, said('denied') && `Not allowed to: ${said('denied')}`].filter(Boolean);
             return parts.length ? parts.join('. ') : null;
           })(sites[pageSite() ?? '']?.answers ?? {}),
+          secure: /^https:/i.test(page.getURL()) || /^http:\/\/(localhost|127\.0\.0\.1)[:/]/i.test(page.getURL()),
+          saved: saved.some((p) => p.url === page.getURL()),
           adBlocking: ((key) => {
             if (!key) return null;
             const mode = deps.adBlock.mode();
@@ -338,6 +351,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
             sitesWithChoices: Object.keys(sites).length,
             downloads: downloadsDir(),
             dataFolder: dataDir,
+            httpsOnly: config.httpsOnly === true,
+            theme: config.theme ?? null,
+            autoplay: config.autoplay !== false,
+            clearOnExit: config.clearOnExit === true,
             history: config.history !== false,
             visits: visits.length,
             language: config.language ?? null,
@@ -349,7 +366,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       const wc = views.get(place)?.webContents;
       const url = wc && !wc.isDestroyed() ? wc.getURL() : '';
       const loaded = !isNotice(url);
-      return { id: place, title: loaded && wc ? wc.getTitle().slice(0, 80) : '', site: loaded ? siteName(url) : '', current: place === partition };
+      return { id: place, title: loaded && wc ? wc.getTitle().slice(0, 80) : '', site: loaded ? siteName(url) : '', current: place === partition, private: isPrivate(place) };
     }),
     history: panel === 'history' ? visits.slice(0, 80).map((v) => visitLine(v, Date.now())) : null,
     downloads: downloads.map((d) => ({
@@ -435,6 +452,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (win.isDestroyed()) return;
     if (pending && panel !== 'prompt') dropQuestion();
     if (panel === 'prompt' && shownPanel !== 'prompt') promptShownAt = Date.now();
+    // Leaving "find on this page" takes its marks off the page.
+    if (shownPanel === 'find' && panel !== 'find' && !page.isDestroyed()) page.stopFindInPage('clearSelection');
     shownPanel = panel;
     const [width = 0, height = 0] = win.getContentSize();
     for (const view of views.values()) {
@@ -460,9 +479,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
 
   const saveRecents = (): void => {
-    writeJson(homeFile, { recents });
+    writeJson(homeFile, { recents, saved });
     // A site that is no longer on Home does not keep its icon here.
-    const kept = new Set(recents.map((r) => `${siteIconId(r.url)}.png`));
+    const kept = new Set([...recents, ...saved].map((r) => `${siteIconId(r.url)}.png`));
     try {
       for (const file of readdirSync(iconsDir)) {
         if (!file.startsWith('site-') || kept.has(file)) continue;
@@ -517,17 +536,17 @@ export function createBrowser(deps: BrowserDeps): Browser {
   /** Tabs: a new one (which starts on Home), bringing one in front, or closing one. */
   const tabAction = (op: unknown, id: unknown): void => {
     if (edit) endEdit(false);
-    if (op === 'new') {
+    if (op === 'new' || op === 'private') {
       if (tabPlaces().length >= MAX_TABS) {
         notify(`${MAX_TABS} tabs are open. Close one first`);
         return;
       }
       if (surface === 'page') setPointer(false);
-      usePartition(`tab:${++tabCount}`);
+      usePartition(`${op === 'private' ? 'private' : 'tab'}:${++tabCount}`);
       surface = 'home';
       panel = null;
       layout();
-      notify('A new tab. Open an address or a tile');
+      notify(op === 'private' ? 'A private tab. Nothing opened here is kept' : 'A new tab. Open an address or a tile');
       return;
     }
     if (typeof id !== 'string' || !isTab(id) || !views.has(id)) return;
@@ -560,8 +579,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
     views.delete(id);
     if (lastTab === id) lastTab = isTab(partition) ? partition : (others[0] ?? '');
     if (gone) {
+      const left = gone.webContents.session;
       win.contentView.removeChildView(gone);
       gone.webContents.close();
+      // What a private tab's sites stored goes with the tab.
+      if (isPrivate(id)) void left.clearStorageData().catch(() => undefined);
     }
     layout();
   };
@@ -630,7 +652,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   /** Opens an address the person asked for. `remember` puts it on Home. `inSession` is an app's own session, or "" for the shared one. */
   const open = (url: string, remember: boolean, inSession = lastTab): void => {
-    const reason = blockReason(url, options);
+    const reason = blockReason(url, { ...options, httpsOnly: config.httpsOnly === true });
     if (reason) {
       console.error(`[longboard] blocked navigation (${reason}): ${describeBlockedUrl(url)}`);
       if (pageShown || surface === 'home') {
@@ -643,7 +665,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     }
     if (edit) endEdit(false);
     usePartition(inSession);
-    if (remember) {
+    if (remember && !isPrivate(partition)) {
       recents = addRecent(recents, url, Date.now());
       titleFor = url;
       saveRecents();
@@ -685,7 +707,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   eachPage((wc) => wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
     if (wc !== page || !isMainFrame || !isLoadFailure(code, url)) return;
     console.error(`[longboard] page failed to load (${code} ${description}): ${describeBlockedUrl(url)}`);
-    if (blockReason(url, options)) return;
+    if (blockReason(url, { ...options, httpsOnly: config.httpsOnly === true })) return;
     clearTimeout(retryTimer);
     if (isCertificateError(code)) {
       void page.loadURL(certificatePageUrl(description));
@@ -713,7 +735,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   }));
   // History: every page that arrives in the view in front, while the setting is on.
   const visited = (wc: WebContents, url: string): void => {
-    if (wc !== page || isNotice(url) || config.history === false) return;
+    if (wc !== page || isNotice(url) || config.history === false || isPrivate(partition)) return;
     visits = addVisit(visits, url, Date.now());
     saveHistory();
   };
@@ -722,7 +744,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (isMainFrame) visited(wc, url);
   }));
   eachPage((wc) => wc.on('page-title-updated', (_e, title) => {
-    if (wc === page && !isNotice(page.getURL()) && config.history !== false && visits[0]?.url === page.getURL()) {
+    if (wc === page && !isNotice(page.getURL()) && config.history !== false && !isPrivate(partition) && visits[0]?.url === page.getURL()) {
       visits = titleVisit(visits, page.getURL(), title);
       saveHistory();
     }
@@ -740,7 +762,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const NOTICE_GAP_MS = 5000;
   /** Returns true when `url` may load. A refusal is always logged and shown, never silent. */
   const allowed = (url: string): boolean => {
-    const reason = blockReason(url, options);
+    const reason = blockReason(url, { ...options, httpsOnly: config.httpsOnly === true });
     if (!reason) return true;
     console.error(`[longboard] blocked navigation (${reason}): ${describeBlockedUrl(url)}`);
     if (pageShown) {
@@ -1170,7 +1192,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       }
       return;
     }
-    if (remember) {
+    if (remember && !isPrivate(partition)) {
       sites[asked.site] = { ...sites[asked.site], ...withAnswers(sites[asked.site], asked.names, allow) };
       saveSites();
     }
@@ -1611,7 +1633,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     // A site on Home gets its own icon on its tile, fetched once from the site while it is open.
     const key = pageSite();
     const id = siteIconId(page.getURL());
-    if (!key || !favicons.length || !recents.some((r) => siteKey(r.url) === key)) return;
+    if (!key || !favicons.length || ![...recents, ...saved].some((r) => siteKey(r.url) === key)) return;
     // Fetched again after a week, in case the site has changed it.
     let age = Infinity;
     try {
@@ -1620,10 +1642,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
       // not fetched yet
     }
     if (age < ICON_KEPT_MS) return;
-    void saveIcon(id, favicons, page.session).then((saved) => {
+    void saveIcon(id, favicons, page.session).then((done) => {
       // The site may have been taken off Home while its icon was on the way.
-      if (saved && !recents.some((r) => siteKey(r.url) === key)) saveRecents();
-      else if (saved && surface === 'home' && !win.isDestroyed()) layout();
+      if (done && ![...recents, ...saved].some((r) => siteKey(r.url) === key)) saveRecents();
+      else if (done && surface === 'home' && !win.isDestroyed()) layout();
     });
   }));
   eachPage((wc) => wc.on('did-navigate', () => {
@@ -1877,10 +1899,32 @@ export function createBrowser(deps: BrowserDeps): Browser {
         panel = 'tabs';
         layout();
         break;
+      case 'find':
+        if (surface === 'page') panel = 'find';
+        layout();
+        break;
+      case 'savePage':
+      case 'unsavePage': {
+        const url = surface === 'page' ? page.getURL() : '';
+        if (isNotice(url)) break;
+        saved = action === 'savePage' ? addSaved(saved, url, page.getTitle()) : removeSaved(saved, url);
+        saveRecents();
+        // Its site's icon is fetched when the site next says what its icon is; often it already has.
+        if (action === 'savePage' && favicons.length && !iconOf(siteIconId(url))) void saveIcon(siteIconId(url), favicons, page.session);
+        layout();
+        notify(action === 'savePage' ? 'This page is kept on Home' : 'This page is no longer on Home');
+        break;
+      }
       case 'quit':
         app.quit();
         break;
     }
+  };
+  /** Clears what every site has stored (cookies and the rest) and the saved copies of pages, in every session. */
+  const clearSiteData = async (): Promise<void> => {
+    // By name, not through the views: this also runs as the program closes, when the views are gone.
+    const all = [session.defaultSession, ...apps.filter((a) => a.ownSession).map((a) => session.fromPartition(appPartition(a)))];
+    await Promise.all(all.flatMap((s) => [s.clearStorageData().catch(() => undefined), s.clearCache().catch(() => undefined)]));
   };
   /** The buttons on the Settings screen that do something once, as against changing a setting. */
   const settingsAction = (action: SettingsAction): void => {
@@ -1895,6 +1939,18 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'clearCache':
         void Promise.all(webSessions().map((s) => s.clearCache().catch(() => undefined))).then(() => notify('Cleared the saved copies of pages and pictures'));
+        break;
+      case 'clearAll':
+        // Everything Longboard and sites have kept about what was opened. Saved pages, apps and settings stay.
+        visits = [];
+        saveHistory();
+        recents = [];
+        saveRecents();
+        void clearSiteData().then(() => {
+          if (surface === 'page' && !page.isDestroyed()) page.reload();
+          layout();
+          notify('Cleared: history, recent sites, and what sites had stored');
+        });
         break;
       case 'clearHistory':
         visits = [];
@@ -1937,6 +1993,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
     }
   };
+  /** The places the person already knows, most their own first: for the suggestions under an address field. */
+  const knownPlaces = (): Known[] => [...saved, ...apps.map((a) => ({ url: a.url, title: a.name })), ...recents.map((r) => ({ url: r.url, title: r.title })), ...visits.map((v) => ({ url: v.url, title: v.title }))];
+  /** The words last looked for on the page, so that pressing again goes to the next place. */
+  let lastFound = '';
+  eachPage((wc) => wc.on('found-in-page', (_e, result) => {
+    if (wc !== page || panel !== 'find' || !result.finalUpdate) return;
+    notify(result.matches > 0 ? `${result.activeMatchOrdinal} of ${result.matches}` : 'Not found on this page');
+  }));
   const onChrome = (event: Electron.IpcMainEvent, msg: ChromeMessage): void => {
     // Only Longboard's own screen, and only its top frame.
     if (event.sender !== chrome || event.senderFrame !== chrome.mainFrame) return;
@@ -1960,6 +2024,32 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'tab':
         if (panel === 'tabs') tabAction(msg.op, msg.id);
+        break;
+      case 'openSaved':
+        if (typeof msg.url === 'string' && saved.some((p) => p.url === msg.url)) open(msg.url, false);
+        break;
+      case 'removeSaved':
+        if (surface === 'home' && typeof msg.url === 'string' && saved.some((p) => p.url === msg.url)) {
+          saved = removeSaved(saved, msg.url);
+          saveRecents();
+          panel = null;
+          layout();
+          notify('That page is no longer on Home');
+        }
+        break;
+      case 'suggest':
+        // Looked for in what is kept here, and nowhere else.
+        if (typeof msg.text === 'string') chrome.send('longboard:suggestions', { text: msg.text.slice(0, 200), list: suggest(msg.text.slice(0, 200), knownPlaces()) });
+        break;
+      case 'openSuggestion':
+        if (typeof msg.url === 'string' && knownPlaces().some((k) => k.url === msg.url)) open(msg.url, true);
+        break;
+      case 'find':
+        if (panel === 'find' && surface === 'page' && typeof msg.text === 'string' && msg.text.trim()) {
+          const text = msg.text.trim().slice(0, 200);
+          page.findInPage(text, { forward: msg.forward !== false, findNext: text === lastFound });
+          lastFound = text;
+        }
         break;
       case 'openVisit':
         if (panel === 'history' && typeof msg.url === 'string' && visits.some((v) => v.url === msg.url)) open(msg.url, true);
@@ -2119,6 +2209,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     win,
     openApp,
     openAddress: (url: string) => open(url, true),
+    clearSiteData,
   };
 }
 
@@ -2128,4 +2219,6 @@ export interface Browser {
   /** Opens an app by its id; false when there is none. */
   openApp: (id: string) => boolean;
   openAddress: (url: string) => void;
+  /** Clears what every site has stored, for "clear when Longboard closes". */
+  clearSiteData: () => Promise<void>;
 }

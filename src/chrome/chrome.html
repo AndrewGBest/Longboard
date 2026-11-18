@@ -40,7 +40,15 @@
   .tile .site { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tile .mark { font-size: 1.9vh; color: #7fd1c0; min-height: 2.4vh; }
   .tile .title { font-size: 2.3vh; color: #9aa3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 3vh; }
-  #empty, #hint { color: #9aa3af; font-size: 2.6vh; margin: 0; }
+  #empty, #hint, #private { color: #9aa3af; font-size: 2.6vh; margin: 0; }
+  #private { color: #d9c27a; }
+  #suggestions { display: flex; flex-direction: column; gap: 1vh; }
+  #suggestions:empty { display: none; }
+  #suggestions button {
+    box-sizing: border-box; width: 100%; min-height: 7vh; padding: 1vh 3vh; border: 0; border-radius: 1.2vh;
+    background: #1c222b; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #panel .warn { color: #e5b567; }
   #hint { margin-top: auto; }
 
   /* The panel: a strip down the right. Over Home it lies on top of it; over

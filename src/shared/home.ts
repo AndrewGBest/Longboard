@@ -51,3 +51,36 @@ export function removeRecent(list: readonly RecentSite[], url: string): RecentSi
   const key = siteKey(url);
   return list.filter((r) => siteKey(r.url) !== key);
 }
+
+/** A page the person asked to keep on Home. */
+export interface SavedPage {
+  url: string;
+  title: string;
+}
+export const MAX_SAVED = 40;
+const isWeb = (url: unknown): url is string => typeof url === 'string' && url.length <= 2000 && /^https?:\/\//i.test(url);
+
+/** Validates the saved pages in home.json. Anything unusable is dropped. */
+export function parseSaved(raw: unknown): SavedPage[] {
+  const list = raw && typeof raw === 'object' ? (raw as Record<string, unknown>)['saved'] : null;
+  if (!Array.isArray(list)) return [];
+  const out: SavedPage[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== 'object') continue;
+    const r = item as Record<string, unknown>;
+    if (!isWeb(r['url']) || out.some((o) => o.url === r['url'])) continue;
+    out.push({ url: r['url'], title: clean(r['title'], 120) });
+    if (out.length >= MAX_SAVED) break;
+  }
+  return out;
+}
+
+/** The saved pages with one more at the front; a page already saved moves there with its new title. */
+export function addSaved(list: readonly SavedPage[], url: string, title: string): SavedPage[] {
+  if (!isWeb(url)) return [...list];
+  return [{ url, title: clean(title, 120) }, ...list.filter((s) => s.url !== url)].slice(0, MAX_SAVED);
+}
+
+export function removeSaved(list: readonly SavedPage[], url: string): SavedPage[] {
+  return list.filter((s) => s.url !== url);
+}

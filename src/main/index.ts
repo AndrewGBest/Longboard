@@ -1,5 +1,5 @@
 // Main process: start-up. The window and its views are in browser.ts.
-import { app, session } from 'electron';
+import { app, nativeTheme, session } from 'electron';
 import * as electron from 'electron';
 import { join } from 'node:path';
 import { parseConfig, type UserConfig } from '../shared/config';
@@ -175,8 +175,11 @@ async function main(): Promise<void> {
     for (const key of Object.keys(config) as (keyof UserConfig)[]) delete config[key];
     Object.assign(config, parsed);
     startsOff = effectiveVerified(reviewed, config.adBlockingStartsOff, config.adBlockingStartsOn);
+    nativeTheme.themeSource = config.theme ?? 'system';
     void readyFilters();
   };
+  // The look sites are asked for (their dark or light one), when the person chose.
+  nativeTheme.themeSource = config.theme ?? 'system';
 
   const browser = createBrowser({
     options,
@@ -224,6 +227,14 @@ async function main(): Promise<void> {
     const address = given ? resolveAddress(given, config.search) : null;
     if (wantedApp) browser.openApp(wantedApp);
     else if (address) browser.openAddress(address);
+  });
+  // "Clear what sites stored when Longboard closes": done before the program goes, once.
+  let cleared = false;
+  app.on('before-quit', (event) => {
+    if (cleared || config.clearOnExit !== true) return;
+    event.preventDefault();
+    cleared = true;
+    void Promise.race([browser.clearSiteData(), new Promise((r) => setTimeout(r, 3000))]).finally(() => app.quit());
   });
   app.on('window-all-closed', () => app.quit());
 }

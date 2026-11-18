@@ -28,20 +28,24 @@ let draft = { name: '', ownSession: false, launcher: true };
 /** The menu's own second page, about the site in front. */
 let menuPage: 'main' | 'site' = 'main';
 /** A list to choose one thing from, opened from a Settings page. */
-let choosing: 'search' | 'language' | 'ads' | null = null;
+let choosing: 'search' | 'language' | 'ads' | 'theme' | null = null;
 /** Which page of Settings is showing. */
 type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote';
 let settingsPage: SettingsPage = 'main';
 /** A button that clears something has been pressed once and waits for the second press. */
 let confirming: string | null = null;
 /** The Home tile the highlight was on when the menu was opened from Home; the menu offers to remove it. */
-let menuFor: { kind: 'recent'; url: string; name: string } | { kind: 'app'; id: string; name: string } | null = null;
+let menuFor: { kind: 'recent'; url: string; name: string } | { kind: 'saved'; url: string; name: string } | { kind: 'app'; id: string; name: string } | null = null;
 
 /** The tile with the highlight on Home, from what is drawn now. */
 function focusedTile(s: ChromeState): typeof menuFor {
   const id = document.querySelector('[data-longboard-focus]')?.id ?? '';
-  const m = /^(tile|app)-(\d+)$/.exec(id);
+  const m = /^(tile|app|saved)-(\d+)$/.exec(id);
   if (!m) return null;
+  if (m[1] === 'saved') {
+    const p = s.home.saved[Number(m[2])];
+    return p ? { kind: 'saved', url: p.url, name: p.title || siteName(p.url) } : null;
+  }
   if (m[1] === 'tile') {
     const r = s.home.recents[Number(m[2])];
     return r ? { kind: 'recent', url: r.url, name: siteName(r.url) } : null;
@@ -85,6 +89,8 @@ function addressField(id: string): HTMLInputElement {
     input.blur();
     tell({ kind: 'open', input: text });
   });
+  // Places the person already knows that match what has been typed so far, offered under the field.
+  input.addEventListener('input', () => tell({ kind: 'suggest', text: input.value }));
   return input;
 }
 
@@ -95,6 +101,25 @@ function badge(icon: string | null, name: string): HTMLElement {
   img.src = icon;
   img.alt = '';
   return img;
+}
+
+/** The suggestions for what is typed in an address field: a few buttons under it, replaced as the typing goes on. */
+function showSuggestions(list: Array<{ url: string; text: string }>): void {
+  const field = document.getElementById('address') ?? document.getElementById('menu-address');
+  if (!field) return;
+  let box = document.getElementById('suggestions');
+  if (!box) {
+    box = el('div', { id: 'suggestions' });
+    field.after(box);
+  }
+  box.replaceChildren(
+    ...list.map((sug, i) =>
+      button(`suggest-${i}`, sug.text, () => {
+        typing = false;
+        tell({ kind: 'openSuggestion', url: sug.url });
+      }),
+    ),
+  );
 }
 
 function home(s: ChromeState): HTMLElement {
@@ -109,7 +134,8 @@ function home(s: ChromeState): HTMLElement {
   if (typing) {
     // Leaving the field without opening anything puts the button back.
     go.addEventListener('blur', () => {
-      if (!typing) return;
+      // With suggestions showing, the highlight may be on its way to one of them: the field stays.
+      if (!typing || document.getElementById('suggestions')?.childElementCount) return;
       typing = false;
       render();
       const again = document.getElementById('go');
@@ -135,10 +161,19 @@ function home(s: ChromeState): HTMLElement {
     tile.append(badge(a.icon, a.name), el('span', { cls: 'site', text: a.name }), el('span', { cls: 'title', text: a.site }), el('span', { cls: 'mark', text: a.ownSession ? 'Own sign-ins' : '' }));
     return tile;
   });
-  const main = el('main', { id: 'home' }, [el('h1', { text: `${PRODUCT.name}` }), go]);
+  const savedTiles = s.home.saved.map((p, i) => {
+    const site = siteName(p.url);
+    const tile = button(`saved-${i}`, '', () => tell({ kind: 'openSaved', url: p.url }));
+    tile.className = 'tile';
+    tile.append(badge(p.icon, site), el('span', { cls: 'site', text: p.title || site }), el('span', { cls: 'title', text: site }), el('span', { cls: 'mark', text: '' }));
+    return tile;
+  });
+  const main = el('main', { id: 'home' }, [el('h1', { text: s.home.privateTab ? `${PRODUCT.name}: private tab` : PRODUCT.name }), go]);
+  if (s.home.privateTab) main.append(el('p', { id: 'private', text: 'Nothing opened in this tab is kept: no history, no recent sites, and what its sites store goes when the tab is closed.' }));
+  if (savedTiles.length) main.append(el('h2', { text: 'Saved pages' }), el('div', { id: 'saved', cls: 'tiles' }, savedTiles));
   if (apps.length) main.append(el('h2', { text: 'Apps' }), el('div', { id: 'apps', cls: 'tiles' }, apps));
   if (tiles.length) main.append(el('h2', { text: 'Recently opened' }), el('div', { id: 'tiles', cls: 'tiles' }, tiles));
-  else if (!apps.length) main.append(el('p', { id: 'empty', text: 'Sites you open will appear here.' }));
+  else if (!apps.length && !savedTiles.length) main.append(el('p', { id: 'empty', text: 'Sites you open will appear here.' }));
   main.append(el('p', { id: 'hint', text: 'Menu key, Ctrl+O or Start: menu.   F2 or right stick click: pointer.   Ctrl+Q: quit.' }));
   return main;
 }
@@ -152,6 +187,8 @@ function menuPanel(s: ChromeState): Node[] {
     const items: Node[] = [
       el('h1', { text: 'This site' }),
       el('p', { cls: 'where', text: page.title ? `${page.title} (${page.site})` : page.site }),
+      page.saved ? button('menu-unsave', 'Take this page off Home', act('unsavePage')) : button('menu-save', 'Keep this page on Home', act('savePage')),
+      button('menu-find', 'Find words on this page', act('find')),
       page.app ? button('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp')) : button('menu-add-app', 'Add this site as an app', act('addApp')),
       el('p', { cls: 'where', text: page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode' }),
       button('menu-edit', page.profile ? 'Edit the profile for this site' : 'Make a profile for this site', act('editProfile')),
@@ -169,6 +206,7 @@ function menuPanel(s: ChromeState): Node[] {
   }
   const items: Node[] = [el('h1', { text: 'Menu' })];
   if (page && onPage) items.push(el('p', { cls: 'where', text: page.title ? `${page.title} (${page.site})` : page.site }));
+  if (page && onPage && !page.secure) items.push(el('p', { id: 'not-secure', cls: 'where warn', text: 'Not secure: this page is sent over plain http, where anyone on the way can read or change it.' }));
   items.push(addressField('menu-address'));
   if (onPage) items.push(button('menu-home', 'Home', act('home')));
   else if (page) items.push(button('menu-resume', `Back to ${page.site}`, act('resume')));
@@ -177,7 +215,9 @@ function menuPanel(s: ChromeState): Node[] {
     items.push(
       tile.kind === 'recent'
         ? button('menu-remove-tile', `Remove ${tile.name} from Home`, () => tell({ kind: 'removeRecent', url: tile.url }))
-        : button('menu-remove-tile', `Remove the app "${tile.name}"`, () => tell({ kind: 'removeApp', id: tile.id })),
+        : tile.kind === 'saved'
+          ? button('menu-remove-tile', `Take "${tile.name}" off Home`, () => tell({ kind: 'removeSaved', url: tile.url }))
+          : button('menu-remove-tile', `Remove the app "${tile.name}"`, () => tell({ kind: 'removeApp', id: tile.id })),
     );
   }
   if (page && onPage) {
@@ -328,6 +368,13 @@ function settingsPanel(s: ChromeState): Node[] {
   if (choosing === 'language') {
     return choose('Language sites are asked for', 'language', LANGUAGE_CHOICES.map((l) => ({ text: l.name === "the system's" ? "The system's language" : l.name, value: l.code, chosen: l.code === st.language })));
   }
+  if (choosing === 'theme') {
+    return choose('Look sites are asked for', 'theme', [
+      { text: "The system's", value: null, chosen: st.theme === null },
+      { text: 'Dark', value: 'dark', chosen: st.theme === 'dark' },
+      { text: 'Light', value: 'light', chosen: st.theme === 'light' },
+    ]);
+  }
   if (choosing === 'ads') {
     const mode = st.adBlocking.mode;
     return choose('Ad blocking', 'adBlocking', [
@@ -360,6 +407,10 @@ function settingsPanel(s: ChromeState): Node[] {
           button('set-size-reset', `${Math.round(st.pageSize * 100)}%`, set('pageSize', null)),
           button('set-size-up', 'Bigger', set('pageSize', step(1)), at === PAGE_SIZES.length - 1),
         ]),
+        button('set-theme', `Look sites are asked for: ${st.theme === 'dark' ? 'dark' : st.theme === 'light' ? 'light' : "the system's"}`, pick('theme')),
+        say('Many sites have a dark look and a light one and ask the browser which to show.'),
+        button('set-autoplay', `Videos may start by themselves: ${yesNo(st.autoplay)}`, set('autoplay', st.autoplay ? false : null)),
+        say(`Sites that play video as soon as they open. Takes effect the next time ${PRODUCT.name} starts.`),
         button('set-decode', `Decode video on the graphics chip: ${yesNo(st.hardwareDecode)}`, set('hardwareDecode', !st.hardwareDecode)),
         say(`Can make video smoother on some boxes and break it on others. Takes effect the next time ${PRODUCT.name} starts.`),
         back,
@@ -414,6 +465,9 @@ function settingsPanel(s: ChromeState): Node[] {
         twice('clear-data', 'Sign out of every site and clear what sites have stored', 'Press again to sign out everywhere', 'clearSiteData'),
         once('clear-cache', 'Clear saved copies of pages and pictures', 'clearCache'),
         once('clear-home', 'Clear the recently opened sites on Home', 'clearHome'),
+        twice('clear-all', 'Clear everything: history, recent sites, and what sites stored', 'Press again to clear everything', 'clearAll'),
+        button('set-https', `Open only pages sent privately (https): ${yesNo(st.httpsOnly)}`, set('httpsOnly', st.httpsOnly ? null : true)),
+        button('set-clear-exit', `Clear what sites stored when ${PRODUCT.name} closes: ${yesNo(st.clearOnExit)}`, set('clearOnExit', st.clearOnExit ? null : true)),
         button('set-history', `Keep a history of pages opened: ${yesNo(st.history)}`, set('history', st.history ? false : null)),
         once('clear-history', `Clear the history (${st.visits})`, 'clearHistory'),
         twice('clear-sites', `Forget every site's own settings (${st.sitesWithChoices})`, "Press again to forget every site's settings", 'forgetSites'),
@@ -509,11 +563,47 @@ function settingsPanel(s: ChromeState): Node[] {
   }
 }
 
+/** Find words on the page in front: a field, and next and previous. What was typed stays while the panel is open. */
+let finding = '';
+function findPanel(): Node[] {
+  const field = el('input', { id: 'find-text' });
+  field.type = 'text';
+  field.value = finding;
+  field.placeholder = 'Words to find';
+  field.setAttribute('aria-label', 'Words to find');
+  field.setAttribute('enterkeyhint', 'search');
+  field.autocapitalize = 'off';
+  field.spellcheck = false;
+  const look = (forward: boolean) => (): void => {
+    if (finding.trim()) tell({ kind: 'find', text: finding, forward });
+  };
+  field.addEventListener('input', () => (finding = field.value));
+  field.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    field.blur();
+    look(true)();
+    const next = document.getElementById('find-next');
+    if (next) layer?.focus(next);
+  });
+  return [
+    el('h1', { text: 'Find on this page' }),
+    field,
+    el('div', { cls: 'pair' }, [button('find-previous', 'Previous', look(false)), button('find-next', 'Next', look(true))]),
+    el('p', { cls: 'where', text: 'Each place the words are found is marked on the page. The part of the page under this panel cannot be seen until it is closed.' }),
+    button('find-close', 'Close', () => tell({ kind: 'menu', action: 'close' })),
+  ];
+}
+
 /** The open tabs: bring one in front, close one, or open another. */
 function tabsPanel(s: ChromeState): Node[] {
-  const items: Node[] = [el('h1', { text: 'Tabs' }), button('tab-new', 'New tab', () => tell({ kind: 'tab', op: 'new' }))];
+  const items: Node[] = [
+    el('h1', { text: 'Tabs' }),
+    el('div', { cls: 'pair' }, [button('tab-new', 'New tab', () => tell({ kind: 'tab', op: 'new' })), button('tab-private', 'New private tab', () => tell({ kind: 'tab', op: 'private' }))]),
+  ];
   s.tabs.forEach((t, i) => {
-    const name = t.site ? (t.title ? `${t.title} (${t.site})` : t.site) : 'Empty tab';
+    const what = t.site ? (t.title ? `${t.title} (${t.site})` : t.site) : 'Empty tab';
+    const name = t.private ? `Private: ${what}` : what;
     items.push(button(`tab-${i}`, t.current ? `${name}: in front now` : name, () => tell({ kind: 'tab', op: 'switch', id: t.id })));
     if (s.tabs.length > 1) items.push(button(`tab-close-${i}`, `Close: ${name}`, () => tell({ kind: 'tab', op: 'close', id: t.id })));
   });
@@ -600,7 +690,7 @@ function render(): void {
   if (!strip) parts.push(home(s));
   let panel: HTMLElement | null = null;
   if (s.panel) {
-    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : s.panel === 'history' ? historyPanel(s) : s.panel === 'tabs' ? tabsPanel(s) : promptPanel(s));
+    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : s.panel === 'history' ? historyPanel(s) : s.panel === 'tabs' ? tabsPanel(s) : s.panel === 'find' ? findPanel() : promptPanel(s));
     // The layer keeps the highlight inside an open modal dialog.
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
@@ -629,6 +719,7 @@ ipcRenderer.on('longboard:chrome-state', (_event, next: ChromeState) => {
   // The menu opens on its first page each time, and a chooser does not outlive its screen.
   if (next.panel !== 'menu' || state?.panel !== 'menu') menuPage = 'main';
   if (next.panel !== 'settings') choosing = null;
+  if (next.panel !== 'find') finding = '';
   // Settings opens on its first page each time.
   if (next.panel === 'settings' && state?.panel !== 'settings') settingsPage = 'main';
   if (next.panel !== 'settings') confirming = null;
@@ -674,6 +765,12 @@ ipcRenderer.on('longboard:keys', (_event, keys: unknown) => {
   for (const key of Object.keys(held)) delete held[key];
   for (const [key, action] of Object.entries(keys as Record<string, unknown>).slice(0, 200)) if (typeof action === 'string') held[key] = action;
 });
+ipcRenderer.on('longboard:suggestions', (_event, reply: { text: string; list: Array<{ url: string; text: string }> }) => {
+  const field = (document.getElementById('address') ?? document.getElementById('menu-address')) as HTMLInputElement | null;
+  // Only for what is in the field now: an answer to something typed earlier is out of date.
+  if (!reply || !field || field.value !== reply.text || !Array.isArray(reply.list)) return;
+  showSuggestions(reply.list.slice(0, 5).filter((x) => x && typeof x.url === 'string' && typeof x.text === 'string'));
+});
 ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
   if (typeof text === 'string') layer?.notice(text.slice(0, 200));
 });
@@ -700,6 +797,12 @@ const start = (): void => {
       },
       back: () => {
         if (!state) return true;
+        // Back out of an address field that is showing suggestions puts the button back.
+        if (typing && !state.panel) {
+          typing = false;
+          render();
+          return true;
+        }
         if (state.panel === 'prompt') tell({ kind: 'answer', allow: false, remember: false });
         // Back on the editor's panel goes back to pointing; the panel's own buttons end the editing.
         else if (state.panel === 'edit') tell({ kind: 'edit', action: 'pickAgain' });

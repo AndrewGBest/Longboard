@@ -61,6 +61,14 @@ const site = await serveFixtures({
     asks.file += 1;
     res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename=x.bin', 'content-length': 4 }).end('data');
   },
+  // A second of silence, as a sound file: something a page can try to play.
+  '/quiet.wav': (_req, res) => {
+    const samples = 8000;
+    const head = Buffer.alloc(44);
+    head.write('RIFF', 0); head.writeUInt32LE(36 + samples, 4); head.write('WAVEfmt ', 8); head.writeUInt32LE(16, 16); head.writeUInt16LE(1, 20); head.writeUInt16LE(1, 22);
+    head.writeUInt32LE(8000, 24); head.writeUInt32LE(8000, 28); head.writeUInt16LE(1, 32); head.writeUInt16LE(8, 34); head.write('data', 36); head.writeUInt32LE(samples, 40);
+    res.writeHead(200, { 'content-type': 'audio/wav' }).end(Buffer.concat([head, Buffer.alloc(samples, 128)]));
+  },
   // A made-up filter list, and what the page with advertising asks for.
   '/filters.txt': (_req, res) => res.writeHead(200, { 'content-type': 'text/plain' }).end('[Adblock Plus 2.0]\n! Title: made-up list for the tests\n/advert/*\nlocalhost,127.0.0.1##a\n'),
   '/advert/ad.js': (_req, res) => {
@@ -797,6 +805,7 @@ await scenario('a site with no profile, then with one', { url: profiled, args: [
   check('down goes past the tiles to the first real control', ['stray', 'footer-link', 'panel-close'].includes(await focused()), true);
   const chrome = await app.chrome();
   await press('ContextMenu', 500);
+  check('the menu warns that a page sent over plain http is not secure', (await chrome.evaluate('document.getElementById("not-secure")?.textContent ?? ""')).startsWith('Not secure:'), true);
   await siteMenu(chrome);
   check('the menu says there is no profile', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('No profile for this site: generic mode'), true);
   check('and offers nothing to export', await chrome.evaluate('!!document.getElementById("menu-export")'), false);
@@ -1132,6 +1141,100 @@ await scenario('a page that is not in front stands still', { url: `${site.origin
   check('and it is driven as before', (await page.focused()) !== null, true);
 });
 
+await scenario('saved pages, suggestions, finding words, and a private tab', { url: `${site.origin}/article.html` }, async (app) => {
+  const page = await app.page(`${site.origin}/article.html`);
+  const chrome = await app.chrome();
+  const home = () => JSON.parse(readFileSync(join(app.userData, 'home.json'), 'utf8'));
+  const reach = async (id, key = 'ArrowDown') => {
+    for (let i = 0; i < 24 && (await chrome.focused()) !== id; i++) await chrome.press(key);
+    return chrome.focused();
+  };
+  await sleep(900);
+  check('sound a page starts by itself plays, as Longboard ships', await page.evaluate('new Audio("/quiet.wav").play().then(() => "played", (e) => e.name)'), 'played');
+  check('a page sent privately, or from this machine, gets no warning', (await page.press('ContextMenu', 500), await chrome.evaluate('document.getElementById("not-secure")')), null);
+
+  // Keeping the page on Home.
+  await siteMenu(chrome);
+  await reach('menu-save');
+  await chrome.press('Enter', 500);
+  check('"Keep this page on Home" keeps it, and says so', [home().saved, await chrome.toastText()], [[{ url: `${site.origin}/article.html`, title: 'Longboard fixture: long article' }], 'This page is kept on Home']);
+  check('and the menu then offers to take it off', await chrome.evaluate('document.getElementById("menu-unsave")?.textContent'), 'Take this page off Home');
+
+  // Finding words.
+  await reach('menu-find');
+  await chrome.press('Enter', 500);
+  check('"Find words on this page" opens a field and two buttons', [await chrome.evaluate('document.querySelector("#panel h1")?.textContent'), await chrome.evaluate('!!document.getElementById("find-text")')], ['Find on this page', true]);
+  await reach('find-text', 'ArrowUp');
+  await chrome.press('Enter', 400);
+  await chrome.press('Escape', 200);
+  await chrome.type('link');
+  await chrome.press('Enter', 700);
+  const first = await until(() => chrome.toastText(), (t) => /^\d+ of \d+$/.test(t ?? ''), 40);
+  check('typing words and pressing Enter finds them and says how many there are', [/^1 of [2-9]\d*$/.test(first ?? ''), await chrome.focused()], [true, 'find-next']);
+  await chrome.press('Enter', 700);
+  check('Next goes to the next place', /^2 of /.test((await until(() => chrome.toastText(), (t) => /^2 of /.test(t ?? ''), 40)) ?? ''), true);
+  await chrome.press('Escape', 500);
+
+  // Home: the saved page, and suggestions under the address field.
+  await sleep(600);
+  await page.press('Escape', 700);
+  await until(() => chrome.evaluate('document.visibilityState'), (v) => v === 'visible');
+  check('Home has a Saved pages section with the page in it', [await chrome.evaluate('document.querySelector("#saved .site")?.textContent'), await chrome.focused()], ['Longboard fixture: long article', 'saved-0']);
+  await reach('go', 'ArrowUp');
+  await chrome.press('Enter', 400);
+  await chrome.press('Escape', 200);
+  await chrome.type('long art');
+  const offered = await until(() => chrome.evaluate('[...document.querySelectorAll("#suggestions button")].map((b) => b.textContent)'), (l) => l.length > 0, 40);
+  check('typing in the address field offers places already known that match', offered, ['Longboard fixture: long article (127.0.0.1)']);
+  await chrome.press('ArrowDown');
+  check('down from the field goes to the suggestion, and the field stays', [await chrome.focused(), await chrome.evaluate('document.getElementById("address")?.value')], ['suggest-0', 'long art']);
+  await chrome.press('Enter', 700);
+  check('pressing it opens that page', await until(() => page.evaluate('document.visibilityState + location.pathname'), (v) => v === 'visible/article.html'), 'visible/article.html');
+
+  // A private tab.
+  await page.evaluate('document.cookie = "who=shared; path=/"; 0');
+  await sleep(500);
+  await page.press('ContextMenu', 500);
+  await reach('menu-tabs');
+  await chrome.press('Enter', 500);
+  await chrome.press('ArrowRight');
+  check('Tabs offers a private tab beside a new one', await chrome.focused(), 'tab-private');
+  await chrome.press('Enter', 600);
+  check('a private tab starts on Home and says what it is', [await chrome.evaluate('document.querySelector("#home h1")?.textContent'), (await chrome.evaluate('document.getElementById("private")?.textContent ?? ""')).startsWith('Nothing opened in this tab is kept')], ['Longboard: private tab', true]);
+  const before = { visits: JSON.parse(readFileSync(join(app.userData, 'history.json'), 'utf8')).visits.length, recents: home().recents.length };
+  await reach('go', 'ArrowUp');
+  await chrome.press('Enter', 400);
+  await chrome.press('Escape', 200);
+  await chrome.type(`${site.origin.replace('http://', '')}/form.html`);
+  await chrome.press('Enter', 500);
+  const priv = await app.page(`${site.origin}/form.html`);
+  check('an address opens in it', !!priv, true);
+  if (!priv) return;
+  await until(() => priv.evaluate('document.readyState'), (v) => v === 'complete');
+  await sleep(500);
+  check('it does not see what the other tabs\' sites stored', await priv.evaluate('document.cookie'), '');
+  await priv.evaluate('document.cookie = "who=private; path=/"; 0');
+  check('and nothing opened in it is written down: no history, no recent site', [JSON.parse(readFileSync(join(app.userData, 'history.json'), 'utf8')).visits.length, home().recents.length], [before.visits, before.recents]);
+  await priv.press('ContextMenu', 500);
+  await reach('menu-tabs');
+  await chrome.press('Enter', 500);
+  const tabs = await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=tab-]")].map((b) => b.textContent)');
+  check('the list of tabs marks it as private', tabs.filter((t) => t.includes('Private: ')).length, 2);
+  await reach('tab-close-1');
+  await chrome.press('Enter', 700);
+  check('closing it leaves the other tab with what it had, and nothing from the private one', [await page.evaluate('document.cookie'), await page.evaluate('document.visibilityState')], ['who=shared', 'visible']);
+});
+
+await scenario('settings that change how sites are shown', { url: `${site.origin}/video.html`, config: { theme: 'dark', httpsOnly: true, autoplay: false }, args: [mapHost] }, async (app) => {
+  const page = await app.page(site.origin);
+  await sleep(1200);
+  check('sites are asked for their dark look when Settings says so', await page.evaluate('matchMedia("(prefers-color-scheme: dark)").matches'), true);
+  check('sound and video do not start by themselves when Settings says not to', await page.evaluate('new Audio("/quiet.wav").play().then(() => "played", (e) => e.name)'), 'NotAllowedError');
+  await page.evaluate(`location.href = "http://profile.test:${port}/home.html"; 0`);
+  await sleep(900);
+  check('with "only pages sent privately" on, a plain http page is not opened, and says why', [await page.evaluate('location.host'), await page.toastText()], [new URL(site.origin).host, 'Not opened: that page is not sent privately (http). Settings can allow such pages']);
+});
+
 await scenario('tabs', { url: `${site.origin}/home.html` }, async (app) => {
   const first = await app.page(`${site.origin}/home.html`);
   const chrome = await app.chrome();
@@ -1144,7 +1247,7 @@ await scenario('tabs', { url: `${site.origin}/home.html` }, async (app) => {
   await sleep(800);
   await first.press('ArrowDown');
   await openTabs(first);
-  check('the menu has Tabs, which starts with the one page that is open', await names(), ['tab-new=New tab', 'tab-0=Longboard fixture: generic streaming home (127.0.0.1): in front now']);
+  check('the menu has Tabs, which starts with the one page that is open', await names(), ['tab-new=New tab', 'tab-private=New private tab', 'tab-0=Longboard fixture: generic streaming home (127.0.0.1): in front now']);
   for (let i = 0; i < 4 && (await chrome.focused()) !== 'tab-new'; i++) await chrome.press('ArrowUp');
   await chrome.press('Enter', 600);
   check('a new tab starts on Home, with the first page still there behind it', [await chrome.evaluate('!!document.getElementById("home")'), await chrome.focused(), await first.evaluate('document.visibilityState + location.pathname')], [true, 'go', 'hidden/home.html']);
@@ -1160,7 +1263,7 @@ await scenario('tabs', { url: `${site.origin}/home.html` }, async (app) => {
 
   await sleep(500);
   await openTabs(second);
-  check('Tabs lists both, and says which is in front', (await names()).map((n) => n.replace(/=.*\((127[^)]*)\)/, '=($1)')), ['tab-new=New tab', 'tab-0=(127.0.0.1)', 'tab-close-0=(127.0.0.1)', 'tab-1=(127.0.0.1): in front now', 'tab-close-1=(127.0.0.1)']);
+  check('Tabs lists both, and says which is in front', (await names()).map((n) => n.replace(/=.*\((127[^)]*)\)/, '=($1)')), ['tab-new=New tab', 'tab-private=New private tab', 'tab-0=(127.0.0.1)', 'tab-close-0=(127.0.0.1)', 'tab-1=(127.0.0.1): in front now', 'tab-close-1=(127.0.0.1)']);
   for (let i = 0; i < 8 && (await chrome.focused()) !== 'tab-0'; i++) await chrome.press('ArrowDown');
   await chrome.press('Enter', 600);
   check('pressing a tab brings it in front', [await first.evaluate('document.visibilityState'), await second.evaluate('document.visibilityState')], ['visible', 'hidden']);
@@ -1170,7 +1273,7 @@ await scenario('tabs', { url: `${site.origin}/home.html` }, async (app) => {
   await openTabs(first);
   for (let i = 0; i < 8 && (await chrome.focused()) !== 'tab-close-1'; i++) await chrome.press('ArrowDown');
   await chrome.press('Enter', 600);
-  check('a tab can be closed from the list, which leaves the other where it was', [await names(), await first.evaluate('location.pathname')], [['tab-new=New tab', 'tab-0=Longboard fixture: generic streaming home (127.0.0.1): in front now'], '/home.html']);
+  check('a tab can be closed from the list, which leaves the other where it was', [await names(), await first.evaluate('location.pathname')], [['tab-new=New tab', 'tab-private=New private tab', 'tab-0=Longboard fixture: generic streaming home (127.0.0.1): in front now'], '/home.html']);
   check('the closed tab is gone, not hidden', await second.evaluate('1').then(() => 'still there', () => 'gone'), 'gone');
 });
 
@@ -1264,26 +1367,26 @@ await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', '
 
   await open('set-ads-list');
   const entries = () => chrome.evaluate('[...document.querySelectorAll("#panel button[id^=starts-off-]")].map((b) => b.textContent)');
-  check('the list of sites where it starts off shows the reviewed sites', await entries(), ['primevideo.com (reviewed list: press to take off)', 'youtube.com (reviewed list: press to take off)']);
-  await open('starts-off-1');
-  check('pressing a reviewed site takes it off, and says whose doing that was', [await entries(), file().adBlockingStartsOn], [['primevideo.com (reviewed list: press to take off)', 'youtube.com (taken off by you: press to put back)'], ['youtube.com']]);
+  check('the list of sites where it starts off shows the reviewed sites', await entries(), ['primevideo.com (reviewed list: press to take off)', 'tv.apple.com (reviewed list: press to take off)', 'youtube.com (reviewed list: press to take off)']);
+  await open('starts-off-2');
+  check('pressing a reviewed site takes it off, and says whose doing that was', [await entries(), file().adBlockingStartsOn], [['primevideo.com (reviewed list: press to take off)', 'tv.apple.com (reviewed list: press to take off)', 'youtube.com (taken off by you: press to put back)'], ['youtube.com']]);
   await chrome.press('Enter', 400);
-  check('pressing it again puts it back', [(await entries())[1], 'adBlockingStartsOn' in file()], ['youtube.com (reviewed list: press to take off)', false]);
+  check('pressing it again puts it back', [(await entries())[2], 'adBlockingStartsOn' in file()], ['youtube.com (reviewed list: press to take off)', false]);
   for (let i = 0; i < 6 && (await chrome.focused()) !== 'starts-off-add'; i++) await chrome.press('ArrowUp');
   await chrome.press('Enter', 400);
   check('OK on the field brings the keyboard up', [await chrome.evaluate('document.activeElement?.id'), await chrome.keyboardShown()], ['starts-off-add', true]);
   await chrome.press('Escape', 200);
   await chrome.type('https://WWW.Example.org/some/page');
   await chrome.press('Enter', 500);
-  check('a site typed as a person would type it is added to the list', [await entries(), file().adBlockingStartsOff], [['example.org (added by you: press to remove)', 'primevideo.com (reviewed list: press to take off)', 'youtube.com (reviewed list: press to take off)'], ['example.org']]);
+  check('a site typed as a person would type it is added to the list', [await entries(), file().adBlockingStartsOff], [['example.org (added by you: press to remove)', 'primevideo.com (reviewed list: press to take off)', 'tv.apple.com (reviewed list: press to take off)', 'youtube.com (reviewed list: press to take off)'], ['example.org']]);
   await open('starts-off-0');
-  check('and pressing it removes it again', [(await entries()).length, 'adBlockingStartsOff' in file()], [2, false]);
+  check('and pressing it removes it again', [(await entries()).length, 'adBlockingStartsOff' in file()], [3, false]);
   for (let i = 0; i < 6 && (await chrome.focused()) !== 'starts-off-add'; i++) await chrome.press('ArrowUp');
   await chrome.press('Enter', 400);
   await chrome.press('Escape', 200);
   await chrome.type('not a site');
   await chrome.press('Enter', 500);
-  check('something that is not a site name is not added, and says why', [(await entries()).length, await chrome.toastText()], [2, 'That is not a site name. Try something like example.com']);
+  check('something that is not a site name is not added, and says why', [(await entries()).length, await chrome.toastText()], [3, 'That is not a site name. Try something like example.com']);
   await chrome.press('Escape', 400);
   check('Back from the list goes to ad blocking', await title(), 'Ad blocking');
   await chrome.press('Escape', 400);
