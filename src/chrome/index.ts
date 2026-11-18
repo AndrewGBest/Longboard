@@ -7,7 +7,7 @@
 // Longboard's own interface is the first user of its navigation engine.
 import { ipcRenderer } from 'electron';
 import type { BootData, BridgeMessage } from '../shared/actions';
-import type { ChromeMessage, ChromeState, MenuAction } from '../shared/chrome';
+import type { ChromeMessage, ChromeState, EditAction, MenuAction } from '../shared/chrome';
 import { aboutTitle, BACKGROUND, HELP, NOTICE } from '../shared/about';
 import { siteName } from '../shared/address';
 import { genericRules } from '../layer/profile/rules';
@@ -139,6 +139,7 @@ function menuPanel(s: ChromeState): Node[] {
       el('p', { cls: 'where', text: page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode' }),
     );
     if (page.profile) items.push(button('menu-export', 'Export this profile', act('exportProfile')));
+    items.push(button('menu-edit', page.profile ? 'Edit the profile for this site' : 'Make a profile for this site', act('editProfile')));
     items.push(page.app ? button('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp')) : button('menu-add-app', 'Add this site as an app', act('addApp')));
   }
   items.push(button('menu-import', 'Import profiles from USB', act('importProfiles')));
@@ -171,6 +172,36 @@ function addAppPanel(s: ChromeState): Node[] {
   items.push(
     button('app-add', 'Add', () => tell({ kind: 'addApp', name: draft.name, ownSession: draft.ownSession, launcher: draft.launcher && s.page?.canAddToAppList === true })),
     button('app-cancel', 'Cancel', () => tell({ kind: 'menu', action: 'close' })),
+  );
+  return items;
+}
+
+/** The profile editor: what was pointed at, what it can be marked as, and Save. */
+function editPanel(s: ChromeState): Node[] {
+  const edit = s.edit;
+  const press = (action: EditAction) => (): void => tell({ kind: 'edit', action });
+  const items: Node[] = [el('h1', { text: 'Profile editor' })];
+  if (!edit) return items;
+  const picked = edit.picked;
+  if (!picked) {
+    items.push(el('p', { text: `Making a profile for ${edit.site}. Move the pointer onto something and press OK to mark it.` }));
+    items.push(button('edit-pick', 'Point at something', press('pickAgain')));
+  } else {
+    const onOff = (on: boolean): string => (on ? 'yes' : 'no');
+    items.push(
+      el('p', { cls: 'where', text: `${picked.selector}: ${picked.matches} on this page, shown with a dashed box` }),
+      button('edit-include', `Can be selected: ${onOff(picked.marks.include)}`, press('include')),
+      button('edit-exclude', `Never select: ${onOff(picked.marks.exclude)}`, press('exclude')),
+      button('edit-row', `This is a row: ${onOff(picked.marks.row)}`, press('row')),
+      button('edit-player', `This is the player: ${onOff(picked.marks.player)}`, press('player')),
+      el('div', { cls: 'pair' }, [button('edit-narrower', 'Narrower', press('narrower'), !picked.canNarrow), button('edit-wider', 'Wider', press('wider'), !picked.canWiden)]),
+      button('edit-pick', 'Point at something else', press('pickAgain')),
+    );
+  }
+  items.push(
+    el('p', { cls: 'where', text: edit.marked === 1 ? '1 thing marked so far.' : `${edit.marked} things marked so far.` }),
+    button('edit-save', 'Save and finish', press('save'), edit.marked === 0),
+    button('edit-discard', 'Finish without saving', press('discard')),
   );
   return items;
 }
@@ -219,7 +250,7 @@ function render(): void {
   if (!strip) parts.push(home(s));
   let panel: HTMLElement | null = null;
   if (s.panel) {
-    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : promptPanel(s));
+    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : promptPanel(s));
     // The layer keeps the highlight inside an open modal dialog.
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
@@ -262,6 +293,8 @@ const start = (): void => {
       back: () => {
         if (!state) return true;
         if (state.panel === 'prompt') tell({ kind: 'answer', allow: false, remember: false });
+        // Back on the editor's panel goes back to pointing; the panel's own buttons end the editing.
+        else if (state.panel === 'edit') tell({ kind: 'edit', action: 'pickAgain' });
         else if (state.panel) tell({ kind: 'menu', action: 'close' });
         else if (state.page) tell({ kind: 'menu', action: 'resume' });
         return true;

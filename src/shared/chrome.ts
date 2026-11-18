@@ -4,7 +4,7 @@
 // send or receive any of this.
 import type { RecentSite } from './home';
 
-export type Panel = 'menu' | 'about' | 'prompt' | 'addApp';
+export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit';
 
 export interface ChromeState {
   /** What fills the window behind any panel. */
@@ -33,6 +33,15 @@ export interface ChromeState {
     /** Whether the TV's app list can be written to on this system. */
     canAddToAppList: boolean;
   } | null;
+  /** The profile editor, while it is in use. */
+  edit: {
+    /** The site being edited for. */
+    site: string;
+    /** What was pointed at, at the level now chosen; null before anything is picked. */
+    picked: { selector: string; matches: number; canWiden: boolean; canNarrow: boolean; marks: Record<'include' | 'exclude' | 'row' | 'player', boolean> } | null;
+    /** How many things are marked in all. */
+    marked: number;
+  } | null;
   /** The question being asked, while panel is 'prompt'. */
   prompt:
     | { what: 'protectedPlayback'; site: string }
@@ -43,10 +52,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'addApp' | 'removeApp' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'addApp', 'removeApp', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -55,8 +64,13 @@ export type ChromeMessage =
   /** Open a Home tile. */
   | { kind: 'openRecent'; url: string }
   | { kind: 'openApp'; id: string }
+  /** The profile editor's buttons. */
+  | { kind: 'edit'; action: EditAction }
   /** Add the site in front as an app. */
   | { kind: 'addApp'; name: string; ownSession: boolean; launcher: boolean }
   | { kind: 'menu'; action: MenuAction }
   /** `remember` false is "not now": the question comes again another time. */
   | { kind: 'answer'; allow: boolean; remember?: boolean };
+
+export type EditAction = 'include' | 'exclude' | 'row' | 'player' | 'wider' | 'narrower' | 'pickAgain' | 'save' | 'discard';
+export const EDIT_ACTIONS: readonly EditAction[] = ['include', 'exclude', 'row', 'player', 'wider', 'narrower', 'pickAgain', 'save', 'discard'];

@@ -672,6 +672,105 @@ await scenario(
   },
 );
 
+await scenario('the profile editor', { url: profiled, args: [mapHost] }, async (app) => {
+  const page = await app.page('http://profile.test');
+  const chrome = await app.chrome();
+  const { evaluate, press } = page;
+  const reach = async (id, key = 'ArrowDown') => {
+    for (let i = 0; i < 20 && (await chrome.focused()) !== id; i++) await chrome.press(key);
+    return chrome.focused();
+  };
+  /** How many of the editor's boxes of one kind are drawn on the page. */
+  const boxes = async (kind) => {
+    let n = 0;
+    await page.overlay(({ cls }) => {
+      if (new RegExp(`^mark ${kind}$`).test(cls)) n += 1;
+      return undefined;
+    });
+    return n;
+  };
+  const text = (id) => chrome.evaluate(`document.getElementById("${id}")?.textContent ?? null`);
+  await sleep(800);
+  await press('ContextMenu', 500);
+  check('with no profile the menu offers to make one', await text('menu-edit'), 'Make a profile for this site');
+  await reach('menu-edit');
+  await chrome.press('Enter', 700);
+  check('which brings up the pointer and says what to do', [(await page.pointerAt()) !== null, (await page.toastText())?.startsWith('Profile editor:')], [true, true]);
+
+  const tile = await evaluate('(() => { const r = document.getElementById("a1").getBoundingClientRect(); return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }; })()');
+  check('the pointer can be put on a tile', await page.pointTo(tile.x, tile.y), true);
+  await press('Enter', 700);
+  check('OK does not press it: it is picked, by its kind, and every one like it is counted', [await evaluate('__t.clicks'), await chrome.evaluate('document.querySelector("#panel .where")?.textContent')], [[], 'div.tile: 5 on this page, shown with a dashed box']);
+  check('and all of them are boxed on the page', await boxes('picked'), 5);
+  check('the highlight is on the first choice', [await chrome.focused(), await text('edit-include')], ['edit-include', 'Can be selected: no']);
+  check('nothing can be saved before anything is marked', await chrome.evaluate('document.getElementById("edit-save").disabled'), true);
+  await chrome.press('Enter', 500);
+  check('choosing it marks every tile as something that can be selected', [await text('edit-include'), await boxes('include')], ['Can be selected: yes', 5]);
+
+  await reach('edit-wider');
+  await chrome.press('Enter', 500);
+  check('Wider moves out to what holds the tiles', await chrome.evaluate('document.querySelector("#panel .where")?.textContent'), 'div.strip: 2 on this page, shown with a dashed box');
+  check('with nothing wider left, the highlight goes back to the top of the panel', [await chrome.evaluate('document.getElementById("edit-wider").disabled'), await chrome.focused()], [true, 'edit-include']);
+  await reach('edit-row');
+  await chrome.press('Enter', 500);
+  check('which can be marked as a row', [await text('edit-row'), await boxes('row')], ['This is a row: yes', 2]);
+
+  // Back goes back to pointing; the banner is marked as never selected.
+  await chrome.press('Escape', 500);
+  check('Back returns to pointing, with the marks still shown', [await chrome.evaluate('document.visibilityState'), (await page.pointerAt()) !== null, await boxes('include')], ['hidden', true, 5]);
+  const banner = await evaluate('(() => { const r = document.querySelector(".banner").getBoundingClientRect(); return { x: r.left + 20, y: (r.top + r.bottom) / 2 }; })()');
+  await page.pointTo(banner.x, banner.y);
+  await press('Enter', 700);
+  await reach('edit-exclude');
+  await chrome.press('Enter', 500);
+  check('something else can be marked as never selected', [await chrome.evaluate('document.querySelector("#panel .where")?.textContent'), await text('edit-exclude'), await boxes('exclude')], ['div.banner: 1 on this page, shown with a dashed box', 'Never select: yes', 1]);
+
+  await reach('edit-save');
+  await chrome.press('Enter', 1200);
+  const file = join(app.userData, 'profiles/profile-test.json');
+  const saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
+  check('Save writes an ordinary profile to your own profiles', [saved.id, saved.match, saved.focus], ['profile-test', { hosts: ['profile.test', '*.profile.test'] }, { include: ['div.tile'], exclude: ['div.banner'], groups: [{ name: 'row-1', selector: 'div.strip', axis: 'horizontal', remember: true }] }]);
+  const outlineFile = join(app.userData, 'profiles', saved.evidence?.outline ?? 'missing');
+  const outline = existsSync(outlineFile) ? readFileSync(outlineFile, 'utf8') : '';
+  check('with an outline of the page as its evidence, holding structure and no text', [/^\s*div#a1\.tile$/m.test(outline), /made-up cookies|Read more|Stray/.test(outline), outline.split('\n').filter((l) => l && !l.startsWith('#')).some((l) => l.trim().includes(' '))], [true, false, false]);
+  check('the editor is put away and says where the file went', [await page.pointerAt(), await boxes('include'), (await page.toastText())?.startsWith('Profile saved as ')], [null, 0, true]);
+
+  // The page is driven by it at once, and it is still there on the next visit.
+  await press('ArrowDown');
+  check('the tiles can be reached now, and the banner cannot', /^[ab][123]$/.test(await page.focused()), true);
+  await press('Enter');
+  check('and pressed', (await evaluate('__t.clicks')).length, 1);
+  await evaluate('location.reload(); 0');
+  await sleep(1200);
+  await press('ArrowDown');
+  check('the same after loading the page again', /^[ab][123]$/.test(await page.focused()), true);
+  await press('ContextMenu', 500);
+  check('the menu names it as your own, and offers to edit it', [(await chrome.evaluate('document.getElementById("panel").textContent')).includes('Profile: profile.test (your own)'), await text('menu-edit')], [true, 'Edit the profile for this site']);
+});
+
+await scenario('the profile editor, changing your mind', { url: profiled, args: [mapHost] }, async (app) => {
+  const page = await app.page('http://profile.test');
+  const chrome = await app.chrome();
+  const reach = async (id, key = 'ArrowDown') => {
+    for (let i = 0; i < 20 && (await chrome.focused()) !== id; i++) await chrome.press(key);
+  };
+  await sleep(800);
+  await page.press('ContextMenu', 500);
+  await reach('menu-edit');
+  await chrome.press('Enter', 700);
+  const tile = await page.evaluate('(() => { const r = document.getElementById("b1").getBoundingClientRect(); return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }; })()');
+  await page.pointTo(tile.x, tile.y);
+  await page.press('Enter', 700);
+  await chrome.press('Enter', 500); // can be selected
+  await page.press('ArrowDown', 100).catch(() => undefined);
+  await reach('edit-discard');
+  await chrome.press('Enter', 700);
+  check('"Finish without saving" writes nothing', existsSync(join(app.userData, 'profiles/profile-test.json')), false);
+  await page.press('ArrowDown');
+  await page.press('ArrowDown');
+  check('and the page is driven as it was before: the tiles cannot be reached', /^[ab][123]$/.test((await page.focused()) ?? ''), false);
+});
+
 await scenario('a site added as an app', { url: `${site.origin}/home.html` }, async (app) => {
   const page = await app.page(site.origin);
   const chrome = await app.chrome();

@@ -2,7 +2,7 @@
 // isolated world. Nothing is exposed to the page: there is no contextBridge
 // API, so site scripts cannot call into the app.
 import { ipcRenderer } from 'electron';
-import type { Action, BootData, BridgeMessage, PointerSpot } from '../shared/actions';
+import type { Action, BootData, BridgeMessage, EditView, PointerSpot } from '../shared/actions';
 import { rulesFromUntrusted } from '../layer/profile/rules';
 import { installPurchaseGuard } from '../layer/guard/purchase-guard';
 import { startLayer, type Layer } from '../layer/index';
@@ -48,6 +48,22 @@ const start = (): void => {
     const answer = layer.mayClickAt(ask.x, ask.y);
     if (answer !== 'no') send({ kind: 'pointerClickOk', id: ask.id, frame: answer === 'frame' });
   });
+  // The profile editor (see main/browser.ts): pick what is at a point, draw
+  // the marks, and drive the page by the draft as it changes.
+  ipcRenderer.on('longboard:edit-pick', (_event, at: { x: number; y: number }) => {
+    if (at && typeof at.x === 'number' && typeof at.y === 'number') layer.editPick(at.x, at.y);
+  });
+  ipcRenderer.on('longboard:edit-show', (_event, view: EditView | null) => {
+    const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(0, 60) : []);
+    if (!view || typeof view !== 'object') layer.editShow(null);
+    else {
+      layer.editShow({
+        picked: typeof view.picked === 'string' ? view.picked : null,
+        marks: { include: list(view.marks?.include), exclude: list(view.marks?.exclude), row: list(view.marks?.row), player: list(view.marks?.player) },
+      });
+    }
+  });
+  ipcRenderer.on('longboard:rules', (_event, profile: unknown) => layer.setRules(rulesFromUntrusted(profile, document)));
   // A menu entry that stands for a key.
   ipcRenderer.on('longboard:action', (_event, name: unknown) => {
     const actions: Record<string, Action> = { diagnostics: { type: 'diagnostics' } };

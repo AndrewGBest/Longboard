@@ -7,7 +7,8 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BootData, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
 import { resolveAddress, siteKey, siteName } from '../shared/address';
-import { MENU_ACTIONS, type ChromeMessage, type ChromeState, type MenuAction, type Panel } from '../shared/chrome';
+import { EDIT_ACTIONS, MENU_ACTIONS, type ChromeMessage, type ChromeState, type EditAction, type MenuAction, type Panel } from '../shared/chrome';
+import { EDIT_MARKS, hasMark, marksOf, parsePicked, startDraft, toggleMark, type PickedStep } from '../shared/editor';
 import type { UserConfig } from '../shared/config';
 import { addRecent, parseRecents, titleRecent, type RecentSite } from '../shared/home';
 import { typableText } from '../shared/osk';
@@ -159,6 +160,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
   /** The question waiting for an answer: protected playback for a site, or whether to use an imported profile. */
   let pending: { what: 'protectedPlayback'; site: string; answer: Array<(granted: boolean) => void> } | { what: 'profile'; profile: Profile } | null = null;
 
+  /** The profile editor, while it is in use: the draft, and what was last pointed at. */
+  let edit: { site: string; draft: Profile; chain: PickedStep[]; level: number; saving: boolean } | null = null;
+
   /** The profile that applies to an address now, without asking about one that still needs an answer. */
   const profileFor = (url: string): { profile: Profile; source: ProfileSource } | null => {
     const choice = deps.profiles.choose(url);
@@ -201,6 +205,22 @@ export function createBrowser(deps: BrowserDeps): Browser {
           canAddToAppList: launcherFolder() !== null,
         }
       : null,
+    edit: !edit
+      ? null
+      : {
+          site: edit.site,
+          picked: ((step, e) =>
+            step
+              ? {
+                  selector: step.selector,
+                  matches: step.matches,
+                  canWiden: e.level < e.chain.length - 1,
+                  canNarrow: e.level > 0,
+                  marks: { include: hasMark(e.draft, 'include', step.selector), exclude: hasMark(e.draft, 'exclude', step.selector), row: hasMark(e.draft, 'row', step.selector), player: hasMark(e.draft, 'player', step.selector) },
+                }
+              : null)(edit.chain[edit.level], edit),
+          marked: ((m) => EDIT_MARKS.reduce((n, mark) => n + m[mark].length, 0))(marksOf(edit.draft)),
+        },
     prompt: !pending
       ? null
       : pending.what === 'profile'
@@ -278,6 +298,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
 
   const showHome = (): void => {
+    if (edit) endEdit(false);
     if (surface === 'page') {
       // The site stays loaded, silent, with what was playing paused by the site's own key.
       setPointer(false);
@@ -333,6 +354,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       void page.loadURL(noticePageUrl(reason, url));
       return;
     }
+    if (edit) endEdit(false);
     usePartition(inSession);
     if (remember) {
       recents = addRecent(recents, url, Date.now());
@@ -622,7 +644,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (!pointerOn || page.isDestroyed()) return;
       if (action.type === 'move') keyPointer(action.dir, repeat);
       else if (repeat) return;
-      else if (action.type === 'select') pressPointer();
+      else if (edit) {
+        // In the editor OK picks what is under the pointer, and Back opens the editor's panel.
+        if (action.type === 'select') pickForEdit();
+        else openEditPanel();
+      } else if (action.type === 'select') pressPointer();
       else setPointer(false);
     });
   }));
@@ -632,7 +658,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const toggleMenu = (): void => {
     if (panel === 'prompt') return;
     stopGlide();
-    panel = panel ? null : 'menu';
+    // While a profile is being edited the menu key opens the editor's panel.
+    panel = panel ? null : edit ? 'edit' : 'menu';
     layout();
   };
 
@@ -858,6 +885,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'diagnostics': {
         if (wc !== page) break;
+        if (edit?.saving) {
+          // The editor asked for this outline: it is the evidence for the profile being saved.
+          const text = `# Saved by Longboard's profile editor on ${new Date().toISOString().slice(0, 10)}.\n# Structure only: no text, names or addresses.\n#### page\n${String(msg.outline).slice(0, 2_000_000)}\n`;
+          const file = deps.profiles.saveLocal(edit.draft, text);
+          endEdit(true);
+          notify(file ? `Profile saved as ${file}` : 'The profile could not be saved');
+          break;
+        }
         const dir = join(dataDir, 'diagnostics');
         mkdirSync(dir, { recursive: true });
         const name = `outline-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
@@ -877,7 +912,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
         else setPointer(true, startPoint(msg, page.getZoomFactor(), pageSize()));
         break;
       case 'pointerOff':
-        if (wc === page) setPointer(false);
+        if (wc !== page) break;
+        if (edit) openEditPanel();
+        else setPointer(false);
         break;
       case 'pointerHeld':
         if (wc === page && pointerOn && active() === page && Array.isArray(msg.dirs)) {
@@ -885,8 +922,25 @@ export function createBrowser(deps: BrowserDeps): Browser {
         }
         break;
       case 'pointerClick':
-        if (wc === page && pointerOn && active() === page) pressPointer();
+        if (wc === page && pointerOn && active() === page) {
+          if (edit) pickForEdit();
+          else pressPointer();
+        }
         break;
+      case 'editPicked': {
+        if (wc !== page || !edit) break;
+        const chain = parsePicked(msg.chain);
+        if (chain.length === 0) {
+          notify('Nothing there can be marked');
+          break;
+        }
+        edit.chain = chain;
+        edit.level = 0;
+        panel = 'edit';
+        showEdit();
+        layout();
+        break;
+      }
       case 'pointerClickOk':
         // Only the answer to the question just asked, and only while it still stands.
         if (wc === page && pointerOn && options.automation && msg.id === pointer.checkId) {
@@ -917,6 +971,101 @@ export function createBrowser(deps: BrowserDeps): Browser {
   eachPage((wc) => wc.on('did-frame-navigate', (_e, _url, _code, _status, isMainFrame, processId, routingId) => {
     // A frame that has gone somewhere new has to say again that it is guarded.
     if (!isMainFrame) guarded.delete(`${processId}:${routingId}`);
+  }));
+
+  // ---- The profile editor ----------------------------------------------------
+
+  // A first, small editor (DESIGN.md 4.5): point at something, press OK, and
+  // say what it is. Every choice goes into a draft profile in the ordinary
+  // format, the page is driven by the draft at once, and saving writes it to
+  // the person's own profiles with an outline of the page as its evidence.
+  const showEdit = (): void => {
+    if (page.isDestroyed()) return;
+    page.send('longboard:edit-show', edit ? { picked: panel === 'edit' ? (edit.chain[edit.level]?.selector ?? null) : null, marks: marksOf(edit.draft) } : null);
+  };
+  const startEdit = (): void => {
+    const url = page.getURL();
+    const draft = surface === 'page' && !isNotice(url) ? startDraft(url, profileFor(url)?.profile ?? null) : null;
+    panel = null;
+    if (!draft) {
+      layout();
+      notify('A profile cannot be made for this address');
+      return;
+    }
+    edit = { site: siteName(url), draft, chain: [], level: 0, saving: false };
+    setPointer(true);
+    layout();
+    showEdit();
+    notify('Profile editor: move the pointer onto something and press OK. Back to finish.');
+  };
+  /** Ends the editing. Unless it was saved, the page goes back to the rules it had. */
+  const endEdit = (saved: boolean): void => {
+    if (!edit) return;
+    edit = null;
+    if (panel === 'edit') panel = null;
+    setPointer(false);
+    if (!page.isDestroyed()) {
+      page.send('longboard:edit-show', null);
+      if (!saved) page.send('longboard:rules', profileFor(page.getURL())?.profile ?? null);
+    }
+    layout();
+  };
+  const pickForEdit = (): void => {
+    const zoom = page.getZoomFactor() || 1;
+    page.send('longboard:edit-pick', { x: pointer.x / zoom, y: pointer.y / zoom });
+  };
+  const openEditPanel = (): void => {
+    stopGlide();
+    panel = 'edit';
+    showEdit();
+    layout();
+  };
+  const editAction = (action: EditAction): void => {
+    if (!edit) return;
+    const step = edit.chain[edit.level];
+    switch (action) {
+      case 'include':
+      case 'exclude':
+      case 'row':
+      case 'player':
+        if (!step) break;
+        edit.draft = toggleMark(edit.draft, action, step.selector);
+        // Seen at once: the page is driven by the draft from here on.
+        page.send('longboard:rules', edit.draft);
+        break;
+      case 'wider':
+        edit.level = Math.min(edit.chain.length - 1, edit.level + 1);
+        break;
+      case 'narrower':
+        edit.level = Math.max(0, edit.level - 1);
+        break;
+      case 'pickAgain':
+        edit.chain = [];
+        edit.level = 0;
+        panel = null;
+        setPointer(true);
+        break;
+      case 'save':
+        // The outline comes back as a message from the layer; the saving is done there.
+        edit.saving = true;
+        page.send('longboard:action', 'diagnostics');
+        return;
+      case 'discard':
+        endEdit(false);
+        return;
+    }
+    showEdit();
+    layout();
+  };
+  // A new page of the same site carries on with the draft; another site ends the editing.
+  eachPage((wc) => wc.on('dom-ready', () => {
+    if (wc !== page || !edit) return;
+    if (siteName(page.getURL()) !== edit.site) {
+      endEdit(false);
+      return;
+    }
+    page.send('longboard:rules', edit.draft);
+    showEdit();
   }));
 
   // ---- Web apps ----------------------------------------------------------------
@@ -1057,6 +1206,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
         notify(taken.length ? `Imported: ${taken.join(', ')}. You will be asked before each is used.` : 'No profile files (*.longboard-profile.json) were found');
         break;
       }
+      case 'editProfile':
+        if (surface === 'page') startEdit();
+        break;
       case 'addApp':
         if (surface === 'page' && !isNotice(page.getURL()) && !appFor(apps, page.getURL())) panel = 'addApp';
         layout();
@@ -1093,6 +1245,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'openApp':
         if (typeof msg.id === 'string') openApp(msg.id);
+        break;
+      case 'edit':
+        if (EDIT_ACTIONS.includes(msg.action)) editAction(msg.action);
         break;
       case 'addApp':
         if (panel === 'addApp' && surface === 'page') {

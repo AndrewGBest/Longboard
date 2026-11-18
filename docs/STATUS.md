@@ -2,12 +2,11 @@
 
 Update this at the end of every working session. Newest first.
 
-## 2026-11-18, later: phases 0 to 3 and half of 4 built by the agent working alone
+## 2026-11-18, later: phases 0 to 4 built by the agent working alone
 
-Andrew asked the agent to work through the roadmap without him. Phases 0, 1,
-2 and 3 are built and pushed, and so is the first half of phase 4 (web
-apps). The on-TV profile editor (the rest of phase 4) and ad blocking
-(phase 5, which Andrew said to leave) are not started. Choices the agent made on the way are in
+Andrew asked the agent to work through the roadmap without him. Phases 0 to
+4 are built and pushed. Phase 4's profile editor is a first, small version.
+Ad blocking (phase 5) is not started: Andrew said to leave it. Choices the agent made on the way are in
 DECISIONS.md, each marked as an assumption.
 
 ### What there is
@@ -17,7 +16,7 @@ DECISIONS.md, each marked as an assumption.
 | 0 | Tropic Video's code under the Longboard layout and name, on castLabs Electron 45.2.1 |
 | 1 | Home with "go to address or search" and recently opened sites; the menu panel (address, Home, Back, Reload, zoom, pointer, outline, profiles, About, Quit); any web address opens and nothing else does; permissions denied by default; the on-screen keyboard on Longboard's own screens and on pages |
 | 2 | Generic mode: finds what can be pressed (including things that only look clickable), scrolls when there is nothing to move to, drop-downs, sliders, native-control video, frames. Pointer mode on F2 / right stick click. Fixture pages and the real-site scorecard |
-| 4 (half) | "Add this site as an app": a tile on Home with the site's own icon, an entry in the desktop's app list, optional separate sign-ins, `--app=<id>`, removal |
+| 4 | "Add this site as an app": a tile on Home with the site's own icon, an entry in the desktop's app list, optional separate sign-ins, `--app=<id>`, removal. A first on-TV profile editor: point, press OK, mark as selectable / never / a row / the player, see it applied, save |
 | 3 | Profile format version 1 with validator, matcher and interpreter; Tropic Video's adapter converted into the first profile; local, imported, catalogue and built-in sources; import from USB and export; the catalogue repository with its checks and index; background fetch with checksums |
 
 ### Verified, and how
@@ -25,13 +24,13 @@ DECISIONS.md, each marked as an assumption.
 All of this was checked by scripts on a headless virtual machine. **None of
 it was checked by a person, with a remote, on a TV.**
 
-- `npm run check`: 311 unit tests (geometry, input mapping, address rules,
+- `npm run check`: 325 unit tests (geometry, input mapping, address rules,
   navigation policy, permission policy, pointer movement, profile validation,
   matching and choosing, the interpreter, the profile store, the catalogue
   fetcher, the guard, the outline sanitiser), the build, and the rule checks.
 - `xvfb-run -a npm run e2e`: the real app, always with `--automation`, driven
   over the DevTools protocol against invented fixture pages served from this
-  machine. 18 scenarios, 190 checks. They cover: arrows on a grid of
+  machine. 20 scenarios, 212 checks. They cover: arrows on a grid of
   cards; the on-screen keyboard; pop-ups; refused addresses, downloads and
   permissions; Home, the address field, the menu, zoom and Back; searching;
   notices for blocked and unreachable pages; a full-screen video with the
@@ -41,7 +40,8 @@ it was checked by a person, with a remote, on a TV.**
   and the purchase guard inside that frame; a site with no profile, with a
   local one, with one from a (made-up) catalogue, and with an imported one;
   adding a site as an app with its own sign-ins, its entry file and icon,
-  opening it from Home and with `--app=`, and removing it.
+  opening it from Home and with `--app=`, and removing it; making a profile
+  with the editor, saving it, and finishing without saving.
 - Real key events (xdotool under Xvfb), once, by hand: arrows move the
   highlight; F2 starts pointer mode; a held arrow moves the pointer. This is
   how it was found that key releases never reach the shell (DECISIONS.md).
@@ -90,8 +90,11 @@ it was checked by a person, with a remote, on a TV.**
 - Sites at the 960-pixel TV scale often show their phone layout.
 - Profiles are chosen when a page loads, not when a site changes its address
   without loading.
-- The menu has no ad-blocking switch (phase 5), and there is no on-TV
-  profile editor (phase 4).
+- The menu has no ad-blocking switch (phase 5).
+- The profile editor marks four things and writes nothing else of the
+  format. Its selectors are a first guess at "things like this one"; on a
+  site whose markup has only machine-made names it may find nothing useful
+  to write. It has been tried on one made-up page and no real site.
 - An app's name and choices cannot be changed after it is added; remove it
   and add it again.
 - The same shared code lives in Tropic Video and Steamboat. Fixes made here
@@ -105,7 +108,8 @@ it was checked by a person, with a remote, on a TV.**
 - The keyboard now opens on OK instead of whenever a field is focused. That
   costs one extra press on a sign-in page. Acceptable?
 
-**Next:** try it on the TV box with the remote. Then the profile editor.
+**Next:** try it on the TV box with the remote. Everything after that
+depends on what that shows.
 
 ## 2026-11-18: project started, documents only
 

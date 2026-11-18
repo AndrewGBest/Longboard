@@ -51,7 +51,15 @@ export type BridgeMessage =
    * allowed. `frame` says the point is on an embedded frame, which the layer
    * cannot see into; the shell then clicks only if that frame has its own guard.
    */
-  | { kind: 'pointerClickOk'; id: number; frame: boolean };
+  | { kind: 'pointerClickOk'; id: number; frame: boolean }
+  /** The profile editor: what is at the point the person chose, as a chain of selectors outward. */
+  | { kind: 'editPicked'; chain: Array<{ selector: string; matches: number }> };
+
+/** What the profile editor asks the layer to draw: the selector just picked, and everything marked so far. */
+export interface EditView {
+  picked: string | null;
+  marks: { include: string[]; exclude: string[]; row: string[]; player: string[] };
+}
 
 /** Which of Longboard's two views a layer is running in. */
 export type Surface = 'page' | 'chrome';

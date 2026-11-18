@@ -3,6 +3,23 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: phase 4 choices made by the agent (the profile editor)
+
+All **assumptions by the agent**. This is a first, small editor: it covers
+the four marks DESIGN.md 4.5 names and nothing else of the format.
+
+| Topic | Chosen | Why |
+|---|---|---|
+| How an element is chosen | With the pointer: point, press OK | The things a profile exists to fix are the ones the highlight cannot reach, so the highlight cannot be what picks them |
+| What gets written | A selector for the *kind* of thing pointed at (its tag and up to two hand-written-looking classes, or a structural attribute), with a count of how many match and a box drawn round each | A profile is about "the cards", not "this card". The count and the boxes let a person see what they are about to mark without reading a selector |
+| Generated names | Classes and ids that look machine-made are passed over | They change with every build of a site, and a profile built on them would stop working without anyone noticing |
+| Wider / Narrower | Steps out through the containers of what was pointed at | Rows and players are containers; nobody can point at one directly |
+| Marks | Can be selected, never select, this is a row, this is the player. Choosing one again takes it off | The four in DESIGN.md. Everything else in the format is still written by hand |
+| Seeing the result | The page is driven by the draft from the moment a mark is made | DESIGN.md: "see the result immediately" |
+| Saving | Writes `<id>.json` to the person's own profiles, validated like any other profile, with an outline of the page saved beside it as the evidence | Hard rule 8 in spirit even for a local profile, and it is exactly what a pull request to the catalogue needs |
+| Editing a reviewed profile | Starts from a copy with the version raised, saved as the person's own, which then wins | The reviewed file is not theirs to change, and their fix should not wait for a review |
+| Sites named by a bare network address | Cannot have a profile | The format names sites by domain |
+
 ## 2026-11-18: protected playback is not asked about on Linux
 
 Measured by the agent, not chosen. A fixture page asked the browser for the
@@ -24,8 +41,7 @@ Two consequences Andrew should know about:
 
 ## 2026-11-18: phase 4 choices made by the agent (web apps)
 
-All **assumptions by the agent**, made while working alone. The on-TV profile
-editor, the other half of phase 4, is not built.
+All **assumptions by the agent**, made while working alone.
 
 | Topic | Chosen | Why |
 |---|---|---|

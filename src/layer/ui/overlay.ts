@@ -31,6 +31,12 @@ const CSS = `
 }
 .pointer.show { display: block; }
 .pointer path { fill: #fff; stroke: #111; stroke-width: 1.6; stroke-linejoin: round; }
+.mark { position: absolute; box-sizing: border-box; border: 3px solid; border-radius: 6px; }
+.mark.picked { border: 4px dashed #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.8); }
+.mark.include { border-color: #58d68d; background: rgba(88,214,141,.12); }
+.mark.exclude { border-color: #ec7063; background: rgba(236,112,99,.14); }
+.mark.row { border-color: #5dade2; }
+.mark.player { border-color: #f4d03f; }
 .toast {
   position: fixed; left: 50%; bottom: 8vh; transform: translateX(-50%);
   background: rgba(16,16,16,.94); color: #fff; font: 600 3.4vh/1.3 system-ui, sans-serif;
@@ -63,6 +69,7 @@ export class Overlay {
   private readonly toastEl: HTMLElement;
   private readonly oskEl: HTMLElement;
   private readonly pointerEl: SVGSVGElement;
+  private readonly marksEl: HTMLElement;
   private readonly host: HTMLElement;
   private target: Element | null = null;
   private toastTimer: number | undefined;
@@ -98,7 +105,8 @@ export class Overlay {
     const arrow = doc.createElementNS(SVG, 'path');
     arrow.setAttribute('d', 'M2 1 L2 19 L7 14.5 L10.5 22.5 L13.5 21.2 L10 13.3 L16.5 13.3 Z');
     this.pointerEl.append(arrow);
-    root.append(this.ring, this.toastEl, this.oskEl, this.pointerEl);
+    this.marksEl = doc.createElement('div');
+    root.append(this.marksEl, this.ring, this.toastEl, this.oskEl, this.pointerEl);
     doc.documentElement.append(host);
     this.host = host;
     // Anything that scrolls may be carrying the target (a row, a list); the
@@ -226,6 +234,29 @@ export class Overlay {
     this.oskEl.replaceChildren(...keys);
     this.oskEl.classList.toggle('top', dock === 'top');
     this.oskEl.classList.add('show');
+  }
+
+  /**
+   * The profile editor's boxes: one round each element given, coloured by
+   * what it is marked as. An empty list takes them all away. Drawn in page
+   * coordinates, like the ring, so they stay on their elements as the page scrolls.
+   */
+  marks(list: ReadonlyArray<{ el: Element; kind: string }>): void {
+    const view = this.doc.defaultView;
+    const boxes: HTMLElement[] = [];
+    for (const { el, kind } of list) {
+      if (!view || !el.isConnected) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) continue;
+      const box = this.doc.createElement('div');
+      box.className = `mark ${kind}`;
+      box.style.left = `${r.left + view.scrollX}px`;
+      box.style.top = `${r.top + view.scrollY}px`;
+      box.style.width = `${r.width}px`;
+      box.style.height = `${r.height}px`;
+      boxes.push(box);
+    }
+    this.marksEl.replaceChildren(...boxes);
   }
 
   /** Draws the pointer with its tip at a point of the page (CSS pixels); `null` hides it. */

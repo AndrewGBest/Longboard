@@ -117,6 +117,30 @@ export class ProfileStore {
   }
 
   /**
+   * Saves a profile made on this machine, with the page outline that is its
+   * evidence beside it, and reads everything again. Returns where the profile
+   * went, or null when it could not be written or is not valid.
+   */
+  saveLocal(profile: Profile, outline: string): string | null {
+    const { profile: checked, problems } = validateProfile(profile);
+    if (!checked) {
+      this.note(`the edited profile is not valid and was not saved: ${problems.slice(0, 3).join('; ')}`);
+      return null;
+    }
+    try {
+      mkdirSync(this.folders.local, { recursive: true });
+      writeFileSync(join(this.folders.local, checked.evidence.outline), outline);
+      const file = join(this.folders.local, `${checked.id}.json`);
+      writeFileSync(file, `${JSON.stringify(checked, null, 2)}\n`);
+      this.load();
+      return file;
+    } catch (err) {
+      this.note(`could not save ${checked.id}: ${String(err).slice(0, 200)}`);
+      return null;
+    }
+  }
+
+  /**
    * Copies profile files found at the top of `folders` into the imported
    * folder. Only files named `*.longboard-profile.json` are looked at, and
    * only valid ones are taken. Nothing imported is used until the person

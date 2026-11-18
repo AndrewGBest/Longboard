@@ -179,7 +179,26 @@ difference is only that nobody reviewed it.
 
 ## 6. Making a profile
 
-Until the on-TV editor exists (roadmap phase 4):
+### On the TV
+
+The menu's "Make a profile for this site" (or "Edit the profile for this
+site") starts a small editor:
+
+1. An on-screen pointer appears. Move it onto something and press OK.
+2. A panel says what was picked, as the kind of thing it is, and how many of
+   them are on the page; each one gets a dashed box. "Wider" and "Narrower"
+   step out to what holds it and back.
+3. Mark it: **can be selected**, **never select**, **this is a row**, or
+   **this is the player**. Choosing a mark again takes it off. The page is
+   driven by your choices at once, so you can try them.
+4. Back returns to pointing. "Save and finish" writes the profile to the
+   data folder's `profiles` folder, with an outline of the page beside it.
+
+The editor writes only those four things. The rest of the format is written
+by hand, and the file it saves is an ordinary profile you can open and
+change.
+
+### By hand
 
 1. Open the site in Longboard and choose "Save page outline" in the menu
    (or press Ctrl+Shift+D). The outline is written to the data folder's

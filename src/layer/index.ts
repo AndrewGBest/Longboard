@@ -1,10 +1,11 @@
 // Entry point of the page-side layer. Runs in the preload's isolated world:
 // it shares the DOM with the site but not its JavaScript, so the site cannot
 // tamper with it and it does not modify the site's own scripts.
-import type { Action, BridgeMessage, Direction, LayerOptions, PointerSpot } from '../shared/actions';
+import type { Action, BridgeMessage, Direction, EditView, LayerOptions, PointerSpot } from '../shared/actions';
 import type { PlayerKeyName } from '../shared/profile';
 import { firstMatch, rulesReport, type SiteRules } from './profile/rules';
 import { buildOutline, sanitizeUrl } from './diagnostics/outline';
+import { pickChain } from './edit/selector';
 import { scrollBy } from './generic/scroll';
 import { installPurchaseGuard, isSpendControl } from './guard/purchase-guard';
 import { startPolling } from './input/gamepad';
@@ -60,6 +61,12 @@ export interface Layer {
   typeIn: (field: Element) => void;
   /** Pointer mode: where the shell has put the pointer, or null when it is off. */
   pointer: (spot: PointerSpot) => void;
+  /** The profile editor: tells the shell what is at a point of the page. */
+  editPick: (x: number, y: number) => void;
+  /** The profile editor: draws boxes round what was picked and what is marked; `null` takes them away. */
+  editShow: (view: EditView | null) => void;
+  /** Replaces the rules the page is driven by, at once (the editor's draft, as it changes). */
+  setRules: (next: SiteRules) => void;
   /** Under automation: may the pointer click at this point? Says so on screen when not. */
   mayClickAt: (x: number, y: number) => 'yes' | 'no' | 'frame';
   stop: () => void;
@@ -533,7 +540,8 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       playerMenuSeen = false;
     }
     doc.documentElement.classList.add('longboard-no-pointer');
-    if (pointerOn) {
+    // (Saving an outline is asked for by the shell, pointer or no pointer.)
+    if (pointerOn && a.type !== 'diagnostics') {
       // From a game controller (the shell takes a remote's keys itself). The
       // directions arrive as held buttons, not as moves.
       if (a.type === 'select') send({ kind: 'pointerClick' });
@@ -829,6 +837,46 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
         const active = doc.activeElement;
         if (active instanceof HTMLIFrameElement) active.blur();
       }
+    },
+    editPick: (x, y) => {
+      const el = doc.elementFromPoint(x, y);
+      // Nothing of the layer's own, and nothing inside a frame, can be marked.
+      if (!el || el.closest(HOST_TAG) || el === doc.documentElement || el === doc.body) {
+        overlay.toast('Nothing there can be marked');
+        return;
+      }
+      send({ kind: 'editPicked', chain: pickChain(el) });
+    },
+    editShow: (show) => {
+      if (!show) {
+        overlay.marks([]);
+        return;
+      }
+      const list: Array<{ el: Element; kind: string }> = [];
+      const add = (selector: string, kind: string): void => {
+        try {
+          for (const el of doc.querySelectorAll(selector)) if (list.length < 120 && !el.closest(HOST_TAG)) list.push({ el, kind });
+        } catch {
+          // a selector the browser cannot parse marks nothing
+        }
+      };
+      for (const kind of ['include', 'exclude', 'row', 'player'] as const) for (const selector of show.marks[kind]) add(selector, kind);
+      if (show.picked) add(show.picked, 'picked');
+      overlay.marks(list);
+    },
+    setRules: (next) => {
+      // In place: the navigator and the player rules hold on to these lists.
+      for (const key of Object.keys(rules.selectors) as Array<keyof SiteRules['selectors']>) {
+        rules.selectors[key].length = 0;
+        rules.selectors[key].push(...next.selectors[key]);
+      }
+      rules.groups.length = 0;
+      rules.groups.push(...next.groups);
+      rules.initial = next.initial;
+      rules.playerKeys = next.playerKeys;
+      rules.id = next.id;
+      rules.name = next.name;
+      rules.version = next.version;
     },
     mayClickAt: (x, y) => {
       const el = doc.elementFromPoint(x, y);
