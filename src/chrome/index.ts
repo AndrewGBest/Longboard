@@ -139,9 +139,13 @@ function menuPanel(s: ChromeState): Node[] {
       el('p', { cls: 'where', text: page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode' }),
     );
     if (page.profile) items.push(button('menu-export', 'Export this profile', act('exportProfile')));
+    if (page.answers) {
+      items.push(el('p', { cls: 'where', text: page.answers }), button('menu-forget', 'Forget what this site may do', act('forgetAnswers')));
+    }
     items.push(button('menu-edit', page.profile ? 'Edit the profile for this site' : 'Make a profile for this site', act('editProfile')));
     items.push(page.app ? button('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp')) : button('menu-add-app', 'Add this site as an app', act('addApp')));
   }
+  if (s.downloads > 0) items.push(button('menu-cancel-downloads', s.downloads === 1 ? 'Cancel the download under way' : `Cancel ${s.downloads} downloads under way`, act('cancelDownloads')));
   items.push(button('menu-import', 'Import profiles from USB', act('importProfiles')));
   items.push(button('menu-about', 'About and help', act('about')), button('menu-quit', 'Quit Longboard', act('quit')));
   return items;
@@ -230,12 +234,23 @@ function promptPanel(s: ChromeState): Node[] {
       button('prompt-deny', 'Do not use it', answer(false)),
     ];
   }
-  const site = s.prompt?.what === 'protectedPlayback' ? s.prompt.site : 'This site';
+  if (s.prompt?.what === 'download') {
+    return [
+      el('h1', { text: 'Download this file?' }),
+      el('p', { text: `${s.prompt.name}${s.prompt.size ? ` (${s.prompt.size})` : ''}, from ${s.prompt.site}.` }),
+      el('p', { text: `It will be saved in ${s.prompt.folder}. Longboard does not open downloaded files.` }),
+      button('prompt-allow', 'Download', answer(true)),
+      button('prompt-deny', 'Cancel', answer(false)),
+    ];
+  }
+  const site = s.prompt?.what === 'permission' ? s.prompt.site : 'This site';
+  const wants = s.prompt?.what === 'permission' ? s.prompt.wants : 'do something';
   return [
-    el('h1', { text: 'Allow protected video?' }),
-    el('p', { text: `${site} wants to play protected (DRM) video. Longboard plays it through the browser's standard, unmodified playback component. Your answer is remembered for this site.` }),
+    el('h1', { text: 'Allow this?' }),
+    el('p', { text: `${site} wants to ${wants}.` }),
+    el('p', { text: 'Your answer is remembered for this site. The menu can forget it. Back asks again next time.' }),
     button('prompt-allow', 'Allow', answer(true)),
-    button('prompt-deny', 'Not now', answer(false)),
+    button('prompt-deny', 'Do not allow', answer(false)),
   ];
 }
 
@@ -287,7 +302,9 @@ const start = (): void => {
   layer = startLayer({
     doc: document,
     options: boot.options,
-    rules: genericRules(),
+    // Longboard's own screens are not a site to be worked out: everything on
+    // them is a real control, and nothing is read by scrolling.
+    rules: { ...genericRules(), generic: false },
     send,
     hooks: {
       back: () => {

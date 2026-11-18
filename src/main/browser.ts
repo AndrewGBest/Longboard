@@ -3,7 +3,7 @@
 // separate renderers with separate sessions; a website can never reach the
 // chrome view or the shell (Hard rule 13).
 import { app, BaseWindow, ipcMain, nativeImage, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BootData, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
 import { resolveAddress, siteKey, siteName } from '../shared/address';
@@ -27,7 +27,8 @@ import {
   retryDelaySeconds,
   startingPageUrl,
 } from './navigation';
-import { mayAskProtectedPlayback, permissionDecision } from './permissions';
+import { ASKABLE, describeAsk, hasPermission, mayAsk, permissionDecision, withAnswers, type Askable } from './permissions';
+import { sizeText, uniqueName } from '../shared/downloads';
 import { PointerHolds, pointerGlide, pointerTap, startPoint, type PointerStep } from './pointer';
 import { sourceLabel, type ProfileStore } from './profiles';
 import { readJson, writeJson } from './store';
@@ -46,6 +47,8 @@ export interface BrowserDeps {
   fullscreen: boolean;
   /** The --size=WIDTHxHEIGHT option: the window's size when it is not full screen. */
   size: [number, number] | undefined;
+  /** Where downloaded files are saved. */
+  downloads: string;
   /** The --zoom= option, which wins over everything. */
   zoomOverride: string | undefined;
   /** Resolves when the protected-playback component is ready (or has been given up on). */
@@ -158,7 +161,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
   let panel: Panel | null = null;
   let pointerOn = false;
   /** The question waiting for an answer: protected playback for a site, or whether to use an imported profile. */
-  let pending: { what: 'protectedPlayback'; site: string; answer: Array<(granted: boolean) => void> } | { what: 'profile'; profile: Profile } | null = null;
+  let pending:
+    | { what: 'permission'; site: string; names: Askable[]; answer: Array<(granted: boolean) => void> }
+    | { what: 'profile'; profile: Profile }
+    | { what: 'download'; url: string; name: string; site: string; bytes: number; from: WebContents }
+    | null = null;
+  /** Downloads the person agreed to that have not finished. */
+  const downloading = new Set<Electron.DownloadItem>();
 
   /** The profile editor, while it is in use: the draft, and what was last pointed at. */
   let edit: { site: string; draft: Profile; chain: PickedStep[]; level: number; saving: boolean } | null = null;
@@ -201,10 +210,16 @@ export function createBrowser(deps: BrowserDeps): Browser {
           zoomPercent: Math.round(siteZoom() * 100),
           pointer: pointerOn,
           profile: ((p) => (p ? `${p.profile.name} (${sourceLabel(p.source)})` : null))(profileFor(page.getURL())),
+          answers: ((given) => {
+            const said = (which: 'granted' | 'denied'): string => (Object.keys(given) as Askable[]).filter((n) => given[n] === which).map((n) => ASKABLE[n]).join(', ');
+            const parts = [said('granted') && `Allowed to: ${said('granted')}`, said('denied') && `Not allowed to: ${said('denied')}`].filter(Boolean);
+            return parts.length ? parts.join('. ') : null;
+          })(sites[pageSite() ?? '']?.answers ?? {}),
           app: ((a) => (a ? { id: a.id, name: a.name } : null))(appFor(apps, page.getURL())),
           canAddToAppList: launcherFolder() !== null,
         }
       : null,
+    downloads: downloading.size,
     edit: !edit
       ? null
       : {
@@ -225,7 +240,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
       ? null
       : pending.what === 'profile'
         ? { what: 'profile', name: pending.profile.name, version: pending.profile.version, hosts: pending.profile.match.hosts.slice(0, 6) }
-        : { what: 'protectedPlayback', site: pending.site },
+        : pending.what === 'download'
+          ? { what: 'download', site: pending.site, name: pending.name, size: sizeText(pending.bytes), folder: deps.downloads }
+          : { what: 'permission', site: pending.site, wants: describeAsk(pending.names) },
   });
 
   const active = (): WebContents => (surface === 'home' || panel ? chrome : page);
@@ -319,7 +336,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (next === partition) return;
     setPointer(false);
     clearTimeout(retryTimer);
-    if (pending?.what === 'protectedPlayback') answerPrompt(false, false);
+    if (pending?.what === 'permission') answerPrompt(false, false);
     if (!page.isDestroyed()) {
       page.send('longboard:away');
       page.setAudioMuted(true);
@@ -723,27 +740,30 @@ export function createBrowser(deps: BrowserDeps): Browser {
   eachSession((web) => web.setPermissionRequestHandler((wc, permission, callback, details) => {
     const url = details.requestingUrl || wc.getURL();
     const key = siteKey(url);
-    const decision = permissionDecision(permission, key ? sites[key] : undefined);
-    if (decision !== 'ask') {
-      callback(decision === 'grant');
+    const mediaTypes = 'mediaTypes' in details && Array.isArray(details.mediaTypes) ? details.mediaTypes : [];
+    const decision = permissionDecision(permission, key ? sites[key] : undefined, mediaTypes);
+    if (decision.kind !== 'ask') {
+      callback(decision.kind === 'grant');
       return;
     }
-    // Only the page view's own page is asked about, and one site at a time.
-    if (wc !== page || !key || !mayAskProtectedPlayback(url) || (pending && (pending.what !== 'protectedPlayback' || pending.site !== key))) {
+    // Only the page in front is asked about, only when it was loaded securely,
+    // and one question at a time: anything else is refused for now, unremembered.
+    const same = pending?.what === 'permission' && pending.site === key && pending.names.join() === decision.names.join();
+    if (wc !== page || surface !== 'page' || !key || !mayAsk(url) || (pending && !same)) {
       callback(false);
       return;
     }
-    if (pending) pending.answer.push(callback);
+    if (pending?.what === 'permission') pending.answer.push(callback);
     else {
-      pending = { what: 'protectedPlayback', site: key, answer: [callback] };
+      pending = { what: 'permission', site: key, names: decision.names, answer: [callback] };
       panel = 'prompt';
       layout();
     }
   }));
-  eachSession((web) => web.setPermissionCheckHandler((_wc, permission, origin) => {
+  eachSession((web) => web.setPermissionCheckHandler((_wc, permission, origin, details) => {
     const key = siteKey(origin);
-    // "Ask" is not a refusal: the question is put when the site makes its request.
-    return permissionDecision(permission, key ? sites[key] : undefined) !== 'deny';
+    const mediaType = details.mediaType === 'video' || details.mediaType === 'audio' ? [details.mediaType] : [];
+    return hasPermission(permission, key ? sites[key] : undefined, mediaType);
   }));
   const answerPrompt = (allow: boolean, remember: boolean): void => {
     const asked = pending;
@@ -757,8 +777,17 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (allow && surface === 'page') page.reload();
       return;
     }
+    if (asked.what === 'download') {
+      layout();
+      if (allow && !asked.from.isDestroyed()) {
+        // Asked for again, this time to be kept (see the download handling below).
+        agreed.add(asked.url);
+        asked.from.downloadURL(asked.url);
+      }
+      return;
+    }
     if (remember) {
-      sites[asked.site] = { ...sites[asked.site], protectedPlayback: allow ? 'granted' : 'denied' };
+      sites[asked.site] = { ...sites[asked.site], ...withAnswers(sites[asked.site], asked.names, allow) };
       saveSites();
     }
     for (const answer of asked.answer) answer(allow);
@@ -773,13 +802,53 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
   // A question belongs to the page that asked it.
   eachPage((wc) => wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
-    if (wc === page && isMainFrame && !isInPlace && pending?.what === 'protectedPlayback') answerPrompt(false, false);
+    if (wc === page && isMainFrame && !isInPlace && pending?.what === 'permission') answerPrompt(false, false);
   }));
 
-  // No downloads in this version (ARCHITECTURE.md section 2).
-  eachSession((web) => web.on('will-download', (event) => {
-    event.preventDefault();
-    notify('Downloads are not available in Longboard yet');
+  // ---- Downloads -----------------------------------------------------------
+
+  // A file a site sends, or that the person chose to download, is asked about
+  // first: what it is called, how big, where from. Agreed to, it is saved in
+  // the downloads folder under a name that writes over nothing. Longboard
+  // never opens or runs what it downloads.
+  //
+  // A download cannot be held while the question is up (a small file is on
+  // disk before it could be answered), so the first attempt is stopped and,
+  // if the person agrees, the same address is asked for again and kept.
+  const agreed = new Set<string>();
+  eachSession((web) => web.on('will-download', (event, item, wc) => {
+    const url = item.getURL();
+    if (!agreed.delete(url)) {
+      event.preventDefault();
+      if (pending || surface !== 'page' || wc !== page) {
+        notify(pending ? 'A download was not started: another question was waiting' : 'A download was not started');
+        return;
+      }
+      const taken = (n: string): boolean => existsSync(join(deps.downloads, n));
+      pending = { what: 'download', url, name: uniqueName(item.getFilename(), taken), site: siteName(url) || 'this site', bytes: item.getTotalBytes(), from: wc };
+      panel = 'prompt';
+      layout();
+      return;
+    }
+    let name = 'download';
+    try {
+      mkdirSync(deps.downloads, { recursive: true });
+      name = uniqueName(item.getFilename(), (n) => existsSync(join(deps.downloads, n)));
+    } catch (err) {
+      console.error(`[longboard] the downloads folder cannot be used: ${String(err).slice(0, 160)}`);
+      event.preventDefault();
+      notify('The downloads folder cannot be used');
+      return;
+    }
+    // Set now, so the browser never puts up a file chooser of its own.
+    item.setSavePath(join(deps.downloads, name));
+    downloading.add(item);
+    notify(`Downloading ${name}`);
+    item.once('done', (_e, state) => {
+      downloading.delete(item);
+      notify(state === 'completed' ? `Saved ${name} in ${deps.downloads}` : state === 'cancelled' ? `The download of ${name} was cancelled` : `The download of ${name} failed`);
+      if (panel === 'menu') layout();
+    });
   }));
 
   // ---- Messages from the layers ---------------------------------------------
@@ -1220,6 +1289,24 @@ export function createBrowser(deps: BrowserDeps): Browser {
         layout();
         break;
       }
+      case 'forgetAnswers': {
+        panel = null;
+        const key = surface === 'page' ? pageSite() : null;
+        if (key && sites[key]?.answers) {
+          const { answers: _gone, ...rest } = sites[key];
+          if (Object.keys(rest).length) sites[key] = rest;
+          else delete sites[key];
+          saveSites();
+          layout();
+          notify('Forgotten. This site will ask again; load the page again for it to take effect');
+        } else layout();
+        break;
+      }
+      case 'cancelDownloads':
+        panel = null;
+        for (const item of [...downloading]) item.cancel();
+        layout();
+        break;
       case 'about':
         panel = 'about';
         layout();

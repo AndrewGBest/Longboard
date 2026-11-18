@@ -30,8 +30,6 @@ Video's rules, so the scope is written down carefully.
 - **Starts off on verified sites:** websites reviewed by a person and listed
   as having non-malicious advertising. Prime Video and YouTube are Andrew's
   examples.
-- **Starts off on sites granted protected playback** that are not yet on the
-  list. This is the agent's addition, flagged to Andrew.
 - **Starts on everywhere else.**
 - **Longboard never flips the switch by itself.**
 - **What it is:** refusing network requests that match public filter lists,

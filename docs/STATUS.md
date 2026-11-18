@@ -24,13 +24,13 @@ DECISIONS.md, each marked as an assumption.
 All of this was checked by scripts on a headless virtual machine. **None of
 it was checked by a person, with a remote, on a TV.**
 
-- `npm run check`: 327 unit tests (geometry, input mapping, address rules,
+- `npm run check`: 339 unit tests (geometry, input mapping, address rules,
   navigation policy, permission policy, pointer movement, profile validation,
   matching and choosing, the interpreter, the profile store, the catalogue
   fetcher, the guard, the outline sanitiser), the build, and the rule checks.
 - `xvfb-run -a npm run e2e`: the real app, always with `--automation`, driven
   over the DevTools protocol against invented fixture pages served from this
-  machine. 20 scenarios, 212 checks. They cover: arrows on a grid of
+  machine. 22 scenarios, 230 checks. They cover: arrows on a grid of
   cards; the on-screen keyboard; pop-ups; refused addresses, downloads and
   permissions; Home, the address field, the menu, zoom and Back; searching;
   notices for blocked and unreachable pages; a full-screen video with the
@@ -41,7 +41,10 @@ it was checked by a person, with a remote, on a TV.**
   local one, with one from a (made-up) catalogue, and with an imported one;
   adding a site as an app with its own sign-ins, its entry file and icon,
   opening it from Home and with `--app=`, and removing it; making a profile
-  with the editor, saving it, and finishing without saving.
+  with the editor, saving it, and finishing without saving; a site asking
+  for the location, camera and microphone, and notifications, each allowed,
+  refused, remembered and forgotten; a download asked about, saved, renamed
+  and cancelled.
 - Real key events (xdotool under Xvfb), once, by hand: arrows move the
   highlight; F2 starts pointer mode; a held arrow moves the pointer. This is
   how it was found that key releases never reach the shell (DECISIONS.md).
@@ -85,6 +88,16 @@ it was checked by a person, with a remote, on a TV.**
   reported. A controller moves at once.
 - With nothing to move to, the highlight can be off screen while a long
   article scrolls. There is then no indicator until a link comes into view.
+- Permission questions were tried with the browser's fake camera and
+  microphone, and no real device. Whether location works at all on a TV box
+  is unknown (there is no positioning hardware; the browser may have nothing
+  to answer with even when allowed).
+- A site that checks whether it has a permission before asking is told "no"
+  until the person has allowed it, so some sites may never ask (DECISIONS.md).
+- A download that comes from submitting a form cannot be saved: the address
+  is asked for a second time after the question, and a form is not sent
+  again. There is no list of downloads and no progress display beyond the
+  messages; the menu can cancel what is under way.
 - Home tiles have a letter, not the site's icon.
 - Tiles cannot be removed from Home yet.
 - Sites at the 960-pixel TV scale often show their phone layout.
@@ -107,8 +120,9 @@ it was checked by a person, with a remote, on a TV.**
 
 ### Open questions for Andrew
 
-- Keep or drop the agent's addition that sites with protected playback start
-  with ad blocking off even when not yet verified (carried over, still open).
+- None open. Answered on 2026-11-18: Google is the default search; the
+  keyboard follows Android TV; the protected-playback row of the ad-blocking
+  defaults is dropped; permissions are asked about; downloads work.
 
 **Next:** try it on the TV box with the remote. Everything after that
 depends on what that shows.

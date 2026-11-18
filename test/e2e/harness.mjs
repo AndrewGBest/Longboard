@@ -184,7 +184,7 @@ export async function launch({ url, config, args = [], width, height, seed } = {
   if (seed) seed(userData);
   const child = spawn(
     electronPath,
-    [root, '--dev', '--automation', ...(args.some((x) => x.startsWith('--zoom=')) ? [] : ['--zoom=1']), ...(width ? [`--size=${width}x${height}`] : []), ...(url ? [`--url=${url}`] : []), ...args, `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--no-sandbox', '--disable-gpu'],
+    [root, '--dev', '--automation', ...(args.some((x) => x.startsWith('--zoom=')) ? [] : ['--zoom=1']), ...(width ? [`--size=${width}x${height}`] : []), ...(url ? [`--url=${url}`] : []), `--downloads=${join(userData, 'downloads')}`, ...args, `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--no-sandbox', '--disable-gpu'],
     // The desktop's app list is kept inside the throw-away folder too: a test never writes to the real one.
     { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, XDG_DATA_HOME: join(userData, 'xdg') } },
   );

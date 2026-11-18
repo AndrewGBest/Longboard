@@ -28,11 +28,15 @@ export interface ChromeState {
     pointer: boolean;
     /** The profile in use, as said on screen, or null in generic mode. */
     profile: string | null;
+    /** What this site has been allowed or refused, in words, or null when nothing was ever answered. */
+    answers: string | null;
     /** The app this site was added as, if it was. */
     app: { id: string; name: string } | null;
     /** Whether the TV's app list can be written to on this system. */
     canAddToAppList: boolean;
   } | null;
+  /** How many downloads are under way. */
+  downloads: number;
   /** The profile editor, while it is in use. */
   edit: {
     /** The site being edited for. */
@@ -44,7 +48,10 @@ export interface ChromeState {
   } | null;
   /** The question being asked, while panel is 'prompt'. */
   prompt:
-    | { what: 'protectedPlayback'; site: string }
+    /** A site wants something it has to be allowed: `wants` says what, in plain words. */
+    | { what: 'permission'; site: string; wants: string }
+    /** A file is about to be downloaded. */
+    | { what: 'download'; site: string; name: string; size: string; folder: string }
     /** A profile someone gave the person, which nobody has reviewed: use it? */
     | { what: 'profile'; name: string; version: string; hosts: string[] }
     | null;
@@ -52,10 +59,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'cancelDownloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'cancelDownloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =

@@ -46,9 +46,13 @@ These match Electron's own security checklist [Sourced: Electron].
 **What changes for a general browser.** Tropic Video only loads one service's
 domains. Longboard loads anything, so the allowlist is replaced by:
 
-- a permission policy: everything denied by default, with a TV-friendly
-  prompt for the few that make sense (full screen, protected playback);
-- no downloads in the first version;
+- a permission policy: nothing given by default. Full screen is allowed;
+  camera, microphone, location, notifications, clipboard reading, MIDI and
+  pointer lock are asked about per site with a TV-friendly question and the
+  answer kept; everything else is refused. The decision is a pure function;
+- downloads asked about one at a time and saved to the Downloads folder.
+  A download cannot be held while its question is up, so the first attempt
+  is stopped and the address is asked for again once the person agrees;
 - `file:` and other local schemes blocked in the page view;
 - pop-ups open in the same view;
 - certificate errors cannot be clicked through;
@@ -108,7 +112,7 @@ app **[Guess: believed compatible, not checked]**.
 
 The filter asks the shell "is blocking on for this site?" on each navigation.
 The answer is the person's saved choice for the site if there is one;
-otherwise off for verified sites and sites granted protected playback, on for
+otherwise off for verified sites, on for
 the rest (DESIGN.md section 5). That decision is a pure function with unit
 tests. The verified-sites list is fetched with the profile index.
 

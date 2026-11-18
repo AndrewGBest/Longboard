@@ -55,13 +55,16 @@ const site = await serveFixtures({
   // does for a signed-out visitor.
   '/signed-out': (_req, res) => res.writeHead(302, { location: '/offers/landing?token=SECRET' }).end(),
   // Something a browser would save to disk.
-  '/file.bin': (_req, res) => res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename=x.bin' }).end('data'),
+  '/file.bin': (_req, res) => res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename=x.bin', 'content-length': 4 }).end('data'),
   '/offers/landing': (_req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>should never load</title>'),
 });
 const logs = [];
 
 /** Runs one scenario with its own app; a crash in it fails the run and the app's log is kept. */
+// `npm run e2e -- words` runs only the scenarios whose names contain one of the words.
+const only = process.argv.slice(2);
 async function scenario(name, options, body) {
+  if (only.length && !only.some((word) => name.includes(word))) return;
   console.log(`\n# ${name}`);
   const before = failureCount();
   const app = await launch(options);
@@ -184,18 +187,95 @@ await scenario('a page driven with the arrows', { url: `${site.origin}/home.html
   await evaluate('window.open("file:///etc/passwd"); 0');
   await sleep(400);
   check('a file address does not open', await evaluate('location.href'), `${site.origin}/home.html`);
-  check('location is refused without a question', await evaluate('new Promise((r) => navigator.geolocation.getCurrentPosition(() => r("granted"), (e) => r(e.code)))'), 1);
-  check('notifications are refused', await evaluate('Notification.requestPermission()'), 'denied');
-  check('the camera and microphone are refused', await evaluate('navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(() => "granted", () => "refused")'), 'refused');
-
-  // A download is refused, and said so.
-  await evaluate('location.href = "/file.bin"; 0');
-  check('a download is refused with a message', await until(() => page.toastText(), (t) => /Downloads/.test(t ?? '')), 'Downloads are not available in Longboard yet');
-  check('and the page stays', await evaluate('location.pathname'), '/home.html');
+  check('a kind of access Longboard never gives is refused without a question', await evaluate('navigator.permissions.query({ name: "idle-detection" }).then((p) => p.state, () => "refused")').then((v) => v !== 'granted'), true);
 
   // Quit is handled by the shell, so it must work whatever the page is doing.
   void page.keyDown('q', { code: 'KeyQ', windowsVirtualKeyCode: 81, nativeVirtualKeyCode: 81, modifiers: 2 }).catch(() => undefined);
   check('Ctrl+Q quits the app', await Promise.race([app.exited, sleep(4000).then(() => false)]), true);
+});
+
+await scenario('a site asks to be allowed something', { url: `${site.origin}/home.html`, args: ['--use-fake-device-for-media-stream'] }, async (app) => {
+  const page = await app.page(site.origin);
+  const chrome = await app.chrome();
+  const { evaluate } = page;
+  const question = () => chrome.evaluate('[...document.querySelectorAll("#panel h1, #panel p")].map((n) => n.textContent).join(" | ")');
+  const asked = () => until(() => chrome.evaluate('document.querySelector("#panel h1")?.textContent ?? null'), (t) => t === 'Allow this?', 50);
+  const answers = () => JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8'))['127.0.0.1']?.answers;
+  const locate = 'window.__geo = new Promise((r) => navigator.geolocation.getCurrentPosition(() => r("allowed"), (e) => r(e.code === 1 ? "refused" : "allowed, but no position"))); 0';
+  await sleep(800);
+
+  await evaluate(locate);
+  check('asking for the location puts a question on screen', await asked(), 'Allow this?');
+  check('which says who is asking and for what, in plain words', (await question()).includes('127.0.0.1 wants to know where this device is.'), true);
+  check('with the highlight on Allow, and the page still waiting', [await chrome.focused(), await evaluate('Promise.race([__geo, new Promise((r) => setTimeout(() => r("waiting"), 300))])')], ['prompt-allow', 'waiting']);
+  await chrome.press('Escape', 500);
+  check('Back refuses this once and remembers nothing', [await evaluate('__geo'), existsSync(join(app.userData, 'sites.json'))], ['refused', false]);
+
+  await evaluate(locate);
+  await asked();
+  await chrome.press('ArrowDown');
+  await chrome.press('Enter', 500);
+  check('"Do not allow" refuses and is remembered for the site', [await evaluate('__geo'), await answers()], ['refused', { location: 'denied' }]);
+  await evaluate(locate);
+  await sleep(500);
+  check('so the next time it is refused without asking again', [await evaluate('__geo'), await chrome.evaluate('document.visibilityState')], ['refused', 'hidden']);
+
+  // Two things at once, allowed.
+  await evaluate('window.__cam = navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((s) => { s.getTracks().forEach((t) => t.stop()); return "allowed"; }, (e) => e.name); 0');
+  await asked();
+  check('camera and microphone are asked about together', (await question()).includes('127.0.0.1 wants to use the camera and use the microphone.'), true);
+  await chrome.press('Enter', 800);
+  check('"Allow" gives the page what it asked for, and is remembered', [await evaluate('__cam'), await answers()], ['allowed', { location: 'denied', camera: 'granted', microphone: 'granted' }]);
+  await evaluate('window.__cam = navigator.mediaDevices.getUserMedia({ video: true }).then((s) => { s.getTracks().forEach((t) => t.stop()); return "allowed"; }, (e) => e.name); 0');
+  await sleep(600);
+  check('so the camera alone is then given without a question', [await evaluate('__cam'), await chrome.evaluate('document.visibilityState')], ['allowed', 'hidden']);
+
+  await evaluate('window.__note = Notification.requestPermission(); 0');
+  await asked();
+  await chrome.press('Enter', 500);
+  check('notifications are asked about and can be allowed', await evaluate('__note'), 'granted');
+
+  // The menu shows the answers and can forget them.
+  await page.press('ContextMenu', 500);
+  const menu = await chrome.evaluate('document.getElementById("panel").textContent');
+  check('the menu says what the site may and may not do', [menu.includes('Allowed to: use the camera, use the microphone, show notifications'), menu.includes('Not allowed to: know where this device is')], [true, true]);
+  for (let i = 0; i < 16 && (await chrome.focused()) !== 'menu-forget'; i++) await chrome.press('ArrowDown');
+  check('the entry that forgets them can be reached', await chrome.focused(), 'menu-forget');
+  await chrome.press('Enter', 500);
+  check('and can forget them', existsSync(join(app.userData, 'sites.json')) ? JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8')) : {}, {});
+  await evaluate('location.reload(); 0');
+  await sleep(1000);
+  await evaluate(locate);
+  check('after which the site has to ask again', await asked(), 'Allow this?');
+  await chrome.press('Escape', 400);
+});
+
+await scenario('downloads', { url: `${site.origin}/home.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const chrome = await app.chrome();
+  const folder = join(app.userData, 'downloads');
+  const asked = () => until(() => chrome.evaluate('document.querySelector("#panel h1")?.textContent ?? null'), (t) => t === 'Download this file?', 50);
+  await sleep(800);
+  await page.evaluate('location.href = "/file.bin"; 0');
+  check('a download is asked about first', await asked(), 'Download this file?');
+  const text = await chrome.evaluate('document.getElementById("panel").textContent');
+  check('the question names the file, its size, where it is from and where it will go', [text.includes('x.bin (4 bytes), from 127.0.0.1.'), text.includes(`It will be saved in ${folder}.`)], [true, true]);
+  check('nothing is saved before the answer', existsSync(join(folder, 'x.bin')), false);
+  await chrome.press('Enter', 300);
+  check('"Download" saves it and says so', await until(() => page.toastText(), (t) => /^Saved/.test(t ?? ''), 60), `Saved x.bin in ${folder}`);
+  check('the file is there, whole, and the page did not go anywhere', [existsSync(join(folder, 'x.bin')) && readFileSync(join(folder, 'x.bin'), 'utf8'), await page.evaluate('location.pathname')], ['data', '/home.html']);
+
+  await page.evaluate('location.href = "/file.bin"; 0');
+  await asked();
+  check('the same file again gets a new name, and writes over nothing', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('x (2).bin'), true);
+  await chrome.press('ArrowDown');
+  await chrome.press('Enter', 600);
+  check('"Cancel" saves nothing', [existsSync(join(folder, 'x (2).bin')), readFileSync(join(folder, 'x.bin'), 'utf8')], [false, 'data']);
+
+  await page.evaluate('location.href = "/file.bin"; 0');
+  await asked();
+  await chrome.press('Escape', 600);
+  check('and so does Back', [existsSync(join(folder, 'x (2).bin')), await chrome.evaluate('document.visibilityState')], [false, 'hidden']);
 });
 
 await scenario('Home, the address field, the menu and Back', {}, async (app) => {

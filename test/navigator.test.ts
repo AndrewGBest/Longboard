@@ -574,10 +574,21 @@ describe('a held key on a page that loads more as it scrolls', () => {
   beforeEach(() => {
     document.body.innerHTML = page;
     scrolled = [];
-    window.scrollBy = ((o: ScrollToOptions) => void scrolled.push(o.top ?? 0)) as typeof window.scrollBy;
+    // The page is taller than the screen and can scroll (jsdom has no layout of its own).
+    pageSize(4000, window.innerHeight);
+    const el = document.scrollingElement ?? document.documentElement;
+    el.scrollBy = ((o: ScrollToOptions) => void scrolled.push(o.top ?? 0)) as typeof el.scrollBy;
     window.scrollTo = (() => undefined) as typeof window.scrollTo;
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    pageSize(0, 0);
+  });
+  const pageSize = (scrollHeight: number, clientHeight: number): void => {
+    const el = document.scrollingElement ?? document.documentElement;
+    Object.defineProperty(el, 'scrollHeight', { value: scrollHeight, configurable: true });
+    Object.defineProperty(el, 'clientHeight', { value: clientHeight, configurable: true });
+  };
 
   const at = (ms: number): void => void vi.spyOn(Date, 'now').mockReturnValue(ms);
 
@@ -590,6 +601,18 @@ describe('a held key on a page that loads more as it scrolls', () => {
     expect(nav.move('down')).toBe(true);
     expect(nav.focused?.id).toBe('r2');
     expect(scrolled).toEqual([0.8 * window.innerHeight]);
+  });
+
+  it('jumps after all when nothing can scroll toward the target (it sits in a pane that is at its end)', () => {
+    pageSize(0, 0);
+    const nav = new SpatialNavigator(document);
+    at(10_000);
+    nav.focus(document.getElementById('r1'));
+    nav.move('down');
+    at(10_050);
+    nav.move('down');
+    expect(nav.focused?.id).toBe('footer');
+    expect(scrolled).toEqual([]);
   });
 
   it('still jumps on a single press', () => {

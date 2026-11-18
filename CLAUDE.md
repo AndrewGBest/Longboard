@@ -31,8 +31,8 @@ The reasoning for each is in `docs/LEGAL-GUARDRAILS.md`.
    The layer adds its own UI and sends ordinary input. It never calls `play()`,
    `pause()` or sets `currentTime` on a site's video.
 5. **Ad blocking is a per-site switch the person controls.** It starts off on
-   verified sites (the reviewed list in the profiles repository) and on sites
-   granted protected playback, and on everywhere else. Never change the switch
+   verified sites (the reviewed list in the profiles repository), and on
+   everywhere else. Never change the switch
    for the person, never ship a default that turns it on for a verified site.
    It works by refusing requests on public filter lists: never in-stream ad
    skipping, never anti-detection. The starting-state decision is a tested
@@ -64,8 +64,9 @@ The reasoning for each is in `docs/LEGAL-GUARDRAILS.md`.
     Settings and neither reveals which sites are visited.
 13. **Least privilege in the shell.** Keep `contextIsolation: true`,
     `sandbox: true`, `nodeIntegration: false`, no `contextBridge` API exposed to
-    web pages, default-deny permissions, no click-through on certificate
-    errors.
+    web pages, default-deny permissions (a site gets camera, microphone,
+    location and the like only when the person says yes for that site), no
+    click-through on certificate errors.
 14. **Stay current.** The shell is updated to each stable castLabs Electron
     release promptly. A browser on an old engine is unsafe; do not postpone
     this for features.

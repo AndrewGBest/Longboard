@@ -135,8 +135,27 @@ The editor is roadmap phase 4. Until then profiles are written as text files.
 
 ### 4.6 Left out of the first version
 
-Tabs, history, bookmarks beyond Home tiles, and downloads were not chosen for
-the first version and are on the roadmap **[Decision, 2026-11-18]**.
+Tabs, history and bookmarks beyond Home tiles were not chosen for the first
+version and are on the roadmap **[Decision, 2026-11-18]**. Downloads were on
+that list too; Andrew asked for them later the same day and they are in
+(section 4.7).
+
+### 4.7 Questions Longboard asks **[Decision, 2026-11-18]**
+
+Longboard asks before a site is given something, and before a file is saved.
+Each question is a panel with two buttons, driven like everything else.
+
+- **A site wants access**: the camera, the microphone, the device's
+  location, notifications, reading the clipboard, MIDI instruments, or the
+  pointer. The question says which site and what for, in plain words.
+  "Allow" and "Do not allow" are remembered for the site; Back refuses this
+  once and asks again next time. The menu shows a site's answers and can
+  forget them. Full screen needs no question. Devices that need a chooser
+  Longboard does not have (USB, serial, screen capture) are still refused.
+- **A download**: the question names the file, its size, the site it comes
+  from and the folder it will go to. Agreed to, it is saved in the Downloads
+  folder under a name that writes over nothing. Longboard never opens or
+  runs a downloaded file.
 
 ## 5. Ad blocking **[Decision, 2026-11-18]**
 
@@ -145,7 +164,6 @@ Every site has an ad-blocking switch. Only the starting position differs.
 | Site | Starts | Switch |
 |---|---|---|
 | Verified site | Off | Yes |
-| Site granted protected (DRM) playback, not yet on the verified list | Off | Yes |
 | Everything else | On | Yes |
 
 **Verified sites** are websites that a person has reviewed and added to a
@@ -154,10 +172,11 @@ Prime Video and YouTube. The list lives in the profiles repository as its own
 file and changes by pull request, the same way profiles do. Being verified is
 separate from having a profile: a site can be on the list with no profile.
 
-The second row is the agent's addition **[Assumption]**: a subscription video
-service nobody has reviewed yet should not have blocking forced on it by
-default. Andrew's words were that everything else defaults to on; he can
-remove this row.
+An earlier draft had a third row, added by the agent: sites granted
+protected (DRM) playback but not yet verified would also start off. Andrew
+dropped it **[Decision, 2026-11-18]**: only the verified list starts off. On
+Linux there was also nothing to base it on, because the browser never asks
+about protected playback there.
 
 Longboard never changes the switch by itself. Blocking means refusing network
 requests that match public filter lists. It never skips, hides or shortens

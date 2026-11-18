@@ -3,6 +3,31 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: Andrew on ad-blocking defaults, permissions and downloads
+
+Andrew, in chat:
+
+- **Drop the "granted protected playback" row.** Ad blocking starts off only
+  on verified sites and on everywhere else. The agent's assumption of
+  2026-11-18 is withdrawn, and Hard rule 5 in CLAUDE.md was reworded to
+  match, at Andrew's instruction.
+- **Permissions are asked about**, and the person can allow or deny.
+- **Downloads should work.**
+
+How the agent built the last two, each **an assumption** where Andrew did not
+say:
+
+| Topic | Chosen | Why |
+|---|---|---|
+| What is asked about | Camera, microphone, location, notifications, clipboard reading, MIDI, pointer lock, and protected playback where the browser asks | The things a person can be asked about in one sentence |
+| What is still refused | USB, serial and HID devices, screen capture, opening other programs, and anything unknown | Each needs a chooser (which device, which screen) that Longboard does not have. They need a design, not just a yes or no |
+| Remembering | "Allow" and "Do not allow" are kept per site; Back is "not now". The menu shows a site's answers and forgets them all at once | Same as the imported-profile question. Forgetting one answer at a time can come later |
+| Who is asked about | Only the page in front, and only when it was loaded over https (or from this machine) | A page in the background or loaded insecurely is refused, unremembered |
+| A site sees "denied" before it has asked | Unavoidable for now | The browser's own "has it permission?" check cannot wait for an answer, and can only be told yes or no. Until the person has said yes, a site that checks first sees no. Sites that simply ask get the question. **Unverified how many sites check first and give up** |
+| Downloads | Asked about one at a time; saved to the desktop's Downloads folder (`--downloads=` changes it) under a name that writes over nothing; never opened | A file landing on a TV box unasked is a surprise, and a save dialog is a small file manager. One question covers both |
+| How a download is held for the question | The first attempt is stopped; on "Download" the same address is asked for again and kept | Measured: pausing does not hold it, a small file was on disk before the question could be answered. The cost is that the site sees two requests, and a download that came from submitting a form cannot be repeated this way |
+| Held keys and panes | A held key now scrolls whatever holds its target, and jumps when nothing can scroll | Found while testing the longer menu: with the window unable to scroll, quick presses went nowhere |
+
 ## 2026-11-18: Andrew's answers after the first autonomous session
 
 Andrew, in chat:

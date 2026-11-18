@@ -65,12 +65,12 @@ describe('per-site settings', () => {
   it('reads a saved file and drops what it cannot use', () => {
     expect(
       parseSites({
-        'example.com': { protectedPlayback: 'granted', zoom: 1.25, extra: true },
-        'b.example': { protectedPlayback: 'maybe', zoom: 40 },
+        'example.com': { answers: { camera: 'granted', location: 'denied', teleport: 'granted', midi: 'maybe' }, zoom: 1.25, extra: true },
+        'b.example': { answers: { camera: 'maybe' }, zoom: 40 },
         'Bad Host': { zoom: 1.1 },
         'c.example': 'x',
       }),
-    ).toEqual({ 'example.com': { protectedPlayback: 'granted', zoom: 1.25 } });
+    ).toEqual({ 'example.com': { answers: { camera: 'granted', location: 'denied' }, zoom: 1.25 } });
     expect(parseSites([1])).toEqual({});
     expect(parseSites(null)).toEqual({});
   });

@@ -1,6 +1,6 @@
 // Per-site settings the person has chosen: answers to permission questions
 // and a zoom adjustment. Pure; the shell reads and writes the file.
-import type { SitePermissions } from '../main/permissions';
+import { ASKABLE_NAMES, type SitePermissions } from '../main/permissions';
 
 export interface SiteSettings extends SitePermissions {
   /** Zoom relative to the automatic TV scale: 1 is unchanged. */
@@ -25,7 +25,14 @@ export function parseSites(raw: unknown): Record<string, SiteSettings> {
     if (!HOST.test(host) || !value || typeof value !== 'object') continue;
     const v = value as Record<string, unknown>;
     const site: SiteSettings = {};
-    if (v['protectedPlayback'] === 'granted' || v['protectedPlayback'] === 'denied') site.protectedPlayback = v['protectedPlayback'];
+    const answers: NonNullable<SitePermissions['answers']> = {};
+    if (v['answers'] && typeof v['answers'] === 'object') {
+      for (const name of ASKABLE_NAMES) {
+        const answer = (v['answers'] as Record<string, unknown>)[name];
+        if (answer === 'granted' || answer === 'denied') answers[name] = answer;
+      }
+    }
+    if (Object.keys(answers).length) site.answers = answers;
     if (typeof v['zoom'] === 'number' && v['zoom'] >= ZOOM_STEPS[0] && v['zoom'] <= ZOOM_STEPS[ZOOM_STEPS.length - 1]!) site.zoom = v['zoom'];
     if (Object.keys(site).length) out[host] = site;
   }

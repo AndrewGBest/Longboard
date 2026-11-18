@@ -112,6 +112,8 @@ async function main(): Promise<void> {
     startApp: value('app') ?? null,
     // Windowed while developing, so the desktop stays reachable.
     fullscreen: flag('fullscreen') || !options.dev,
+    // Where files are saved: the desktop's Downloads folder, unless told otherwise.
+    downloads: value('downloads') || app.getPath('downloads'),
     zoomOverride: value('zoom'),
     size: /^\d{3,5}x\d{3,5}$/.test(value('size') ?? '') ? (value('size') as string).split('x').map(Number) as [number, number] : undefined,
     ready: componentsReady,

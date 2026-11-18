@@ -761,13 +761,11 @@ export class SpatialNavigator {
       // scrolled toward.
       const reach = this.rapid ? 0 : view.innerHeight * READING_REACH;
       const far = dir === 'down' ? r.top > view.innerHeight + reach : r.bottom < -reach;
-      if (far && this.rapid) {
-        view.scrollBy({ top: (dir === 'down' ? 0.8 : -0.8) * view.innerHeight, behavior: 'instant' });
-        return true;
-      }
       // Whatever holds the target is what scrolls (the page, or a pane of a
-      // web app). If nothing can scroll that way the target is jumped to after all.
-      if (far && scrollBy(this.doc, target, dir, false) !== null) return true;
+      // web app, or Longboard's own menu). If nothing can scroll that way the
+      // target is jumped to after all: scrolling the window when it is a pane
+      // that holds the target would leave a held key going nowhere.
+      if (far && scrollBy(this.doc, target, dir, this.rapid) !== null) return true;
     }
     return this.focus(target);
   }

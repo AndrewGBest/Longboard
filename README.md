@@ -62,12 +62,14 @@ Keys and controller buttons can be remapped in `~/.config/Longboard/config.json`
 Compared with a mainstream browser, today:
 
 - **No Safe Browsing.** Nothing warns about known phishing or malware sites.
-- No tabs, history, bookmarks or downloads. Home remembers the sites you
+- No tabs, history or bookmarks. Home remembers the sites you
   opened lately and that is all.
 - No ad blocking yet. It is the last phase of the roadmap.
-- Permissions are simple: full screen is allowed, protected video is asked
-  about, everything else (camera, microphone, location, notifications) is
-  refused.
+- Downloads are saved, after a question, and that is all: there is no list
+  of them, and Longboard does not open what it saves.
+- A site is asked about before it gets the camera, microphone, location,
+  notifications, the clipboard, MIDI or the pointer. USB, serial and screen
+  capture are refused: they need a chooser Longboard does not have yet.
 - No packages, no automatic updates.
 
 ## What it will not do
