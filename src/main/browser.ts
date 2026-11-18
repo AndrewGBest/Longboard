@@ -159,7 +159,12 @@ export function createBrowser(deps: BrowserDeps): Browser {
     for (const ses of wiredSessions) wire(ses);
   };
   /** Makes the website view for a session: "" is the one everything shares. */
-  const makeView = (partition: string): WebContentsView => {
+  // A view is known by its place: "" is the first tab, "tab:N" another tab,
+  // and anything else is the session of an app that keeps its own sign-ins.
+  // Tabs share the one session everything shares; they differ only in page.
+  const isTab = (place: string): boolean => place === '' || place.startsWith('tab:');
+  const makeView = (place: string): WebContentsView => {
+    const partition = isTab(place) ? '' : place;
     const view = new WebContentsView({
       webPreferences: {
         ...hardened,
@@ -177,7 +182,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     win.contentView.addChildView(view);
     // Longboard's own screens stay in front of every website view.
     win.contentView.addChildView(chromeView);
-    views.set(partition, view);
+    views.set(place, view);
     const ses = view.webContents.session;
     if (!wiredSessions.has(ses)) {
       wiredSessions.add(ses);
@@ -338,6 +343,12 @@ export function createBrowser(deps: BrowserDeps): Browser {
             capturing,
             folders: pickAt === null ? null : foldersAt(pickAt),
           },
+    tabs: tabPlaces().map((place) => {
+      const wc = views.get(place)?.webContents;
+      const url = wc && !wc.isDestroyed() ? wc.getURL() : '';
+      const loaded = !isNotice(url);
+      return { id: place, title: loaded && wc ? wc.getTitle().slice(0, 80) : '', site: loaded ? siteName(url) : '', current: place === partition };
+    }),
     history: panel === 'history' ? visits.slice(0, 80).map((v) => visitLine(v, Date.now())) : null,
     downloads: downloads.map((d) => ({
       id: d.id,
@@ -500,6 +511,59 @@ export function createBrowser(deps: BrowserDeps): Browser {
     layout();
   };
 
+  /** Tabs: a new one (which starts on Home), bringing one in front, or closing one. */
+  const tabAction = (op: unknown, id: unknown): void => {
+    if (edit) endEdit(false);
+    if (op === 'new') {
+      if (tabPlaces().length >= MAX_TABS) {
+        notify(`${MAX_TABS} tabs are open. Close one first`);
+        return;
+      }
+      if (surface === 'page') {
+        setPointer(false);
+        page.send('longboard:away');
+        page.setAudioMuted(true);
+      }
+      usePartition(`tab:${++tabCount}`);
+      surface = 'home';
+      panel = null;
+      layout();
+      notify('A new tab. Open an address or a tile');
+      return;
+    }
+    if (typeof id !== 'string' || !isTab(id) || !views.has(id)) return;
+    if (op === 'switch') {
+      usePartition(id);
+      if (pageLoaded()) showPage();
+      else {
+        surface = 'home';
+        panel = null;
+        layout();
+      }
+      return;
+    }
+    if (op !== 'close') return;
+    const others = tabPlaces().filter((t) => t !== id);
+    if (!others.length) {
+      notify('The only tab cannot be closed');
+      return;
+    }
+    if (partition === id) {
+      // Another tab comes in front first; the nearest one in the list.
+      usePartition(others[Math.min(others.length - 1, tabPlaces().indexOf(id))] ?? others[0]!);
+      surface = pageLoaded() ? 'page' : 'home';
+      if (surface === 'page') page.setAudioMuted(false);
+    }
+    const gone = views.get(id);
+    views.delete(id);
+    if (lastTab === id) lastTab = isTab(partition) ? partition : (others[0] ?? '');
+    if (gone) {
+      win.contentView.removeChildView(gone);
+      gone.webContents.close();
+    }
+    layout();
+  };
+
   const showHome = (): void => {
     if (edit) endEdit(false);
     if (surface === 'page') {
@@ -524,6 +588,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
     powerSaveBlocker.stop(blocker);
     blocker = undefined;
   };
+  /** The tab most recently in front: where an address opens when an app's own view is in front, or none is. */
+  let lastTab = '';
+  let tabCount = 0;
+  const MAX_TABS = 8;
+  const tabPlaces = (): string[] => [...views.keys()].filter(isTab);
   const usePartition = (next: string): void => {
     if (next === partition) return;
     setPointer(false);
@@ -540,11 +609,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
     pageView = views.get(next) ?? makeView(next);
     page = pageView.webContents;
     partition = next;
-    if (leaving !== '') {
+    // A tab stays open behind the one in front. An app's own view is closed when it is left.
+    if (!isTab(leaving)) {
       views.delete(leaving);
       win.contentView.removeChildView(left);
       left.webContents.close();
     }
+    if (isTab(next)) lastTab = next;
     retryAttempt = 0;
     titleFor = null;
     lastNoticeAt = 0;
@@ -552,7 +623,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
 
   /** Opens an address the person asked for. `remember` puts it on Home. `inSession` is an app's own session, or "" for the shared one. */
-  const open = (url: string, remember: boolean, inSession = ''): void => {
+  const open = (url: string, remember: boolean, inSession = lastTab): void => {
     const reason = blockReason(url, options);
     if (reason) {
       console.error(`[longboard] blocked navigation (${reason}): ${describeBlockedUrl(url)}`);
@@ -1614,7 +1685,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (item.ownSession) {
       if (partition === appPartition(item)) {
         // Its view goes with it, so there is nothing left to show but Home.
-        usePartition('');
+        usePartition(lastTab);
         surface = 'home';
         panel = null;
         layout();
@@ -1741,6 +1812,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
         panel = 'history';
         layout();
         break;
+      case 'tabs':
+        panel = 'tabs';
+        layout();
+        break;
       case 'quit':
         app.quit();
         break;
@@ -1748,7 +1823,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
   /** The buttons on the Settings screen that do something once, as against changing a setting. */
   const settingsAction = (action: SettingsAction): void => {
-    const webSessions = (): Electron.Session[] => [(views.get('') ?? pageView).webContents.session, ...apps.filter((a) => a.ownSession).map((a) => session.fromPartition(appPartition(a)))];
+    const webSessions = (): Electron.Session[] => [(views.get(lastTab) ?? pageView).webContents.session, ...apps.filter((a) => a.ownSession).map((a) => session.fromPartition(appPartition(a)))];
     switch (action) {
       case 'clearSiteData':
         // Cookies and everything sites have stored: signs out of every site, apps with their own sign-ins included.
@@ -1821,6 +1896,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
       case 'icon':
         // A picture Longboard's own screen drew from a site's icon.
         if (typeof msg.id === 'number') drawing.get(msg.id)?.(pngFromDataUrl(msg.png));
+        break;
+      case 'tab':
+        if (panel === 'tabs') tabAction(msg.op, msg.id);
         break;
       case 'openVisit':
         if (panel === 'history' && typeof msg.url === 'string' && visits.some((v) => v.url === msg.url)) open(msg.url, true);

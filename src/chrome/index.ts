@@ -185,7 +185,7 @@ function menuPanel(s: ChromeState): Node[] {
     items.push(button('menu-downloads', going ? `Downloads (${going} under way)` : 'Downloads', act('downloads')));
   }
   items.push(button('menu-import', 'Import profiles from USB', act('importProfiles')));
-  items.push(button('menu-history', 'History', act('history')));
+  items.push(button('menu-tabs', s.tabs.length > 1 ? `Tabs (${s.tabs.length})` : 'Tabs', act('tabs')), button('menu-history', 'History', act('history')));
   items.push(button('menu-settings', 'Settings', act('settings')), button('menu-about', 'About and help', act('about')), button('menu-quit', `Quit ${PRODUCT.name}`, act('quit')));
   return items;
 }
@@ -464,6 +464,18 @@ function settingsPanel(s: ChromeState): Node[] {
   }
 }
 
+/** The open tabs: bring one in front, close one, or open another. */
+function tabsPanel(s: ChromeState): Node[] {
+  const items: Node[] = [el('h1', { text: 'Tabs' }), button('tab-new', 'New tab', () => tell({ kind: 'tab', op: 'new' }))];
+  s.tabs.forEach((t, i) => {
+    const name = t.site ? (t.title ? `${t.title} (${t.site})` : t.site) : 'Empty tab';
+    items.push(button(`tab-${i}`, t.current ? `${name}: in front now` : name, () => tell({ kind: 'tab', op: 'switch', id: t.id })));
+    if (s.tabs.length > 1) items.push(button(`tab-close-${i}`, `Close: ${name}`, () => tell({ kind: 'tab', op: 'close', id: t.id })));
+  });
+  items.push(button('tabs-close', 'Close this list', () => tell({ kind: 'menu', action: 'close' })));
+  return items;
+}
+
 /** The pages opened lately. Pressing one opens it. */
 function historyPanel(s: ChromeState): Node[] {
   const items: Node[] = [el('h1', { text: 'History' })];
@@ -543,7 +555,7 @@ function render(): void {
   if (!strip) parts.push(home(s));
   let panel: HTMLElement | null = null;
   if (s.panel) {
-    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : s.panel === 'history' ? historyPanel(s) : promptPanel(s));
+    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : s.panel === 'history' ? historyPanel(s) : s.panel === 'tabs' ? tabsPanel(s) : promptPanel(s));
     // The layer keeps the highlight inside an open modal dialog.
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');

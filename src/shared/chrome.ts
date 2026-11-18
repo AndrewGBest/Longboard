@@ -5,7 +5,7 @@
 import type { RecentSite } from './home';
 import type { BlockingMode, StartsOffEntry } from './adblock';
 
-export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings' | 'history';
+export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings' | 'history' | 'tabs';
 
 export interface ChromeState {
   /** What fills the window behind any panel. */
@@ -84,6 +84,8 @@ export interface ChromeState {
     /** The folder chooser, while it is open: where it is, the folder above, and the folders in it. */
     folders: { path: string; up: string | null; inside: string[]; places: Array<{ name: string; path: string }> } | null;
   } | null;
+  /** The tabs that are open, in the order they were opened. A tab with nothing in it yet has no title or site. */
+  tabs: Array<{ id: string; title: string; site: string; current: boolean }>;
   /** The pages opened lately, newest first, while the history panel is open. */
   history: Array<{ url: string; text: string }> | null;
   /** The question being asked, while panel is 'prompt'. */
@@ -99,10 +101,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'settings' | 'history' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'settings' | 'history' | 'tabs' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'settings', 'history', 'downloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'settings', 'history', 'tabs', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -118,6 +120,8 @@ export type ChromeMessage =
   /** The list of sites where ad blocking starts off: add a typed site, or press an entry. */
   | { kind: 'startsOff'; op: 'add' | 'toggle'; domain: string }
   | { kind: 'settingsAction'; action: SettingsAction }
+  /** Tabs: open a new one, bring one in front, or close one. */
+  | { kind: 'tab'; op: 'new' | 'switch' | 'close'; id?: string }
   /** Open a page from the history. */
   | { kind: 'openVisit'; url: string }
   /** The folder chooser: look in this folder, or null to put the chooser away. */

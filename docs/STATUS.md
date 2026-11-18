@@ -2,6 +2,48 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-18, night: tabs, history, the rest of Settings, and the AC-3 report
+
+Andrew asked for what Settings had left out, and passed on a report from the
+session that made the Apple TV profile.
+
+**Built:** tabs; history; a language setting; a downloads-folder chooser;
+giving a remote's button a job by pressing it; the program's name in one
+file (`src/shared/product.ts`) for apps built from this source.
+
+**Not built, on purpose:** saved passwords and autofill. Hard rule 10
+forbids storing passwords. Andrew's decision (DECISIONS.md).
+
+**Investigated, nothing changed:** the engine tells sites it can play AC-3
+and E-AC-3 audio, which on Linux it cannot decode. Measured here, including
+through the protected-playback (EME) question; Chromium's source shows there
+is no run-time switch; castLabs' own issue doubts Linux works. The options
+and a draft issue for castLabs are in DECISIONS.md. **Playback on
+tv.apple.com was not tried**: it needs Andrew signed in.
+
+**Verified, and how:**
+
+- Unit tests: 411 in all. New: history, the later settings, button mapping.
+- End to end: 31 scenarios, 332 checks. New: tabs (open, a second page in a new tab,
+  switch, close, the closed one really gone); history (kept, listed in the
+  menu, opened from it, off when turned off); the language reaching a page
+  (`navigator.language` and the header a site receives); and in the Settings
+  scenario the folder chooser, a button given a job and then doing it, and
+  the history and language switches.
+- A check now holds what the engine says about AC-3 and E-AC-3, so an
+  engine update that changes it is noticed.
+
+**Not verified:**
+
+- Tabs with video playing in more than one, with an app that has its own
+  sign-ins open, or with eight open on a small box (memory).
+- The folder chooser on a real USB stick; a downloads folder on one.
+- A real remote's buttons in the button-mapping screen: only F7 from a
+  scripted keyboard was tried.
+- Languages other than French and Brazilian Portuguese; what the on-screen
+  keyboard should do for them (it has one layout).
+- Any of it by a person on a TV.
+
 ## 2026-11-18, late: Settings
 
 Andrew asked for a Settings screen, a setting for ad blocking over all sites,
@@ -260,6 +302,11 @@ it was checked by a person, with a remote, on a TV.**
   site off yourself. Is that what you meant by fully enabled?
 - Hard rule 5's wording does not mention the setting over all sites. The
   agent did not reword it.
+- **The engine claims AC-3 audio it cannot decode on Linux** (see above).
+  Open an issue with castLabs (draft in DECISIONS.md), have Longboard
+  correct the answer itself (touches Hard rule 4), or leave it?
+- Saved passwords and autofill conflict with Hard rule 10. Leave them out?
+- tv.apple.com is not on the verified list, so ad blocking starts on there.
 - Otherwise none open. Answered on 2026-11-18: Google is the default search; the
   keyboard follows Android TV; the protected-playback row of the ad-blocking
   defaults is dropped; permissions are asked about; downloads work.

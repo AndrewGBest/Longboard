@@ -1086,6 +1086,48 @@ await scenario(
   },
 );
 
+await scenario('tabs', { url: `${site.origin}/home.html` }, async (app) => {
+  const first = await app.page(`${site.origin}/home.html`);
+  const chrome = await app.chrome();
+  const names = () => chrome.evaluate('[...document.querySelectorAll("#panel button[id^=tab-]")].map((b) => b.id + "=" + b.textContent)');
+  const openTabs = async (from) => {
+    await from.press('ContextMenu', 500);
+    for (let i = 0; i < 24 && (await chrome.focused()) !== 'menu-tabs'; i++) await chrome.press('ArrowDown');
+    await chrome.press('Enter', 500);
+  };
+  await sleep(800);
+  await first.press('ArrowDown');
+  await openTabs(first);
+  check('the menu has Tabs, which starts with the one page that is open', await names(), ['tab-new=New tab', 'tab-0=Longboard fixture: generic streaming home (127.0.0.1): in front now']);
+  for (let i = 0; i < 4 && (await chrome.focused()) !== 'tab-new'; i++) await chrome.press('ArrowUp');
+  await chrome.press('Enter', 600);
+  check('a new tab starts on Home, with the first page still there behind it', [await chrome.evaluate('!!document.getElementById("home")'), await chrome.focused(), await first.evaluate('document.visibilityState + location.pathname')], [true, 'go', 'hidden/home.html']);
+  await chrome.press('Enter', 400);
+  await chrome.press('Escape', 200);
+  await chrome.type(`${site.origin.replace('http://', '')}/article.html`);
+  await chrome.press('Enter', 400);
+  const second = await app.page(`${site.origin}/article.html`);
+  check('an address typed there opens in the new tab', !!second, true);
+  if (!second) return;
+  await until(() => second.evaluate('document.visibilityState'), (v) => v === 'visible');
+  check('and the first tab keeps its page, out of sight, with the highlight where it was', [await first.evaluate('location.pathname + document.visibilityState'), await first.focused()], ['/home.htmlhidden', 'nav-home']);
+
+  await sleep(500);
+  await openTabs(second);
+  check('Tabs lists both, and says which is in front', (await names()).map((n) => n.replace(/=.*\((127[^)]*)\)/, '=($1)')), ['tab-new=New tab', 'tab-0=(127.0.0.1)', 'tab-close-0=(127.0.0.1)', 'tab-1=(127.0.0.1): in front now', 'tab-close-1=(127.0.0.1)']);
+  for (let i = 0; i < 8 && (await chrome.focused()) !== 'tab-0'; i++) await chrome.press('ArrowDown');
+  await chrome.press('Enter', 600);
+  check('pressing a tab brings it in front', [await first.evaluate('document.visibilityState'), await second.evaluate('document.visibilityState')], ['visible', 'hidden']);
+  await first.press('ArrowDown');
+  check('and it is driven as before', (await first.focused()) !== null, true);
+
+  await openTabs(first);
+  for (let i = 0; i < 8 && (await chrome.focused()) !== 'tab-close-1'; i++) await chrome.press('ArrowDown');
+  await chrome.press('Enter', 600);
+  check('a tab can be closed from the list, which leaves the other where it was', [await names(), await first.evaluate('location.pathname')], [['tab-new=New tab', 'tab-0=Longboard fixture: generic streaming home (127.0.0.1): in front now'], '/home.html']);
+  check('the closed tab is gone, not hidden', await second.evaluate('1').then(() => 'still there', () => 'gone'), 'gone');
+});
+
 await scenario('history', { url: `${site.origin}/home.html` }, async (app) => {
   const page = await app.page(site.origin);
   const chrome = await app.chrome();

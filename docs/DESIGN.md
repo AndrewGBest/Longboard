@@ -136,7 +136,9 @@ The editor is roadmap phase 4. Until then profiles are written as text files.
 ### 4.6 Left out of the first version
 
 Tabs, history and bookmarks beyond Home tiles were not chosen for the first
-version and are on the roadmap **[Decision, 2026-11-18]**. Downloads were on
+version **[Decision, 2026-11-18]**. Andrew asked for tabs and history later
+the same day and they are in (section 4.9). Bookmarks are still Home tiles
+and apps. Downloads were on
 that list too; Andrew asked for them later the same day and they are in
 (section 4.7).
 
@@ -178,12 +180,27 @@ two ways to the same settings.
 | Privacy and site data | Sign out of every site and clear what sites stored. Clear saved copies of pages. Clear the recently opened sites. Forget every site's own settings. What Longboard downloads by itself (Hard rule 12) |
 | What sites may ask for | For each kind of access (camera, microphone, location...): may sites ask at all |
 | Profiles and apps | How many profiles there are; look for reviewed profiles daily, and now; import from USB; remove an app |
-| First page | Where downloads go and where settings are kept; put every setting back; About and help |
+| Downloads | Where files go, and a folder chooser driven with the arrows (the folder in use, up, into a folder, the home folder, USB sticks) |
+| Remote and keyboard buttons | Give a button a job by pressing it: Back, Menu, Pointer, Play or pause, Skip back, Skip forward, Search, OK. The arrows, OK and plain letters cannot be reassigned |
+| First page | Where settings are kept; put every setting back (button mappings stay); About and help |
 
-Buttons that clear something need a second press. Not in Settings, because
-Longboard does not have them: saved passwords, autofill, history, tabs,
-languages, a choice of downloads folder (it needs a folder picker), and key
-mappings (still `config.json` only).
+Also under Search and starting: the language sites are asked for (next
+start). Under Privacy: keep a history or not, and clear it.
+
+Buttons that clear something need a second press. Not in Settings: saved
+passwords and autofill. They are not built, because Hard rule 10 says
+Longboard never stores passwords (DECISIONS.md).
+
+### 4.9 Tabs and history **[Decision, Andrew, 2026-11-18; the shape is the agent's assumption]**
+
+- **Tabs:** the menu has "Tabs". It lists the pages that are open, brings
+  one in front, closes one, and opens a new one, which starts on Home. An
+  address or a tile opened from Home goes into the tab in front. Up to
+  eight; they are not kept when Longboard is closed. A tab that is not in
+  front is silent and its video is paused, as when Home is in front.
+- **History:** the menu has "History": the pages opened, newest first, each
+  once, at most 300, on this machine only. Pressing one opens it. Settings
+  can stop keeping it and clear it.
 
 ## 5. Ad blocking **[Decision, 2026-11-18]**
 

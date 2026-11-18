@@ -3,6 +3,21 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: what Settings left out
+
+Andrew, in chat: "Work on all the stuff you left out" (after the agent
+listed passwords, autofill, history, tabs, languages, the downloads folder
+and key mappings as not in Settings). Each row is **an assumption** on how.
+
+| Item | Done | Why this way |
+|---|---|---|
+| **Saved passwords, autofill** | **Not built. Needs Andrew's decision.** | Hard rule 10: "Never read, log or store passwords or one-time codes." A password store is exactly that, and autofill has to read sign-in and payment forms to be of use. CLAUDE.md says to stop and say so when a request conflicts with a rule. If Andrew wants them, rule 10 has to change first, and it is the rule that keeps an agent's hands off credentials, so the agent's advice is to leave it. Sites' own "stay signed in" already works: cookies are kept |
+| History | Each page opened, once, newest first, at most 300, in `history.json`. In the menu; Settings can turn it off (`"history": false`) and clear it | The usual browser history, cut to what a remote can browse. Addresses are kept whole, as any browser keeps them, on this machine only (rule 12) |
+| Tabs | Up to eight pages open at once, listed in the menu; a new tab starts on Home; not kept across a restart | The smallest thing that is honestly tabs. Each is another view on the shared session, built on what apps with their own sign-ins already used. A background tab is silenced and paused like any page that is not in front |
+| Languages | One language, chosen from twelve by name (any code in `config.json`), used from the next start | **Measured:** on Linux the browser ignores its own `--lang` switch and takes the language from the `LANGUAGE` environment variable; setting that variable at the very start of the program, before the browser has read it, works without a restart of its own. It also puts the browser's own few words (in a drop-down list, in form messages) into that language. A list of several languages in order would need the call that also sets the user agent, which the rule checks forbid (rule 3), so it is one language |
+| Downloads folder | A folder chooser in Settings, driven with the arrows; `--downloads=` on the command line still wins | It needed a folder picker; this is one, small. Hidden folders are not shown. The folder must exist and be writable |
+| Key mappings | Settings waits for a button press and gives that button the chosen job. The arrows, OK, Escape and plain letters and digits cannot be reassigned. Controller buttons are still `config.json` only | Pressing the button is the only way that works for a remote whose key names nobody knows. The protected keys are the ones the screen cannot be used without. Mappings take effect at once in every open page |
+
 ## 2026-11-18: the engine says it can play AC-3 (open, Andrew's to decide)
 
 A report from the session that made the Apple TV profile (and Sapling TV, an
