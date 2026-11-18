@@ -39,7 +39,11 @@ one were brought up to date in place. What changed:
   of 1, where the list misses the pointer.
 - The package workflow ("Build packages", started by hand, keeps its files
   for 14 days and publishes nothing) built the AppImage, the tarball and the
-  Flatpak from commit 388f736. **None of the three was started by anyone.**
+  Flatpak, last from commit eaf872f
+  (https://github.com/AndrewGBest/Longboard/actions/runs/44351408379). The
+  AppImage was downloaded and started once on the headless machine, with
+  `--automation`: it came up on Home. The tarball and the Flatpak were not
+  started.
 
 Verified by `npm run check` (unit tests, 346 of them) and the end-to-end run
 (22 scenarios, 250 checks), which has new checks for each item above. Not verified: any
@@ -120,8 +124,9 @@ it was checked by a person, with a remote, on a TV.**
   show it or start it. Inside a Flatpak it will not work as written.
 - Packaging: `electron-builder --linux dir` (the unpacked folder) was built
   once and the program in it started, found its built-in profile and showed
-  Home. The AppImage, tarball and Flatpak were built once by the workflow on
-  GitHub and never started. Nothing has been released.
+  Home. The AppImage, tarball and Flatpak are built by the workflow on
+  GitHub; only the AppImage has been started, once, headless. Nothing has
+  been released.
 
 ### Known gaps and rough edges
 
@@ -164,7 +169,7 @@ it was checked by a person, with a remote, on a TV.**
   defaults is dropped; permissions are asked about; downloads work.
 
 **Next:** try it on the TV box with the remote. Everything after that
-depends on what that shows.
+depends on what that shows. Then ad blocking (phase 5), when Andrew says.
 
 ## 2026-11-18: project started, documents only
 
