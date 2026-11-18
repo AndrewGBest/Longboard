@@ -3,6 +3,46 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: the engine says it can play AC-3 (open, Andrew's to decide)
+
+A report from the session that made the Apple TV profile (and Sapling TV, an
+app built from Longboard's source) said protected playback on tv.apple.com
+is expected to fail on Longboard's engine, and asked for an investigation
+and a proposal. **Nothing was changed. No approach is chosen.**
+
+What is established:
+
+| Claim | Status |
+|---|---|
+| Longboard's engine (castLabs 45.2.1, Chrome 156) tells pages it supports AC-3 and E-AC-3 audio | **Measured** 2026-11-18 by the agent on a fixture page: `MediaSource.isTypeSupported` true, `canPlayType` "probably", `mediaCapabilities` supported. **New:** asking through EME (`requestMediaKeySystemAccess` with an AC-3 or E-AC-3 audio capability, Widevine) also succeeds. An end-to-end check now holds these answers, so a change is noticed |
+| There is no run-time switch for it | **Sourced:** Chromium 156.0.8078.75, `media/base/supported_types.cc`, `IsDecoderDolbyAc3Eac3Supported`: with the build flag on, Windows and macOS ask the platform decoder; every other system gets `return true` under the comment "Keep 'true' for other platforms as old code snippet". `media/base/media_switches.cc` has no feature for it. The agent also tried `--disable-features=PlatformAC3EAC3Audio` and a few like it: no change |
+| castLabs turned the build flag on from 43.0.0 and doubts it works on Linux | **Sourced:** castlabs/electron-releases issue 221. The maintainer wrote on 2026-06-16 that Linux support "seems to be lacking", after a user reported that the codec is claimed and does not play. The issue was closed on 2026-09-07 for lack of feedback |
+| No newer castLabs release differs | Latest stable is 45.2.1 (what Longboard uses); 46 is alpha. **Not checked:** whether 46 alpha behaves differently |
+| Playback on the site fails on this engine | **Not observed on 45.** Seen on 44.10.1 by the other session (its report), with the audio decoder refusing AC-3. An expectation here, from the cause being present |
+
+The ways out, as the agent sees them:
+
+1. **Ask castLabs to leave the flag off for Linux builds** (or to answer false there). The right fix: it corrects the engine's answer for everyone. Cost: their timetable, and they may say no. Needs someone to open an issue on their repository; the agent has not, because that is a public post in Andrew's name. A draft is below.
+2. **Have Longboard correct the four answers itself**: a small script in the page's own world, on Linux only, that makes `isTypeSupported`, `canPlayType`, `mediaCapabilities.decodingInfo` and `requestMediaKeySystemAccess` say no to AC-3 and E-AC-3. It touches no request, response or site script, and it makes the browser say something true. But it would be the first code Longboard puts into a page's own world, and **Hard rule 4 as written ("the layer adds its own UI and sends ordinary input") does not obviously allow it**, and rule 3's spirit (say what the engine really is) cuts both ways. Andrew's decision; if yes, it should be for every site, not a profile setting, because the answer is wrong for every site. It could be removed the day option 1 lands, and the end-to-end check would say when.
+3. **Stay on castLabs 42.x**, which does not make the claim. Against Hard rule 14, and 42 is three majors behind. Listed to rule it out.
+4. **Do nothing**: sites that trust the answer and send AC-3 have no sound or do not play; pointer mode and profiles do not help.
+
+The agent's recommendation: 1 now, and 2 only if Andrew wants the site working before castLabs answers.
+
+Draft for option 1 (not sent):
+
+> **Linux builds claim AC-3/E-AC-3 support they cannot provide (follow-up to #221)**
+> Since 43.0.0 the `+wvcus` builds set `enable_platform_ac3_eac3_audio`. On Linux x64 (measured on 45.2.1, Chrome 156.0.8078.75) `MediaSource.isTypeSupported('audio/mp4; codecs="ec-3"')`, `canPlayType`, `mediaCapabilities.decodingInfo` and `requestMediaKeySystemAccess` with that audio capability all report support. Chromium's `IsDecoderDolbyAc3Eac3Supported` returns true unconditionally outside Windows and macOS when the flag is set, and there is no platform decoder on Linux, so a site that trusts the answer sends audio that fails to decode. Could the flag be left off for Linux builds, or the Linux answer made false?
+
+Smaller things from the same report:
+
+| Item | Done |
+|---|---|
+| tv.apple.com is not on the verified list, so ad blocking starts on there | Nothing. Adding a site is a person's review: Andrew's to do in the profiles repository. With Settings he can also add it for himself on his own box |
+| The name "Longboard" was fixed in several places, which an app built on this source had to patch | `src/shared/product.ts` now holds the name, the desktop app ID and the user-agent token in one place; Home, the menu, notices, About, the window title and web-app launcher names all read it. **Assumption:** one file to replace at build time is the seam wanted. Not done: making the catalogue address and the profile store pluggable; they are already separate modules an app can import |
+| `launcherFileName()` always began with Longboard's app ID, so the same web app added from two programs wrote the same file | It now begins with the program's own app ID from `product.ts` |
+| A layer in frames from other origins (the site's sign-in form is in one) | Not done. It is under "Later" in ROADMAP.md; the other session has an implementation the agent has not read. Pointer mode remains the way in |
+
 ## 2026-11-18: Settings, the ad-blocking override, and editing the list
 
 Andrew, in chat: make a Settings with "all the typical things you'd want to

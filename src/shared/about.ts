@@ -1,12 +1,14 @@
 // The About and help panel's words. The notice is the wording
 // LEGAL-GUARDRAILS.md requires in every release; keep the two in step.
+import { PRODUCT } from './product';
+
 export const NOTICE =
-  'Longboard is an independent project. It is not affiliated with any website or streaming service it can display. ' +
+  `${PRODUCT.name} is an independent project. It is not affiliated with any website or streaming service it can display. ` +
   'It does not provide, unlock or bypass access to any content and does not remove or work around DRM.';
 
 /** What Longboard fetches by itself, said where the person can read it (Hard rule 12). */
 export const BACKGROUND =
-  'Longboard sends no usage data. Once a day it downloads the list of reviewed profiles and verified sites from the ' +
+  `${PRODUCT.name} sends no usage data. Once a day it downloads the list of reviewed profiles and verified sites from the ` +
   'Longboard-Profiles repository on GitHub; the whole list is fetched, so nothing is revealed about the sites you visit. ' +
   'Put "catalogue": false in config.json to stop it. ' +
   'For ad blocking it downloads a public filter list, EasyList, from its authors at easylist.to every four days, also whole. ' +
@@ -26,5 +28,5 @@ export const HELP: readonly (readonly [string, string])[] = [
 ];
 
 export function aboutTitle(version: string | undefined): string {
-  return version ? `Longboard ${version}` : 'Longboard';
+  return version ? `${PRODUCT.name} ${version}` : PRODUCT.name;
 }

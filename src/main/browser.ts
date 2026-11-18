@@ -40,6 +40,7 @@ import { hoverPoint, pageBounds, tvZoom } from './zoom';
 import { filterSession, type FilterSet } from './adblock';
 import { blockingOn, cleanDomain, editStartsOff, isVerified, startsOffEntries, type BlockingMode } from '../shared/adblock';
 import { searchName } from '../shared/settings';
+import { PRODUCT } from '../shared/product';
 import { DEFAULT_SEARCH } from '../shared/address';
 import { NEVER_ASKABLE } from '../shared/config';
 import { ICON_SIZE, iconDataUrl, MAX_ICON_BYTES, pngFromDataUrl } from '../shared/icons';
@@ -127,7 +128,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     fullscreen: deps.fullscreen,
     backgroundColor: '#000000',
     autoHideMenuBar: true,
-    title: 'Longboard',
+    title: PRODUCT.name,
   });
   win.removeMenu();
 

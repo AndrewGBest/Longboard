@@ -6,6 +6,7 @@
 // The highlight here is moved by the same layer that drives websites, so
 // Longboard's own interface is the first user of its navigation engine.
 import { ipcRenderer } from 'electron';
+import { PRODUCT } from '../shared/product';
 import type { BootData, BridgeMessage } from '../shared/actions';
 import type { ChromeMessage, ChromeState, EditAction, MenuAction, SettingsAction } from '../shared/chrome';
 import { PAGE_SIZES, SEARCH_CHOICES } from '../shared/settings';
@@ -131,7 +132,7 @@ function home(s: ChromeState): HTMLElement {
     tile.append(badge(a.icon, a.name), el('span', { cls: 'site', text: a.name }), el('span', { cls: 'title', text: a.site }), el('span', { cls: 'mark', text: a.ownSession ? 'Own sign-ins' : '' }));
     return tile;
   });
-  const main = el('main', { id: 'home' }, [el('h1', { text: 'Longboard' }), go]);
+  const main = el('main', { id: 'home' }, [el('h1', { text: `${PRODUCT.name}` }), go]);
   if (apps.length) main.append(el('h2', { text: 'Apps' }), el('div', { id: 'apps', cls: 'tiles' }, apps));
   if (tiles.length) main.append(el('h2', { text: 'Recently opened' }), el('div', { id: 'tiles', cls: 'tiles' }, tiles));
   else if (!apps.length) main.append(el('p', { id: 'empty', text: 'Sites you open will appear here.' }));
@@ -184,7 +185,7 @@ function menuPanel(s: ChromeState): Node[] {
     items.push(button('menu-downloads', going ? `Downloads (${going} under way)` : 'Downloads', act('downloads')));
   }
   items.push(button('menu-import', 'Import profiles from USB', act('importProfiles')));
-  items.push(button('menu-settings', 'Settings', act('settings')), button('menu-about', 'About and help', act('about')), button('menu-quit', 'Quit Longboard', act('quit')));
+  items.push(button('menu-settings', 'Settings', act('settings')), button('menu-about', 'About and help', act('about')), button('menu-quit', `Quit ${PRODUCT.name}`, act('quit')));
   return items;
 }
 
@@ -205,7 +206,7 @@ function addAppPanel(s: ChromeState): Node[] {
     el('h1', { text: 'Add as an app' }),
     el('p', { cls: 'where', text: `${s.page?.site ?? 'This site'} will get a tile on Home that opens it directly.` }),
     name,
-    toggle('app-session', draft.ownSession ? 'Sign-ins: its own, apart from the rest' : 'Sign-ins: shared with the rest of Longboard', () => (draft.ownSession = !draft.ownSession)),
+    toggle('app-session', draft.ownSession ? 'Sign-ins: its own, apart from the rest' : `Sign-ins: shared with the rest of ${PRODUCT.name}`, () => (draft.ownSession = !draft.ownSession)),
   ];
   if (s.page?.canAddToAppList) {
     items.push(toggle('app-launcher', draft.launcher ? "Also in the TV's app list: yes" : "Also in the TV's app list: no", () => (draft.launcher = !draft.launcher)));
@@ -301,7 +302,7 @@ function settingsPanel(s: ChromeState): Node[] {
           button('set-size-up', 'Bigger', set('pageSize', step(1)), at === PAGE_SIZES.length - 1),
         ]),
         button('set-decode', `Decode video on the graphics chip: ${yesNo(st.hardwareDecode)}`, set('hardwareDecode', !st.hardwareDecode)),
-        say('Can make video smoother on some boxes and break it on others. Takes effect the next time Longboard starts.'),
+        say(`Can make video smoother on some boxes and break it on others. Takes effect the next time ${PRODUCT.name} starts.`),
         back,
       ];
     }
@@ -344,7 +345,7 @@ function settingsPanel(s: ChromeState): Node[] {
       });
       const items: Node[] = [
         el('h1', { text: 'Sites where ad blocking starts off' }),
-        say('Sites whose advertising is left alone unless you switch blocking on for them. The reviewed list comes with Longboard; you can add to it and take sites off it. Press a site to change it.'),
+        say(`Sites whose advertising is left alone unless you switch blocking on for them. The reviewed list comes with ${PRODUCT.name}; you can add to it and take sites off it. Press a site to change it.`),
         add,
       ];
       st.adBlocking.startsOff.forEach((entry, i) => {
@@ -449,7 +450,7 @@ function promptPanel(s: ChromeState): Node[] {
       el('h1', { text: 'Use this profile?' }),
       el('p', { text: `"${s.prompt.name}" (version ${s.prompt.version}) is a profile someone gave you. Nobody has reviewed it.` }),
       el('p', { text: `It applies to: ${s.prompt.hosts.join(', ')}` }),
-      el('p', { text: 'A profile is settings, not a program: it tells Longboard where things are on a site and cannot run anything. Your answer is remembered.' }),
+      el('p', { text: `A profile is settings, not a program: it tells ${PRODUCT.name} where things are on a site and cannot run anything. Your answer is remembered.` }),
       button('prompt-allow', 'Use it', answer(true)),
       button('prompt-deny', 'Do not use it', answer(false)),
     ];
@@ -460,7 +461,7 @@ function promptPanel(s: ChromeState): Node[] {
       // The name is the site's to choose, so it stands apart from what Longboard says about it.
       el('p', { cls: 'where', text: s.prompt.name }),
       el('p', { text: `${s.prompt.size ? `${s.prompt.size}, from` : 'From'} ${s.prompt.site}.` }),
-      el('p', { text: `It will be saved in ${s.prompt.folder}. Longboard does not open downloaded files.` }),
+      el('p', { text: `It will be saved in ${s.prompt.folder}. ${PRODUCT.name} does not open downloaded files.` }),
       button('prompt-allow', 'Download', answer(true)),
       button('prompt-deny', 'Cancel', answer(false)),
     ];
@@ -556,6 +557,7 @@ ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
 });
 
 const start = (): void => {
+  document.title = PRODUCT.name;
   layer = startLayer({
     doc: document,
     options: boot.options,

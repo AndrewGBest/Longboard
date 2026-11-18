@@ -1,3 +1,5 @@
+import { PRODUCT } from '../shared/product';
+
 /**
  * The browser identity we send: the embedded Chromium's own user agent with
  * the Electron and app tokens removed. It states the real engine, the real
@@ -7,7 +9,7 @@
 export function browserUserAgent(defaultUa: string): string {
   return defaultUa
     .replace(/\s?Electron\/\S+/g, '')
-    .replace(/\s?longboard\/\S+/gi, '')
+    .replace(new RegExp(`\\s?${PRODUCT.packageName}\\/\\S+`, 'gi'), '')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }

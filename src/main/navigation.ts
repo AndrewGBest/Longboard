@@ -2,6 +2,7 @@
 // tell the person at the screen. Pure: no Electron imports, so every rule
 // here is unit-tested.
 import { looksLikeSpendUrl } from '../layer/guard/purchase-guard';
+import { PRODUCT } from '../shared/product';
 
 export type BlockReason = 'not-web' | 'credentials' | 'automation-spend';
 
@@ -49,7 +50,7 @@ export function describeBlockedUrl(url: string): string {
 export function blockedMessage(reason: BlockReason): string {
   if (reason === 'automation-spend') return 'Blocked: automation mode never opens purchase or sign-up pages';
   if (reason === 'credentials') return 'Blocked: that address carries a user name or password';
-  return 'Blocked: Longboard only opens web addresses';
+  return `Blocked: ${PRODUCT.name} only opens web addresses`;
 }
 
 const escapeHtml = (s: string): string =>
@@ -90,11 +91,11 @@ ${detail ? `  <p>${escapeHtml(detail.label)}: <code>${escapeHtml(detail.value)}<
 export function noticePageUrl(reason: BlockReason, url: string): string {
   const why =
     reason === 'automation-spend'
-      ? 'Longboard was started with --automation, which refuses any page that looks like a purchase, subscription or sign-up flow. ' +
-        'To use such a page, quit and start Longboard without --automation.'
+      ? `${PRODUCT.name} was started with --automation, which refuses any page that looks like a purchase, subscription or sign-up flow. ` +
+        `To use such a page, quit and start ${PRODUCT.name} without --automation.`
       : reason === 'credentials'
-        ? 'The address carries a user name or password in front of the site name. Longboard does not open such addresses.'
-        : 'Longboard only opens web addresses (http and https). Files on this machine and internal pages are not opened.';
+        ? `The address carries a user name or password in front of the site name. ${PRODUCT.name} does not open such addresses.`
+        : `${PRODUCT.name} only opens web addresses (http and https). Files on this machine and internal pages are not opened.`;
   return noticePage('page blocked', 'This page was blocked', [why], { label: 'Blocked address', value: describeBlockedUrl(url) });
 }
 

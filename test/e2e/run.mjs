@@ -222,6 +222,22 @@ await scenario('a page driven with the arrows', { url: `${site.origin}/home.html
   check('a blocked navigation shows a toast', await page.toastText(), 'Blocked: that address carries a user name or password');
   check('a blocked navigation is logged without its query or the password', [/blocked navigation \(credentials\): http:\/\/127\.0\.0\.1:\d+\/home\.html\n/.test(app.log), /SECRET|user:pw/.test(app.log)], [true, false]);
 
+  // What the engine tells sites about surround-sound audio it cannot decode
+  // on Linux. This check holds the answer as it is today, wrong, so that the
+  // day an engine update or a fix changes it, this fails and STATUS.md and
+  // DECISIONS.md ("the engine says it can play AC-3") get brought up to date.
+  const audio = await evaluate(`(async () => {
+    const out = {};
+    for (const codec of ['mp4a.40.2', 'ac-3', 'ec-3']) {
+      const type = 'audio/mp4; codecs="' + codec + '"';
+      const media = await navigator.mediaCapabilities.decodingInfo({ type: 'media-source', audio: { contentType: type, channels: 6, bitrate: 384000, samplerate: 48000 } });
+      out[codec] = [MediaSource.isTypeSupported(type), document.createElement('audio').canPlayType(type), media.supported];
+    }
+    return out;
+  })()`);
+  check('ordinary (AAC) audio is supported', audio['mp4a.40.2'], [true, 'probably', true]);
+  check('KNOWN WRONG: the engine says it can play AC-3 and E-AC-3, which on Linux it cannot decode', [audio['ac-3'], audio['ec-3']], [[true, 'probably', true], [true, 'probably', true]]);
+
   // What a page makes up is not a key press, and a web component does not hide a purchase button.
   const before = await focused();
   await evaluate('window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })); document.dispatchEvent(new KeyboardEvent("keydown", { key: "q", ctrlKey: true, bubbles: true })); 0');

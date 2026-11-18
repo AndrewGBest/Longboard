@@ -3,6 +3,7 @@
 // the optional separate session all follow from it. Pure, so the rules are
 // unit-tested; the shell and the platform layer do the reading and writing.
 import { siteKey } from './address';
+import { PRODUCT } from './product';
 
 export interface WebApp {
   /** Stable name for files and the command line: lower-case letters, digits and hyphens. */
@@ -73,7 +74,7 @@ export function appPartition(app: WebApp): string {
 
 /** The file name of an app's entry in the desktop's app list. */
 export function launcherFileName(id: string): string {
-  return `io.github.andrewgbest.Longboard.app-${id}.desktop`;
+  return `${PRODUCT.appId}.app-${id}.desktop`;
 }
 
 /** One argument of an Exec line, quoted as the desktop entry specification asks. */
