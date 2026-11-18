@@ -1,7 +1,7 @@
 // Everything that differs between operating systems goes through here, so the
 // rest of the app has no Linux-only assumptions (ARCHITECTURE.md section 8).
 // Linux is the only system so far.
-import { readdirSync, statSync } from 'node:fs';
+import { mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { userInfo } from 'node:os';
 import { join } from 'node:path';
 
@@ -27,4 +27,49 @@ export function removableFolders(): string[] {
     }
   }
   return out;
+}
+
+/**
+ * Where the desktop looks for entries in its app list that belong to this
+ * user, or null where there is no such place. On Linux this is the
+ * "applications" folder of the XDG data folder; Plasma Bigscreen and other
+ * desktops read it.
+ */
+export function launcherFolder(): string | null {
+  if (process.platform !== 'linux') return null;
+  const data = process.env['XDG_DATA_HOME'] || (process.env['HOME'] ? join(process.env['HOME'], '.local', 'share') : '');
+  return data ? join(data, 'applications') : null;
+}
+
+/** Puts an entry in the app list. Returns false when it could not be written. */
+export function writeLauncher(fileName: string, text: string): boolean {
+  const folder = launcherFolder();
+  if (!folder) return false;
+  try {
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, fileName), text, { mode: 0o644 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function removeLauncher(fileName: string): void {
+  const folder = launcherFolder();
+  if (!folder) return;
+  try {
+    unlinkSync(join(folder, fileName));
+  } catch {
+    // it was not there
+  }
+}
+
+/**
+ * How this copy of Longboard is started, as a command line. An AppImage is
+ * started by its own file, not by the program unpacked from it; a copy run
+ * from source needs the folder it is run from.
+ */
+export function launchCommand(execPath: string, appPath: string, packaged: boolean): string[] {
+  if (process.env['APPIMAGE']) return [process.env['APPIMAGE']];
+  return packaged ? [execPath] : [execPath, appPath];
 }

@@ -3,6 +3,7 @@
 // Run with `npm run e2e` (needs a display; `xvfb-run -a npm run e2e` headless).
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
+import { deflateSync } from 'node:zlib';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { check, fail, failureCount, launch, root, serveFixtures, sleep, until } from './harness.mjs';
@@ -19,7 +20,34 @@ const catalogueIndex = JSON.stringify({
   verifiedSites: ['profile.test'],
 });
 
+/** A small plain-coloured PNG made here, to stand for a site's own icon. */
+function pngSquare(size, [r, g, b]) {
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (buf) => (buf.reduce((c, byte) => crcTable[(c ^ byte) & 0xff] ^ (c >>> 8), 0xffffffff) ^ 0xffffffff) >>> 0;
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const out = Buffer.alloc(8 + data.length + 4);
+    out.writeUInt32BE(data.length, 0);
+    body.copy(out, 4);
+    out.writeUInt32BE(crc(body), 8 + data.length);
+    return out;
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(size, 0);
+  header.writeUInt32BE(size, 4);
+  header.set([8, 2, 0, 0, 0], 8);
+  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(size * 3).map((_, i) => [r, g, b][i % 3])]);
+  const pixels = deflateSync(Buffer.concat(Array.from({ length: size }, () => row)));
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', header), chunk('IDAT', pixels), chunk('IEND', Buffer.alloc(0))]);
+}
+const siteIcon = pngSquare(32, [40, 120, 200]);
+
 const site = await serveFixtures({
+  '/favicon.ico': (_req, res) => res.writeHead(200, { 'content-type': 'image/png' }).end(siteIcon),
   '/catalogue/index.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(catalogueIndex),
   '/catalogue/profiles/profile.test/profile.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(fixtureProfile),
   '/catalogue/profiles/tampered.test/profile.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(fixtureProfile),
@@ -643,6 +671,83 @@ await scenario(
     await chrome.press('Enter', 600);
   },
 );
+
+await scenario('a site added as an app', { url: `${site.origin}/home.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const chrome = await app.chrome();
+  const panelText = () => chrome.evaluate('document.getElementById("panel")?.textContent ?? ""');
+  const reach = async (id, key = 'ArrowDown') => {
+    for (let i = 0; i < 16 && (await chrome.focused()) !== id; i++) await chrome.press(key);
+    return chrome.focused();
+  };
+  await sleep(1000);
+  await page.evaluate('document.cookie = "who=shared; path=/"; 0');
+  await page.press('ContextMenu', 500);
+  check('the menu offers to add the site as an app', await reach('menu-add-app'), 'menu-add-app');
+  await chrome.press('Enter', 500);
+  check('which asks for a name, starting from the page\'s own', [await chrome.evaluate('document.querySelector("#panel h1")?.textContent'), await chrome.evaluate('document.getElementById("app-name").value')], ['Add as an app', 'Longboard fixture: generic streaming home']);
+  check('with the highlight on the first choice, sign-ins shared', [await chrome.focused(), await chrome.evaluate('document.getElementById("app-session").textContent')], ['app-session', 'Sign-ins: shared with the rest of Longboard']);
+  await chrome.press('Enter', 300);
+  check('OK changes it to its own sign-ins and stays there', [await chrome.focused(), await chrome.evaluate('document.getElementById("app-session").textContent')], ['app-session', 'Sign-ins: its own, apart from the rest']);
+  await chrome.press('ArrowDown');
+  check("the TV's app list is offered, and wanted unless said otherwise", await chrome.evaluate('document.getElementById("app-launcher").textContent'), "Also in the TV's app list: yes");
+  await reach('app-add');
+  await chrome.press('Enter', 1200);
+  check('Add says what it did', await page.toastText(), 'Added "Longboard fixture: generic streaming home" to Home and to the TV\'s app list. Open it from Home to use its own sign-ins');
+  const saved = JSON.parse(readFileSync(join(app.userData, 'apps.json'), 'utf8')).apps;
+  check('the app is saved', saved, [{ id: '127-0-0-1', url: `${site.origin}/home.html`, name: 'Longboard fixture: generic streaming home', ownSession: true, launcher: true }]);
+  const entryFile = join(app.userData, 'xdg/applications/io.github.andrewgbest.Longboard.app-127-0-0-1.desktop');
+  const entry = existsSync(entryFile) ? readFileSync(entryFile, 'utf8') : '';
+  check('an entry for the app list is written, starting Longboard with the app', [/^Name=Longboard fixture: generic streaming home$/m.test(entry), /^Exec=.+ --app=127-0-0-1$/m.test(entry), /^Type=Application$/m.test(entry)], [true, true, true]);
+  const iconFile = join(app.userData, 'icons/127-0-0-1.png');
+  check("the site's own icon was fetched from the site and is what the entry shows", [existsSync(iconFile), entry.includes(`Icon=${iconFile}`)], [true, true]);
+
+  await page.press('ContextMenu', 500);
+  check('the menu now offers to remove it instead', [(await panelText()).includes('Remove the app'), (await panelText()).includes('Add this site as an app')], [true, false]);
+  await reach('menu-home', 'ArrowUp');
+  await chrome.press('Enter', 600);
+  check('Home has an Apps section with the tile first, showing the site\'s icon', [await chrome.evaluate('document.querySelector("#home h2")?.textContent'), await chrome.focused(), await chrome.evaluate('document.querySelector("#apps img.icon")?.src.startsWith("data:image/png;base64,")'), await chrome.evaluate('document.querySelector("#apps .mark")?.textContent')], ['Apps', 'app-0', true, 'Own sign-ins']);
+  await chrome.press('Enter', 600);
+  const own = await app.frontPage(site.origin);
+  check('the tile opens the site', !!own, true);
+  if (!own) return;
+  await sleep(600);
+  check('in a session of its own: what the shared session stored is not there', await own.evaluate('document.cookie'), '');
+  await own.evaluate('document.cookie = "who=app; path=/"; 0');
+  await own.press('ArrowDown');
+  check('and the arrows drive it like any page', await own.focused(), 'nav-home');
+
+  // Removing it.
+  await own.press('ContextMenu', 500);
+  await reach('menu-remove-app');
+  await chrome.press('Enter', 900);
+  check('removing the app takes away the tile, the entry and the icon', [JSON.parse(readFileSync(join(app.userData, 'apps.json'), 'utf8')).apps, existsSync(entryFile), existsSync(iconFile)], [[], false, false]);
+  const shared = await app.frontPage(site.origin);
+  check('and returns to the shared session, which still has what it stored', await shared?.evaluate('document.cookie'), 'who=shared');
+});
+
+await scenario(
+  'started from the TV\'s app list',
+  {
+    args: ['--app=fixture-app'],
+    seed: (data) => writeFileSync(join(data, 'apps.json'), JSON.stringify({ apps: [{ id: 'fixture-app', url: `${site.origin}/article.html`, name: 'Fixture', ownSession: false, launcher: true }] })),
+  },
+  async (app) => {
+    const page = await app.page(`${site.origin}/article.html`);
+    check('--app opens that app straight away', !!page, true);
+    if (!page) return;
+    await sleep(600);
+    await page.press('Escape', 600);
+    const chrome = await app.chrome();
+    check('and Back from its first page goes to Home, where its tile is', [await chrome.evaluate('document.visibilityState'), await chrome.evaluate('document.querySelector("#apps .site")?.textContent')], ['visible', 'Fixture']);
+  },
+);
+
+await scenario('an app that does not exist', { args: ['--app=no-such-app'] }, async (app) => {
+  const chrome = await app.chrome();
+  await until(() => chrome.focused(), (id) => id === 'go');
+  check('--app with an unknown name shows Home and says so in the terminal', [await chrome.focused(), /there is no app called "no-such-app"/.test(app.log)], ['go', true]);
+});
 
 // The site cannot be reached at first. The view must say so, keep trying,
 // and load the page once it is there.

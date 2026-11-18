@@ -4,15 +4,20 @@
 // send or receive any of this.
 import type { RecentSite } from './home';
 
-export type Panel = 'menu' | 'about' | 'prompt';
+export type Panel = 'menu' | 'about' | 'prompt' | 'addApp';
 
 export interface ChromeState {
   /** What fills the window behind any panel. */
   surface: 'home' | 'page';
   panel: Panel | null;
   version: string;
+  /** `icon` is the site's own icon as the site served it when the app was added, as a data: address, or null. */
   /** `profile` says what Longboard has for the site: a reviewed profile, the person's own, or nothing. */
-  home: { recents: Array<RecentSite & { profile: 'reviewed' | 'own' | null }> };
+  home: {
+    /** Sites added as apps. `icon` is the site's own icon, fetched from the site when the app was added, as a data: address. */
+    apps: Array<{ id: string; name: string; site: string; icon: string | null; ownSession: boolean }>;
+    recents: Array<RecentSite & { profile: 'reviewed' | 'own' | null }>;
+  };
   /** About the page in the page view; null when none has been opened. */
   page: {
     site: string;
@@ -23,6 +28,10 @@ export interface ChromeState {
     pointer: boolean;
     /** The profile in use, as said on screen, or null in generic mode. */
     profile: string | null;
+    /** The app this site was added as, if it was. */
+    app: { id: string; name: string } | null;
+    /** Whether the TV's app list can be written to on this system. */
+    canAddToAppList: boolean;
   } | null;
   /** The question being asked, while panel is 'prompt'. */
   prompt:
@@ -34,10 +43,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'addApp' | 'removeApp' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'addApp', 'removeApp', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -45,6 +54,9 @@ export type ChromeMessage =
   | { kind: 'open'; input: string }
   /** Open a Home tile. */
   | { kind: 'openRecent'; url: string }
+  | { kind: 'openApp'; id: string }
+  /** Add the site in front as an app. */
+  | { kind: 'addApp'; name: string; ownSession: boolean; launcher: boolean }
   | { kind: 'menu'; action: MenuAction }
   /** `remember` false is "not now": the question comes again another time. */
   | { kind: 'answer'; allow: boolean; remember?: boolean };

@@ -3,6 +3,20 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: phase 4 choices made by the agent (web apps)
+
+All **assumptions by the agent**, made while working alone. The on-TV profile
+editor, the other half of phase 4, is not built.
+
+| Topic | Chosen | Why |
+|---|---|---|
+| What "an app" is | A record: id, address, name, own sign-ins or not, in the app list or not. One app per site | ARCHITECTURE.md section 7 |
+| Its icon | The site's own, fetched from the site when the app is added, by the session the page is in, and kept in the data folder. Longboard's icon when the site offers none that can be read | Hard rule 6. It is fetched once, on the person's own action, from the site they are on: not a background request |
+| The app list entry | A desktop entry in the user's XDG `applications` folder, started with `--app=<id>` | It is what Plasma Bigscreen and other desktops read. **Not checked on a real desktop, and it will not work from inside a Flatpak**, where that folder is the sandbox's own: that needs the desktop portal the design guessed at |
+| Own sign-ins | A separate session kept on disk for that app, and a second website view to hold it. Opening anything else closes that view; removing the app clears what it stored | "Keeps its own" has to mean cookies and storage apart. One extra view at most keeps memory use bounded |
+| Where an address typed in the menu opens | Always in the shared session, even from inside an app with its own | An app's session is for that app; typing an address is leaving it |
+| Starting a second copy | The running one comes forward and opens what was asked for | An entry in the app list must work while Longboard is already open |
+
 ## 2026-11-18: phase 3 choices made by the agent (profiles)
 
 All **assumptions by the agent**, made while working alone.

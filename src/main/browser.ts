@@ -2,8 +2,8 @@
 // shows Longboard's own screens (Home, the menu panel, questions). They are
 // separate renderers with separate sessions; a website can never reach the
 // chrome view or the shell (Hard rule 13).
-import { app, BrowserWindow, ipcMain, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { app, BrowserWindow, ipcMain, nativeImage, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BootData, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
 import { resolveAddress, siteKey, siteName } from '../shared/address';
@@ -30,7 +30,8 @@ import { mayAskProtectedPlayback, permissionDecision } from './permissions';
 import { PointerHolds, pointerGlide, pointerTap, startPoint, type PointerStep } from './pointer';
 import { sourceLabel, type ProfileStore } from './profiles';
 import { readJson, writeJson } from './store';
-import { removableFolders } from '../platform';
+import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeLauncher } from '../platform';
+import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
 import { canvasOf, type Profile, type ProfileSource } from '../shared/profile';
 import { hoverPoint, tvZoom } from './zoom';
 
@@ -39,6 +40,8 @@ export interface BrowserDeps {
   config: UserConfig;
   /** An address given on the command line; Home is shown when there is none. */
   startUrl: string | null;
+  /** An app named on the command line with --app=, to open instead. */
+  startApp: string | null;
   fullscreen: boolean;
   /** The --size=WIDTHxHEIGHT option: the window's size when it is not full screen. */
   size: [number, number] | undefined;
@@ -54,7 +57,7 @@ export interface BrowserDeps {
 const PANEL_WIDTH = 0.38;
 const isNotice = (url: string): boolean => url.startsWith('data:') || url === 'about:blank' || url === '';
 
-export function createBrowser(deps: BrowserDeps): BrowserWindow {
+export function createBrowser(deps: BrowserDeps): Browser {
   const { options, config } = deps;
   const dataDir = app.getPath('userData');
   const homeFile = join(dataDir, 'home.json');
@@ -62,6 +65,23 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   const complain = (file: string) => (why: string) => console.error(`[longboard] ${file} could not be read: ${why}`);
   let recents: RecentSite[] = parseRecents(readJson(homeFile, complain('home.json')));
   const sites: Record<string, SiteSettings> = parseSites(readJson(sitesFile, complain('sites.json')));
+  const appsFile = join(dataDir, 'apps.json');
+  const iconsDir = join(dataDir, 'icons');
+  let apps: WebApp[] = parseApps(readJson(appsFile, complain('apps.json')));
+  /** Each app's icon as a data: address, read from disk once. */
+  const iconData = new Map<string, string | null>();
+  const iconOf = (id: string): string | null => {
+    if (!iconData.has(id)) {
+      let data: string | null = null;
+      try {
+        data = `data:image/png;base64,${readFileSync(join(iconsDir, `${id}.png`)).toString('base64')}`;
+      } catch {
+        // the site gave no usable icon
+      }
+      iconData.set(id, data);
+    }
+    return iconData.get(id) ?? null;
+  };
 
   const win = new BrowserWindow({
     width: deps.size?.[0] ?? 1280,
@@ -75,25 +95,60 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   win.removeMenu();
 
   const hardened = { contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true } as const;
-  const pageView = new WebContentsView({
-    webPreferences: {
-      ...hardened,
-      preload: join(__dirname, 'preload.js'),
-      // The preload also runs in embedded frames, where in a scripted run it
-      // puts up the purchase guard and nothing else. Despite its name this
-      // gives pages nothing: the view stays sandboxed and isolated.
-      nodeIntegrationInSubFrames: true,
-      additionalArguments: options.automation ? ['--longboard-automation'] : [],
-    },
-  });
   // Its own session, kept in memory only: nothing a website stores is visible to it.
   const chromeView = new WebContentsView({ webPreferences: { ...hardened, preload: join(__dirname, 'chrome.js'), partition: 'longboard-chrome' } });
-  pageView.setBackgroundColor('#000000');
   chromeView.setBackgroundColor('#0d1014');
-  win.contentView.addChildView(pageView);
-  win.contentView.addChildView(chromeView);
-  const page = pageView.webContents;
   const chrome = chromeView.webContents;
+
+  // Website views. There is one for the session everything shares, and one
+  // more while an app that keeps its own sign-ins is open. Only one is ever
+  // the page in front; the rest of this file calls that one `page`.
+  const views = new Map<string, WebContentsView>();
+  const wiring: Array<(wc: WebContents) => void> = [];
+  const wiredSessions = new Set<Electron.Session>();
+  const sessionWiring: Array<(ses: Electron.Session) => void> = [];
+  /** Sets something up on every website view, those made later included. */
+  const eachPage = (wire: (wc: WebContents) => void): void => {
+    wiring.push(wire);
+    for (const view of views.values()) wire(view.webContents);
+  };
+  /** The same for every session a website view uses. */
+  const eachSession = (wire: (ses: Electron.Session) => void): void => {
+    sessionWiring.push(wire);
+    for (const ses of wiredSessions) wire(ses);
+  };
+  /** Makes the website view for a session: "" is the one everything shares. */
+  const makeView = (partition: string): WebContentsView => {
+    const view = new WebContentsView({
+      webPreferences: {
+        ...hardened,
+        preload: join(__dirname, 'preload.js'),
+        // The preload also runs in embedded frames, where in a scripted run it
+        // puts up the purchase guard and nothing else. Despite its name this
+        // gives pages nothing: the view stays sandboxed and isolated.
+        nodeIntegrationInSubFrames: true,
+        additionalArguments: options.automation ? ['--longboard-automation'] : [],
+        ...(partition ? { partition } : {}),
+      },
+    });
+    view.setBackgroundColor('#000000');
+    view.setVisible(false);
+    win.contentView.addChildView(view);
+    // Longboard's own screens stay in front of every website view.
+    win.contentView.addChildView(chromeView);
+    views.set(partition, view);
+    const ses = view.webContents.session;
+    if (!wiredSessions.has(ses)) {
+      wiredSessions.add(ses);
+      for (const wire of sessionWiring) wire(ses);
+    }
+    for (const wire of wiring) wire(view.webContents);
+    return view;
+  };
+  const isPageView = (wc: WebContents): boolean => [...views.values()].some((v) => v.webContents === wc);
+  let partition = '';
+  let pageView = makeView('');
+  let page = pageView.webContents;
 
   // ---- What is on screen -------------------------------------------------
 
@@ -127,6 +182,7 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
     panel,
     version: app.getVersion(),
     home: {
+      apps: apps.map((a) => ({ id: a.id, name: a.name, site: siteName(a.url), icon: iconOf(a.id), ownSession: a.ownSession })),
       recents: recents.map((r) => {
         const source = profileFor(r.url)?.source;
         return { ...r, profile: source === 'local' ? ('own' as const) : source === 'catalogue' || source === 'builtin' ? ('reviewed' as const) : null };
@@ -140,6 +196,8 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
           zoomPercent: Math.round(siteZoom() * 100),
           pointer: pointerOn,
           profile: ((p) => (p ? `${p.profile.name} (${sourceLabel(p.source)})` : null))(profileFor(page.getURL())),
+          app: ((a) => (a ? { id: a.id, name: a.name } : null))(appFor(apps, page.getURL())),
+          canAddToAppList: launcherFolder() !== null,
         }
       : null,
     prompt: !pending
@@ -155,7 +213,10 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   const layout = (): void => {
     if (win.isDestroyed()) return;
     const [width = 0, height = 0] = win.getContentSize();
-    pageView.setBounds({ x: 0, y: 0, width, height });
+    for (const view of views.values()) {
+      view.setBounds({ x: 0, y: 0, width, height });
+      if (view !== pageView) view.setVisible(false);
+    }
     if (surface === 'home') chromeView.setBounds({ x: 0, y: 0, width, height });
     else {
       const strip = Math.round(width * PANEL_WIDTH);
@@ -176,6 +237,7 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
 
   const saveRecents = (): void => writeJson(homeFile, { recents });
   const saveSites = (): void => writeJson(sitesFile, sites);
+  const saveApps = (): void => writeJson(appsFile, { apps });
 
   // ---- Zoom --------------------------------------------------------------
 
@@ -201,6 +263,7 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
 
   let retryTimer: NodeJS.Timeout | undefined;
   let retryAttempt = 0;
+  let lastNoticeAt = 0;
   /** True once a real page has been shown. Until then a refused navigation would leave the view blank. */
   let pageShown = false;
   /** The address the person asked for, until its page has given its title. */
@@ -225,8 +288,39 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
     layout();
   };
 
-  /** Opens an address the person asked for. `remember` puts it on Home. */
-  const open = (url: string, remember: boolean): void => {
+  /**
+   * Makes the view for a session the page in front. The shared view is kept
+   * for the whole run; an app's own view is closed when another session's
+   * takes its place.
+   */
+  const usePartition = (next: string): void => {
+    if (next === partition) return;
+    setPointer(false);
+    clearTimeout(retryTimer);
+    if (pending?.what === 'protectedPlayback') answerPrompt(false, false);
+    if (!page.isDestroyed()) {
+      page.send('longboard:away');
+      page.setAudioMuted(true);
+    }
+    pageView.setVisible(false);
+    const leaving = partition;
+    const left = pageView;
+    pageView = views.get(next) ?? makeView(next);
+    page = pageView.webContents;
+    partition = next;
+    if (leaving !== '') {
+      views.delete(leaving);
+      win.contentView.removeChildView(left);
+      left.webContents.close();
+    }
+    retryAttempt = 0;
+    titleFor = null;
+    lastNoticeAt = 0;
+    pageShown = pageLoaded();
+  };
+
+  /** Opens an address the person asked for. `remember` puts it on Home. `inSession` is an app's own session, or "" for the shared one. */
+  const open = (url: string, remember: boolean, inSession = ''): void => {
     const reason = blockReason(url, options);
     if (reason) {
       console.error(`[longboard] blocked navigation (${reason}): ${describeBlockedUrl(url)}`);
@@ -238,6 +332,7 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
       void page.loadURL(noticePageUrl(reason, url));
       return;
     }
+    usePartition(inSession);
     if (remember) {
       recents = addRecent(recents, url, Date.now());
       titleFor = url;
@@ -277,8 +372,8 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
     else showHome();
   };
 
-  page.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
-    if (!isMainFrame || !isLoadFailure(code, url)) return;
+  eachPage((wc) => wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
+    if (wc !== page || !isMainFrame || !isLoadFailure(code, url)) return;
     console.error(`[longboard] page failed to load (${code} ${description}): ${describeBlockedUrl(url)}`);
     if (blockReason(url, options)) return;
     clearTimeout(retryTimer);
@@ -293,26 +388,26 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
       // Only while the notice is still what is shown: the person may have moved on.
       if (!page.isDestroyed() && page.getURL().startsWith('data:')) void page.loadURL(url).catch(() => undefined);
     }, wait * 1000);
-  });
-  page.on('did-navigate', (_e, url) => {
+  }));
+  eachPage((wc) => wc.on('did-navigate', (_e, url) => {
+    if (wc !== page) return;
     if (!isNotice(url)) {
       retryAttempt = 0;
       pageShown = true;
     }
     applyZoom();
     if (panel) layout();
-  });
-  page.on('page-title-updated', (_e, title) => {
-    if (!titleFor || isNotice(page.getURL())) return;
+  }));
+  eachPage((wc) => wc.on('page-title-updated', (_e, title) => {
+    if (wc !== page || !titleFor || isNotice(page.getURL())) return;
     recents = titleRecent(recents, titleFor, title);
     titleFor = null;
     saveRecents();
-  });
-  page.on('render-process-gone', (_e, details) => {
+  }));
+  eachPage((wc) => wc.on('render-process-gone', (_e, details) => {
     console.error(`[longboard] page renderer exited: ${details.reason}`);
-  });
+  }));
 
-  let lastNoticeAt = 0;
   const NOTICE_GAP_MS = 5000;
   /** Returns true when `url` may load. A refusal is always logged and shown, never silent. */
   const allowed = (url: string): boolean => {
@@ -331,25 +426,25 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
     }
     return false;
   };
-  page.on('will-navigate', (e, url) => {
-    if (!allowed(url)) e.preventDefault();
-  });
+  eachPage((wc) => wc.on('will-navigate', (e, url) => {
+    if (wc !== page || !allowed(url)) e.preventDefault();
+  }));
   // Frames inside a page are the site's own business (Hard rule 4); only
   // where the view itself goes is checked.
-  page.on('will-redirect', (e, url, _isInPlace, isMainFrame) => {
+  eachPage((wc) => wc.on('will-redirect', (e, url, _isInPlace, isMainFrame) => {
     if (!isMainFrame) return;
-    if (!allowed(url)) e.preventDefault();
-  });
+    if (wc !== page || !allowed(url)) e.preventDefault();
+  }));
   // No pop-up windows: a link that asks for one opens in the same view.
-  page.setWindowOpenHandler(({ url }) => {
-    if (allowed(url)) void page.loadURL(url).catch(() => undefined);
+  eachPage((wc) => wc.setWindowOpenHandler(({ url }) => {
+    if (wc === page && allowed(url)) void page.loadURL(url).catch(() => undefined);
     return { action: 'deny' };
-  });
+  }));
 
   const tvCss = readFileSync(join(__dirname, 'tv.css'), 'utf8');
-  page.on('dom-ready', () => {
-    void page.insertCSS(tvCss, { cssOrigin: 'user' });
-  });
+  eachPage((wc) => wc.on('dom-ready', () => {
+    void wc.insertCSS(tvCss, { cssOrigin: 'user' });
+  }));
 
   // The chrome view shows one file and goes nowhere else.
   chrome.on('will-navigate', (e) => e.preventDefault());
@@ -399,9 +494,9 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
       // already gone
     }
   };
-  page.debugger.on('detach', () => {
-    attached = false;
-  });
+  eachPage((wc) => wc.debugger.on('detach', () => {
+    if (wc === page) attached = false;
+  }));
   type Mouse = { type: 'move' } | { type: 'down' | 'up' } | { type: 'wheel'; dx: number; dy: number };
   const mouse = (x: number, y: number, what: Mouse): void => {
     if (page.isDestroyed()) return;
@@ -508,13 +603,13 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
     showPointer();
   };
   // A new page has a new layer, which has to be told the pointer is out.
-  page.on('dom-ready', () => {
-    if (pointerOn) showPointer();
-  });
+  eachPage((wc) => wc.on('dom-ready', () => {
+    if (wc === page && pointerOn) showPointer();
+  }));
   // In pointer mode the shell takes the keys before the page sees them: the
   // pointer must work wherever in the page the keys would have gone.
-  page.on('before-input-event', (event, input) => {
-    if (!pointerOn || active() !== page) return;
+  eachPage((wc) => wc.on('before-input-event', (event, input) => {
+    if (wc !== page || !pointerOn || active() !== page) return;
     const action = keyToAction({ key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift }, 'browse', config.keys);
     if (!action || (action.type !== 'move' && action.type !== 'select' && action.type !== 'back')) return;
     event.preventDefault();
@@ -529,7 +624,7 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
       else if (action.type === 'select') pressPointer();
       else setPointer(false);
     });
-  });
+  }));
 
   // ---- Keys the shell answers itself ---------------------------------------
 
@@ -543,9 +638,9 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   // If the desktop never says the window has focus again, a key press in it
   // still proves someone is here. (Not the layer's own pause key, just sent.)
   let awayAt = 0;
-  for (const wc of [page, chrome]) {
+  const watchKeys = (wc: WebContents): void => {
     wc.on('before-input-event', (event, input) => {
-      if (input.type !== 'keyDown') return;
+      if (input.type !== 'keyDown' || (wc !== chrome && wc !== page)) return;
       if (awayAt !== 0 && Date.now() - awayAt > 1500) returned();
       // Quit and the menu must work whatever the page is doing, and wherever
       // in the page the keys are going (an embedded frame has no layer).
@@ -562,7 +657,9 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
         if (wc === page && active() === page) setImmediate(() => setPointer(!pointerOn));
       }
     });
-  }
+  };
+  watchKeys(chrome);
+  eachPage(watchKeys);
 
   // ---- Leaving and coming back --------------------------------------------
 
@@ -595,8 +692,7 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
 
   // ---- Permissions ---------------------------------------------------------
 
-  const web = session.defaultSession;
-  web.setPermissionRequestHandler((wc, permission, callback, details) => {
+  eachSession((web) => web.setPermissionRequestHandler((wc, permission, callback, details) => {
     const url = details.requestingUrl || wc.getURL();
     const key = siteKey(url);
     const decision = permissionDecision(permission, key ? sites[key] : undefined);
@@ -615,12 +711,12 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
       panel = 'prompt';
       layout();
     }
-  });
-  web.setPermissionCheckHandler((_wc, permission, origin) => {
+  }));
+  eachSession((web) => web.setPermissionCheckHandler((_wc, permission, origin) => {
     const key = siteKey(origin);
     // "Ask" is not a refusal: the question is put when the site makes its request.
     return permissionDecision(permission, key ? sites[key] : undefined) !== 'deny';
-  });
+  }));
   const answerPrompt = (allow: boolean, remember: boolean): void => {
     const asked = pending;
     if (!asked) return;
@@ -648,15 +744,15 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
     layout();
   };
   // A question belongs to the page that asked it.
-  page.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
-    if (isMainFrame && !isInPlace && pending?.what === 'protectedPlayback') answerPrompt(false, false);
-  });
+  eachPage((wc) => wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
+    if (wc === page && isMainFrame && !isInPlace && pending?.what === 'protectedPlayback') answerPrompt(false, false);
+  }));
 
   // No downloads in this version (ARCHITECTURE.md section 2).
-  web.on('will-download', (event) => {
+  eachSession((web) => web.on('will-download', (event) => {
     event.preventDefault();
     notify('Downloads are not available in Longboard yet');
-  });
+  }));
 
   // ---- Messages from the layers ---------------------------------------------
 
@@ -670,7 +766,9 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   const onBoot = (event: Electron.IpcMainEvent): void => {
     const wc = event.sender;
     const top = event.senderFrame === wc.mainFrame;
-    if ((wc !== page && wc !== chrome) || !top) {
+    // Any website view is answered, in front or not: a page that starts
+    // behind another must still get its options (the automation guard above all).
+    if ((!isPageView(wc) && wc !== chrome) || !top) {
       event.returnValue = null;
       return;
     }
@@ -682,7 +780,7 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
       const choice = deps.profiles.choose(event.senderFrame?.url ?? '');
       const use = choice.kind === 'use' ? choice : choice.kind === 'ask' ? choice.fallback : null;
       boot.profile = use?.profile ?? null;
-      if (choice.kind === 'ask') {
+      if (choice.kind === 'ask' && wc === page) {
         const asked = choice.profile;
         setImmediate(() => askAboutProfile(asked));
       }
@@ -810,16 +908,98 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   const framesGuarded = (): boolean => page.mainFrame.framesInSubtree.every((f) => f === page.mainFrame || guarded.has(frameKey(f)));
   const onFrame = (event: Electron.IpcMainEvent, what: unknown): void => {
     const frame = event.senderFrame;
-    if (event.sender !== page || !frame || frame === page.mainFrame || !options.automation) return;
+    if (!isPageView(event.sender) || !frame || frame === event.sender.mainFrame || !options.automation) return;
     if (what === 'guarded') guarded.add(frameKey(frame));
-    else if (what === 'blocked') page.send('longboard:notice', 'Blocked: automation mode never activates purchase or sign-up controls');
+    else if (what === 'blocked' && event.sender === page) page.send('longboard:notice', 'Blocked: automation mode never activates purchase or sign-up controls');
   };
   ipcMain.on('longboard:frame', onFrame);
-  page.on('did-navigate', () => guarded.clear());
-  page.on('did-frame-navigate', (_e, _url, _code, _status, isMainFrame, processId, routingId) => {
+  eachPage((wc) => wc.on('did-frame-navigate', (_e, _url, _code, _status, isMainFrame, processId, routingId) => {
     // A frame that has gone somewhere new has to say again that it is guarded.
     if (!isMainFrame) guarded.delete(`${processId}:${routingId}`);
-  });
+  }));
+
+  // ---- Web apps ----------------------------------------------------------------
+
+  /** The icons the page in front says are its own, newest list last. */
+  let favicons: string[] = [];
+  eachPage((wc) => wc.on('page-favicon-updated', (_e, urls) => {
+    if (wc === page) favicons = urls.filter((u) => /^https?:/i.test(u)).slice(0, 8);
+  }));
+  eachPage((wc) => wc.on('did-navigate', () => {
+    if (wc === page) favicons = [];
+  }));
+  /**
+   * Saves a site's own icon for an app, fetched from the site by the session
+   * the page is in. Hard rule 6: icons come from the site at run time and are
+   * never in the repository. Nothing is saved when the site offers none that
+   * can be read as a picture.
+   */
+  const saveIcon = async (id: string, candidates: readonly string[], from: Electron.Session): Promise<boolean> => {
+    for (const url of candidates) {
+      try {
+        const response = await from.fetch(url, { cache: 'force-cache' });
+        if (!response.ok) continue;
+        const bytes = Buffer.from(await response.arrayBuffer());
+        if (bytes.length === 0 || bytes.length > 2_000_000) continue;
+        let image = nativeImage.createFromBuffer(bytes);
+        if (image.isEmpty()) continue;
+        const { width, height } = image.getSize();
+        if (Math.max(width, height) > 256) image = image.resize(width >= height ? { width: 256 } : { height: 256 });
+        mkdirSync(iconsDir, { recursive: true });
+        writeFileSync(join(iconsDir, `${id}.png`), image.toPNG());
+        iconData.delete(id);
+        return true;
+      } catch {
+        // try the next one
+      }
+    }
+    return false;
+  };
+  const writeAppLauncher = (item: WebApp): boolean => {
+    const ownIcon = iconOf(item.id) ? join(iconsDir, `${item.id}.png`) : join(app.getAppPath(), 'assets', 'icon.png');
+    return writeLauncher(launcherFileName(item.id), launcherEntry(item, launchCommand(process.execPath, app.getAppPath(), app.isPackaged), ownIcon));
+  };
+  /** Adds the site in front as an app (DESIGN.md 4.2). */
+  const addCurrentAsApp = async (wanted: { name: string; ownSession: boolean; launcher: boolean }): Promise<void> => {
+    const url = page.getURL();
+    const added = addApp(apps, { url, ...wanted });
+    panel = null;
+    if (!added) {
+      layout();
+      notify('This page cannot be added as an app');
+      return;
+    }
+    apps = added.list;
+    saveApps();
+    const item = added.app;
+    await saveIcon(item.id, favicons, page.session);
+    let said = `Added "${item.name}" to Home`;
+    if (item.launcher) said += writeAppLauncher(item) ? " and to the TV's app list" : ". It could not be put in the TV's app list";
+    if (item.ownSession) said += '. Open it from Home to use its own sign-ins';
+    layout();
+    notify(said);
+  };
+  const removeAppById = (id: string): void => {
+    const item = apps.find((a) => a.id === id);
+    if (!item) return;
+    apps = removeApp(apps, id);
+    saveApps();
+    removeLauncher(launcherFileName(id));
+    rmSync(join(iconsDir, `${id}.png`), { force: true });
+    iconData.delete(id);
+    // What the app kept for itself goes with it.
+    if (item.ownSession) {
+      if (partition === appPartition(item)) usePartition('');
+      void session.fromPartition(appPartition(item)).clearStorageData().catch(() => undefined);
+    }
+    notify(`Removed the app "${item.name}"`);
+  };
+  const openApp = (id: string): boolean => {
+    const item = apps.find((a) => a.id === id);
+    if (!item) return false;
+    open(item.url, false, appPartition(item));
+    return true;
+  };
 
   // ---- Messages from Longboard's own screens ---------------------------------
 
@@ -876,6 +1056,17 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
         notify(taken.length ? `Imported: ${taken.join(', ')}. You will be asked before each is used.` : 'No profile files (*.longboard-profile.json) were found');
         break;
       }
+      case 'addApp':
+        if (surface === 'page' && !isNotice(page.getURL()) && !appFor(apps, page.getURL())) panel = 'addApp';
+        layout();
+        break;
+      case 'removeApp': {
+        panel = null;
+        const item = surface === 'page' ? appFor(apps, page.getURL()) : null;
+        if (item) removeAppById(item.id);
+        layout();
+        break;
+      }
       case 'about':
         panel = 'about';
         layout();
@@ -898,6 +1089,14 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
       }
       case 'openRecent':
         if (typeof msg.url === 'string' && recents.some((r) => r.url === msg.url)) open(msg.url, true);
+        break;
+      case 'openApp':
+        if (typeof msg.id === 'string') openApp(msg.id);
+        break;
+      case 'addApp':
+        if (panel === 'addApp' && surface === 'page') {
+          void addCurrentAsApp({ name: typeof msg.name === 'string' ? msg.name : '', ownSession: msg.ownSession === true, launcher: msg.launcher === true });
+        }
         break;
       case 'menu':
         if (MENU_ACTIONS.includes(msg.action)) menu(msg.action);
@@ -925,7 +1124,14 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   // ---- Start -----------------------------------------------------------------
 
   void chrome.loadFile(join(__dirname, 'chrome.html'));
-  if (deps.startUrl) {
+  const startApp = deps.startApp ? apps.find((a) => a.id === deps.startApp) : undefined;
+  if (deps.startApp && !startApp) console.error(`[longboard] there is no app called "${deps.startApp.slice(0, 80)}"`);
+  if (startApp) {
+    void deps.ready.then(() => {
+      if (!win.isDestroyed()) openApp(startApp.id);
+    });
+    layout();
+  } else if (deps.startUrl) {
     // The window is up at once with a notice; the site loads when the playback
     // component is ready, so protected playback works on the first page.
     const url = deps.startUrl;
@@ -937,5 +1143,17 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   } else {
     layout();
   }
-  return win;
+  return {
+    win,
+    openApp,
+    openAddress: (url: string) => open(url, true),
+  };
+}
+
+/** What the rest of the shell can ask of the window once it is up. */
+export interface Browser {
+  win: BrowserWindow;
+  /** Opens an app by its id; false when there is none. */
+  openApp: (id: string) => boolean;
+  openAddress: (url: string) => void;
 }

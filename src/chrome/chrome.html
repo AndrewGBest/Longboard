@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <!-- Longboard's own screens. Nothing here loads from anywhere: no scripts, no
-     images, no fonts. The screens are drawn by the preload in its isolated world. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+     fonts, and no pictures except ones the shell hands over inside the page's
+     state (an app's icon). The screens are drawn by the preload in its isolated world. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
 <title>Longboard</title>
 <style>
   html, body { height: 100%; margin: 0; }
@@ -26,7 +27,8 @@
   #go { color: #aeb6c2; }
   #address { outline: none; }
   h2 { margin: 1vh 0 0; font-size: 2.6vh; font-weight: 600; color: #9aa3af; text-transform: uppercase; letter-spacing: .08em; }
-  #tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3vh; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3vh; }
+  .tile img.icon { object-fit: contain; background: #fff; padding: .6vh; box-sizing: border-box; }
   .tile {
     display: flex; flex-direction: column; justify-content: flex-end; gap: .4vh; box-sizing: border-box; height: 23vh;
     padding: 2vh; border: 0; border-radius: 1.6vh; background: #1c222b; text-align: left; overflow: hidden;

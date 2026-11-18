@@ -185,7 +185,8 @@ export async function launch({ url, config, args = [], width, height, seed } = {
   const child = spawn(
     electronPath,
     [root, '--dev', '--automation', ...(args.some((x) => x.startsWith('--zoom=')) ? [] : ['--zoom=1']), ...(width ? [`--size=${width}x${height}`] : []), ...(url ? [`--url=${url}`] : []), ...args, `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--no-sandbox', '--disable-gpu'],
-    { stdio: ['ignore', 'pipe', 'pipe'] },
+    // The desktop's app list is kept inside the throw-away folder too: a test never writes to the real one.
+    { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, XDG_DATA_HOME: join(userData, 'xdg') } },
   );
   const app = { child, userData, log: '' };
   child.stdout.on('data', (d) => (app.log += d));
@@ -207,6 +208,21 @@ export async function launch({ url, config, args = [], width, height, seed } = {
         const view = await attach(hit);
         open.push(view);
         return view;
+      }
+      await sleep(200);
+    }
+    return null;
+  };
+  /** The website view that is in front, among those showing an address starting with `prefix`. */
+  app.frontPage = async (prefix, tries = 50) => {
+    for (let i = 0; i < tries; i++) {
+      for (const t of (await targets()).filter((x) => x.url.startsWith(prefix))) {
+        const view = await attach(t);
+        if ((await view.evaluate('document.visibilityState').catch(() => '')) === 'visible') {
+          open.push(view);
+          return view;
+        }
+        view.close();
       }
       await sleep(200);
     }

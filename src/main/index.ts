@@ -105,10 +105,11 @@ async function main(): Promise<void> {
     console.log('[longboard] widevine component:', JSON.stringify(widevine));
   })();
 
-  const win = createBrowser({
+  const browser = createBrowser({
     options,
     config,
     startUrl: startUrl(config),
+    startApp: value('app') ?? null,
     // Windowed while developing, so the desktop stays reachable.
     fullscreen: flag('fullscreen') || !options.dev,
     zoomOverride: value('zoom'),
@@ -143,9 +144,17 @@ async function main(): Promise<void> {
     });
   }
 
-  app.on('second-instance', () => {
+  const { win } = browser;
+  // Started again while already running (an entry in the TV's app list was
+  // chosen): the window comes forward and opens what was asked for.
+  app.on('second-instance', (_event, args) => {
     if (win.isMinimized()) win.restore();
     win.focus();
+    const wantedApp = args.find((a) => a.startsWith('--app='))?.slice(6);
+    const given = args.find((a) => a.startsWith('--url='))?.slice(6) ?? args.slice(1).find((a) => /^https?:\/\//i.test(a));
+    const address = given ? resolveAddress(given, config.search) : null;
+    if (wantedApp) browser.openApp(wantedApp);
+    else if (address) browser.openAddress(address);
   });
   app.on('window-all-closed', () => app.quit());
 }

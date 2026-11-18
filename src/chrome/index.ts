@@ -21,6 +21,8 @@ let state: ChromeState | undefined = boot.state;
 let layer: Layer | undefined;
 /** True while the address field stands in for the "go to" button. */
 let typing = false;
+/** What the person has chosen so far on the "add as an app" panel. */
+let draft = { name: '', ownSession: false, launcher: true };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: { id?: string; cls?: string; text?: string } = {}, children: Node[] = []): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -92,9 +94,24 @@ function home(s: ChromeState): HTMLElement {
     );
     return tile;
   });
+  const apps = s.home.apps.map((a, i) => {
+    const tile = button(`app-${i}`, '', () => tell({ kind: 'openApp', id: a.id }));
+    tile.className = 'tile';
+    // The site's own icon, as the site served it; a letter when it gave none.
+    let badge: HTMLElement = el('span', { cls: 'mono', text: a.name.slice(0, 1) || '?' });
+    if (a.icon) {
+      const img = el('img', { cls: 'mono icon' });
+      img.src = a.icon;
+      img.alt = '';
+      badge = img;
+    }
+    tile.append(badge, el('span', { cls: 'site', text: a.name }), el('span', { cls: 'title', text: a.site }), el('span', { cls: 'mark', text: a.ownSession ? 'Own sign-ins' : '' }));
+    return tile;
+  });
   const main = el('main', { id: 'home' }, [el('h1', { text: 'Longboard' }), go]);
-  if (tiles.length) main.append(el('h2', { text: 'Recently opened' }), el('div', { id: 'tiles' }, tiles));
-  else main.append(el('p', { id: 'empty', text: 'Sites you open will appear here.' }));
+  if (apps.length) main.append(el('h2', { text: 'Apps' }), el('div', { id: 'apps', cls: 'tiles' }, apps));
+  if (tiles.length) main.append(el('h2', { text: 'Recently opened' }), el('div', { id: 'tiles', cls: 'tiles' }, tiles));
+  else if (!apps.length) main.append(el('p', { id: 'empty', text: 'Sites you open will appear here.' }));
   main.append(el('p', { id: 'hint', text: 'Menu key, Ctrl+O or Start: menu.   F2 or right stick click: pointer.   Ctrl+Q: quit.' }));
   return main;
 }
@@ -122,9 +139,39 @@ function menuPanel(s: ChromeState): Node[] {
       el('p', { cls: 'where', text: page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode' }),
     );
     if (page.profile) items.push(button('menu-export', 'Export this profile', act('exportProfile')));
+    items.push(page.app ? button('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp')) : button('menu-add-app', 'Add this site as an app', act('addApp')));
   }
   items.push(button('menu-import', 'Import profiles from USB', act('importProfiles')));
   items.push(button('menu-about', 'About and help', act('about')), button('menu-quit', 'Quit Longboard', act('quit')));
+  return items;
+}
+
+/** "Add as an app": a name, two choices, and Add. The choices are kept here until Add is pressed. */
+function addAppPanel(s: ChromeState): Node[] {
+  const name = el('input', { id: 'app-name' });
+  name.type = 'text';
+  name.value = draft.name;
+  name.setAttribute('aria-label', 'Name');
+  name.setAttribute('enterkeyhint', 'done');
+  name.addEventListener('input', () => (draft.name = name.value));
+  const toggle = (id: string, text: string, flip: () => void): HTMLButtonElement =>
+    button(id, text, () => {
+      flip();
+      render();
+    });
+  const items: Node[] = [
+    el('h1', { text: 'Add as an app' }),
+    el('p', { cls: 'where', text: `${s.page?.site ?? 'This site'} will get a tile on Home that opens it directly.` }),
+    name,
+    toggle('app-session', draft.ownSession ? 'Sign-ins: its own, apart from the rest' : 'Sign-ins: shared with the rest of Longboard', () => (draft.ownSession = !draft.ownSession)),
+  ];
+  if (s.page?.canAddToAppList) {
+    items.push(toggle('app-launcher', draft.launcher ? "Also in the TV's app list: yes" : "Also in the TV's app list: no", () => (draft.launcher = !draft.launcher)));
+  }
+  items.push(
+    button('app-add', 'Add', () => tell({ kind: 'addApp', name: draft.name, ownSession: draft.ownSession, launcher: draft.launcher && s.page?.canAddToAppList === true })),
+    button('app-cancel', 'Cancel', () => tell({ kind: 'menu', action: 'close' })),
+  );
   return items;
 }
 
@@ -172,7 +219,7 @@ function render(): void {
   if (!strip) parts.push(home(s));
   let panel: HTMLElement | null = null;
   if (s.panel) {
-    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : promptPanel(s));
+    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : promptPanel(s));
     // The layer keeps the highlight inside an open modal dialog.
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
@@ -188,7 +235,7 @@ function render(): void {
     const first = [...panel.querySelectorAll('button')].find((b) => !b.disabled);
     if (first) layer.focus(first);
   } else {
-    const first = document.querySelector('#tiles button') ?? document.getElementById('go');
+    const first = document.querySelector('.tiles button') ?? document.getElementById('go');
     if (first) layer.focus(first);
   }
 }
@@ -196,6 +243,8 @@ function render(): void {
 ipcRenderer.on('longboard:chrome-state', (_event, next: ChromeState) => {
   // A panel that opens or closes ends any typing in the Home field.
   if (state && (state.panel !== next.panel || state.surface !== next.surface)) typing = false;
+  // The "add as an app" panel starts from the page's own name each time it opens.
+  if (next.panel === 'addApp' && state?.panel !== 'addApp') draft = { name: next.page?.title || next.page?.site || '', ownSession: false, launcher: true };
   state = next;
   render();
 });
