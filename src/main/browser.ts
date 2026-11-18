@@ -3,14 +3,15 @@
 // separate renderers with separate sessions; a website can never reach the
 // chrome view or the shell (Hard rule 13).
 import { app, BaseWindow, ipcMain, nativeImage, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import type { BootData, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
 import { resolveAddress, siteKey, siteName } from '../shared/address';
 import { EDIT_ACTIONS, MENU_ACTIONS, type ChromeMessage, type ChromeState, type EditAction, type MenuAction, type Panel } from '../shared/chrome';
 import { EDIT_MARKS, hasMark, marksOf, parsePicked, startDraft, toggleMark, type PickedStep } from '../shared/editor';
 import type { UserConfig } from '../shared/config';
-import { addRecent, parseRecents, titleRecent, type RecentSite } from '../shared/home';
+import { addRecent, parseRecents, removeRecent, titleRecent, type RecentSite } from '../shared/home';
 import { typableText } from '../shared/osk';
 import { playerKeyInfo } from '../shared/player-keys';
 import { parseSites, zoomStep, type SiteSettings } from '../shared/sites';
@@ -35,7 +36,7 @@ import { readJson, writeJson } from './store';
 import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeLauncher } from '../platform';
 import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
 import { canvasOf, type Profile, type ProfileSource } from '../shared/profile';
-import { hoverPoint, tvZoom } from './zoom';
+import { hoverPoint, pageBounds, tvZoom } from './zoom';
 
 export interface BrowserDeps {
   options: { dev: boolean; automation: boolean };
@@ -86,6 +87,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
     }
     return iconData.get(id) ?? null;
   };
+
+  /** The name a site's icon is kept under while the site is on Home: nothing that can be read back into an address. */
+  const siteIconId = (url: string): string => `site-${createHash('sha256').update(siteKey(url) ?? '').digest('hex').slice(0, 16)}`;
 
   // A window with no page of its own: everything shown is one of the views below.
   const win = new BaseWindow({
@@ -180,8 +184,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   const pageSite = (): string | null => siteKey(page.getURL());
   const pageLoaded = (): boolean => page.navigationHistory.getAllEntries().some((e) => !isNotice(e.url));
-  const autoZoom = (): number => {
+  /** Where the page in front is drawn: the whole window, less the edge its profile asks to be kept clear. */
+  const pageArea = (): { x: number; y: number; width: number; height: number } => {
     const [width = 0, height = 0] = win.getContentSize();
+    return pageBounds({ width, height }, profileFor(page.getURL())?.profile.view?.safeMargin);
+  };
+  const autoZoom = (): number => {
+    const { width, height } = pageArea();
     // A profile may say what size the site should be drawn at.
     const canvas = canvasOf(profileFor(page.getURL())?.profile ?? null);
     return tvZoom({ width, height }, deps.zoomOverride ?? (config.zoom === undefined ? undefined : String(config.zoom)), canvas ?? undefined);
@@ -199,7 +208,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       apps: apps.map((a) => ({ id: a.id, name: a.name, site: siteName(a.url), icon: iconOf(a.id), ownSession: a.ownSession })),
       recents: recents.map((r) => {
         const source = profileFor(r.url)?.source;
-        return { ...r, profile: source === 'local' ? ('own' as const) : source === 'catalogue' || source === 'builtin' ? ('reviewed' as const) : null };
+        return { ...r, icon: iconOf(siteIconId(r.url)), profile: source === 'local' ? ('own' as const) : source === 'catalogue' || source === 'builtin' ? ('reviewed' as const) : null };
       }),
     },
     page: pageLoaded()
@@ -252,7 +261,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (win.isDestroyed()) return;
     const [width = 0, height = 0] = win.getContentSize();
     for (const view of views.values()) {
-      view.setBounds({ x: 0, y: 0, width, height });
+      view.setBounds(view === pageView ? pageArea() : { x: 0, y: 0, width, height });
       if (view !== pageView) view.setVisible(false);
     }
     if (surface === 'home') chromeView.setBounds({ x: 0, y: 0, width, height });
@@ -273,7 +282,20 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (!front.isDestroyed()) front.send('longboard:notice', text);
   };
 
-  const saveRecents = (): void => writeJson(homeFile, { recents });
+  const saveRecents = (): void => {
+    writeJson(homeFile, { recents });
+    // A site that is no longer on Home does not keep its icon here.
+    const kept = new Set(recents.map((r) => `${siteIconId(r.url)}.png`));
+    try {
+      for (const file of readdirSync(iconsDir)) {
+        if (!file.startsWith('site-') || kept.has(file)) continue;
+        rmSync(join(iconsDir, file), { force: true });
+        iconData.delete(file.slice(0, -4));
+      }
+    } catch {
+      // no icons have been saved yet
+    }
+  };
   const saveSites = (): void => writeJson(sitesFile, sites);
   const saveApps = (): void => writeJson(appsFile, { apps });
 
@@ -435,8 +457,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
       retryAttempt = 0;
       pageShown = true;
     }
+    // A profile may keep the edges of the screen clear, so where the page is drawn can change with the address.
+    const area = pageArea();
+    const now = pageView.getBounds();
+    if (panel || area.x !== now.x || area.y !== now.y || area.width !== now.width || area.height !== now.height) layout();
     applyZoom();
-    if (panel) layout();
   }));
   eachPage((wc) => wc.on('page-title-updated', (_e, title) => {
     if (wc !== page || !titleFor || isNotice(page.getURL())) return;
@@ -1142,7 +1167,17 @@ export function createBrowser(deps: BrowserDeps): Browser {
   /** The icons the page in front says are its own, newest list last. */
   let favicons: string[] = [];
   eachPage((wc) => wc.on('page-favicon-updated', (_e, urls) => {
-    if (wc === page) favicons = urls.filter((u) => /^https?:/i.test(u)).slice(0, 8);
+    if (wc !== page) return;
+    favicons = urls.filter((u) => /^https?:/i.test(u)).slice(0, 8);
+    // A site on Home gets its own icon on its tile, fetched once from the site while it is open.
+    const key = pageSite();
+    const id = siteIconId(page.getURL());
+    if (!key || !favicons.length || iconOf(id) || !recents.some((r) => siteKey(r.url) === key)) return;
+    void saveIcon(id, favicons, page.session).then((saved) => {
+      // The site may have been taken off Home while its icon was on the way.
+      if (saved && !recents.some((r) => siteKey(r.url) === key)) saveRecents();
+      else if (saved && surface === 'home' && !win.isDestroyed()) layout();
+    });
   }));
   eachPage((wc) => wc.on('did-navigate', () => {
     if (wc === page) favicons = [];
@@ -1332,6 +1367,23 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'openApp':
         if (typeof msg.id === 'string') openApp(msg.id);
+        break;
+      case 'removeRecent':
+        if (surface === 'home' && typeof msg.url === 'string' && recents.some((r) => r.url === msg.url)) {
+          const name = siteName(msg.url);
+          recents = removeRecent(recents, msg.url);
+          saveRecents();
+          panel = null;
+          layout();
+          notify(`Removed ${name} from Home`);
+        }
+        break;
+      case 'removeApp':
+        if (surface === 'home' && typeof msg.id === 'string' && apps.some((a) => a.id === msg.id)) {
+          panel = null;
+          removeAppById(msg.id);
+          layout();
+        }
         break;
       case 'edit':
         if (EDIT_ACTIONS.includes(msg.action)) editAction(msg.action);

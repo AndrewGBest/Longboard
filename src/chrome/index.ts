@@ -23,6 +23,21 @@ let layer: Layer | undefined;
 let typing = false;
 /** What the person has chosen so far on the "add as an app" panel. */
 let draft = { name: '', ownSession: false, launcher: true };
+/** The Home tile the highlight was on when the menu was opened from Home; the menu offers to remove it. */
+let menuFor: { kind: 'recent'; url: string; name: string } | { kind: 'app'; id: string; name: string } | null = null;
+
+/** The tile with the highlight on Home, from what is drawn now. */
+function focusedTile(s: ChromeState): typeof menuFor {
+  const id = document.querySelector('[data-longboard-focus]')?.id ?? '';
+  const m = /^(tile|app)-(\d+)$/.exec(id);
+  if (!m) return null;
+  if (m[1] === 'tile') {
+    const r = s.home.recents[Number(m[2])];
+    return r ? { kind: 'recent', url: r.url, name: siteName(r.url) } : null;
+  }
+  const a = s.home.apps[Number(m[2])];
+  return a ? { kind: 'app', id: a.id, name: a.name } : null;
+}
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: { id?: string; cls?: string; text?: string } = {}, children: Node[] = []): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -62,6 +77,15 @@ function addressField(id: string): HTMLInputElement {
   return input;
 }
 
+/** The site's own icon, as the site served it; the first letter of its name when it gave none. */
+function badge(icon: string | null, name: string): HTMLElement {
+  if (!icon) return el('span', { cls: 'mono', text: name.slice(0, 1) || '?' });
+  const img = el('img', { cls: 'mono icon' });
+  img.src = icon;
+  img.alt = '';
+  return img;
+}
+
 function home(s: ChromeState): HTMLElement {
   const go = typing
     ? addressField('address')
@@ -87,7 +111,7 @@ function home(s: ChromeState): HTMLElement {
     tile.className = 'tile';
     const mark = r.profile === 'own' ? 'Your profile' : r.profile === 'reviewed' ? 'Reviewed profile' : '';
     tile.append(
-      el('span', { cls: 'mono', text: site.slice(0, 1) || '?' }),
+      badge(r.icon, site),
       el('span', { cls: 'site', text: site }),
       el('span', { cls: 'title', text: r.title }),
       el('span', { cls: 'mark', text: mark }),
@@ -97,15 +121,7 @@ function home(s: ChromeState): HTMLElement {
   const apps = s.home.apps.map((a, i) => {
     const tile = button(`app-${i}`, '', () => tell({ kind: 'openApp', id: a.id }));
     tile.className = 'tile';
-    // The site's own icon, as the site served it; a letter when it gave none.
-    let badge: HTMLElement = el('span', { cls: 'mono', text: a.name.slice(0, 1) || '?' });
-    if (a.icon) {
-      const img = el('img', { cls: 'mono icon' });
-      img.src = a.icon;
-      img.alt = '';
-      badge = img;
-    }
-    tile.append(badge, el('span', { cls: 'site', text: a.name }), el('span', { cls: 'title', text: a.site }), el('span', { cls: 'mark', text: a.ownSession ? 'Own sign-ins' : '' }));
+    tile.append(badge(a.icon, a.name), el('span', { cls: 'site', text: a.name }), el('span', { cls: 'title', text: a.site }), el('span', { cls: 'mark', text: a.ownSession ? 'Own sign-ins' : '' }));
     return tile;
   });
   const main = el('main', { id: 'home' }, [el('h1', { text: 'Longboard' }), go]);
@@ -125,6 +141,14 @@ function menuPanel(s: ChromeState): Node[] {
   items.push(addressField('menu-address'));
   if (onPage) items.push(button('menu-home', 'Home', act('home')));
   else if (page) items.push(button('menu-resume', `Back to ${page.site}`, act('resume')));
+  if (!onPage && menuFor) {
+    const tile = menuFor;
+    items.push(
+      tile.kind === 'recent'
+        ? button('menu-remove-tile', `Remove ${tile.name} from Home`, () => tell({ kind: 'removeRecent', url: tile.url }))
+        : button('menu-remove-tile', `Remove the app "${tile.name}"`, () => tell({ kind: 'removeApp', id: tile.id })),
+    );
+  }
   if (page && onPage) {
     items.push(
       button('menu-back', 'Back', act('back'), !page.canGoBack),
@@ -291,6 +315,9 @@ ipcRenderer.on('longboard:chrome-state', (_event, next: ChromeState) => {
   if (state && (state.panel !== next.panel || state.surface !== next.surface)) typing = false;
   // The "add as an app" panel starts from the page's own name each time it opens.
   if (next.panel === 'addApp' && state?.panel !== 'addApp') draft = { name: next.page?.title || next.page?.site || '', ownSession: false, launcher: true };
+  // The menu opened from Home is about the tile the highlight was on.
+  if (next.panel === 'menu' && state && state.panel === null && state.surface === 'home') menuFor = focusedTile(state);
+  else if (next.panel !== 'menu') menuFor = null;
   state = next;
   render();
 });

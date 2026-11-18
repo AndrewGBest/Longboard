@@ -4,7 +4,7 @@
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { check, fail, failureCount, launch, root, serveFixtures, sleep, until } from './harness.mjs';
 
@@ -347,8 +347,24 @@ await scenario('Home, the address field, the menu and Back', {}, async (app) => 
   check('the site is on Home as a tile, with its title, and has the highlight', [await chrome.evaluate('document.querySelector("#tiles .site")?.textContent'), await chrome.evaluate('document.querySelector("#tiles .title")?.textContent'), await chrome.focused()], ['127.0.0.1', 'Longboard fixture: generic streaming home', 'tile-0']);
   check('and is remembered on disk', JSON.parse(readFileSync(join(app.userData, 'home.json'), 'utf8')).recents.map((r) => r.url), [`${site.origin}/home.html`]);
 
+  check("the tile shows the site's own icon, fetched from the site", await until(() => chrome.evaluate('!!document.querySelector("#tiles img.icon")?.src.startsWith("data:image/png;base64,")'), (v) => v === true), true);
+  const iconsNow = () => (existsSync(join(app.userData, 'icons')) ? readdirSync(join(app.userData, 'icons')) : []);
+  check('the icon is kept under a name that does not say which site', iconsNow().map((f) => /^site-[0-9a-f]{16}\.png$/.test(f)), [true]);
+
   await chrome.press('Enter', 600);
   check('the tile opens the site again', await until(() => page.evaluate('document.visibilityState + location.pathname'), (v) => v === 'visible/home.html'), 'visible/home.html');
+
+  // Taking the tile off Home: the menu, opened with the highlight on the tile.
+  await sleep(700);
+  await page.press('Escape', 600);
+  await until(() => chrome.focused(), (id) => id === 'tile-0');
+  await chrome.press('ContextMenu', 500);
+  check('the menu opened on a tile offers to remove it', await chrome.evaluate('document.getElementById("menu-remove-tile")?.textContent'), 'Remove 127.0.0.1 from Home');
+  for (let i = 0; i < 6 && (await chrome.focused()) !== 'menu-remove-tile'; i++) await chrome.press('ArrowDown');
+  await chrome.press('Enter', 500);
+  check('removing it takes the tile, the saved entry and the icon away', [await chrome.evaluate('document.querySelectorAll("#tiles .tile").length'), await chrome.evaluate('document.getElementById("panel")'), JSON.parse(readFileSync(join(app.userData, 'home.json'), 'utf8')).recents, iconsNow()], [0, null, [], []]);
+  await chrome.press('ContextMenu', 500);
+  check('with the highlight on nothing that can be removed, the menu does not offer it', [await chrome.focused() !== null, await chrome.evaluate('document.getElementById("menu-remove-tile")')], [true, null]);
 });
 
 await scenario('words typed into the address field are searched for', { config: { search: 'https://search.invalid/find?q=%s' } }, async (app) => {
@@ -678,6 +694,7 @@ await scenario(
     await sleep(800);
     check('a file with scripts in it is refused and said so', /scripted\.json is not a usable profile: profiles cannot contain scripts/.test(app.log), true);
     check('the page is drawn at the size the profile asks for', await evaluate('innerWidth'), 640);
+    check('and the edge of the screen the profile asks for is kept clear', await evaluate('[Math.round(innerWidth * devicePixelRatio), Math.round(innerHeight * devicePixelRatio)]'), [1152, 648]);
     await press('ArrowDown');
     check('the highlight starts where the profile says', await focused(), 'a3');
     await press('Enter');

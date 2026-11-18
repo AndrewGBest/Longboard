@@ -6,7 +6,7 @@
   "authors": ["longboard-tests"],
   "licence": "CC0-1.0",
   "match": { "hosts": ["profile.test"], "paths": ["/profiled.html"] },
-  "view": { "canvas": "640x360" },
+  "view": { "canvas": "640x360", "safeMargin": 0.05 },
   "focus": {
     "include": [".tile"],
     "exclude": [".banner"],

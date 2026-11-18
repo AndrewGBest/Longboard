@@ -85,7 +85,7 @@ Only `longboard`, the identity fields, `match` and `evidence` are required.
 | `match.hosts` | Which sites the profile applies to. Exact domain names, or a leading `*.` for everything under one. No addresses, ports or wildcards elsewhere |
 | `match.paths` | Optional. The profile applies only to addresses under one of these paths, by whole path segments. When two profiles from the same source fit, the longer path wins |
 | `view.canvas` | The size the site is drawn at before being scaled to the screen. 960x540 without it |
-| `view.safeMargin` | The share of the screen kept clear at the edges. Accepted and checked; **not applied yet** |
+| `view.safeMargin` | The share of the screen kept clear at every edge, 0 to 0.15, for TVs that cut the edges of the picture off. The site is drawn in a smaller rectangle in the middle |
 | `focus.include` | Elements that can take the highlight, added to what Longboard finds itself |
 | `focus.exclude` | Elements that never take it, nor anything inside them |
 | `focus.initial` | Where the highlight starts on a page |

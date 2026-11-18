@@ -34,6 +34,19 @@ export function tvZoom(content: { width: number; height: number }, override?: st
 }
 
 /**
+ * Where a website is drawn in a window of `content` pixels when a profile
+ * asks for `margin` (a share of the screen, 0 to 0.15) to be kept clear at
+ * every edge, for TVs that cut the edges of the picture off. The site is
+ * given a smaller rectangle in the middle; nothing in the page is changed.
+ */
+export function pageBounds(content: { width: number; height: number }, margin?: number): { x: number; y: number; width: number; height: number } {
+  const share = typeof margin === 'number' && Number.isFinite(margin) ? Math.min(0.15, Math.max(0, margin)) : 0;
+  const x = Math.round(content.width * share);
+  const y = Math.round(content.height * share);
+  return { x, y, width: Math.max(0, content.width - 2 * x), height: Math.max(0, content.height - 2 * y) };
+}
+
+/**
  * Converts a point the page side asked to hover (CSS pixels) into window
  * pixels, or null when the request is not two finite numbers inside the window.
  */

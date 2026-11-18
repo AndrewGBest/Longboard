@@ -11,12 +11,12 @@ export interface ChromeState {
   surface: 'home' | 'page';
   panel: Panel | null;
   version: string;
-  /** `icon` is the site's own icon as the site served it when the app was added, as a data: address, or null. */
   /** `profile` says what Longboard has for the site: a reviewed profile, the person's own, or nothing. */
   home: {
     /** Sites added as apps. `icon` is the site's own icon, fetched from the site when the app was added, as a data: address. */
     apps: Array<{ id: string; name: string; site: string; icon: string | null; ownSession: boolean }>;
-    recents: Array<RecentSite & { profile: 'reviewed' | 'own' | null }>;
+    /** `icon` is the site's own icon, fetched from the site while it was open, as a data: address. */
+    recents: Array<RecentSite & { profile: 'reviewed' | 'own' | null; icon: string | null }>;
   };
   /** About the page in the page view; null when none has been opened. */
   page: {
@@ -71,6 +71,9 @@ export type ChromeMessage =
   /** Open a Home tile. */
   | { kind: 'openRecent'; url: string }
   | { kind: 'openApp'; id: string }
+  /** Take a tile off Home. Removing an app also removes what `removeApp` in the menu does. */
+  | { kind: 'removeRecent'; url: string }
+  | { kind: 'removeApp'; id: string }
   /** The profile editor's buttons. */
   | { kind: 'edit'; action: EditAction }
   /** Add the site in front as an app. */

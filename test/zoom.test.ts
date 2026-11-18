@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hoverPoint, tvZoom } from '../src/main/zoom';
+import { hoverPoint, pageBounds, tvZoom } from '../src/main/zoom';
 
 const hd = (height: number): { width: number; height: number } => ({ width: (height * 16) / 9, height });
 
@@ -58,5 +58,21 @@ describe('hoverPoint', () => {
     expect(hoverPoint({ x: Number.NaN, y: 10 }, 1, [1280, 720])).toBeNull();
     expect(hoverPoint({ x: 5, y: 10 }, 0, [1280, 720])).toBeNull();
     expect(hoverPoint({ x: 5, y: 10 }, 1, undefined)).toBeNull();
+  });
+});
+
+describe('pageBounds', () => {
+  it('is the whole window when no margin is asked for', () => {
+    expect(pageBounds({ width: 1920, height: 1080 })).toEqual({ x: 0, y: 0, width: 1920, height: 1080 });
+    expect(pageBounds({ width: 1920, height: 1080 }, 0)).toEqual({ x: 0, y: 0, width: 1920, height: 1080 });
+  });
+  it('keeps the share clear at every edge', () => {
+    expect(pageBounds({ width: 1920, height: 1080 }, 0.05)).toEqual({ x: 96, y: 54, width: 1728, height: 972 });
+  });
+  it('never takes more than the format allows, and ignores nonsense', () => {
+    expect(pageBounds({ width: 1000, height: 1000 }, 0.5)).toEqual({ x: 150, y: 150, width: 700, height: 700 });
+    expect(pageBounds({ width: 1000, height: 1000 }, -1)).toEqual({ x: 0, y: 0, width: 1000, height: 1000 });
+    expect(pageBounds({ width: 1000, height: 1000 }, NaN)).toEqual({ x: 0, y: 0, width: 1000, height: 1000 });
+    expect(pageBounds({ width: 0, height: 0 }, 0.05)).toEqual({ x: 0, y: 0, width: 0, height: 0 });
   });
 });

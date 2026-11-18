@@ -3,6 +3,18 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: gaps closed by the agent after Andrew said "keep going"
+
+All **assumptions**: Andrew asked for more work without saying what, and ad
+blocking is still his to start. The agent worked down the "known gaps" list
+in STATUS.md.
+
+| Topic | Chosen | Why |
+|---|---|---|
+| Icons on Home tiles | A site on Home gets its own icon on its tile, fetched from the site once while the site is open, and kept under a name made from a hash of the site | Hard rule 6: the icon comes from the site at run time. The request goes to the site the person is already on, so it tells nobody anything new (rule 12). The file is deleted when the site leaves Home |
+| Removing a tile | The menu, opened with the highlight on a Home tile, offers "Remove ... from Home" (or to remove the app) | A remote has no long press that can be relied on, and the Menu key is already "things to do with this". No new key to learn |
+| `view.safeMargin` | The website's view is made smaller and centred; the scale is worked out from the smaller rectangle | Nothing in the page is touched (rule 4). The border is black |
+
 ## 2026-11-18: Andrew on ad-blocking defaults, permissions and downloads
 
 Andrew, in chat:
