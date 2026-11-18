@@ -544,9 +544,11 @@ await scenario('a web app whose window does not scroll', { url: `${site.origin}/
   check('and scrolls the pane to its end when there is nothing more to move to', await evaluate('(() => { const p = document.getElementById("pane"); return Math.ceil(p.scrollTop + p.clientHeight) >= p.scrollHeight - 2; })()'), true);
 });
 
-// At a scale of 1: drawn bigger, the browser's own drop-down list starts one
-// entry further down (seen, not explained; a guess is that the list opens
-// under where the layer last put the mouse). STATUS.md lists it.
+// At a scale of 1: drawn bigger, the browser's own drop-down list opens
+// under where the virtual screen's mouse pointer happens to start, and the
+// entry under the pointer is the one the arrows move from. Measured: with
+// the pointer moved anywhere else first, the scaled run chooses the same
+// entry as this one. STATUS.md lists what that means on a TV.
 await scenario('a form, and things that only look clickable', { url: `${site.origin}/form.html`, args: ['--zoom=1'] }, async (app) => {
   const page = await app.page(site.origin);
   const { evaluate, press, focused } = page;

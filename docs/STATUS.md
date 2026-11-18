@@ -26,11 +26,17 @@ one were brought up to date in place. What changed:
   forced a scale of 1, which is why it was missed. It now runs scaled for a
   TV by default (1.33 times in its window), and passes, with one scenario
   held at a scale of 1 (next item).
-- **Seen, not explained:** drawn scaled, the browser's own drop-down list
-  started one entry further down in the form scenario (Down then OK chose
-  the third entry, not the second). In a separate try at the same scale it
-  did not. A guess: the list opens under where the layer last put the mouse.
-  The list is visible, so a person can see where they are in it.
+- **A drop-down list can start on the wrong entry.** A page's drop-down
+  opens as the browser's own list. If the system's mouse pointer (hidden,
+  but still somewhere) is where the list opens, the entry under it is
+  highlighted, and the arrows move from there. Measured in the form
+  scenario drawn scaled: Down then OK chose the third entry; with the
+  pointer moved away first, the second, as expected. On a TV box with no
+  mouse the pointer usually sits in the middle of the screen (the agent's
+  expectation, not checked). The highlight in the list is visible, so a
+  person sees where they are; nothing is chosen without OK. Not fixed:
+  Longboard cannot move the system pointer. That scenario runs at a scale
+  of 1, where the list misses the pointer.
 - The package workflow ("Build packages", started by hand, keeps its files
   for 14 days and publishes nothing) built the AppImage, the tarball and the
   Flatpak from commit 388f736. **None of the three was started by anyone.**
