@@ -27,6 +27,8 @@ export interface LayerDeps {
   hooks?: {
     /** Back, when nothing on the page claimed it. Return true when handled. */
     back?: () => boolean;
+    /** A press with nowhere to go in that direction. Return true when something was done about it. */
+    edge?: (dir: 'up' | 'down' | 'left' | 'right') => boolean;
   };
 }
 
@@ -201,6 +203,8 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       moved = nav.move(dir);
     }
     if (moved) return;
+    // Longboard's own lists go round at their ends.
+    if (hooks?.edge?.(dir)) return;
     const from = nav.focused;
     const hit =
       from && (dir === 'left' || dir === 'right')

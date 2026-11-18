@@ -2,6 +2,27 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-18, late night: pages that are not in front stop, a menu for a remote, the castLabs request
+
+- **Everything stops when it is not in front.** A page behind Home, a tab
+  behind another, and the page in front when another program takes over are
+  frozen by the browser: video, audio and timers stop, and playing waits for
+  the person when the page comes back. Verified end to end for a page
+  behind Home (a video, a separate sound and a clock all stop; on return the
+  page is visible, runs, and is still paused). **Not verified:** the window
+  losing its place to another program (the test machine has no window
+  manager to do that with), and what real streaming sites make of being
+  frozen for a long time.
+- **The menu and Settings were gone over for a remote**, from screenshots
+  the agent took and looked at: the menu is half as long, with site matters
+  on a "This site" page; search site, language and the ad-blocking setting
+  are chosen from lists; lists go round at their ends. Verified end to end.
+  **Not verified:** by a person on a TV.
+- **The request to castLabs is posted**, at Andrew's instruction, after
+  checking that it is a real fix (DECISIONS.md):
+  https://github.com/castlabs/electron-releases/issues/221#issuecomment-6988958527
+  No answer yet. Until they act the engine still claims AC-3 audio.
+
 ## 2026-11-18, night: tabs, history, the rest of Settings, and the AC-3 report
 
 Andrew asked for what Settings had left out, and passed on a report from the
@@ -302,9 +323,6 @@ it was checked by a person, with a remote, on a TV.**
   site off yourself. Is that what you meant by fully enabled?
 - Hard rule 5's wording does not mention the setting over all sites. The
   agent did not reword it.
-- **The engine claims AC-3 audio it cannot decode on Linux** (see above).
-  Open an issue with castLabs (draft in DECISIONS.md), have Longboard
-  correct the answer itself (touches Hard rule 4), or leave it?
 - Saved passwords and autofill conflict with Hard rule 10. Leave them out?
 - tv.apple.com is not on the verified list, so ad blocking starts on there.
 - Otherwise none open. Answered on 2026-11-18: Google is the default search; the

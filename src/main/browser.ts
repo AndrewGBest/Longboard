@@ -86,6 +86,8 @@ export interface BrowserDeps {
 
 /** Share of the window's width the menu panel takes over a website. */
 const PANEL_WIDTH = 0.38;
+/** How long after a page is left it is frozen: time for the site's own pause key to be dealt with. */
+const FREEZE_AFTER_MS = 600;
 /** How long a question has to have been on screen before "yes" is accepted. */
 const PROMPT_SETTLE_MS = 600;
 /** How long a Home tile's icon is used before it is fetched from the site again. */
@@ -507,6 +509,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const showPage = (): void => {
     surface = 'page';
     panel = null;
+    thaw(page);
     page.setAudioMuted(false);
     layout();
   };
@@ -519,11 +522,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
         notify(`${MAX_TABS} tabs are open. Close one first`);
         return;
       }
-      if (surface === 'page') {
-        setPointer(false);
-        page.send('longboard:away');
-        page.setAudioMuted(true);
-      }
+      if (surface === 'page') setPointer(false);
       usePartition(`tab:${++tabCount}`);
       surface = 'home';
       panel = null;
@@ -552,7 +551,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
       // Another tab comes in front first; the nearest one in the list.
       usePartition(others[Math.min(others.length - 1, tabPlaces().indexOf(id))] ?? others[0]!);
       surface = pageLoaded() ? 'page' : 'home';
-      if (surface === 'page') page.setAudioMuted(false);
+      if (surface === 'page') {
+        thaw(page);
+        page.setAudioMuted(false);
+      }
     }
     const gone = views.get(id);
     views.delete(id);
@@ -567,10 +569,12 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const showHome = (): void => {
     if (edit) endEdit(false);
     if (surface === 'page') {
-      // The site stays loaded, silent, with what was playing paused by the site's own key.
+      // The site stays loaded, silent and still: what was playing is paused by
+      // the site's own key, and then the whole page is frozen.
       setPointer(false);
       page.send('longboard:away');
       page.setAudioMuted(true);
+      freezeSoon(page);
     }
     surface = 'home';
     panel = null;
@@ -601,6 +605,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (!page.isDestroyed()) {
       page.send('longboard:away');
       page.setAudioMuted(true);
+      // A tab left behind stands still until it is in front again.
+      if (isTab(partition)) freezeSoon(page);
     }
     pageView.setVisible(false);
     releaseDisplay();
@@ -800,6 +806,54 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // sendInputEvent does not deliver mouse events into frames served by
   // another site (seen 2026-11-18), and those frames are what pointer mode is
   // for. They are the same ordinary, trusted mouse events either way.
+  // ---- Pages that are not in front stand still ---------------------------------
+
+  // A TV shows one thing at a time. A page that is not in front (another tab
+  // is, or Home, or another program) is put into the browser's own "frozen"
+  // state, the one a phone's browser puts a background tab into: its video
+  // and audio pause, its timers stop, and nothing in it runs until it is in
+  // front again. Longboard does not touch the site's player to do this (Hard
+  // rule 4); the browser pauses the page as a whole. Measured 2026-11-18:
+  // a playing <video>, a playing <audio> and Web Audio all stop, and stay
+  // paused when the page is thawed, so playback waits for the person.
+  const frozen = new WeakSet<WebContents>();
+  const lifecycle = (wc: WebContents, state: 'frozen' | 'active'): void => {
+    if (wc.isDestroyed()) return;
+    try {
+      if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
+      void wc.debugger.sendCommand('Page.setWebLifecycleState', { state }).catch(() => undefined);
+    } catch (err) {
+      console.error(`[longboard] a page could not be ${state === 'frozen' ? 'paused' : 'woken'} (${String(err).slice(0, 120)})`);
+    }
+  };
+  const freeze = (wc: WebContents): void => {
+    if (wc.isDestroyed() || frozen.has(wc) || isNotice(wc.getURL())) return;
+    frozen.add(wc);
+    lifecycle(wc, 'frozen');
+  };
+  /** Pages that have been left and will be frozen in a moment, unless they come back first. */
+  const leaving = new WeakSet<WebContents>();
+  const thaw = (wc: WebContents): void => {
+    leaving.delete(wc);
+    if (!frozen.has(wc)) return;
+    frozen.delete(wc);
+    lifecycle(wc, 'active');
+  };
+  /** Freezes a page a moment after it is left, so the site's own pause key (sent first) has been dealt with. */
+  const freezeSoon = (wc: WebContents): void => {
+    leaving.add(wc);
+    setTimeout(() => {
+      // Still left? It may have come straight back, which takes it off the list.
+      if (wc.isDestroyed() || !leaving.has(wc)) return;
+      leaving.delete(wc);
+      freeze(wc);
+    }, FREEZE_AFTER_MS);
+  };
+  // A page that goes somewhere new starts awake: the frozen state belongs to the page that was left.
+  eachPage((wc) => wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
+    if (isMainFrame && !isInPlace) thaw(wc);
+  }));
+
   let attached = false;
   const attach = (): void => {
     if (attached || page.isDestroyed()) return;
@@ -814,7 +868,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (!attached) return;
     attached = false;
     try {
-      if (!page.isDestroyed() && page.debugger.isAttached()) page.debugger.detach();
+      // Left attached while the page is frozen: letting go would wake it.
+      if (!page.isDestroyed() && page.debugger.isAttached() && !frozen.has(page)) page.debugger.detach();
     } catch {
       // already gone
     }
@@ -1023,6 +1078,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (page.isDestroyed()) return;
     page.send('longboard:away');
     page.setAudioMuted(true);
+    // Everything else on the page stops too, once the window has really lost
+    // its place (not for a moment, as when one of its own lists opens).
+    if (surface === 'page') freezeSoon(page);
     awayAt = Date.now();
     clearTimeout(awayTimer);
     awayTimer = setTimeout(() => {
@@ -1032,7 +1090,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const returned = (): void => {
     clearTimeout(awayTimer);
     awayAt = 0;
-    if (!page.isDestroyed() && surface === 'page') page.setAudioMuted(false);
+    if (!page.isDestroyed() && surface === 'page') {
+      thaw(page);
+      page.setAudioMuted(false);
+    }
   };
   win.on('blur', away);
   win.on('minimize', away);

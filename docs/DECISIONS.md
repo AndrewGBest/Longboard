@@ -3,6 +3,21 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: a page that is not in front stands still, and the menu for a remote
+
+Andrew, in chat: "When the app isn't in focus all audio and video should
+pause", and "this is a tv app so make sure all the new additions are tv and
+remote friendly". Each row is **an assumption** on how.
+
+| Topic | Chosen | Why |
+|---|---|---|
+| Pausing everything | A page that is not in front is put into the browser's own "frozen" state, 0.6 seconds after the site's own pause key has been sent to its player. That covers another program in front, Home in front, and a tab behind another. It is woken when it comes in front again | Hard rule 4 forbids calling `pause()` on a site's video, and the pause key only reaches a recognised player. Freezing is the browser pausing the page as a whole, as a phone's browser does to a background tab. **Measured:** a playing video, a playing audio element and Web Audio all stop; timers stop; on waking, the media stay paused, so playing waits for the person, and the page is visible again |
+| What freezing costs | Nothing in a frozen page runs: a page behind Home does not finish loading or keep a connection alive | The price of "all". A site that drops its session when its page stops for a long time will need loading again. **Unverified on real sites** |
+| The window losing its place for a moment | The freeze waits 0.6 seconds and is called off if the page is back in front | One of the browser's own lists opening must not freeze the page under it. **Unverified:** whether a real desktop reports that as the window losing its place for longer than that |
+| A shorter menu | Things about the site in front (add as an app, profile, outline, what it may do) moved to "This site". Back and Reload share a row, as do Tabs and History, and About and Quit. Importing profiles is in Settings only | The agent looked at screenshots: Settings was sixteen presses down. It is now eight |
+| Choosing from a list | Search site, language and the ad-blocking setting open a list with the one in use marked, instead of changing on each press | Stepping through twelve languages one press at a time is not something to do with a remote |
+| Lists go round | In Longboard's own panels, up from the top goes to the bottom and down from the bottom to the top | The usual TV behaviour, and it puts Close and Back one press away |
+
 ## 2026-11-18: what Settings left out
 
 Andrew, in chat: "Work on all the stuff you left out" (after the agent
@@ -43,6 +58,20 @@ The ways out, as the agent sees them:
 4. **Do nothing**: sites that trust the answer and send AC-3 have no sound or do not play; pointer mode and profiles do not help.
 
 The agent's recommendation: 1 now, and 2 only if Andrew wants the site working before castLabs answers.
+
+**2026-11-18, later: Andrew chose option 1**, after the agent checked that it
+is a real fix. The check: Chromium's own default for the flag
+(`media/media_options.gni`, 156.0.8078.75) is
+`proprietary_codecs && (is_cast_media_device || (is_ios && target_platform == "tvos"))`,
+so it is off on desktop Linux upstream and castLabs turns it on for every
+system; with it off, `IsDecoderDolbyAc3Eac3Supported` returns false, which
+is what 42.x answers. A build setting can differ per system, so it is a
+small change for them. The request was posted on Andrew's instruction as a
+comment on their issue 221:
+https://github.com/castlabs/electron-releases/issues/221#issuecomment-6988958527
+The issue is closed, so it may not be seen; if there is no answer, a new
+issue is the next step. Until they act, the site is expected not to play
+sound it sends as AC-3.
 
 Draft for option 1 (not sent):
 

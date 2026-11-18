@@ -10,7 +10,6 @@ import { PRODUCT } from '../shared/product';
 import type { BootData, BridgeMessage } from '../shared/actions';
 import type { ChromeMessage, ChromeState, EditAction, MenuAction, SettingsAction } from '../shared/chrome';
 import { LANGUAGE_CHOICES, PAGE_SIZES, SEARCH_CHOICES } from '../shared/settings';
-import { BLOCKING_MODES } from '../shared/adblock';
 import { aboutTitle, BACKGROUND, HELP, NOTICE } from '../shared/about';
 import { siteName } from '../shared/address';
 import { genericRules } from '../layer/profile/rules';
@@ -26,6 +25,10 @@ let layer: Layer | undefined;
 let typing = false;
 /** What the person has chosen so far on the "add as an app" panel. */
 let draft = { name: '', ownSession: false, launcher: true };
+/** The menu's own second page, about the site in front. */
+let menuPage: 'main' | 'site' = 'main';
+/** A list to choose one thing from, opened from a Settings page. */
+let choosing: 'search' | 'language' | 'ads' | null = null;
 /** Which page of Settings is showing. */
 type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote';
 let settingsPage: SettingsPage = 'main';
@@ -144,6 +147,26 @@ function menuPanel(s: ChromeState): Node[] {
   const act = (action: MenuAction) => (): void => tell({ kind: 'menu', action });
   const page = s.page;
   const onPage = s.surface === 'page';
+  // The things about the site in front that are wanted now and then have a page of their own, to keep the menu short.
+  if (menuPage === 'site' && page && onPage) {
+    const items: Node[] = [
+      el('h1', { text: 'This site' }),
+      el('p', { cls: 'where', text: page.title ? `${page.title} (${page.site})` : page.site }),
+      page.app ? button('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp')) : button('menu-add-app', 'Add this site as an app', act('addApp')),
+      el('p', { cls: 'where', text: page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode' }),
+      button('menu-edit', page.profile ? 'Edit the profile for this site' : 'Make a profile for this site', act('editProfile')),
+    ];
+    if (page.profile) items.push(button('menu-export', 'Export this profile', act('exportProfile')));
+    items.push(button('menu-outline', 'Save page outline', act('outline')));
+    if (page.answers) items.push(el('p', { cls: 'where', text: page.answers }), button('menu-forget', 'Forget what this site may do', act('forgetAnswers')));
+    items.push(
+      button('menu-site-back', 'Back to the menu', () => {
+        menuPage = 'main';
+        render();
+      }),
+    );
+    return items;
+  }
   const items: Node[] = [el('h1', { text: 'Menu' })];
   if (page && onPage) items.push(el('p', { cls: 'where', text: page.title ? `${page.title} (${page.site})` : page.site }));
   items.push(addressField('menu-address'));
@@ -159,34 +182,30 @@ function menuPanel(s: ChromeState): Node[] {
   }
   if (page && onPage) {
     items.push(
-      button('menu-back', 'Back', act('back'), !page.canGoBack),
-      button('menu-reload', 'Reload', act('reload')),
+      el('div', { cls: 'pair' }, [button('menu-back', 'Back', act('back'), !page.canGoBack), button('menu-reload', 'Reload', act('reload'))]),
       el('div', { cls: 'pair' }, [
         button('menu-zoom-out', 'Smaller', act('zoomOut')),
         button('menu-zoom-reset', `${page.zoomPercent}%`, act('zoomReset')),
         button('menu-zoom-in', 'Bigger', act('zoomIn')),
       ]),
       button('menu-pointer', page.pointer ? 'Pointer mode: on' : 'Pointer mode: off', act('pointer')),
-      button('menu-outline', 'Save page outline', act('outline')),
-      el('p', { cls: 'where', text: page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode' }),
     );
     if (page.adBlocking) {
       items.push(button('menu-adblock', page.adBlocking.on ? 'Ad blocking: on' : 'Ad blocking: off', act('adBlocking'), page.adBlocking.locked), el('p', { cls: 'where', text: page.adBlocking.note }));
     }
-    if (page.profile) items.push(button('menu-export', 'Export this profile', act('exportProfile')));
-    if (page.answers) {
-      items.push(el('p', { cls: 'where', text: page.answers }), button('menu-forget', 'Forget what this site may do', act('forgetAnswers')));
-    }
-    items.push(button('menu-edit', page.profile ? 'Edit the profile for this site' : 'Make a profile for this site', act('editProfile')));
-    items.push(page.app ? button('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp')) : button('menu-add-app', 'Add this site as an app', act('addApp')));
+    items.push(
+      button('menu-site', 'This site: app, profile, what it may do', () => {
+        menuPage = 'site';
+        render();
+      }),
+    );
   }
+  items.push(el('div', { cls: 'pair' }, [button('menu-tabs', s.tabs.length > 1 ? `Tabs (${s.tabs.length})` : 'Tabs', act('tabs')), button('menu-history', 'History', act('history'))]));
   if (s.downloads.length > 0) {
     const going = s.downloads.filter((d) => d.state === 'going').length;
     items.push(button('menu-downloads', going ? `Downloads (${going} under way)` : 'Downloads', act('downloads')));
   }
-  items.push(button('menu-import', 'Import profiles from USB', act('importProfiles')));
-  items.push(button('menu-tabs', s.tabs.length > 1 ? `Tabs (${s.tabs.length})` : 'Tabs', act('tabs')), button('menu-history', 'History', act('history')));
-  items.push(button('menu-settings', 'Settings', act('settings')), button('menu-about', 'About and help', act('about')), button('menu-quit', `Quit ${PRODUCT.name}`, act('quit')));
+  items.push(button('menu-settings', 'Settings', act('settings')), el('div', { cls: 'pair' }, [button('menu-about', 'About and help', act('about')), button('menu-quit', `Quit ${PRODUCT.name}`, act('quit'))]));
   return items;
 }
 
@@ -279,21 +298,54 @@ function settingsPanel(s: ChromeState): Node[] {
     });
   const once = (id: string, text: string, action: SettingsAction): HTMLButtonElement => button(id, text, () => tell({ kind: 'settingsAction', action }));
 
+  /** A list to choose one from: the one in use is marked, and choosing goes back to the page it came from. */
+  const choose = (title: string, name: string, options: Array<{ text: string; value: unknown; chosen: boolean; note?: string }>): Node[] => {
+    const items: Node[] = [el('h1', { text: title })];
+    options.forEach((o, i) => {
+      items.push(
+        button(`pick-${i}`, o.chosen ? `${o.text} (in use)` : o.text, () => {
+          choosing = null;
+          tell({ kind: 'setting', name, value: o.value });
+        }),
+      );
+      if (o.note) items.push(say(o.note));
+    });
+    items.push(
+      button('pick-cancel', 'Cancel', () => {
+        choosing = null;
+        render();
+      }),
+    );
+    return items;
+  };
+  const pick = (what: NonNullable<typeof choosing>) => (): void => {
+    choosing = what;
+    render();
+  };
+  if (choosing === 'search') {
+    return choose('Search with', 'search', SEARCH_CHOICES.map((c) => ({ text: c.name, value: c.template, chosen: c.template === st.searchTemplate })));
+  }
+  if (choosing === 'language') {
+    return choose('Language sites are asked for', 'language', LANGUAGE_CHOICES.map((l) => ({ text: l.name === "the system's" ? "The system's language" : l.name, value: l.code, chosen: l.code === st.language })));
+  }
+  if (choosing === 'ads') {
+    const mode = st.adBlocking.mode;
+    return choose('Ad blocking', 'adBlocking', [
+      { text: 'Each site has its own switch', value: null, chosen: mode === 'sites', note: 'It starts off on the sites in the list and on everywhere else. The menu has the switch for the site in front.' },
+      { text: 'On for every site', value: 'everywhere', chosen: mode === 'everywhere', note: 'The list is ignored. A site you switch off yourself from the menu stays off.' },
+      { text: 'Off for every site', value: 'off', chosen: mode === 'off', note: 'Nothing is refused anywhere, and the filter list is not downloaded.' },
+    ]);
+  }
+
   switch (settingsPage) {
     case 'general': {
-      const at = SEARCH_CHOICES.findIndex((c) => c.template === st.searchTemplate);
-      const next = SEARCH_CHOICES[(at + 1) % SEARCH_CHOICES.length]!;
       return [
         el('h1', { text: 'Search and starting' }),
-        button('set-search', `Search with: ${st.search}`, set('search', next.template)),
-        say('Words typed into the address field are looked up there. Press to change. Another search site can be put in config.json.'),
+        button('set-search', `Search with: ${st.search}`, pick('search')),
+        say('Words typed into the address field are looked up there. Another search site can be put in config.json.'),
         button('set-start', st.startWith === 'last' ? 'Open with: the last site' : 'Open with: Home', set('startWith', st.startWith === 'last' ? 'home' : 'last')),
-        button(
-          'set-language',
-          `Language sites are asked for: ${LANGUAGE_CHOICES.find((l) => l.code === st.language)?.name ?? st.language}`,
-          set('language', LANGUAGE_CHOICES[(LANGUAGE_CHOICES.findIndex((l) => l.code === st.language) + 1) % LANGUAGE_CHOICES.length]!.code),
-        ),
-        say(`Sites that come in several languages are asked for this one. Press to change. Takes effect the next time ${PRODUCT.name} starts.`),
+        button('set-language', `Language sites are asked for: ${LANGUAGE_CHOICES.find((l) => l.code === st.language)?.name ?? st.language}`, pick('language')),
+        say(`Sites that come in several languages are asked for this one. Takes effect the next time ${PRODUCT.name} starts.`),
         back,
       ];
     }
@@ -315,18 +367,11 @@ function settingsPanel(s: ChromeState): Node[] {
     }
     case 'ads': {
       const words = { sites: 'each site has its own switch', everywhere: 'on for every site', off: 'off for every site' } as const;
-      const about = {
-        sites: 'It starts off on the sites in the list below and on everywhere else. The menu has the switch for the site in front.',
-        everywhere: 'On for every site, the list below ignored. A site you switch off yourself from the menu stays off.',
-        off: 'Nothing is refused anywhere, and the filter list is not downloaded.',
-      } as const;
       const mode = st.adBlocking.mode;
-      const next = BLOCKING_MODES[(BLOCKING_MODES.indexOf(mode) + 1) % BLOCKING_MODES.length]!;
       const off = st.adBlocking.startsOff.filter((e) => e.off).length;
       return [
         el('h1', { text: 'Ad blocking' }),
-        button('set-ads', `Ad blocking: ${words[mode]}`, set('adBlocking', next === 'sites' ? null : next)),
-        say(`${about[mode]} Press to change.`),
+        button('set-ads', `Ad blocking: ${words[mode]}`, pick('ads')),
         button('set-ads-list', `Sites where it starts off (${off})`, go('adsList')),
         say(`Filter list: EasyList, ${st.adBlocking.listUpdated}. It is downloaded from easylist.to every four days.`),
         once('set-ads-update', 'Download the filter list now', 'updateFilters'),
@@ -424,7 +469,7 @@ function settingsPanel(s: ChromeState): Node[] {
       }
       const items: Node[] = [el('h1', { text: 'Choose a folder' }), say(f.path), button('folder-use', 'Save downloads in this folder', set('downloads', f.path))];
       if (f.up) items.push(button('folder-up', 'Up to the folder above', () => tell({ kind: 'folder', path: f.up })));
-      f.inside.forEach((name, i) => items.push(button(`folder-${i}`, name, () => tell({ kind: 'folder', path: `${f.path === '/' ? '' : f.path}/${name}` }))));
+      f.inside.forEach((name, i) => items.push(button(`folder-${i}`, `Open: ${name}`, () => tell({ kind: 'folder', path: `${f.path === '/' ? '' : f.path}/${name}` }))));
       if (!f.inside.length) items.push(say('There are no folders in here.'));
       f.places.forEach((place, i) => items.push(button(`place-${i}`, `Go to: ${place.name}`, () => tell({ kind: 'folder', path: place.path }))));
       items.push(button('folder-cancel', 'Cancel', () => tell({ kind: 'folder', path: null })));
@@ -581,6 +626,9 @@ function render(): void {
 ipcRenderer.on('longboard:chrome-state', (_event, next: ChromeState) => {
   // A panel that opens or closes ends any typing in the Home field.
   if (state && (state.panel !== next.panel || state.surface !== next.surface)) typing = false;
+  // The menu opens on its first page each time, and a chooser does not outlive its screen.
+  if (next.panel !== 'menu' || state?.panel !== 'menu') menuPage = 'main';
+  if (next.panel !== 'settings') choosing = null;
   // Settings opens on its first page each time.
   if (next.panel === 'settings' && state?.panel !== 'settings') settingsPage = 'main';
   if (next.panel !== 'settings') confirming = null;
@@ -640,13 +688,29 @@ const start = (): void => {
     rules: { ...genericRules(), generic: false },
     send,
     hooks: {
+      // A list on a TV goes round: up from the top is the bottom, down from the bottom is the top.
+      edge: (dir) => {
+        const panel = document.getElementById('panel');
+        if (!panel || (dir !== 'up' && dir !== 'down')) return false;
+        const all = [...panel.querySelectorAll<HTMLElement>('button:not(:disabled), input')];
+        const to = dir === 'up' ? all[all.length - 1] : all[0];
+        if (!to || all.length < 2) return false;
+        layer?.focus(to);
+        return true;
+      },
       back: () => {
         if (!state) return true;
         if (state.panel === 'prompt') tell({ kind: 'answer', allow: false, remember: false });
         // Back on the editor's panel goes back to pointing; the panel's own buttons end the editing.
         else if (state.panel === 'edit') tell({ kind: 'edit', action: 'pickAgain' });
         // Back inside Settings goes up a page before it closes.
-        else if (state.panel === 'settings' && state.settings?.folders) tell({ kind: 'folder', path: null });
+        else if (state.panel === 'menu' && menuPage === 'site') {
+          menuPage = 'main';
+          render();
+        } else if (state.panel === 'settings' && choosing) {
+          choosing = null;
+          render();
+        } else if (state.panel === 'settings' && state.settings?.folders) tell({ kind: 'folder', path: null });
         else if (state.panel === 'settings' && settingsPage !== 'main') {
           settingsPage = settingsPage === 'adsList' ? 'ads' : 'main';
           confirming = null;

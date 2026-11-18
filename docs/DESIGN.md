@@ -112,8 +112,19 @@ each is a profile plus a launcher entry, with one program underneath.
 
 ### 4.3 The menu
 
-One button opens a side panel over the page: Home, Back, Reload, Add as app,
-Zoom, Pointer mode, Profile (which one is active, switch, edit), Settings.
+One button opens a side panel over the page. It is kept short, because every
+entry is a press of the remote: the address field, Home, Back and Reload,
+size, pointer mode, the ad-blocking switch, "This site" (add as an app, the
+profile, what the site may do), Tabs and History, Settings, About and Quit.
+In Longboard's own panels a list goes round at its ends, and anything chosen
+from several is chosen from a list with the one in use marked.
+
+**When it is not in front, it stops** **[Decision, Andrew, 2026-11-18]**. A
+TV shows one thing at a time. A page behind Home, a tab behind another tab,
+and the page in front when another program takes the screen are all stopped:
+the site's own pause key is sent to a recognised player first, and then the
+browser freezes the page as a whole, so every video, every sound and every
+timer on it stops. Nothing starts again by itself when the page returns.
 
 ### 4.4 Typing
 
