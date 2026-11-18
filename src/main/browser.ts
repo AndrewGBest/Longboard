@@ -2,7 +2,7 @@
 // shows Longboard's own screens (Home, the menu panel, questions). They are
 // separate renderers with separate sessions; a website can never reach the
 // chrome view or the shell (Hard rule 13).
-import { app, BrowserWindow, ipcMain, nativeImage, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
+import { app, BaseWindow, ipcMain, nativeImage, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BootData, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
@@ -83,7 +83,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     return iconData.get(id) ?? null;
   };
 
-  const win = new BrowserWindow({
+  // A window with no page of its own: everything shown is one of the views below.
+  const win = new BaseWindow({
     width: deps.size?.[0] ?? 1280,
     height: deps.size?.[1] ?? 720,
     useContentSize: true,
@@ -1152,7 +1153,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
 /** What the rest of the shell can ask of the window once it is up. */
 export interface Browser {
-  win: BrowserWindow;
+  win: BaseWindow;
   /** Opens an app by its id; false when there is none. */
   openApp: (id: string) => boolean;
   openAddress: (url: string) => void;

@@ -72,7 +72,10 @@ it was checked by a person, with a remote, on a TV.**
 - **The app list entry on a real desktop.** The file is written where the
   desktop looks and its contents are tested; no desktop has been seen to
   show it or start it. Inside a Flatpak it will not work as written.
-- Packaging: see below.
+- Packaging: `electron-builder --linux dir` (the unpacked folder) was built
+  once and the program in it started, found its built-in profile and showed
+  Home. The AppImage, tarball and Flatpak have not been built, and nothing
+  has been released.
 
 ### Known gaps and rough edges
 
