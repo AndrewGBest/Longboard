@@ -46,6 +46,8 @@ function pngSquare(size, [r, g, b]) {
 }
 const siteIcon = pngSquare(32, [40, 120, 200]);
 
+/** What the made-up site was asked for, for the download checks. */
+const asks = { file: 0, made: 0, slow: [] };
 const site = await serveFixtures({
   '/favicon.ico': (_req, res) => res.writeHead(200, { 'content-type': 'image/png' }).end(siteIcon),
   '/catalogue/index.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(catalogueIndex),
@@ -55,7 +57,23 @@ const site = await serveFixtures({
   // does for a signed-out visitor.
   '/signed-out': (_req, res) => res.writeHead(302, { location: '/offers/landing?token=SECRET' }).end(),
   // Something a browser would save to disk.
-  '/file.bin': (_req, res) => res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename=x.bin', 'content-length': 4 }).end('data'),
+  '/file.bin': (_req, res) => {
+    asks.file += 1;
+    res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename=x.bin', 'content-length': 4 }).end('data');
+  },
+  // A file made in answer to a form: it cannot be asked for a second time.
+  '/made.bin': (req, res) => {
+    if (req.method !== 'POST') return res.writeHead(405).end();
+    asks.made += 1;
+    res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename=made.bin', 'content-length': 4 }).end('form');
+  },
+  // A file that comes slowly: half now, the rest when the test says.
+  '/slow.bin': (_req, res) => {
+    res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename=slow.bin', 'content-length': 200000 });
+    // Enough of it that the browser knows it is a file and not a page.
+    res.write('h'.repeat(100000));
+    asks.slow.push(res);
+  },
   '/offers/landing': (_req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>should never load</title>'),
 });
 const logs = [];
@@ -276,6 +294,41 @@ await scenario('downloads', { url: `${site.origin}/home.html` }, async (app) => 
   await asked();
   await chrome.press('Escape', 600);
   check('and so does Back', [existsSync(join(folder, 'x (2).bin')), await chrome.evaluate('document.visibilityState')], [false, 'hidden']);
+  const waiting = join(app.userData, 'downloads-waiting');
+  check('each time the site was asked once, and nothing refused is left lying about', [asks.file, existsSync(waiting) ? readdirSync(waiting) : []], [3, []]);
+
+  // A file that only exists in answer to a form.
+  await page.evaluate('(() => { const f = document.createElement("form"); f.method = "post"; f.action = "/made.bin"; document.body.append(f); f.submit(); f.remove(); })(); 0');
+  await asked();
+  await chrome.press('Enter', 300);
+  check('a file made in answer to a form is saved, and the form was sent once', [await until(() => existsSync(join(folder, 'made.bin')) && readFileSync(join(folder, 'made.bin'), 'utf8'), (v) => v === 'form', 60), asks.made], ['form', 1]);
+
+  // A file that takes its time, and the list of downloads.
+  await page.evaluate('location.href = "/slow.bin"; 0');
+  await asked();
+  await chrome.press('Enter', 300);
+  check('a slow download says it has started', await until(() => page.toastText(), (t) => /^Downloading/.test(t ?? ''), 60), 'Downloading slow.bin');
+  await page.press('ContextMenu', 500);
+  check('the menu has a Downloads entry saying one is under way', await chrome.evaluate('document.getElementById("menu-downloads")?.textContent'), 'Downloads (1 under way)');
+  for (let i = 0; i < 16 && (await chrome.focused()) !== 'menu-downloads'; i++) await chrome.press('ArrowDown');
+  await chrome.press('Enter', 500);
+  const lines = () => chrome.evaluate('[...document.querySelectorAll("#panel .where")].map((p) => p.textContent)');
+  check('the list shows how far it has got, and the earlier ones', ((l) => [/^slow\.bin: \d+% of 195 KB$/.test(l[0]), ...l.slice(1)])(await until(lines, (l) => /^slow\.bin: [1-9]\d?% of/.test(l[0] ?? ''), 40)), [true, 'made.bin: Saved', 'x.bin: Saved']);
+  check('nothing is in the downloads folder until it is whole', existsSync(join(folder, 'slow.bin')), false);
+  asks.slow.pop().end('r'.repeat(100000));
+  check('when the rest comes it is saved whole, and the list says so', [await until(lines, (l) => l[0] === 'slow.bin: Saved', 60), readFileSync(join(folder, 'slow.bin'), 'utf8') === 'h'.repeat(100000) + 'r'.repeat(100000)], [['slow.bin: Saved', 'made.bin: Saved', 'x.bin: Saved'], true]);
+  await chrome.press('Escape', 500);
+
+  await page.evaluate('location.href = "/slow.bin"; 0');
+  await asked();
+  await chrome.press('Enter', 500);
+  await page.press('ContextMenu', 500);
+  for (let i = 0; i < 16 && (await chrome.focused()) !== 'menu-downloads'; i++) await chrome.press('ArrowDown');
+  await chrome.press('Enter', 500);
+  check('one under way can be cancelled from the list', await chrome.focused(), 'dl-cancel-6');
+  await chrome.press('Enter', 500);
+  check('cancelled, it says so and leaves nothing behind', [(await until(lines, (l) => l[0] === 'slow (2).bin: Cancelled', 40))[0], existsSync(join(folder, 'slow (2).bin')), readdirSync(waiting)], ['slow (2).bin: Cancelled', false, []]);
+  asks.slow.pop()?.destroy();
 });
 
 await scenario('Home, the address field, the menu and Back', {}, async (app) => {

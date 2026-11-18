@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { askablesFor, describeAsk, hasPermission, mayAsk, permissionDecision, withAnswers } from '../src/main/permissions';
-import { safeFileName, sizeText, uniqueName } from '../src/shared/downloads';
+import { progressText, safeFileName, sizeText, uniqueName } from '../src/shared/downloads';
 
 describe('permissionDecision', () => {
   it('grants full screen and a copy button, without asking', () => {
@@ -114,5 +114,18 @@ describe('download names', () => {
     expect(sizeText(512)).toBe('512 bytes');
     expect(sizeText(3_565_158)).toBe('3.4 MB');
     expect(sizeText(250 * 1024 * 1024)).toBe('250 MB');
+  });
+});
+
+describe('progressText', () => {
+  it('says how far a download of known size has got', () => {
+    expect(progressText(0, 2048)).toBe('0% of 2.0 KB');
+    expect(progressText(1024, 2048)).toBe('50% of 2.0 KB');
+    expect(progressText(2047, 2048)).toBe('99% of 2.0 KB');
+    expect(progressText(4096, 2048)).toBe('100% of 2.0 KB');
+  });
+  it('says what has come so far when the size is not known', () => {
+    expect(progressText(0, 0)).toBe('starting');
+    expect(progressText(3_565_158, 0)).toBe('3.4 MB so far');
   });
 });

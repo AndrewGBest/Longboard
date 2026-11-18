@@ -155,7 +155,10 @@ Each question is a panel with two buttons, driven like everything else.
 - **A download**: the question names the file, its size, the site it comes
   from and the folder it will go to. Agreed to, it is saved in the Downloads
   folder under a name that writes over nothing. Longboard never opens or
-  runs a downloaded file.
+  runs a downloaded file. While the question is up, what arrives is held in
+  a folder of Longboard's own and deleted if the answer is no. The menu's
+  Downloads entry lists the downloads of this run, how far each has got,
+  and can cancel one.
 
 ## 5. Ad blocking **[Decision, 2026-11-18]**
 

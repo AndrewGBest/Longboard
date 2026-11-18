@@ -4,7 +4,7 @@
 // send or receive any of this.
 import type { RecentSite } from './home';
 
-export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit';
+export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads';
 
 export interface ChromeState {
   /** What fills the window behind any panel. */
@@ -35,8 +35,8 @@ export interface ChromeState {
     /** Whether the TV's app list can be written to on this system. */
     canAddToAppList: boolean;
   } | null;
-  /** How many downloads are under way. */
-  downloads: number;
+  /** The downloads agreed to in this run, newest first. `progress` says how far one under way has got. */
+  downloads: Array<{ id: number; name: string; state: 'going' | 'saved' | 'cancelled' | 'failed'; progress: string }>;
   /** The profile editor, while it is in use. */
   edit: {
     /** The site being edited for. */
@@ -59,10 +59,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'cancelDownloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'cancelDownloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -72,6 +72,7 @@ export type ChromeMessage =
   | { kind: 'openRecent'; url: string }
   | { kind: 'openApp'; id: string }
   /** Take a tile off Home. Removing an app also removes what `removeApp` in the menu does. */
+  | { kind: 'cancelDownload'; id: number }
   | { kind: 'removeRecent'; url: string }
   | { kind: 'removeApp'; id: string }
   /** The profile editor's buttons. */

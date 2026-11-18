@@ -2,6 +2,30 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-18, later still: gaps closed after "keep going"
+
+Andrew said to keep going. Ad blocking is still his to start, so the agent
+worked down the known-gaps list below. The lists in the section under this
+one were brought up to date in place. What changed:
+
+- Home tiles show the site's own icon, fetched from the site while it is open.
+- A tile can be taken off Home: the menu, opened with the highlight on the
+  tile, offers it (for an app, to remove the app).
+- A profile's `view.safeMargin` is applied: the website is drawn in a
+  smaller rectangle in the middle of the screen.
+- A site that changes its address without loading a page gets the profile
+  that fits the new address, or none.
+- Downloads are held in Longboard's own folder while the question is up
+  and moved when agreed to. A file made in answer to a form is now saved,
+  and the site is asked once, not twice.
+- The menu lists this run's downloads, how far each has got, and can cancel
+  one.
+
+Verified by `npm run check` (unit tests, 345 of them) and the end-to-end run
+(22 scenarios), which has new checks for each item above. Not verified: any
+of it by a person on a TV; the safe margin together with pointer mode; a
+download bigger than 200 KB.
+
 ## 2026-11-18, later: phases 0 to 4 built by the agent working alone
 
 Andrew asked the agent to work through the roadmap without him. Phases 0 to
@@ -24,13 +48,13 @@ DECISIONS.md, each marked as an assumption.
 All of this was checked by scripts on a headless virtual machine. **None of
 it was checked by a person, with a remote, on a TV.**
 
-- `npm run check`: 339 unit tests (geometry, input mapping, address rules,
+- `npm run check`: 345 unit tests (geometry, input mapping, address rules,
   navigation policy, permission policy, pointer movement, profile validation,
   matching and choosing, the interpreter, the profile store, the catalogue
   fetcher, the guard, the outline sanitiser), the build, and the rule checks.
 - `xvfb-run -a npm run e2e`: the real app, always with `--automation`, driven
   over the DevTools protocol against invented fixture pages served from this
-  machine. 22 scenarios, 230 checks. They cover: arrows on a grid of
+  machine. 22 scenarios, 248 checks. They cover: arrows on a grid of
   cards; the on-screen keyboard; pop-ups; refused addresses, downloads and
   permissions; Home, the address field, the menu, zoom and Back; searching;
   notices for blocked and unreachable pages; a full-screen video with the
@@ -82,7 +106,6 @@ it was checked by a person, with a remote, on a TV.**
 
 ### Known gaps and rough edges
 
-- `view.safeMargin` in a profile is accepted and not applied.
 - A held arrow in pointer mode starts moving only when the keyboard's own
   repeat starts (about half a second), because key releases are not
   reported. A controller moves at once.
@@ -94,15 +117,12 @@ it was checked by a person, with a remote, on a TV.**
   to answer with even when allowed).
 - A site that checks whether it has a permission before asking is told "no"
   until the person has allowed it, so some sites may never ask (DECISIONS.md).
-- A download that comes from submitting a form cannot be saved: the address
-  is asked for a second time after the question, and a form is not sent
-  again. There is no list of downloads and no progress display beyond the
-  messages; the menu can cancel what is under way.
-- Home tiles have a letter, not the site's icon.
-- Tiles cannot be removed from Home yet.
+- A download goes on arriving while its question is up. Refused, it is
+  deleted, but a very large one has used disk space and the connection until
+  then. The list of downloads is of this run only.
 - Sites at the 960-pixel TV scale often show their phone layout.
-- Profiles are chosen when a page loads, not when a site changes its address
-  without loading.
+- A profile someone gave the person, still waiting for a yes or no, is asked
+  about when a page loads, not when a site changes its address without loading.
 - The menu has no ad-blocking switch (phase 5).
 - The profile editor marks four things and writes nothing else of the
   format. Its selectors are a first guess at "things like this one". End to

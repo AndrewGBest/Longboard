@@ -50,7 +50,7 @@ exposure, and nothing else depends on it.
 
 ## Later
 
-- Tabs, history, bookmarks. A list of what was downloaded.
+- Tabs, history, bookmarks. A list of downloads that lasts beyond one run.
 - Typing from a phone; voice search.
 - Reviewed scripts in profiles (format version 2).
 - Other systems and architectures: Linux arm64 first, since the shell already

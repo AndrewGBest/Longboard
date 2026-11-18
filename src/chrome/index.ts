@@ -169,7 +169,10 @@ function menuPanel(s: ChromeState): Node[] {
     items.push(button('menu-edit', page.profile ? 'Edit the profile for this site' : 'Make a profile for this site', act('editProfile')));
     items.push(page.app ? button('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp')) : button('menu-add-app', 'Add this site as an app', act('addApp')));
   }
-  if (s.downloads > 0) items.push(button('menu-cancel-downloads', s.downloads === 1 ? 'Cancel the download under way' : `Cancel ${s.downloads} downloads under way`, act('cancelDownloads')));
+  if (s.downloads.length > 0) {
+    const going = s.downloads.filter((d) => d.state === 'going').length;
+    items.push(button('menu-downloads', going ? `Downloads (${going} under way)` : 'Downloads', act('downloads')));
+  }
   items.push(button('menu-import', 'Import profiles from USB', act('importProfiles')));
   items.push(button('menu-about', 'About and help', act('about')), button('menu-quit', 'Quit Longboard', act('quit')));
   return items;
@@ -234,6 +237,18 @@ function editPanel(s: ChromeState): Node[] {
   return items;
 }
 
+/** What was downloaded in this run and how each one went. Longboard does not open the files. */
+function downloadsPanel(s: ChromeState): Node[] {
+  const said = { saved: 'Saved', cancelled: 'Cancelled', failed: 'Failed' } as const;
+  const items: Node[] = [el('h1', { text: 'Downloads' })];
+  for (const d of s.downloads) {
+    items.push(el('p', { cls: 'where', text: `${d.name}: ${d.state === 'going' ? d.progress : said[d.state]}` }));
+    if (d.state === 'going') items.push(button(`dl-cancel-${d.id}`, `Cancel ${d.name}`, () => tell({ kind: 'cancelDownload', id: d.id })));
+  }
+  items.push(button('downloads-close', 'Close', () => tell({ kind: 'menu', action: 'close' })));
+  return items;
+}
+
 function aboutPanel(s: ChromeState): Node[] {
   const list = el('dl');
   for (const [keys, what] of HELP) list.append(el('dt', { text: keys }), el('dd', { text: what }));
@@ -289,7 +304,7 @@ function render(): void {
   if (!strip) parts.push(home(s));
   let panel: HTMLElement | null = null;
   if (s.panel) {
-    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : promptPanel(s));
+    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : promptPanel(s));
     // The layer keeps the highlight inside an open modal dialog.
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');

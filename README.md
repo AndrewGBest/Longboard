@@ -65,8 +65,8 @@ Compared with a mainstream browser, today:
 - No tabs, history or bookmarks. Home remembers the sites you
   opened lately and that is all.
 - No ad blocking yet. It is the last phase of the roadmap.
-- Downloads are saved, after a question, and that is all: there is no list
-  of them, and Longboard does not open what it saves.
+- Downloads are saved, after a question. The menu lists the ones from this
+  run and can cancel one under way. Longboard does not open what it saves.
 - A site is asked about before it gets the camera, microphone, location,
   notifications, the clipboard, MIDI or the pointer. USB, serial and screen
   capture are refused: they need a chooser Longboard does not have yet.

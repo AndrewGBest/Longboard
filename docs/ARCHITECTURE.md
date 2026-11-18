@@ -51,8 +51,9 @@ domains. Longboard loads anything, so the allowlist is replaced by:
   pointer lock are asked about per site with a TV-friendly question and the
   answer kept; everything else is refused. The decision is a pure function;
 - downloads asked about one at a time and saved to the Downloads folder.
-  A download cannot be held while its question is up, so the first attempt
-  is stopped and the address is asked for again once the person agrees;
+  While the question is up the file goes on arriving under a random name in
+  `downloads-waiting/` in Longboard's data folder; agreed to, it is moved to
+  the Downloads folder when whole, and refused, it is deleted;
 - `file:` and other local schemes blocked in the page view;
 - pop-ups open in the same view;
 - certificate errors cannot be clicked through;

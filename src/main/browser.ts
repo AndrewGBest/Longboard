@@ -3,8 +3,8 @@
 // separate renderers with separate sessions; a website can never reach the
 // chrome view or the shell (Hard rule 13).
 import { app, BaseWindow, ipcMain, nativeImage, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { BootData, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
 import { resolveAddress, siteKey, siteName } from '../shared/address';
@@ -29,7 +29,7 @@ import {
   startingPageUrl,
 } from './navigation';
 import { ASKABLE, describeAsk, hasPermission, mayAsk, permissionDecision, withAnswers, type Askable } from './permissions';
-import { sizeText, uniqueName } from '../shared/downloads';
+import { sizeText, uniqueName, progressText } from '../shared/downloads';
 import { PointerHolds, pointerGlide, pointerTap, startPoint, type PointerStep } from './pointer';
 import { sourceLabel, type ProfileStore } from './profiles';
 import { readJson, writeJson } from './store';
@@ -60,6 +60,8 @@ export interface BrowserDeps {
 
 /** Share of the window's width the menu panel takes over a website. */
 const PANEL_WIDTH = 0.38;
+/** How long a Home tile's icon is used before it is fetched from the site again. */
+const ICON_KEPT_MS = 7 * 24 * 60 * 60 * 1000;
 const isNotice = (url: string): boolean => url.startsWith('data:') || url === 'about:blank' || url === '';
 
 export function createBrowser(deps: BrowserDeps): Browser {
@@ -168,10 +170,27 @@ export function createBrowser(deps: BrowserDeps): Browser {
   let pending:
     | { what: 'permission'; site: string; names: Askable[]; answer: Array<(granted: boolean) => void> }
     | { what: 'profile'; profile: Profile }
-    | { what: 'download'; url: string; name: string; site: string; bytes: number; from: WebContents }
+    | { what: 'download'; download: Download }
     | null = null;
-  /** Downloads the person agreed to that have not finished. */
-  const downloading = new Set<Electron.DownloadItem>();
+  /** A file on its way, or that was. `temp` is where it is held until it is whole and agreed to. */
+  interface Download {
+    id: number;
+    name: string;
+    site: string;
+    item: Electron.DownloadItem;
+    temp: string;
+    state: 'asking' | 'going' | 'saved' | 'cancelled' | 'failed';
+    agreed: boolean;
+    /** All of it came while the question was still up. */
+    arrived: boolean;
+  }
+  /** The downloads the person agreed to in this run, newest first. */
+  const downloads: Download[] = [];
+  const MAX_LISTED = 30;
+  let lastDownload = 0;
+  // Where files are held until they are whole and agreed to. Anything left from a run that ended badly is thrown away.
+  const waitingDir = join(dataDir, 'downloads-waiting');
+  rmSync(waitingDir, { recursive: true, force: true });
 
   /** The profile editor, while it is in use: the draft, and what was last pointed at. */
   let edit: { site: string; draft: Profile; chain: PickedStep[]; level: number; saving: boolean } | null = null;
@@ -228,7 +247,12 @@ export function createBrowser(deps: BrowserDeps): Browser {
           canAddToAppList: launcherFolder() !== null,
         }
       : null,
-    downloads: downloading.size,
+    downloads: downloads.map((d) => ({
+      id: d.id,
+      name: d.name,
+      state: d.state === 'asking' ? ('going' as const) : d.state,
+      progress: d.state === 'going' ? progressText(d.item.getReceivedBytes(), d.item.getTotalBytes()) : '',
+    })),
     edit: !edit
       ? null
       : {
@@ -250,7 +274,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       : pending.what === 'profile'
         ? { what: 'profile', name: pending.profile.name, version: pending.profile.version, hosts: pending.profile.match.hosts.slice(0, 6) }
         : pending.what === 'download'
-          ? { what: 'download', site: pending.site, name: pending.name, size: sizeText(pending.bytes), folder: deps.downloads }
+          ? { what: 'download', site: pending.download.site, name: pending.download.name, size: sizeText(pending.download.item.getTotalBytes()), folder: deps.downloads }
           : { what: 'permission', site: pending.site, wants: describeAsk(pending.names) },
   });
 
@@ -803,11 +827,27 @@ export function createBrowser(deps: BrowserDeps): Browser {
       return;
     }
     if (asked.what === 'download') {
+      const d = asked.download;
       layout();
-      if (allow && !asked.from.isDestroyed()) {
-        // Asked for again, this time to be kept (see the download handling below).
-        agreed.add(asked.url);
-        asked.from.downloadURL(asked.url);
+      if (!allow) {
+        // What arrived while the question was up is thrown away.
+        if (!d.arrived) d.item.cancel();
+        rmSync(d.temp, { force: true });
+        return;
+      }
+      d.agreed = true;
+      downloads.unshift(d);
+      // The list is of this run only, and not endless: the oldest finished ones go first.
+      while (downloads.length > MAX_LISTED) {
+        let old = downloads.length - 1;
+        while (old >= 0 && downloads[old]?.state === 'going') old -= 1;
+        if (old < 0) break;
+        downloads.splice(old, 1);
+      }
+      if (d.arrived) keep(d);
+      else {
+        d.state = 'going';
+        notify(`Downloading ${d.name}`);
       }
       return;
     }
@@ -833,48 +873,92 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // ---- Downloads -----------------------------------------------------------
 
   // A file a site sends, or that the person chose to download, is asked about
-  // first: what it is called, how big, where from. Agreed to, it is saved in
-  // the downloads folder under a name that writes over nothing. Longboard
-  // never opens or runs what it downloads.
-  //
-  // A download cannot be held while the question is up (a small file is on
-  // disk before it could be answered), so the first attempt is stopped and,
-  // if the person agrees, the same address is asked for again and kept.
-  const agreed = new Set<string>();
-  eachSession((web) => web.on('will-download', (event, item, wc) => {
-    const url = item.getURL();
-    if (!agreed.delete(url)) {
-      event.preventDefault();
-      if (pending || surface !== 'page' || wc !== page) {
-        notify(pending ? 'A download was not started: another question was waiting' : 'A download was not started');
-        return;
-      }
-      const taken = (n: string): boolean => existsSync(join(deps.downloads, n));
-      pending = { what: 'download', url, name: uniqueName(item.getFilename(), taken), site: siteName(url) || 'this site', bytes: item.getTotalBytes(), from: wc };
-      panel = 'prompt';
-      layout();
-      return;
-    }
-    let name = 'download';
+  // first: what it is called, how big, where from. While the question is up
+  // the file goes on arriving, under a meaningless name in a folder of
+  // Longboard's own (a download cannot be made to wait, and one that came
+  // from sending a form cannot be asked for twice). Agreed
+  // to, it is moved to the downloads folder under a name that writes over
+  // nothing. Refused, what arrived is deleted. Longboard never opens or runs
+  // what it downloads.
+  const taken = (n: string): boolean => existsSync(join(deps.downloads, n));
+  const refreshChrome = (): void => {
+    if (!chrome.isDestroyed()) chrome.send('longboard:chrome-state', chromeState());
+  };
+  /** Puts a finished download where the person will look for it. */
+  const keep = (d: Download): void => {
     try {
       mkdirSync(deps.downloads, { recursive: true });
-      name = uniqueName(item.getFilename(), (n) => existsSync(join(deps.downloads, n)));
+      const name = uniqueName(d.name, taken);
+      const to = join(deps.downloads, name);
+      try {
+        renameSync(d.temp, to);
+      } catch {
+        // The downloads folder is on another disk.
+        copyFileSync(d.temp, to);
+        rmSync(d.temp, { force: true });
+      }
+      d.name = name;
+      d.state = 'saved';
+      notify(`Saved ${name} in ${deps.downloads}`);
     } catch (err) {
       console.error(`[longboard] the downloads folder cannot be used: ${String(err).slice(0, 160)}`);
+      rmSync(d.temp, { force: true });
+      d.state = 'failed';
+      notify(`${d.name} could not be saved: the downloads folder cannot be used`);
+    }
+    if (panel === 'menu' || panel === 'downloads') refreshChrome();
+  };
+  eachSession((web) => web.on('will-download', (event, item, wc) => {
+    if (pending || surface !== 'page' || wc !== page) {
       event.preventDefault();
-      notify('The downloads folder cannot be used');
+      notify(pending ? 'A download was not started: another question was waiting' : 'A download was not started');
+      return;
+    }
+    let temp: string;
+    try {
+      mkdirSync(waitingDir, { recursive: true });
+      temp = join(waitingDir, `${randomUUID()}.part`);
+    } catch (err) {
+      console.error(`[longboard] downloads cannot be held: ${String(err).slice(0, 160)}`);
+      event.preventDefault();
+      notify('A download could not be started');
       return;
     }
     // Set now, so the browser never puts up a file chooser of its own.
-    item.setSavePath(join(deps.downloads, name));
-    downloading.add(item);
-    notify(`Downloading ${name}`);
+    item.setSavePath(temp);
+    const url = item.getURL();
+    const d: Download = { id: ++lastDownload, name: uniqueName(item.getFilename(), taken), site: siteName(url) || 'this site', item, temp, state: 'asking', agreed: false, arrived: false };
     item.once('done', (_e, state) => {
-      downloading.delete(item);
-      notify(state === 'completed' ? `Saved ${name} in ${deps.downloads}` : state === 'cancelled' ? `The download of ${name} was cancelled` : `The download of ${name} failed`);
-      if (panel === 'menu') layout();
+      if (state === 'completed' && !d.agreed) {
+        // All of it came before the answer did; it waits where it is.
+        d.arrived = true;
+        return;
+      }
+      if (state === 'completed') {
+        keep(d);
+        return;
+      }
+      rmSync(temp, { force: true });
+      const asking = pending?.what === 'download' && pending.download === d;
+      if (asking) {
+        pending = null;
+        panel = null;
+        layout();
+      }
+      // Refused by the person: nothing more to say about it.
+      if (d.state === 'asking' && !asking) return;
+      d.state = state === 'cancelled' ? 'cancelled' : 'failed';
+      notify(state === 'cancelled' ? `The download of ${d.name} was cancelled` : `The download of ${d.name} failed`);
+      if (panel === 'menu' || panel === 'downloads') refreshChrome();
     });
+    pending = { what: 'download', download: d };
+    panel = 'prompt';
+    layout();
   }));
+  // The list on screen shows how far each download has got.
+  const downloadsTick = setInterval(() => {
+    if (panel === 'downloads' && downloads.some((d) => d.state === 'going')) refreshChrome();
+  }, 1000);
 
   // ---- Messages from the layers ---------------------------------------------
 
@@ -1189,7 +1273,15 @@ export function createBrowser(deps: BrowserDeps): Browser {
     // A site on Home gets its own icon on its tile, fetched once from the site while it is open.
     const key = pageSite();
     const id = siteIconId(page.getURL());
-    if (!key || !favicons.length || iconOf(id) || !recents.some((r) => siteKey(r.url) === key)) return;
+    if (!key || !favicons.length || !recents.some((r) => siteKey(r.url) === key)) return;
+    // Fetched again after a week, in case the site has changed it.
+    let age = Infinity;
+    try {
+      age = Date.now() - statSync(join(iconsDir, `${id}.png`)).mtimeMs;
+    } catch {
+      // not fetched yet
+    }
+    if (age < ICON_KEPT_MS) return;
     void saveIcon(id, favicons, page.session).then((saved) => {
       // The site may have been taken off Home while its icon was on the way.
       if (saved && !recents.some((r) => siteKey(r.url) === key)) saveRecents();
@@ -1354,9 +1446,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         } else layout();
         break;
       }
-      case 'cancelDownloads':
-        panel = null;
-        for (const item of [...downloading]) item.cancel();
+      case 'downloads':
+        panel = 'downloads';
         layout();
         break;
       case 'about':
@@ -1385,6 +1476,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
       case 'openApp':
         if (typeof msg.id === 'string') openApp(msg.id);
         break;
+      case 'cancelDownload': {
+        const d = downloads.find((x) => x.id === msg.id);
+        if (panel === 'downloads' && d?.state === 'going') d.item.cancel();
+        break;
+      }
       case 'removeRecent':
         if (surface === 'home' && typeof msg.url === 'string' && recents.some((r) => r.url === msg.url)) {
           const name = siteName(msg.url);
@@ -1424,6 +1520,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
   ipcMain.on('longboard:chrome', onChrome);
 
   win.on('closed', () => {
+    clearInterval(downloadsTick);
+    // A half-fetched file is of no use to anyone.
+    for (const d of downloads) if (d.state === 'going') d.item.cancel();
+    rmSync(waitingDir, { recursive: true, force: true });
     clearInterval(pointer.timer);
     clearTimeout(retryTimer);
     clearTimeout(awayTimer);

@@ -49,3 +49,9 @@ export function sizeText(bytes: number): string {
   }
   return `${unit === 0 || value >= 100 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
 }
+
+/** How far a download has got: "40% of 3.4 MB", or what has come so far when the site did not say how big it is. */
+export function progressText(received: number, total: number): string {
+  if (total > 0) return `${Math.min(100, Math.max(0, Math.floor((received / total) * 100)))}% of ${sizeText(total)}`;
+  return received > 0 ? `${sizeText(received)} so far` : 'starting';
+}
