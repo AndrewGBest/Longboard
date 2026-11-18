@@ -84,7 +84,7 @@ function connect(url) {
 
 const VK = {
   ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39, Enter: 13, '/': 191, Escape: 27, ' ': 32, Backspace: 8,
-  ContextMenu: 93, F2: 113, F4: 115, F6: 117,
+  ContextMenu: 93, F2: 113, F4: 115, F6: 117, F7: 118,
 };
 
 /** One view of the app (a DevTools target), with the helpers the tests use. */

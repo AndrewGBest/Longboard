@@ -9,7 +9,7 @@ import { ipcRenderer } from 'electron';
 import { PRODUCT } from '../shared/product';
 import type { BootData, BridgeMessage } from '../shared/actions';
 import type { ChromeMessage, ChromeState, EditAction, MenuAction, SettingsAction } from '../shared/chrome';
-import { PAGE_SIZES, SEARCH_CHOICES } from '../shared/settings';
+import { LANGUAGE_CHOICES, PAGE_SIZES, SEARCH_CHOICES } from '../shared/settings';
 import { BLOCKING_MODES } from '../shared/adblock';
 import { aboutTitle, BACKGROUND, HELP, NOTICE } from '../shared/about';
 import { siteName } from '../shared/address';
@@ -27,7 +27,7 @@ let typing = false;
 /** What the person has chosen so far on the "add as an app" panel. */
 let draft = { name: '', ownSession: false, launcher: true };
 /** Which page of Settings is showing. */
-type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles';
+type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote';
 let settingsPage: SettingsPage = 'main';
 /** A button that clears something has been pressed once and waits for the second press. */
 let confirming: string | null = null;
@@ -185,6 +185,7 @@ function menuPanel(s: ChromeState): Node[] {
     items.push(button('menu-downloads', going ? `Downloads (${going} under way)` : 'Downloads', act('downloads')));
   }
   items.push(button('menu-import', 'Import profiles from USB', act('importProfiles')));
+  items.push(button('menu-history', 'History', act('history')));
   items.push(button('menu-settings', 'Settings', act('settings')), button('menu-about', 'About and help', act('about')), button('menu-quit', `Quit ${PRODUCT.name}`, act('quit')));
   return items;
 }
@@ -287,6 +288,12 @@ function settingsPanel(s: ChromeState): Node[] {
         button('set-search', `Search with: ${st.search}`, set('search', next.template)),
         say('Words typed into the address field are looked up there. Press to change. Another search site can be put in config.json.'),
         button('set-start', st.startWith === 'last' ? 'Open with: the last site' : 'Open with: Home', set('startWith', st.startWith === 'last' ? 'home' : 'last')),
+        button(
+          'set-language',
+          `Language sites are asked for: ${LANGUAGE_CHOICES.find((l) => l.code === st.language)?.name ?? st.language}`,
+          set('language', LANGUAGE_CHOICES[(LANGUAGE_CHOICES.findIndex((l) => l.code === st.language) + 1) % LANGUAGE_CHOICES.length]!.code),
+        ),
+        say(`Sites that come in several languages are asked for this one. Press to change. Takes effect the next time ${PRODUCT.name} starts.`),
         back,
       ];
     }
@@ -362,6 +369,8 @@ function settingsPanel(s: ChromeState): Node[] {
         twice('clear-data', 'Sign out of every site and clear what sites have stored', 'Press again to sign out everywhere', 'clearSiteData'),
         once('clear-cache', 'Clear saved copies of pages and pictures', 'clearCache'),
         once('clear-home', 'Clear the recently opened sites on Home', 'clearHome'),
+        button('set-history', `Keep a history of pages opened: ${yesNo(st.history)}`, set('history', st.history ? false : null)),
+        once('clear-history', `Clear the history (${st.visits})`, 'clearHistory'),
         twice('clear-sites', `Forget every site's own settings (${st.sitesWithChoices})`, "Press again to forget every site's settings", 'forgetSites'),
         say("A site's own settings are what you allowed it, its size and its ad-blocking switch."),
         el('p', { text: BACKGROUND }),
@@ -402,6 +411,40 @@ function settingsPanel(s: ChromeState): Node[] {
       items.push(back);
       return items;
     }
+    case 'downloads': {
+      const f = st.folders;
+      if (!f) {
+        return [
+          el('h1', { text: 'Downloads' }),
+          say(`Files are saved in ${st.downloads}. Each download is asked about first, and nothing downloaded is opened.`),
+          button('set-folder', 'Choose another folder', () => tell({ kind: 'folder', path: st.downloads })),
+          button('set-folder-usual', "Use the desktop's Downloads folder", set('downloads', null)),
+          back,
+        ];
+      }
+      const items: Node[] = [el('h1', { text: 'Choose a folder' }), say(f.path), button('folder-use', 'Save downloads in this folder', set('downloads', f.path))];
+      if (f.up) items.push(button('folder-up', 'Up to the folder above', () => tell({ kind: 'folder', path: f.up })));
+      f.inside.forEach((name, i) => items.push(button(`folder-${i}`, name, () => tell({ kind: 'folder', path: `${f.path === '/' ? '' : f.path}/${name}` }))));
+      if (!f.inside.length) items.push(say('There are no folders in here.'));
+      f.places.forEach((place, i) => items.push(button(`place-${i}`, `Go to: ${place.name}`, () => tell({ kind: 'folder', path: place.path }))));
+      items.push(button('folder-cancel', 'Cancel', () => tell({ kind: 'folder', path: null })));
+      return items;
+    }
+    case 'remote': {
+      const items: Node[] = [el('h1', { text: 'Remote and keyboard buttons' })];
+      if (st.capturing) {
+        const words = st.buttons.find((b) => b.action === st.capturing)?.words ?? st.capturing;
+        items.push(el('p', { text: `Press the button to use for "${words}". Back cancels.` }), say('The arrows, OK and plain letters and numbers cannot be given another job.'));
+        return items;
+      }
+      items.push(say('Give a button on your remote a job. The built-in buttons keep working; About and help lists them.'));
+      for (const b of st.buttons) {
+        items.push(button(`button-${b.action}`, b.keys.length ? `${b.words}: also ${b.keys.join(', ')}` : `${b.words}: add a button`, () => tell({ kind: 'captureButton', action: b.action })));
+        if (b.keys.length) items.push(button(`unbutton-${b.action}`, `Take the extra buttons away from "${b.words}"`, () => tell({ kind: 'clearButtons', action: b.action })));
+      }
+      items.push(back);
+      return items;
+    }
     default:
       return [
         el('h1', { text: 'Settings' }),
@@ -411,12 +454,24 @@ function settingsPanel(s: ChromeState): Node[] {
         button('settings-privacy', 'Privacy and site data', go('privacy')),
         button('settings-access', 'What sites may ask for', go('access')),
         button('settings-profiles', 'Profiles and apps', go('profiles')),
-        say(`Downloads are saved in ${st.downloads}. Settings are kept in config.json in ${st.dataFolder}.`),
+        button('settings-downloads', 'Downloads', go('downloads')),
+        button('settings-remote', 'Remote and keyboard buttons', go('remote')),
+        say(`Settings are kept in config.json in ${st.dataFolder}.`),
         twice('settings-reset', 'Put every setting back to the usual', 'Press again to put every setting back', 'reset'),
         button('settings-about', 'About and help', () => tell({ kind: 'menu', action: 'about' })),
         button('settings-close', 'Close', () => tell({ kind: 'menu', action: 'close' })),
       ];
   }
+}
+
+/** The pages opened lately. Pressing one opens it. */
+function historyPanel(s: ChromeState): Node[] {
+  const items: Node[] = [el('h1', { text: 'History' })];
+  const list = s.history ?? [];
+  if (!list.length) items.push(el('p', { text: 'No pages yet. Settings, under Privacy, says whether a history is kept.' }));
+  list.forEach((v, i) => items.push(button(`visit-${i}`, v.text, () => tell({ kind: 'openVisit', url: v.url }))));
+  items.push(button('history-close', 'Close', () => tell({ kind: 'menu', action: 'close' })));
+  return items;
 }
 
 /** What was downloaded in this run and how each one went. Longboard does not open the files. */
@@ -488,7 +543,7 @@ function render(): void {
   if (!strip) parts.push(home(s));
   let panel: HTMLElement | null = null;
   if (s.panel) {
-    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : promptPanel(s));
+    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : s.panel === 'history' ? historyPanel(s) : promptPanel(s));
     // The layer keeps the highlight inside an open modal dialog.
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
@@ -552,6 +607,13 @@ ipcRenderer.on('longboard:icon', (_event, job: { id: number; dataUrl: string; si
   };
   img.src = job.dataUrl;
 });
+// Button mappings changed in Settings: the layer reads this object at every key.
+ipcRenderer.on('longboard:keys', (_event, keys: unknown) => {
+  const held = ((boot.options as { keys?: Record<string, string> }).keys ??= {});
+  if (!keys || typeof keys !== 'object') return;
+  for (const key of Object.keys(held)) delete held[key];
+  for (const [key, action] of Object.entries(keys as Record<string, unknown>).slice(0, 200)) if (typeof action === 'string') held[key] = action;
+});
 ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
   if (typeof text === 'string') layer?.notice(text.slice(0, 200));
 });
@@ -572,6 +634,7 @@ const start = (): void => {
         // Back on the editor's panel goes back to pointing; the panel's own buttons end the editing.
         else if (state.panel === 'edit') tell({ kind: 'edit', action: 'pickAgain' });
         // Back inside Settings goes up a page before it closes.
+        else if (state.panel === 'settings' && state.settings?.folders) tell({ kind: 'folder', path: null });
         else if (state.panel === 'settings' && settingsPage !== 'main') {
           settingsPage = settingsPage === 'adsList' ? 'ads' : 'main';
           confirming = null;

@@ -22,7 +22,7 @@ import { BLOCKING_MODES, blockingMode, MAX_LISTS, parseDomains, parseFilterLists
 
 /** The kinds of access the person can say no site may ask for (the names main/permissions.ts asks about). */
 export const NEVER_ASKABLE = ['camera', 'microphone', 'location', 'notifications', 'clipboard', 'midi', 'pointerLock'] as const;
-const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk'] as const;
+const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language'] as const;
 
 export const ACTION_NAMES = [
   'up', 'down', 'left', 'right', 'select', 'back', 'playPause',
@@ -54,6 +54,12 @@ export interface UserConfig {
   pageSize?: number;
   /** Kinds of access no site may even ask for: "camera", "location"... */
   neverAsk?: string[];
+  /** Set to false to keep no history of the pages opened. */
+  history?: boolean;
+  /** Where downloaded files are saved: a folder's full path. The desktop's Downloads folder without it. */
+  downloads?: string;
+  /** The language sites are asked for, such as "fr" or "en-GB". The system's without it. Read at start. */
+  language?: string;
   /** The public filter lists to use instead of the usual one: https addresses. */
   filterLists?: string[];
   /** Where typed words are searched for: an https address with %s where the words go. */
@@ -111,6 +117,18 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
   if (r['pageSize'] !== undefined) {
     if (typeof r['pageSize'] === 'number' && r['pageSize'] >= 0.5 && r['pageSize'] <= 2) config.pageSize = r['pageSize'];
     else problems.push('"pageSize" must be a number from 0.5 to 2');
+  }
+  if (r['history'] !== undefined) {
+    if (typeof r['history'] === 'boolean') config.history = r['history'];
+    else problems.push('"history" must be true or false');
+  }
+  if (r['downloads'] !== undefined) {
+    if (typeof r['downloads'] === 'string' && r['downloads'].startsWith('/') && r['downloads'].length <= 1000 && !r['downloads'].includes('\u0000')) config.downloads = r['downloads'];
+    else problems.push('"downloads" must be the full path of a folder');
+  }
+  if (r['language'] !== undefined) {
+    if (typeof r['language'] === 'string' && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/.test(r['language'])) config.language = r['language'];
+    else problems.push('"language" must be a language code such as "fr" or "en-GB"');
   }
   if (r['neverAsk'] !== undefined) {
     if (Array.isArray(r['neverAsk']) && r['neverAsk'].every((n) => typeof n === 'string' && (NEVER_ASKABLE as readonly string[]).includes(n))) config.neverAsk = [...new Set(r['neverAsk'] as string[])];

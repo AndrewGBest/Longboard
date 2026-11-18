@@ -3,9 +3,9 @@
 // separate renderers with separate sessions; a website can never reach the
 // chrome view or the shell (Hard rule 13).
 import { app, BaseWindow, ipcMain, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { accessSync, constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import type { BootData, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
 import { resolveAddress, siteKey, siteName } from '../shared/address';
 import { EDIT_ACTIONS, MENU_ACTIONS, SETTINGS_ACTIONS, type ChromeMessage, type ChromeState, type EditAction, type MenuAction, type Panel, type SettingsAction } from '../shared/chrome';
@@ -39,7 +39,8 @@ import { canvasOf, type Profile, type ProfileSource } from '../shared/profile';
 import { hoverPoint, pageBounds, tvZoom } from './zoom';
 import { filterSession, type FilterSet } from './adblock';
 import { blockingOn, cleanDomain, editStartsOff, isVerified, startsOffEntries, type BlockingMode } from '../shared/adblock';
-import { searchName } from '../shared/settings';
+import { BUTTON_ACTIONS, mapButton, searchName, unmapButtons } from '../shared/settings';
+import { addVisit, parseHistory, titleVisit, visitLine, type Visit } from '../shared/history';
 import { PRODUCT } from '../shared/product';
 import { DEFAULT_SEARCH } from '../shared/address';
 import { NEVER_ASKABLE } from '../shared/config';
@@ -55,8 +56,10 @@ export interface BrowserDeps {
   fullscreen: boolean;
   /** The --size=WIDTHxHEIGHT option: the window's size when it is not full screen. */
   size: [number, number] | undefined;
-  /** Where downloaded files are saved. */
+  /** Where downloaded files are saved unless Settings says otherwise: the desktop's Downloads folder. */
   downloads: string;
+  /** The --downloads= option, which wins over Settings. */
+  downloadsFlag: string | undefined;
   /** The --zoom= option, which wins over everything. */
   zoomOverride: string | undefined;
   /** Resolves when the protected-playback component is ready (or has been given up on). */
@@ -228,6 +231,16 @@ export function createBrowser(deps: BrowserDeps): Browser {
     return choice.kind === 'use' ? choice : choice.kind === 'ask' ? choice.fallback : null;
   };
 
+  /** Where files are saved: the command line's folder, else the one chosen in Settings, else the desktop's. */
+  const downloadsDir = (): string => deps.downloadsFlag ?? config.downloads ?? deps.downloads;
+  /** History: the pages opened, newest first (shared/history.ts). */
+  const historyFile = join(dataDir, 'history.json');
+  let visits: Visit[] = parseHistory(readJson(historyFile, complain('history.json')));
+  const saveHistory = (): void => writeJson(historyFile, { visits });
+  /** The folder the folder chooser is looking in, while it is open. */
+  let pickAt: string | null = null;
+  /** The action waiting for a button to be pressed for it, on the Settings screen. */
+  let capturing: string | null = null;
   const pageSite = (): string | null => siteKey(page.getURL());
   /** Whether requests are filtered for the site at this address (Hard rule 5): the person's choice, else where the switch starts. */
   const blockingAt = (url: string): boolean => {
@@ -316,9 +329,16 @@ export function createBrowser(deps: BrowserDeps): Browser {
             neverAsk: config.neverAsk ?? [],
             askable: NEVER_ASKABLE.map((name) => ({ name, words: ASKABLE[name] })),
             sitesWithChoices: Object.keys(sites).length,
-            downloads: deps.downloads,
+            downloads: downloadsDir(),
             dataFolder: dataDir,
+            history: config.history !== false,
+            visits: visits.length,
+            language: config.language ?? null,
+            buttons: BUTTON_ACTIONS.map((a) => ({ ...a, keys: Object.entries(config.keys).filter(([, action]) => action === a.action).map(([key]) => key) })),
+            capturing,
+            folders: pickAt === null ? null : foldersAt(pickAt),
           },
+    history: panel === 'history' ? visits.slice(0, 80).map((v) => visitLine(v, Date.now())) : null,
     downloads: downloads.map((d) => ({
       id: d.id,
       name: d.name,
@@ -346,9 +366,34 @@ export function createBrowser(deps: BrowserDeps): Browser {
       : pending.what === 'profile'
         ? { what: 'profile', name: pending.profile.name, version: pending.profile.version, hosts: pending.profile.match.hosts.slice(0, 6) }
         : pending.what === 'download'
-          ? { what: 'download', site: pending.download.site, name: pending.download.name, size: sizeText(pending.download.item.getTotalBytes()), folder: deps.downloads }
+          ? { what: 'download', site: pending.download.site, name: pending.download.name, size: sizeText(pending.download.item.getTotalBytes()), folder: downloadsDir() }
           : { what: 'permission', site: pending.site, wants: describeAsk(pending.names) },
   });
+
+  /** What the folder chooser shows for a folder: the folders in it, the one above, and a few places to start from. */
+  const foldersAt = (path: string): NonNullable<NonNullable<ChromeState['settings']>['folders']> => {
+    let inside: string[] = [];
+    try {
+      inside = readdirSync(path, { withFileTypes: true })
+        .filter((d) => d.isDirectory() && !d.name.startsWith('.'))
+        .map((d) => d.name)
+        .sort((a, b) => a.localeCompare(b))
+        .slice(0, 200);
+    } catch {
+      // a folder that cannot be read shows as empty
+    }
+    const up = dirname(path);
+    const places = [{ name: 'Home folder', path: app.getPath('home') }, { name: 'Downloads', path: deps.downloads }, ...removableFolders().map((p) => ({ name: `USB: ${basename(p)}`, path: p }))];
+    return { path, up: up === path ? null : up, inside, places };
+  };
+  const isFolder = (path: unknown): path is string => {
+    if (typeof path !== 'string' || !path.startsWith('/') || path.length > 1000) return false;
+    try {
+      return statSync(path).isDirectory();
+    } catch {
+      return false;
+    }
+  };
 
   const active = (): WebContents => (surface === 'home' || panel ? chrome : page);
 
@@ -588,6 +633,22 @@ export function createBrowser(deps: BrowserDeps): Browser {
     const now = pageView.getBounds();
     if (panel || area.x !== now.x || area.y !== now.y || area.width !== now.width || area.height !== now.height) layout();
     applyZoom();
+  }));
+  // History: every page that arrives in the view in front, while the setting is on.
+  const visited = (wc: WebContents, url: string): void => {
+    if (wc !== page || isNotice(url) || config.history === false) return;
+    visits = addVisit(visits, url, Date.now());
+    saveHistory();
+  };
+  eachPage((wc) => wc.on('did-navigate', (_e, url) => visited(wc, url)));
+  eachPage((wc) => wc.on('did-navigate-in-page', (_e, url, isMainFrame) => {
+    if (isMainFrame) visited(wc, url);
+  }));
+  eachPage((wc) => wc.on('page-title-updated', (_e, title) => {
+    if (wc === page && !isNotice(page.getURL()) && config.history !== false && visits[0]?.url === page.getURL()) {
+      visits = titleVisit(visits, page.getURL(), title);
+      saveHistory();
+    }
   }));
   eachPage((wc) => wc.on('page-title-updated', (_e, title) => {
     if (wc !== page || !titleFor || isNotice(page.getURL())) return;
@@ -844,6 +905,19 @@ export function createBrowser(deps: BrowserDeps): Browser {
     wc.on('before-input-event', (event, input) => {
       if (input.type !== 'keyDown' || (wc !== chrome && wc !== page)) return;
       if (awayAt !== 0 && Date.now() - awayAt > 1500) returned();
+      // Settings is waiting for a button to give to an action: this press is it.
+      if (capturing && wc === chrome && panel === 'settings') {
+        event.preventDefault();
+        const action = capturing;
+        capturing = null;
+        const next = input.key === 'Escape' || input.key === 'Backspace' ? null : mapButton(config.keys, input.key, input.control, action);
+        if (next && deps.settings.set('keys', next)) {
+          sendKeys();
+          notify('That button is set');
+        } else notify(input.key === 'Escape' || input.key === 'Backspace' ? 'No button was set' : 'That button cannot be used for this');
+        layout();
+        return;
+      }
       // Quit and the menu must work whatever the page is doing, and wherever
       // in the page the keys are going (an embedded frame has no layer).
       const action = keyToAction({ key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift }, 'text', config.keys);
@@ -859,6 +933,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
         if (wc === page && active() === page) setImmediate(() => setPointer(!pointerOn));
       }
     });
+  };
+  /** Tells every layer the button mappings as they now are; pages opened later get them when they start. */
+  const sendKeys = (): void => {
+    for (const wc of [chrome, ...[...views.values()].map((v) => v.webContents)]) if (!wc.isDestroyed()) wc.send('longboard:keys', config.keys);
   };
   watchKeys(chrome);
   eachPage(watchKeys);
@@ -1008,16 +1086,16 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // to, it is moved to the downloads folder under a name that writes over
   // nothing. Refused, what arrived is deleted. Longboard never opens or runs
   // what it downloads.
-  const taken = (n: string): boolean => existsSync(join(deps.downloads, n));
+  const taken = (n: string): boolean => existsSync(join(downloadsDir(), n));
   const refreshChrome = (): void => {
     if (!chrome.isDestroyed()) chrome.send('longboard:chrome-state', chromeState());
   };
   /** Puts a finished download where the person will look for it. */
   const keep = (d: Download): void => {
     try {
-      mkdirSync(deps.downloads, { recursive: true });
+      mkdirSync(downloadsDir(), { recursive: true });
       const name = uniqueName(d.name, taken);
-      const to = join(deps.downloads, name);
+      const to = join(downloadsDir(), name);
       try {
         renameSync(d.temp, to);
       } catch {
@@ -1027,7 +1105,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       }
       d.name = name;
       d.state = 'saved';
-      notify(`Saved ${name} in ${deps.downloads}`);
+      notify(`Saved ${name} in ${downloadsDir()}`);
     } catch (err) {
       console.error(`[longboard] the downloads folder cannot be used: ${String(err).slice(0, 160)}`);
       rmSync(d.temp, { force: true });
@@ -1655,6 +1733,12 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'settings':
         panel = 'settings';
+        pickAt = null;
+        capturing = null;
+        layout();
+        break;
+      case 'history':
+        panel = 'history';
         layout();
         break;
       case 'quit':
@@ -1675,6 +1759,12 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'clearCache':
         void Promise.all(webSessions().map((s) => s.clearCache().catch(() => undefined))).then(() => notify('Cleared the saved copies of pages and pictures'));
+        break;
+      case 'clearHistory':
+        visits = [];
+        saveHistory();
+        layout();
+        notify('Cleared the history');
         break;
       case 'clearHome':
         recents = [];
@@ -1732,8 +1822,46 @@ export function createBrowser(deps: BrowserDeps): Browser {
         // A picture Longboard's own screen drew from a site's icon.
         if (typeof msg.id === 'number') drawing.get(msg.id)?.(pngFromDataUrl(msg.png));
         break;
+      case 'openVisit':
+        if (panel === 'history' && typeof msg.url === 'string' && visits.some((v) => v.url === msg.url)) open(msg.url, true);
+        break;
+      case 'folder':
+        if (panel !== 'settings') break;
+        if (msg.path === null) pickAt = null;
+        else if (isFolder(msg.path)) pickAt = msg.path;
+        // The chooser opens on the folder in use; when that is not there yet, on the home folder.
+        else if (pickAt === null) pickAt = app.getPath('home');
+        else notify('That folder cannot be opened');
+        layout();
+        break;
+      case 'captureButton':
+        if (panel !== 'settings') break;
+        capturing = typeof msg.action === 'string' && BUTTON_ACTIONS.some((a) => a.action === msg.action) ? msg.action : null;
+        layout();
+        break;
+      case 'clearButtons':
+        if (panel !== 'settings' || typeof msg.action !== 'string') break;
+        if (deps.settings.set('keys', unmapButtons(config.keys, msg.action))) sendKeys();
+        layout();
+        break;
       case 'setting':
         if (panel !== 'settings' || typeof msg.name !== 'string') break;
+        // Button mappings are set by pressing the button, not by a message naming it.
+        if (msg.name === 'keys') break;
+        if (msg.name === 'downloads' && msg.value !== null) {
+          // A folder that is there and can be written to, or nothing changes.
+          let usable = isFolder(msg.value);
+          try {
+            if (usable) accessSync(msg.value as string, fsConstants.W_OK);
+          } catch {
+            usable = false;
+          }
+          if (!usable) {
+            notify('Files cannot be saved in that folder');
+            break;
+          }
+          pickAt = null;
+        }
         if (!deps.settings.set(msg.name, msg.value)) {
           notify('That setting could not be changed');
           break;

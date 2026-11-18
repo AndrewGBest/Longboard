@@ -1086,7 +1086,34 @@ await scenario(
   },
 );
 
-await scenario('Settings', {}, async (app) => {
+await scenario('history', { url: `${site.origin}/home.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const chrome = await app.chrome();
+  const saved = () => JSON.parse(readFileSync(join(app.userData, 'history.json'), 'utf8')).visits.map((v) => new URL(v.url).pathname);
+  await sleep(800);
+  await page.evaluate('location.href = "/article.html"; 0');
+  await until(() => page.evaluate('location.pathname + document.readyState'), (v) => v === '/article.htmlcomplete');
+  await sleep(500);
+  check('each page opened is kept, newest first, on this machine', saved(), ['/article.html', '/home.html']);
+  await page.press('ContextMenu', 500);
+  for (let i = 0; i < 24 && (await chrome.focused()) !== 'menu-history'; i++) await chrome.press('ArrowDown');
+  await chrome.press('Enter', 500);
+  const lines = await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=visit-]")].map((b) => b.textContent)');
+  check('the menu has History, which lists them with their titles and when', [lines.length, /\(127\.0\.0\.1\), today$/.test(lines[0] ?? ''), lines[1]], [2, true, 'Longboard fixture: generic streaming home (127.0.0.1), today']);
+  await chrome.press('ArrowDown');
+  await chrome.press('Enter', 600);
+  check('pressing one opens it', await until(() => page.evaluate('location.pathname'), (p) => p === '/home.html'), '/home.html');
+  check('and it moves to the front', (await sleep(400), saved()), ['/home.html', '/article.html']);
+});
+
+await scenario('no history when it is turned off, and a language for sites', { url: `${site.origin}/home.html`, config: { history: false, language: 'fr' } }, async (app) => {
+  const page = await app.page(site.origin);
+  await sleep(1000);
+  check('with history off nothing is written down', existsSync(join(app.userData, 'history.json')), false);
+  check('sites are asked for the language chosen in Settings', await page.evaluate('[navigator.language, navigator.languages[0]]'), ['fr', 'fr']);
+});
+
+await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', 'films'), { recursive: true }) }, async (app) => {
   const chrome = await app.chrome();
   const file = () => JSON.parse(readFileSync(join(app.userData, 'config.json'), 'utf8'));
   const text = (id) => chrome.evaluate(`document.getElementById(${JSON.stringify(id)})?.textContent ?? null`);
@@ -1175,9 +1202,45 @@ await scenario('Settings', {}, async (app) => {
   check('and the second press does it', await until(() => chrome.toastText(), (t) => /^Forgotten/.test(t ?? ''), 40), "Forgotten: every site's answers, size and ad-blocking switch");
   await chrome.press('Escape', 400);
 
+  await open('settings-privacy');
+  await open('set-history');
+  check('keeping a history can be turned off', [await text('set-history'), file().history], ['Keep a history of pages opened: no', false]);
+  await chrome.press('Escape', 400);
+
+  await open('settings-general');
+  await open('set-language');
+  check('a language for sites can be chosen', [await text('set-language'), file().language], ['Language sites are asked for: English (United States)', 'en-US']);
+  await chrome.press('Escape', 400);
+
+  await open('settings-downloads');
+  check('Downloads says where files go', (await chrome.evaluate('document.getElementById("panel").textContent')).includes(`Files are saved in ${join(app.userData, 'downloads')}.`), true);
+  await chrome.press('Enter', 500);
+  check('the folder chooser opens on the folder in use and lists the folders in it', [await title(), await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=folder-]")].map((b) => b.textContent)')], ['Choose a folder', ['Save downloads in this folder', 'Up to the folder above', 'films', 'Cancel']]);
+  await open('folder-0');
+  check('a folder can be gone into', (await chrome.evaluate('document.querySelector("#panel .where")?.textContent')), join(app.userData, 'downloads', 'films'));
+  for (let i = 0; i < 6 && (await chrome.focused()) !== 'folder-use'; i++) await chrome.press('ArrowUp');
+  await chrome.press('Enter', 500);
+  check('and chosen: it is kept, and the chooser goes away', [file().downloads, await title()], [join(app.userData, 'downloads', 'films'), 'Downloads']);
+  await chrome.press('Escape', 400);
+
+  await open('settings-remote');
+  await open('button-back');
+  check('giving a button a job asks for the button', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Press the button to use for "Back". Back cancels.'), true);
+  await chrome.press('ArrowDown', 400);
+  check('an arrow cannot be given another job, and says so', [await chrome.toastText(), 'keys' in file()], ['That button cannot be used for this', false]);
+  await open('button-back');
+  await chrome.press('F7', 500);
+  check('the next button pressed gets the job, and is kept', [await text('button-back'), file().keys], ['Back: also F7', { F7: 'back' }]);
+  await chrome.press('F7', 500);
+  check('and does it straight away: here, Back to the first page of Settings', await title(), 'Settings');
+  await open('settings-remote');
+  await open('unbutton-back');
+  check('the extra buttons can be taken away again', [await text('button-back'), file().keys], ['Back: add a button', {}]);
+  await chrome.press('Escape', 400);
+
   await open('settings-reset');
   await chrome.press('Enter', 500);
-  check('putting everything back takes two presses and leaves no settings behind', file(), {});
+  check('putting everything back takes two presses and leaves no settings behind', file(), { keys: {} });
   await chrome.press('Escape', 400);
   check('Back on the first page closes Settings', await chrome.evaluate('document.getElementById("panel")'), null);
 });

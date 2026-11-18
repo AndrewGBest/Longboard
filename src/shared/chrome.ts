@@ -5,7 +5,7 @@
 import type { RecentSite } from './home';
 import type { BlockingMode, StartsOffEntry } from './adblock';
 
-export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings';
+export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings' | 'history';
 
 export interface ChromeState {
   /** What fills the window behind any panel. */
@@ -73,7 +73,19 @@ export interface ChromeState {
     sitesWithChoices: number;
     downloads: string;
     dataFolder: string;
+    /** Whether a history of pages is kept, and how many pages are in it. */
+    history: boolean;
+    visits: number;
+    /** The language sites are asked for, as a code; null for the system's. */
+    language: string | null;
+    /** The buttons the person has given to each action, and the action now waiting for a button to be pressed. */
+    buttons: Array<{ action: string; words: string; keys: string[] }>;
+    capturing: string | null;
+    /** The folder chooser, while it is open: where it is, the folder above, and the folders in it. */
+    folders: { path: string; up: string | null; inside: string[]; places: Array<{ name: string; path: string }> } | null;
   } | null;
+  /** The pages opened lately, newest first, while the history panel is open. */
+  history: Array<{ url: string; text: string }> | null;
   /** The question being asked, while panel is 'prompt'. */
   prompt:
     /** A site wants something it has to be allowed: `wants` says what, in plain words. */
@@ -87,10 +99,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'settings' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'settings' | 'history' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'settings', 'downloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'settings', 'history', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -106,6 +118,13 @@ export type ChromeMessage =
   /** The list of sites where ad blocking starts off: add a typed site, or press an entry. */
   | { kind: 'startsOff'; op: 'add' | 'toggle'; domain: string }
   | { kind: 'settingsAction'; action: SettingsAction }
+  /** Open a page from the history. */
+  | { kind: 'openVisit'; url: string }
+  /** The folder chooser: look in this folder, or null to put the chooser away. */
+  | { kind: 'folder'; path: string | null }
+  /** Wait for a button to give to this action (null stops waiting), or take its buttons away. */
+  | { kind: 'captureButton'; action: string | null }
+  | { kind: 'clearButtons'; action: string }
   /** A site's icon, drawn here and handed back as a PNG data: address; null when it could not be drawn. */
   | { kind: 'icon'; id: number; png: string | null }
   | { kind: 'removeRecent'; url: string }
@@ -118,8 +137,8 @@ export type ChromeMessage =
   /** `remember` false is "not now": the question comes again another time. */
   | { kind: 'answer'; allow: boolean; remember?: boolean };
 
-export type SettingsAction = 'clearSiteData' | 'clearCache' | 'clearHome' | 'forgetSites' | 'updateFilters' | 'updateCatalogue' | 'reset';
-export const SETTINGS_ACTIONS: readonly SettingsAction[] = ['clearSiteData', 'clearCache', 'clearHome', 'forgetSites', 'updateFilters', 'updateCatalogue', 'reset'];
+export type SettingsAction = 'clearSiteData' | 'clearCache' | 'clearHome' | 'clearHistory' | 'forgetSites' | 'updateFilters' | 'updateCatalogue' | 'reset';
+export const SETTINGS_ACTIONS: readonly SettingsAction[] = ['clearSiteData', 'clearCache', 'clearHome', 'clearHistory', 'forgetSites', 'updateFilters', 'updateCatalogue', 'reset'];
 
 export type EditAction = 'include' | 'exclude' | 'row' | 'player' | 'wider' | 'narrower' | 'pickAgain' | 'save' | 'discard';
 export const EDIT_ACTIONS: readonly EditAction[] = ['include', 'exclude', 'row', 'player', 'wider', 'narrower', 'pickAgain', 'save', 'discard'];

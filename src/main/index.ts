@@ -56,6 +56,11 @@ async function main(): Promise<void> {
   const loaded = loadConfig();
   const config = loaded.config;
   let rawConfig = loaded.raw;
+  // The language sites are asked for, when the person chose one in Settings.
+  // On Linux the browser takes its language from the environment, as every
+  // program does, and reads it after this point; its own --lang switch is
+  // not honoured there (both measured, 2026-11-18).
+  if (config.language) process.env['LANGUAGE'] = config.language;
   if (config.hardwareDecode) {
     // Chromium's own switches for decoding video on the graphics chip on
     // Linux, which it does not promise to support. Off unless asked for.
@@ -181,7 +186,8 @@ async function main(): Promise<void> {
     // Windowed while developing, so the desktop stays reachable.
     fullscreen: flag('fullscreen') || !options.dev,
     // Where files are saved: the desktop's Downloads folder, unless told otherwise.
-    downloads: value('downloads') || app.getPath('downloads'),
+    downloads: app.getPath('downloads'),
+    downloadsFlag: value('downloads') || undefined,
     zoomOverride: value('zoom'),
     size: /^\d{3,5}x\d{3,5}$/.test(value('size') ?? '') ? (value('size') as string).split('x').map(Number) as [number, number] : undefined,
     ready: componentsReady,

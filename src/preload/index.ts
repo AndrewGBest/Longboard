@@ -27,11 +27,20 @@ const guarded: string[] = [];
 let sayBlocked: () => void = () => undefined;
 if (scripted && window.top === window) installPurchaseGuard(document, guarded, () => sayBlocked());
 
+/** Puts new button mappings into the object the layer holds. Only names and strings are taken. */
+function replaceKeys(into: Record<string, string>, keys: unknown): void {
+  if (!into || !keys || typeof keys !== 'object') return;
+  for (const key of Object.keys(into)) delete into[key];
+  for (const [key, action] of Object.entries(keys as Record<string, unknown>).slice(0, 200)) if (typeof action === 'string') into[key] = action;
+}
+
 const start = (): void => {
   if (window.top !== window) return;
   // Asked for when the page starts, so the shell can choose by the page's address.
   const boot = (ipcRenderer.sendSync('longboard:boot') as BootData | null) ?? { options: { dev: false, automation: process.argv.includes('--longboard-automation') }, profile: null };
   const send = (msg: BridgeMessage): void => ipcRenderer.send('longboard:msg', msg);
+  // The one object of button mappings the layer reads; Settings can change what is in it.
+  const held = ((boot.options as { keys?: Record<string, string> }).keys ??= {});
   const layer: Layer = startLayer({
     doc: document,
     options: boot.options,
@@ -51,6 +60,8 @@ const start = (): void => {
   });
   // The window is no longer the one in front.
   ipcRenderer.on('longboard:away', () => layer.away());
+  // Button mappings changed in Settings: the layer reads this object at every key.
+  ipcRenderer.on('longboard:keys', (_event, keys: unknown) => replaceKeys(held, keys));
   // Pointer mode: where the pointer is now, or null when it has been put away.
   ipcRenderer.on('longboard:pointer', (_event, spot: PointerSpot) => {
     const ok = spot && typeof spot.x === 'number' && typeof spot.y === 'number';

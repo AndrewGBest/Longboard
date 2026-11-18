@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changeSetting, resetSettings, searchName, SEARCH_CHOICES } from '../src/shared/settings';
+import { changeSetting, LANGUAGE_CHOICES, mapButton, resetSettings, searchName, SEARCH_CHOICES, unmapButtons } from '../src/shared/settings';
 import { parseConfig } from '../src/shared/config';
 import { blockingMode, blockingOn, cleanDomain, editStartsOff, effectiveVerified, startsOffEntries } from '../src/shared/adblock';
 import { permissionDecision } from '../src/main/permissions';
@@ -27,7 +27,7 @@ describe('changing a setting', () => {
     expect(changeSetting(file, 'catalogue', 'yes')).toBeNull();
   });
   it('refuses anything that is not a setting of the screen', () => {
-    for (const name of ['keys', 'buttons', 'filterLists', 'zoom', '__proto__', 'constructor', '', 5, null]) {
+    for (const name of ['buttons', 'filterLists', 'zoom', '__proto__', 'constructor', '', 5, null]) {
       expect(changeSetting(file, name, {}), String(name)).toBeNull();
     }
   });
@@ -113,5 +113,42 @@ describe('kinds of access no site may ask for', () => {
     expect(permissionDecision('media', { answers: { camera: 'granted' } }, ['video'], ['camera'])).toEqual({ kind: 'deny' });
     expect(permissionDecision('notifications', undefined, [], ['location'])).toEqual({ kind: 'ask', names: ['notifications'] });
     expect(permissionDecision('fullscreen', undefined, [], ['camera'])).toEqual({ kind: 'grant' });
+  });
+});
+
+describe('the later settings', () => {
+  it('takes a history switch, a downloads folder and a language, and nothing odd for any of them', () => {
+    expect(changeSetting({}, 'history', false)).toEqual({ history: false });
+    expect(changeSetting({}, 'downloads', '/media/usb/films')).toEqual({ downloads: '/media/usb/films' });
+    expect(changeSetting({}, 'downloads', 'relative/path')).toBeNull();
+    expect(changeSetting({}, 'downloads', 5)).toBeNull();
+    expect(changeSetting({}, 'language', 'pt-BR')).toEqual({ language: 'pt-BR' });
+    expect(changeSetting({}, 'language', 'en-US --no-sandbox')).toBeNull();
+    expect(changeSetting({}, 'language', '../../etc')).toBeNull();
+    for (const l of LANGUAGE_CHOICES) if (l.code) expect(changeSetting({}, 'language', l.code), l.code).not.toBeNull();
+  });
+});
+
+describe('giving a button a job', () => {
+  it('adds the button, with Ctrl when it was held', () => {
+    expect(mapButton({}, 'F7', false, 'back')).toEqual({ F7: 'back' });
+    expect(mapButton({ F7: 'back' }, 'MediaStop', false, 'menu')).toEqual({ F7: 'back', MediaStop: 'menu' });
+    expect(mapButton({}, 'H', true, 'menu')).toEqual({ 'Ctrl+h': 'menu' });
+    expect(mapButton({ F7: 'back' }, 'F7', false, 'menu')).toEqual({ F7: 'menu' });
+  });
+  it('leaves alone the buttons the screen cannot be used without, and keys for typing', () => {
+    for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'Tab', 'Control', 'Shift', 'Unidentified', 'a', '5', ' ', '']) {
+      expect(mapButton({}, key, false, 'back'), key).toBeNull();
+    }
+    expect(mapButton({}, 'F7', false, 'quit')).toBeNull();
+    expect(mapButton({}, 'F7', false, 'explode')).toBeNull();
+  });
+  it('what it makes is something config.json accepts', () => {
+    expect(changeSetting({}, 'keys', mapButton({}, 'F7', false, 'back'))).toEqual({ keys: { F7: 'back' } });
+    expect(changeSetting({}, 'keys', { F7: 'explode' })).toBeNull();
+  });
+  it('takes every button away from one action, and keeps them through a reset', () => {
+    expect(unmapButtons({ F7: 'back', F8: 'back', F9: 'menu' }, 'back')).toEqual({ F9: 'menu' });
+    expect(resetSettings({ keys: { F9: 'menu' }, history: false, language: 'fr' })).toEqual({ keys: { F9: 'menu' } });
   });
 });
