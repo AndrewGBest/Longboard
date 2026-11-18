@@ -14,7 +14,7 @@ import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
 import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo, type PlayerKey, type TextKey } from '../shared/player-keys';
 import { findMainVideo, GENERIC_PLAYER_SHARE, isPlayerActive, isSeekBar, playerIsOwnPage, playerScope } from './player';
-import { coveredByScreen, edgeControl, isVisible, MENU_ENTRY, openDialog, SpatialNavigator } from './spatial/navigator';
+import { coveredByScreen, edgeControl, isVisible, MENU_ENTRY, openDialog, SpatialNavigator, type NavigatorOptions } from './spatial/navigator';
 import { HOST_TAG, Overlay } from './ui/overlay';
 
 export interface LayerDeps {
@@ -76,12 +76,12 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   const view = doc.defaultView;
   if (!view) throw new Error('layer needs a window');
 
-  /** No profile for this site: everything is worked out from the page itself. */
-  const generic = rules.generic;
   const playerRoots = rules.selectors.playerRoot;
-  const playerShare = generic ? GENERIC_PLAYER_SHARE : 0.5;
-  const mainVideo = (): HTMLVideoElement | null => findMainVideo(doc, playerRoots, playerShare);
-  const inPlayer = (): boolean => isPlayerActive(doc, playerRoots, playerShare);
+  // With no profile for this page everything is worked out from the page
+  // itself. Read each time: the profile can change while the page stays (setRules).
+  const playerShare = (): number => (rules.generic ? GENERIC_PLAYER_SHARE : 0.5);
+  const mainVideo = (): HTMLVideoElement | null => findMainVideo(doc, playerRoots, playerShare());
+  const inPlayer = (): boolean => isPlayerActive(doc, playerRoots, playerShare());
   /** While the player is open, focus stays among its own controls. */
   const scope = (): Element | null => {
     // An open hover menu lies over the page; what is underneath is not reachable until it is closed.
@@ -98,7 +98,8 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   /** A scripted run never types a password or a one-time code (Hard rule 9). A person may. */
   const keyboardBarred = (el: Element): boolean =>
     options.automation && isSecretField(el.getAttribute('type'), el.getAttribute('autocomplete'));
-  const nav = new SpatialNavigator(doc, {
+  // The navigator keeps this object, so setRules can change what it goes by.
+  const navOptions: NavigatorOptions = {
     extraFocusable: rules.selectors.extraFocusable,
     ignoreWithin: HOST_TAG,
     onFocusChange: (el) => {
@@ -112,10 +113,11 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     exclude: rules.selectors.exclude,
     groups: rules.groups,
     initial: rules.initial ?? undefined,
-    looksClickable: generic,
+    looksClickable: rules.generic,
     cursorHiddenClass: 'longboard-no-pointer',
-    readingScroll: generic,
-  });
+    readingScroll: rules.generic,
+  };
+  const nav = new SpatialNavigator(doc, navOptions);
 
   /** When the person last pressed OK or clicked: a text field the page focuses soon after is one they asked for. */
   let lastPressAt = 0;
@@ -869,6 +871,10 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       rules.groups.length = 0;
       rules.groups.push(...next.groups);
       rules.initial = next.initial;
+      rules.generic = next.generic;
+      navOptions.skip = [...next.selectors.rowPrev, ...next.selectors.rowNext];
+      navOptions.initial = next.initial ?? undefined;
+      navOptions.looksClickable = navOptions.readingScroll = next.generic;
       rules.playerKeys = next.playerKeys;
       rules.id = next.id;
       rules.name = next.name;

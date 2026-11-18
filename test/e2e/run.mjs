@@ -709,7 +709,15 @@ await scenario(
     await press('ArrowUp');
     check('the excluded banner is never highlighted', await focused(), 'a3');
     await press('Escape', 400);
-    check('Back first closes what the profile says it closes', [await evaluate('!!document.getElementById("panel")'), await evaluate('location.pathname')], [false, '/profiled.html']);
+    // The site changes its address without loading a page, off the paths the profile is for and back.
+    await evaluate('history.pushState({}, "", "/elsewhere"); 0');
+    check('when the address leaves what the profile is for, the page is driven without it', (await until(() => evaluate('innerWidth'), (w) => w > 900)) > 900, true);
+    await evaluate('history.pushState({}, "", "/profiled.html"); 0');
+    check('and with it again when the address comes back', [await until(() => evaluate('innerWidth'), (w) => w === 640), await focused()], [640, 'a3']);
+    await press('ArrowDown');
+    await press('ArrowUp');
+    check('its rows work as before', await focused(), 'a3');
+        check('Back first closes what the profile says it closes', [await evaluate('!!document.getElementById("panel")'), await evaluate('location.pathname')], [false, '/profiled.html']);
 
     const chrome = await app.chrome();
     await press('ContextMenu', 500);

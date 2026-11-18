@@ -885,6 +885,22 @@ export function createBrowser(deps: BrowserDeps): Browser {
     return [b.width, b.height];
   };
 
+  /** The profile each website view's page is being driven by now. */
+  const driving = new WeakMap<WebContents, Profile | null>();
+  // A site that changes its address without loading a page (most web apps)
+  // can move onto or off the paths a profile is for. The page is the same
+  // page, so its layer is told the new rules; nothing is reloaded.
+  eachPage((wc) => wc.on('did-navigate-in-page', (_e, url, isMainFrame) => {
+    if (!isMainFrame || edit) return;
+    const next = profileFor(url)?.profile ?? null;
+    if (next === (driving.get(wc) ?? null)) return;
+    driving.set(wc, next);
+    wc.send('longboard:rules', next);
+    if (wc !== page) return;
+    layout();
+    applyZoom();
+  }));
+
   const onBoot = (event: Electron.IpcMainEvent): void => {
     const wc = event.sender;
     const top = event.senderFrame === wc.mainFrame;
@@ -902,6 +918,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       const choice = deps.profiles.choose(event.senderFrame?.url ?? '');
       const use = choice.kind === 'use' ? choice : choice.kind === 'ask' ? choice.fallback : null;
       boot.profile = use?.profile ?? null;
+      driving.set(wc, use?.profile ?? null);
       if (choice.kind === 'ask' && wc === page) {
         const asked = choice.profile;
         setImmediate(() => askAboutProfile(asked));

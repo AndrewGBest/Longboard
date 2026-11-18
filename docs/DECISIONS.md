@@ -14,6 +14,7 @@ in STATUS.md.
 | Icons on Home tiles | A site on Home gets its own icon on its tile, fetched from the site once while the site is open, and kept under a name made from a hash of the site | Hard rule 6: the icon comes from the site at run time. The request goes to the site the person is already on, so it tells nobody anything new (rule 12). The file is deleted when the site leaves Home |
 | Removing a tile | The menu, opened with the highlight on a Home tile, offers "Remove ... from Home" (or to remove the app) | A remote has no long press that can be relied on, and the Menu key is already "things to do with this". No new key to learn |
 | `view.safeMargin` | The website's view is made smaller and centred; the scale is worked out from the smaller rectangle | Nothing in the page is touched (rule 4). The border is black |
+| A site that changes its address without loading a page | The shell works out the profile again from the new address and hands the page's layer the new rules; scale and safe margin follow | Most web apps never load a second page, so a profile for some paths would otherwise apply to all of them or none. An imported profile that still needs an answer is not asked about at that moment, only on a page load |
 
 ## 2026-11-18: Andrew on ad-blocking defaults, permissions and downloads
 
