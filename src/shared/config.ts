@@ -5,7 +5,7 @@
 //   {
 //     "zoom": 2,
 //     "hardwareDecode": true,
-//     "search": "https://duckduckgo.com/?q=%s",
+//     "search": "https://www.google.com/search?q=%s",
 //     "catalogue": false,
 //     "keys": { "F1": "search", "F9": "menu", "MediaStop": "back", "Ctrl+h": "none" },
 //     "buttons": { "8": "pointer", "9": "playPause" }

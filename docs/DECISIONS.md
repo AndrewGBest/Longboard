@@ -3,6 +3,42 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: Andrew's answers after the first autonomous session
+
+Andrew, in chat:
+
+- **Default search is Google** (`https://www.google.com/search?q=%s`). It
+  replaces the agent's pick of DuckDuckGo. `"search"` in `config.json` still
+  changes it. It is an ordinary link; there is no arrangement with Google.
+- **The on-screen keyboard should behave as mainstream Android TV apps do.**
+  The agent looked this up and found that what Longboard already does is the
+  Android TV convention, so nothing was changed:
+  - Moving the highlight onto a text field with the D-pad does not bring the
+    keyboard up; pressing the centre (select) button on it does. In Android's
+    own text field code the keyboard is shown on the key-up of the D-pad
+    centre button **[Sourced: framework commit, below]**, and a third-party
+    TV text field describes the same flow: arrows are left to move focus,
+    Select or Enter starts editing **[Sourced: tv_textfield]**.
+  - Back puts the keyboard away and leaves the field as it was.
+  - A web page that focuses a field by script does not get a keyboard unless
+    the person just did something. **[Guess: this is how Chromium behaves on
+    Android as the agent recalls it; no source was found in this search.]**
+  - Reports differ for the older Leanback keyboard, where one person saw the
+    keyboard appear on focus **[Sourced: Stack Overflow copy, below]**. The
+    agent followed the framework's behaviour, not that report.
+  - Not copied: dedicated search screens with their own always-visible
+    keyboard, as streaming apps have. Longboard shows websites, which have
+    no such screen.
+
+Sources:
+- https://gitlab.e.foundation/e/os/android_frameworks_base/-/commit/9d1abc43f5ffdb413fda5d8e39019bb40aad0b94
+  ("In onKeyUp for DPAD_CENTER, show the IME"; read as a search result, the
+  page itself would not load)
+- https://pub.dev/packages/tv_textfield
+- https://developer.android.com/training/tv/get-started/onscreen-keyboard
+  (says nothing about when the keyboard appears; checked)
+- https://kiwix.lema.org/stackoverflow.com_en_all_2023-11/questions/36040285/android-keyboard-not-reachable-in-cordova-app
+
 ## 2026-11-18: phase 4 choices made by the agent (the profile editor)
 
 All **assumptions by the agent**. This is a first, small editor: it covers
@@ -103,7 +139,7 @@ and can be reversed.
 | How the chrome screens talk to the shell | Their preload draws them from the isolated world and uses IPC itself. The page has no script and no `contextBridge` API | Keeps Hard rule 13 true for every view, not only the website's, and lets the rule check keep banning `exposeInMainWorld` outright |
 | Plain http | Opened, like https | A general browser has to open the devices and old sites on a home network. Typed host names still get https first |
 | What is never opened | `file:`, `data:`, `javascript:`, `blob:`, internal pages, and any address with a user name or password in it | ARCHITECTURE.md section 2; the last is a common disguise for a look-alike site |
-| Search engine | DuckDuckGo (`https://duckduckgo.com/?q=%s`), changeable with `"search"` in config.json | Something has to be the default, and one that does not need an account or build a profile of the person fits principle 7. No arrangement with them exists; it is an ordinary link |
+| Search engine | Superseded: see "Andrew's answers after the first autonomous session" at the top | The agent had picked DuckDuckGo |
 | Permissions | Full screen granted. Protected playback asked once per site and remembered. Everything else refused without asking | ARCHITECTURE.md section 2 names those two as the ones that make sense on a TV. The decision is a tested pure function |
 | Home tiles | A letter and the site's name; no icons yet | Hard rule 6 wants icons to come from the site at run time, and fetching them when Home opens would contact every listed site again. Needs a cache filled at visit time; not built |
 | What goes on Home | Addresses the person typed or opened from a tile; one tile per site, twelve at most. Searches and links followed inside a site do not | "Recently opened sites" in DESIGN.md 4.1, read as sites the person went to on purpose. It is not a history |

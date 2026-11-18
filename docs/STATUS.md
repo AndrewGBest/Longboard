@@ -109,9 +109,6 @@ it was checked by a person, with a remote, on a TV.**
 
 - Keep or drop the agent's addition that sites with protected playback start
   with ad blocking off even when not yet verified (carried over, still open).
-- DuckDuckGo as the default search: fine, or something else?
-- The keyboard now opens on OK instead of whenever a field is focused. That
-  costs one extra press on a sign-in page. Acceptable?
 
 **Next:** try it on the TV box with the remote. Everything after that
 depends on what that shows.

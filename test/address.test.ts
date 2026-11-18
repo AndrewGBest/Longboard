@@ -27,21 +27,21 @@ describe('resolveAddress', () => {
   });
 
   it('searches for anything else', () => {
-    expect(resolveAddress('cat videos')).toBe('https://duckduckgo.com/?q=cat%20videos');
-    expect(resolveAddress('weather')).toBe('https://duckduckgo.com/?q=weather');
-    expect(resolveAddress('what is 3.5')).toBe('https://duckduckgo.com/?q=what%20is%203.5');
-    expect(resolveAddress('v1.2')).toBe('https://duckduckgo.com/?q=v1.2');
-    expect(resolveAddress('someone@example.com')).toBe('https://duckduckgo.com/?q=someone%40example.com');
+    expect(resolveAddress('cat videos')).toBe('https://www.google.com/search?q=cat%20videos');
+    expect(resolveAddress('weather')).toBe('https://www.google.com/search?q=weather');
+    expect(resolveAddress('what is 3.5')).toBe('https://www.google.com/search?q=what%20is%203.5');
+    expect(resolveAddress('v1.2')).toBe('https://www.google.com/search?q=v1.2');
+    expect(resolveAddress('someone@example.com')).toBe('https://www.google.com/search?q=someone%40example.com');
   });
 
   it('never opens another scheme: it is searched for instead', () => {
     for (const text of ['javascript:alert(1)', 'file:///etc/passwd', 'data:text/html,<p>x</p>', 'chrome://settings', 'about:blank']) {
-      expect(resolveAddress(text)!.startsWith('https://duckduckgo.com/?q='), text).toBe(true);
+      expect(resolveAddress(text)!.startsWith('https://www.google.com/search?q='), text).toBe(true);
     }
   });
 
   it('never produces an address with a user name in it', () => {
-    expect(resolveAddress('user:pw@example.com')!.startsWith('https://duckduckgo.com/?q=')).toBe(true);
+    expect(resolveAddress('user:pw@example.com')!.startsWith('https://www.google.com/search?q=')).toBe(true);
   });
 
   it('uses the configured search address, and the built-in one when that is unusable', () => {

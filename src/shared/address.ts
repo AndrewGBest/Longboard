@@ -1,8 +1,8 @@
 // Turns what a person typed into "go to address or search" into an address.
 // Pure, so every rule is unit-tested.
 
-/** `%s` is replaced by the words searched for. See DECISIONS.md for why this engine. */
-export const DEFAULT_SEARCH = 'https://duckduckgo.com/?q=%s';
+/** `%s` is replaced by the words searched for. Google by Andrew's decision (DECISIONS.md, 2026-11-18); `"search"` in config.json changes it. */
+export const DEFAULT_SEARCH = 'https://www.google.com/search?q=%s';
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 /** A host name: labels joined by dots, ending in a label that starts with a letter. */
