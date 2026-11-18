@@ -59,4 +59,5 @@ GPL-3.0 for the application. Profiles in the shared catalogue are data and are
 CC0-1.0, free for anyone to reuse.
 
 Longboard is an independent project. It is not affiliated with any website or
-streaming service it can display.
+streaming service it can display. It does not provide, unlock or bypass access
+to any content and does not remove or work around DRM.

@@ -56,6 +56,15 @@ could not read. Before a public release: look both up on the USPTO register,
 search the Canadian register, and be ready to rename. Sources are in
 DECISIONS.md.
 
+## The notice
+
+Shown on the About panel and in the README of every release, word for word
+(a test compares them):
+
+> Longboard is an independent project. It is not affiliated with any website or
+> streaming service it can display. It does not provide, unlock or bypass access
+> to any content and does not remove or work around DRM.
+
 ## Rights holders
 
 If you represent a rights holder and have a concern, open an issue on the
