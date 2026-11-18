@@ -11,6 +11,15 @@ and whether pointer mode comes up. It cannot tell whether the highlight went
 somewhere *sensible*, or whether the site is pleasant to use from a couch.
 That still needs a person with a remote, and has not been done.
 
+## 2026-11-18, third run (commit e52c2af)
+
+After the fixes from the two reviews. Every count is the same as in the
+second run below, bar one press on www.bbc.com (9, was 10), so the table is
+not repeated. Two runs agreeing makes it more likely that the differences
+between the first and second runs came from changes here (the held-key and
+scrolling changes are the candidates) than from the sites, but nobody has
+looked at which.
+
 ## 2026-11-18, second run (commit 388f736)
 
 Same machine and settings, after the changes to held keys, profiles that
