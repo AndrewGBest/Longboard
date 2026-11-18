@@ -384,6 +384,11 @@ describe('the profile store', () => {
     // A real answer is kept.
     store.answer(choice.profile, true, true);
     expect(new ProfileStore(folders(), () => undefined).choose('https://example.com/')).toMatchObject({ kind: 'use', source: 'imported' });
+    // Another file under the same name and version, saying something else, was not what was agreed to.
+    put(join(usb, 'given.longboard-profile.json'), base({ id: 'given', focus: { include: ['.something-else'] } }));
+    const again = new ProfileStore(folders(), () => undefined);
+    again.importFrom([usb]);
+    expect(again.choose('https://example.com/').kind).toBe('ask');
   });
 
   it('exports a profile as one file that validates', () => {

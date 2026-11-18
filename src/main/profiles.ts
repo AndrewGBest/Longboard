@@ -1,6 +1,7 @@
 // The profile store: the profiles on this machine, where each came from, and
 // which one applies to an address. Every file is validated when it is read
 // and a file with any problem is not used (shared/profile.ts).
+import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chooseProfile, exportName, importKey, validateProfile, type Profile, type ProfileChoice, type ProfileSource, type StoredProfile } from '../shared/profile';
@@ -49,6 +50,15 @@ function readProfile(file: string, note: (line: string) => void): Profile | null
   return profile;
 }
 
+/**
+ * What an answer about an imported profile is kept under: its name and
+ * version, and a fingerprint of everything in it. A yes is a yes to that
+ * file's contents; another file calling itself the same thing is asked about.
+ */
+export function answerKey(profile: Profile): string {
+  return `${importKey(profile)}#${createHash('sha256').update(JSON.stringify(profile)).digest('hex').slice(0, 32)}`;
+}
+
 export class ProfileStore {
   private stored: StoredProfile[] = [];
   private answers: Record<string, 'yes' | 'no'> = {};
@@ -89,12 +99,12 @@ export class ProfileStore {
   choose(url: string): ProfileChoice {
     const answers = { ...this.answers };
     for (const key of this.later) answers[key] ??= 'no';
-    return chooseProfile(url, this.stored, answers);
+    return chooseProfile(url, this.stored, answers, answerKey);
   }
 
   /** Records the answer to "use this imported profile?". `remember` false keeps it for this run only. */
   answer(profile: Profile, use: boolean, remember: boolean): void {
-    const key = importKey(profile);
+    const key = answerKey(profile);
     if (!remember) {
       if (!use) this.later.add(key);
       return;

@@ -76,6 +76,16 @@ const site = await serveFixtures({
   },
   '/offers/landing': (_req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>should never load</title>'),
 });
+/**
+ * Says yes to the question on screen. The highlight starts on the answer
+ * that changes nothing, and a yes in the question's first moments is not
+ * counted, so this waits, moves up to the yes, and presses OK.
+ */
+async function sayYes(chrome, wait = 500) {
+  await sleep(750);
+  await chrome.press('ArrowUp');
+  await chrome.press('Enter', wait);
+}
 const logs = [];
 
 /** Runs one scenario with its own app; a crash in it fails the run and the app's log is kept. */
@@ -205,6 +215,9 @@ await scenario('a page driven with the arrows', { url: `${site.origin}/home.html
   await evaluate('window.open("file:///etc/passwd"); 0');
   await sleep(400);
   check('a file address does not open', await evaluate('location.href'), `${site.origin}/home.html`);
+  await evaluate('window.__w = window.open("about:blank"); window.open(""); 0');
+  await sleep(400);
+  check('an empty window a script means to fill in later does not blank the site', [await evaluate('location.href'), await evaluate('__w')], [`${site.origin}/home.html`, null]);
   check('a kind of access Longboard never gives is refused without a question', await evaluate('navigator.permissions.query({ name: "idle-detection" }).then((p) => p.state, () => "refused")').then((v) => v !== 'granted'), true);
 
   // Quit is handled by the shell, so it must work whatever the page is doing.
@@ -225,13 +238,12 @@ await scenario('a site asks to be allowed something', { url: `${site.origin}/hom
   await evaluate(locate);
   check('asking for the location puts a question on screen', await asked(), 'Allow this?');
   check('which says who is asking and for what, in plain words', (await question()).includes('127.0.0.1 wants to know where this device is.'), true);
-  check('with the highlight on Allow, and the page still waiting', [await chrome.focused(), await evaluate('Promise.race([__geo, new Promise((r) => setTimeout(() => r("waiting"), 300))])')], ['prompt-allow', 'waiting']);
+  check('with the highlight on "Do not allow", and the page still waiting', [await chrome.focused(), await evaluate('Promise.race([__geo, new Promise((r) => setTimeout(() => r("waiting"), 300))])')], ['prompt-deny', 'waiting']);
   await chrome.press('Escape', 500);
   check('Back refuses this once and remembers nothing', [await evaluate('__geo'), existsSync(join(app.userData, 'sites.json'))], ['refused', false]);
 
   await evaluate(locate);
   await asked();
-  await chrome.press('ArrowDown');
   await chrome.press('Enter', 500);
   check('"Do not allow" refuses and is remembered for the site', [await evaluate('__geo'), await answers()], ['refused', { location: 'denied' }]);
   await evaluate(locate);
@@ -242,6 +254,10 @@ await scenario('a site asks to be allowed something', { url: `${site.origin}/hom
   await evaluate('window.__cam = navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((s) => { s.getTracks().forEach((t) => t.stop()); return "allowed"; }, (e) => e.name); 0');
   await asked();
   check('camera and microphone are asked about together', (await question()).includes('127.0.0.1 wants to use the camera and use the microphone.'), true);
+  await chrome.press('ArrowUp');
+  await chrome.press('Enter', 400);
+  check('a yes pressed the moment the question appears is not counted', [await chrome.evaluate('document.querySelector("#panel h1")?.textContent'), await answers()], ['Allow this?', { location: 'denied' }]);
+  await sleep(700);
   await chrome.press('Enter', 800);
   check('"Allow" gives the page what it asked for, and is remembered', [await evaluate('__cam'), await answers()], ['allowed', { location: 'denied', camera: 'granted', microphone: 'granted' }]);
   await evaluate('window.__cam = navigator.mediaDevices.getUserMedia({ video: true }).then((s) => { s.getTracks().forEach((t) => t.stop()); return "allowed"; }, (e) => e.name); 0');
@@ -250,7 +266,7 @@ await scenario('a site asks to be allowed something', { url: `${site.origin}/hom
 
   await evaluate('window.__note = Notification.requestPermission(); 0');
   await asked();
-  await chrome.press('Enter', 500);
+  await sayYes(chrome);
   check('notifications are asked about and can be allowed', await evaluate('__note'), 'granted');
 
   // The menu shows the answers and can forget them.
@@ -277,16 +293,15 @@ await scenario('downloads', { url: `${site.origin}/home.html` }, async (app) => 
   await page.evaluate('location.href = "/file.bin"; 0');
   check('a download is asked about first', await asked(), 'Download this file?');
   const text = await chrome.evaluate('document.getElementById("panel").textContent');
-  check('the question names the file, its size, where it is from and where it will go', [text.includes('x.bin (4 bytes), from 127.0.0.1.'), text.includes(`It will be saved in ${folder}.`)], [true, true]);
+  check('the question names the file, its size, where it is from and where it will go', [text.includes('x.bin4 bytes, from 127.0.0.1.'), text.includes(`It will be saved in ${folder}.`)], [true, true]);
   check('nothing is saved before the answer', existsSync(join(folder, 'x.bin')), false);
-  await chrome.press('Enter', 300);
+  await sayYes(chrome, 300);
   check('"Download" saves it and says so', await until(() => page.toastText(), (t) => /^Saved/.test(t ?? ''), 60), `Saved x.bin in ${folder}`);
   check('the file is there, whole, and the page did not go anywhere', [existsSync(join(folder, 'x.bin')) && readFileSync(join(folder, 'x.bin'), 'utf8'), await page.evaluate('location.pathname')], ['data', '/home.html']);
 
   await page.evaluate('location.href = "/file.bin"; 0');
   await asked();
   check('the same file again gets a new name, and writes over nothing', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('x (2).bin'), true);
-  await chrome.press('ArrowDown');
   await chrome.press('Enter', 600);
   check('"Cancel" saves nothing', [existsSync(join(folder, 'x (2).bin')), readFileSync(join(folder, 'x.bin'), 'utf8')], [false, 'data']);
 
@@ -300,13 +315,13 @@ await scenario('downloads', { url: `${site.origin}/home.html` }, async (app) => 
   // A file that only exists in answer to a form.
   await page.evaluate('(() => { const f = document.createElement("form"); f.method = "post"; f.action = "/made.bin"; document.body.append(f); f.submit(); f.remove(); })(); 0');
   await asked();
-  await chrome.press('Enter', 300);
+  await sayYes(chrome, 300);
   check('a file made in answer to a form is saved, and the form was sent once', [await until(() => existsSync(join(folder, 'made.bin')) && readFileSync(join(folder, 'made.bin'), 'utf8'), (v) => v === 'form', 60), asks.made], ['form', 1]);
 
   // A file that takes its time, and the list of downloads.
   await page.evaluate('location.href = "/slow.bin"; 0');
   await asked();
-  await chrome.press('Enter', 300);
+  await sayYes(chrome, 300);
   check('a slow download says it has started', await until(() => page.toastText(), (t) => /^Downloading/.test(t ?? ''), 60), 'Downloading slow.bin');
   await page.press('ContextMenu', 500);
   check('the menu has a Downloads entry saying one is under way', await chrome.evaluate('document.getElementById("menu-downloads")?.textContent'), 'Downloads (1 under way)');
@@ -321,7 +336,7 @@ await scenario('downloads', { url: `${site.origin}/home.html` }, async (app) => 
 
   await page.evaluate('location.href = "/slow.bin"; 0');
   await asked();
-  await chrome.press('Enter', 500);
+  await sayYes(chrome);
   await page.press('ContextMenu', 500);
   for (let i = 0; i < 16 && (await chrome.focused()) !== 'menu-downloads'; i++) await chrome.press('ArrowDown');
   await chrome.press('Enter', 500);
@@ -832,11 +847,11 @@ await scenario(
     const asked = await until(() => chrome.evaluate('document.querySelector("#panel h1")?.textContent'), (t) => t === 'Use this profile?', 60);
     check('an imported profile is not used silently: the next visit asks', asked, 'Use this profile?');
     check('the question says what it is and which sites it applies to', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('"Given Profile" (version 2.0.0)') && (await chrome.evaluate('document.getElementById("panel").textContent')).includes('profile.test'), true);
-    check('with the highlight on the answer', await chrome.focused(), 'prompt-allow');
-    await chrome.press('Enter', 1500);
+    check('with the highlight on the answer that changes nothing', await chrome.focused(), 'prompt-deny');
+    await sayYes(chrome, 1500);
     await page.press('ContextMenu', 600);
     check('after "Use it" the site is driven by the imported profile, and the menu says nobody reviewed it', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Profile: Given Profile (imported, not reviewed)'), true);
-    check('and the answer is remembered', JSON.parse(readFileSync(join(app.userData, 'imported-answers.json'), 'utf8')), { 'given-profile@2.0.0': 'yes' });
+    check('and the answer is remembered, for that file and no other', Object.entries(JSON.parse(readFileSync(join(app.userData, 'imported-answers.json'), 'utf8'))).map(([k, v]) => [/^given-profile@2\.0\.0#[0-9a-f]{32}$/.test(k), v]), [[true, 'yes']]);
 
     // Home shows what Longboard has for a site.
     for (let i = 0; i < 6 && (await chrome.focused()) !== 'menu-home'; i++) await chrome.press('ArrowUp');
@@ -993,8 +1008,9 @@ await scenario('a site added as an app', { url: `${site.origin}/home.html` }, as
   await reach('menu-remove-app');
   await chrome.press('Enter', 900);
   check('removing the app takes away the tile, the entry and the icon', [JSON.parse(readFileSync(join(app.userData, 'apps.json'), 'utf8')).apps, existsSync(entryFile), existsSync(iconFile)], [[], false, false]);
-  const shared = await app.frontPage(site.origin);
-  check('and returns to the shared session, which still has what it stored', await shared?.evaluate('document.cookie'), 'who=shared');
+  check('and goes Home, since the app that was in front is gone', [await chrome.evaluate('document.visibilityState'), await chrome.evaluate('!!document.getElementById("home")'), await chrome.evaluate('document.getElementById("panel")')], ['visible', true, null]);
+  const shared = await app.page(site.origin);
+  check('the shared session still has what it stored', await shared?.evaluate('document.cookie'), 'who=shared');
 });
 
 await scenario(

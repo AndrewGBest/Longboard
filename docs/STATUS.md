@@ -47,13 +47,19 @@ one were brought up to date in place. What changed:
 
 - A site's icon is no longer decoded by the shell. Longboard's own
   sandboxed screen draws it and hands back a PNG (DECISIONS.md).
+- An independent review of the shell (a second agent, reading only) found
+  nine problems; all but one are fixed and tested. The most serious: a page
+  could time a question so the next OK press said yes. Questions now start
+  on "no" and ignore a yes in their first moments. The list is in
+  DECISIONS.md. Left as it is: an access grant is per host name, so
+  `https://site:8443` shares the answer given to `https://site`.
 - **Ad blocking is still not started.** The agent began on it after a
   second "keep going", was stopped by the permission system, and undid the
   one thing it had done (installing the library). It needs Andrew to say
   plainly that phase 5 may start. The licence findings are in DECISIONS.md.
 
 Verified by `npm run check` (unit tests, 351 of them) and the end-to-end run
-(22 scenarios, 250 checks), which has new checks for each item above. Not verified: any
+(22 scenarios, 253 checks), which has new checks for each item above. Not verified: any
 of it by a person on a TV; a download bigger than 200 KB.
 
 ## 2026-11-18, later: phases 0 to 4 built by the agent working alone
@@ -84,7 +90,7 @@ it was checked by a person, with a remote, on a TV.**
   fetcher, the guard, the outline sanitiser), the build, and the rule checks.
 - `xvfb-run -a npm run e2e`: the real app, always with `--automation`, driven
   over the DevTools protocol against invented fixture pages served from this
-  machine. 22 scenarios, 250 checks. They cover: arrows on a grid of
+  machine. 22 scenarios, 253 checks. They cover: arrows on a grid of
   cards; the on-screen keyboard; pop-ups; refused addresses, downloads and
   permissions; Home, the address field, the menu, zoom and Back; searching;
   notices for blocked and unreachable pages; a full-screen video with the

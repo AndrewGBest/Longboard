@@ -314,7 +314,7 @@ export type ProfileChoice =
  * profile is never used silently: until it has an answer the choice is "ask",
  * and one that was refused is passed over.
  */
-export function chooseProfile(url: string, stored: readonly StoredProfile[], answers: Readonly<Record<string, 'yes' | 'no'>>): ProfileChoice {
+export function chooseProfile(url: string, stored: readonly StoredProfile[], answers: Readonly<Record<string, 'yes' | 'no'>>, keyOf: (profile: Profile) => string = importKey): ProfileChoice {
   const best = (source: ProfileSource, allow: (p: Profile) => boolean): Profile | null => {
     let pick: Profile | null = null;
     let score = -1;
@@ -337,15 +337,19 @@ export function chooseProfile(url: string, stored: readonly StoredProfile[], ans
   };
   const local = best('local', () => true);
   if (local) return { kind: 'use', profile: local, source: 'local' };
-  const agreed = best('imported', (p) => answers[importKey(p)] === 'yes');
+  const agreed = best('imported', (p) => answers[keyOf(p)] === 'yes');
   if (agreed) return { kind: 'use', profile: agreed, source: 'imported' };
-  const pending = best('imported', (p) => answers[importKey(p)] === undefined);
+  const pending = best('imported', (p) => answers[keyOf(p)] === undefined);
   if (pending) return { kind: 'ask', profile: pending, fallback: reviewed() };
   const fallback = reviewed();
   return fallback ? { kind: 'use', ...fallback } : { kind: 'none' };
 }
 
-/** What an answer about an imported profile is stored under: a new version is a new question. */
+/**
+ * The name an imported profile goes by: a new version is a new question.
+ * The shell adds a fingerprint of the whole profile to this (main/profiles.ts),
+ * so a different file under the same name and version is a new question too.
+ */
 export function importKey(profile: Profile): string {
   return `${profile.id}@${profile.version}`;
 }

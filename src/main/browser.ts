@@ -37,7 +37,7 @@ import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeL
 import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
 import { canvasOf, type Profile, type ProfileSource } from '../shared/profile';
 import { hoverPoint, pageBounds, tvZoom } from './zoom';
-import { ICON_SIZE, iconDataUrl, pngFromDataUrl } from '../shared/icons';
+import { ICON_SIZE, iconDataUrl, MAX_ICON_BYTES, pngFromDataUrl } from '../shared/icons';
 
 export interface BrowserDeps {
   options: { dev: boolean; automation: boolean };
@@ -61,8 +61,12 @@ export interface BrowserDeps {
 
 /** Share of the window's width the menu panel takes over a website. */
 const PANEL_WIDTH = 0.38;
+/** How long a question has to have been on screen before "yes" is accepted. */
+const PROMPT_SETTLE_MS = 600;
 /** How long a Home tile's icon is used before it is fetched from the site again. */
 const ICON_KEPT_MS = 7 * 24 * 60 * 60 * 1000;
+/** How long a site is given to send its icon. */
+const ICON_WAIT_MS = 8000;
 const isNotice = (url: string): boolean => url.startsWith('data:') || url === 'about:blank' || url === '';
 
 export function createBrowser(deps: BrowserDeps): Browser {
@@ -281,9 +285,32 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   const active = (): WebContents => (surface === 'home' || panel ? chrome : page);
 
+  /** When the question now on screen was put there. */
+  let promptShownAt = 0;
+  let shownPanel: Panel | null = null;
+  /**
+   * A question that is no longer on screen cannot be answered, so it is
+   * answered "not now": the site is refused this once, the file is dropped,
+   * the profile is asked about another time. Left waiting, it would refuse
+   * every later question until Longboard was closed.
+   */
+  const dropQuestion = (): void => {
+    const asked = pending;
+    if (!asked) return;
+    pending = null;
+    if (asked.what === 'permission') for (const answer of asked.answer) answer(false);
+    else if (asked.what === 'download') {
+      if (!asked.download.arrived) asked.download.item.cancel();
+      rmSync(asked.download.temp, { force: true });
+    }
+  };
+
   /** Sizes and shows the views for the current state, and gives the keys to the one in front. */
   const layout = (): void => {
     if (win.isDestroyed()) return;
+    if (pending && panel !== 'prompt') dropQuestion();
+    if (panel === 'prompt' && shownPanel !== 'prompt') promptShownAt = Date.now();
+    shownPanel = panel;
     const [width = 0, height = 0] = win.getContentSize();
     for (const view of views.values()) {
       view.setBounds(view === pageView ? pageArea() : { x: 0, y: 0, width, height });
@@ -379,6 +406,12 @@ export function createBrowser(deps: BrowserDeps): Browser {
    * for the whole run; an app's own view is closed when another session's
    * takes its place.
    */
+  /** While a video plays the display is kept awake; this lets it sleep again. */
+  const releaseDisplay = (): void => {
+    if (blocker === undefined) return;
+    powerSaveBlocker.stop(blocker);
+    blocker = undefined;
+  };
   const usePartition = (next: string): void => {
     if (next === partition) return;
     setPointer(false);
@@ -389,6 +422,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       page.setAudioMuted(true);
     }
     pageView.setVisible(false);
+    releaseDisplay();
     const leaving = partition;
     const left = pageView;
     pageView = views.get(next) ?? makeView(next);
@@ -527,7 +561,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
   }));
   // No pop-up windows: a link that asks for one opens in the same view.
   eachPage((wc) => wc.setWindowOpenHandler(({ url }) => {
-    if (wc === page && allowed(url)) void page.loadURL(url).catch(() => undefined);
+    // An empty window a script means to fill in later is refused outright:
+    // opened in this view it would put a blank page in place of the site.
+    if (wc === page && allowed(url) && !isNotice(url)) void page.loadURL(url).catch(() => undefined);
     return { action: 'deny' };
   }));
 
@@ -795,7 +831,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     const url = details.requestingUrl || wc.getURL();
     const key = siteKey(url);
     const mediaTypes = 'mediaTypes' in details && Array.isArray(details.mediaTypes) ? details.mediaTypes : [];
-    const decision = permissionDecision(permission, key ? sites[key] : undefined, mediaTypes);
+    // An answer given to a site counts only for its pages loaded securely.
+    const decision = permissionDecision(permission, key && mayAsk(url) ? sites[key] : undefined, mediaTypes);
     if (decision.kind !== 'ask') {
       callback(decision.kind === 'grant');
       return;
@@ -817,7 +854,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   eachSession((web) => web.setPermissionCheckHandler((_wc, permission, origin, details) => {
     const key = siteKey(origin);
     const mediaType = details.mediaType === 'video' || details.mediaType === 'audio' ? [details.mediaType] : [];
-    return hasPermission(permission, key ? sites[key] : undefined, mediaType);
+    return hasPermission(permission, key && mayAsk(origin) ? sites[key] : undefined, mediaType);
   }));
   const answerPrompt = (allow: boolean, remember: boolean): void => {
     const asked = pending;
@@ -1325,12 +1362,38 @@ export function createBrowser(deps: BrowserDeps): Browser {
       });
       chrome.send('longboard:icon', { id, dataUrl, size: ICON_SIZE });
     });
+  /** A site's icon as the site sends it: given up on after a few seconds or when it is bigger than an icon could be. */
+  const fetchIcon = async (url: string, from: Electron.Session): Promise<{ body: Buffer; type: string | null } | null> => {
+    const stop = new AbortController();
+    const timer = setTimeout(() => stop.abort(), ICON_WAIT_MS);
+    try {
+      const response = await from.fetch(url, { cache: 'force-cache', signal: stop.signal });
+      if (!response.ok || !response.body || Number(response.headers.get('content-length') ?? 0) > MAX_ICON_BYTES) return null;
+      const parts: Buffer[] = [];
+      let size = 0;
+      const reader = response.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > MAX_ICON_BYTES) {
+          stop.abort();
+          return null;
+        }
+        parts.push(Buffer.from(value));
+      }
+      return { body: Buffer.concat(parts), type: response.headers.get('content-type') };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
   const saveIcon = async (id: string, candidates: readonly string[], from: Electron.Session): Promise<boolean> => {
     for (const url of candidates) {
       try {
-        const response = await from.fetch(url, { cache: 'force-cache' });
-        if (!response.ok) continue;
-        const dataUrl = iconDataUrl(Buffer.from(await response.arrayBuffer()), response.headers.get('content-type'));
+        const bytes = await fetchIcon(url, from);
+        const dataUrl = bytes ? iconDataUrl(bytes.body, bytes.type) : null;
         const png = dataUrl ? await drawIcon(dataUrl) : null;
         if (!png) continue;
         mkdirSync(iconsDir, { recursive: true });
@@ -1360,7 +1423,15 @@ export function createBrowser(deps: BrowserDeps): Browser {
     apps = added.list;
     saveApps();
     const item = added.app;
+    // The panel goes at once; the icon may take a moment to come.
+    layout();
     await saveIcon(item.id, favicons, page.session);
+    if (!apps.some((a) => a.id === item.id)) {
+      // Removed again while its icon was on the way.
+      rmSync(join(iconsDir, `${item.id}.png`), { force: true });
+      iconData.delete(item.id);
+      return;
+    }
     let said = `Added "${item.name}" to Home`;
     if (item.launcher) said += writeAppLauncher(item) ? " and to the TV's app list" : ". It could not be put in the TV's app list";
     if (item.ownSession) said += '. Open it from Home to use its own sign-ins';
@@ -1377,7 +1448,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
     iconData.delete(id);
     // What the app kept for itself goes with it.
     if (item.ownSession) {
-      if (partition === appPartition(item)) usePartition('');
+      if (partition === appPartition(item)) {
+        // Its view goes with it, so there is nothing left to show but Home.
+        usePartition('');
+        surface = 'home';
+        panel = null;
+        layout();
+      }
       void session.fromPartition(appPartition(item)).clearStorageData().catch(() => undefined);
     }
     notify(`Removed the app "${item.name}"`);
@@ -1539,6 +1616,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
         if (MENU_ACTIONS.includes(msg.action)) menu(msg.action);
         break;
       case 'answer':
+        // A yes in the first moments of a question is not counted: a page can
+        // time its request for when OK is about to be pressed for something else.
+        if (msg.allow === true && Date.now() - promptShownAt < PROMPT_SETTLE_MS) break;
         // Back on the question is "not now": asked again another time.
         answerPrompt(msg.allow === true, msg.remember !== false);
         break;

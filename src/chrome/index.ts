@@ -276,7 +276,9 @@ function promptPanel(s: ChromeState): Node[] {
   if (s.prompt?.what === 'download') {
     return [
       el('h1', { text: 'Download this file?' }),
-      el('p', { text: `${s.prompt.name}${s.prompt.size ? ` (${s.prompt.size})` : ''}, from ${s.prompt.site}.` }),
+      // The name is the site's to choose, so it stands apart from what Longboard says about it.
+      el('p', { cls: 'where', text: s.prompt.name }),
+      el('p', { text: `${s.prompt.size ? `${s.prompt.size}, from` : 'From'} ${s.prompt.site}.` }),
       el('p', { text: `It will be saved in ${s.prompt.folder}. Longboard does not open downloaded files.` }),
       button('prompt-allow', 'Download', answer(true)),
       button('prompt-deny', 'Cancel', answer(false)),
@@ -317,7 +319,9 @@ function render(): void {
   if (inScope) layer.focus(same);
   else if (panel) {
     // Not the text field: landing on it would put the keyboard up before anything was asked for.
-    const first = [...panel.querySelectorAll('button')].find((b) => !b.disabled);
+    // A question starts on the answer that changes nothing: a page can time
+    // its request for when OK is about to be pressed for something else.
+    const first = document.getElementById('prompt-deny') ?? [...panel.querySelectorAll('button')].find((b) => !b.disabled);
     if (first) layer.focus(first);
   } else {
     const first = document.querySelector('.tiles button') ?? document.getElementById('go');

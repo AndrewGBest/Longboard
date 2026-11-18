@@ -22,7 +22,7 @@ function guardFrame(): void {
 const start = (): void => {
   if (window.top !== window) return;
   // Asked for when the page starts, so the shell can choose by the page's address.
-  const boot = (ipcRenderer.sendSync('longboard:boot') as BootData | null) ?? { options: { dev: false, automation: false }, profile: null };
+  const boot = (ipcRenderer.sendSync('longboard:boot') as BootData | null) ?? { options: { dev: false, automation: process.argv.includes('--longboard-automation') }, profile: null };
   const send = (msg: BridgeMessage): void => ipcRenderer.send('longboard:msg', msg);
   const layer: Layer = startLayer({
     doc: document,

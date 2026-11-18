@@ -143,7 +143,10 @@ that list too; Andrew asked for them later the same day and they are in
 ### 4.7 Questions Longboard asks **[Decision, 2026-11-18]**
 
 Longboard asks before a site is given something, and before a file is saved.
-Each question is a panel with two buttons, driven like everything else.
+Each question is a panel with two buttons, driven like everything else. The
+highlight starts on the answer that changes nothing, and a yes in the first
+moments is not counted, so a page cannot time a question to catch a press
+meant for something else.
 
 - **A site wants access**: the camera, the microphone, the device's
   location, notifications, reading the clipboard, MIDI instruments, or the
