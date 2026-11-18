@@ -3,6 +3,25 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: protected playback is not asked about on Linux
+
+Measured by the agent, not chosen. A fixture page asked the browser for the
+Widevine key system the standard way (`requestMediaKeySystemAccess`). It was
+granted at once and Longboard's permission handler was never called: on
+Linux the embedded Chromium does not treat this as a permission, as desktop
+Chrome does not. The "Allow protected video?" question is therefore never
+shown on Linux. The policy and the question stay in the code for systems
+where the browser does ask.
+
+Two consequences Andrew should know about:
+
+- On Linux every https site can use protected playback, as in Chrome.
+  Longboard cannot make that a question without getting between a site and
+  the browser's playback interface, which Hard rules 2 and 4 rule out.
+- The ad-blocking default for "sites granted protected playback"
+  (DESIGN.md section 5, the agent's own addition) has nothing to go on
+  here. Phase 5 will need another sign, or that row should be dropped.
+
 ## 2026-11-18: phase 4 choices made by the agent (web apps)
 
 All **assumptions by the agent**, made while working alone. The on-TV profile

@@ -31,7 +31,7 @@ it was checked by a person, with a remote, on a TV.**
   fetcher, the guard, the outline sanitiser), the build, and the rule checks.
 - `xvfb-run -a npm run e2e`: the real app, always with `--automation`, driven
   over the DevTools protocol against invented fixture pages served from this
-  machine. 18 scenarios, 192 checks. They cover: arrows on a grid of
+  machine. 18 scenarios, 190 checks. They cover: arrows on a grid of
   cards; the on-screen keyboard; pop-ups; refused addresses, downloads and
   permissions; Home, the address field, the menu, zoom and Back; searching;
   notices for blocked and unreachable pages; a full-screen video with the
@@ -62,9 +62,9 @@ it was checked by a person, with a remote, on a TV.**
   A controller could not be simulated here at all: every gamepad code path
   is covered only by unit tests of its pure parts.
 - **Protected (DRM) playback.** The playback component downloads and reports
-  ready here. No protected video was played. Whether the "allow protected
-  video?" question is ever raised on Linux is unknown: the code and its
-  policy are tested, the browser asking is not.
+  ready here, and a page that asks for the Widevine key system is given it.
+  No protected video was played. The "allow protected video?" question is
+  never raised on Linux: the browser does not ask (DECISIONS.md).
 - **The Prime Video profile in Longboard against the live site.** It is a
   conversion of selectors that worked in Tropic Video, checked against the
   same outlines. Nobody has signed in with Longboard.
@@ -72,9 +72,7 @@ it was checked by a person, with a remote, on a TV.**
 - **The app list entry on a real desktop.** The file is written where the
   desktop looks and its contents are tested; no desktop has been seen to
   show it or start it. Inside a Flatpak it will not work as written.
-- Packaging: `npm run dist` has not been run for Longboard. The icon is still
-  Tropic Video's (original artwork of that project, so no rule is broken,
-  but it is the wrong picture).
+- Packaging: see below.
 
 ### Known gaps and rough edges
 
