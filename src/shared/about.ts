@@ -6,13 +6,14 @@ export const NOTICE =
 
 export const HELP: readonly (readonly [string, string])[] = [
   ['Arrows or D-pad', 'Move'],
-  ['Enter or A', 'Select; play or pause in the player'],
-  ['Backspace, Escape, Back or B', 'Back'],
-  ['Up or Down in the player', "Show the player's controls"],
+  ['OK, Enter or A', 'Select; play or pause on a full-screen video'],
+  ['Back, Backspace, Escape or B', 'Back'],
+  ['Menu key, Ctrl+O or Start', 'Open or close the menu'],
+  ['F2 or right stick click', 'Pointer mode on or off'],
   ['Space or X', 'Play or pause'],
-  ['Left, Right, LB or RB in the player', 'Skip back or forward'],
-  ['/ or Y', 'Search'],
-  ['Ctrl+O, Menu, Info or right stick click', 'This panel'],
+  ['Left, Right, LB or RB on a video', 'Skip back or forward'],
+  ['/ or Y', "Go to the page's search field"],
+  ['Ctrl+Shift+D', 'Save a page outline (structure only)'],
   ['Ctrl+Q', 'Quit'],
 ];
 

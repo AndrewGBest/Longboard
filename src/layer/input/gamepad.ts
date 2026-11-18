@@ -67,8 +67,10 @@ export function buttonToAction(button: number, mode: Mode, overrides: Readonly<R
       return { type: 'seek', seconds: -SEEK_STEP };
     case Btn.RB:
       return { type: 'seek', seconds: SEEK_STEP };
+    case Btn.Start:
+      return { type: 'menu' };
     case Btn.R3:
-      return { type: 'settings' };
+      return { type: 'pointer' };
     default:
       return null;
   }

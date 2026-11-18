@@ -5,18 +5,20 @@
 //   {
 //     "zoom": 2,
 //     "hardwareDecode": true,
-//     "keys": { "F1": "search", "ContextMenu": "about", "MediaStop": "back", "Ctrl+h": "none" },
-//     "buttons": { "8": "about", "9": "playPause" }
+//     "search": "https://duckduckgo.com/?q=%s",
+//     "keys": { "F1": "search", "F9": "menu", "MediaStop": "back", "Ctrl+h": "none" },
+//     "buttons": { "8": "pointer", "9": "playPause" }
 //   }
 //
 // A key is a KeyboardEvent.key value (what a remote sends: "MediaStop",
 // "F5", "ContextMenu"...), optionally with "Ctrl+" in front. A mapping here
 // wins over the built-in one for that key.
 import type { Action } from './actions';
+import { isSearchTemplate } from './address';
 
 export const ACTION_NAMES = [
   'up', 'down', 'left', 'right', 'select', 'back', 'playPause',
-  'seekBack', 'seekForward', 'search', 'about', 'quit', 'none',
+  'seekBack', 'seekForward', 'search', 'menu', 'pointer', 'quit', 'none',
 ] as const;
 export type ActionName = (typeof ACTION_NAMES)[number];
 
@@ -25,6 +27,8 @@ export interface UserConfig {
   zoom?: number;
   /** Ask the browser to decode video on the graphics chip. Off unless set; see the README. */
   hardwareDecode?: boolean;
+  /** Where typed words are searched for: an https address with %s where the words go. */
+  search?: string;
   /** Key (as written by the user, "Ctrl+" normalised) to action. */
   keys: Record<string, ActionName>;
   /** Gamepad button number (standard mapping, 0 to 16) to action. */
@@ -61,6 +65,11 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     else problems.push('"hardwareDecode" must be true or false');
   }
 
+  if (r['search'] !== undefined) {
+    if (isSearchTemplate(r['search'])) config.search = r['search'];
+    else problems.push('"search" must be an https address containing %s once');
+  }
+
   if (r['keys'] !== undefined) {
     if (typeof r['keys'] !== 'object' || r['keys'] === null || Array.isArray(r['keys'])) {
       problems.push('"keys" must be an object of key: action');
@@ -90,7 +99,7 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     }
   }
   for (const name of Object.keys(r)) {
-    if (name !== 'zoom' && name !== 'keys' && name !== 'buttons' && name !== 'hardwareDecode') problems.push(`unknown setting "${name.slice(0, 40)}"`);
+    if (name !== 'zoom' && name !== 'keys' && name !== 'buttons' && name !== 'hardwareDecode' && name !== 'search') problems.push(`unknown setting "${name.slice(0, 40)}"`);
   }
   return { config, problems };
 }
@@ -117,8 +126,10 @@ export function actionFor(name: ActionName): Action | null {
       return { type: 'seek', seconds: SEEK_STEP };
     case 'search':
       return { type: 'search' };
-    case 'about':
-      return { type: 'settings' };
+    case 'menu':
+      return { type: 'menu' };
+    case 'pointer':
+      return { type: 'pointer' };
     case 'quit':
       return { type: 'exit' };
     case 'none':

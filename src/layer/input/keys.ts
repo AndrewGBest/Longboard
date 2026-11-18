@@ -35,7 +35,7 @@ export function keyToAction(e: KeyLike, mode: Mode, overrides: Readonly<Record<s
       case 'q':
         return { type: 'exit' };
       case 'o':
-        return { type: 'settings' };
+        return { type: 'menu' };
       case 'd':
         return e.shiftKey ? { type: 'diagnostics' } : null;
       default:
@@ -53,6 +53,12 @@ export function keyToAction(e: KeyLike, mode: Mode, overrides: Readonly<Record<s
         return { type: 'move', dir: 'up' };
       case 'ArrowDown':
         return { type: 'move', dir: 'down' };
+      case 'ContextMenu':
+      case 'Info':
+      case 'Help':
+        return { type: 'menu' };
+      case 'F2':
+        return { type: 'pointer' };
       default:
         return null;
     }
@@ -96,7 +102,11 @@ export function keyToAction(e: KeyLike, mode: Mode, overrides: Readonly<Record<s
     case 'ContextMenu':
     case 'Info':
     case 'Help':
-      return { type: 'settings' };
+      return { type: 'menu' };
+    // Pointer mode. No remote has a key for it; F2 is the built-in choice
+    // and Settings can map any other (DECISIONS.md).
+    case 'F2':
+      return { type: 'pointer' };
     default:
       return null;
   }

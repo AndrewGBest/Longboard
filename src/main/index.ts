@@ -1,35 +1,22 @@
-// Main process: one window, one site, a short list of privileges.
-import { app, BrowserWindow, ipcMain, powerSaveBlocker, session } from 'electron';
+// Main process: start-up. The window and its views are in browser.ts.
+import { app } from 'electron';
 import * as electron from 'electron';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { BridgeMessage, LayerOptions, SpikeEvent } from '../shared/actions';
 import { parseConfig, type UserConfig } from '../shared/config';
+import { resolveAddress } from '../shared/address';
 import { chooseAdapter } from '../layer/adapter/adapter';
-import { typableText } from '../shared/osk';
-import { playerKeyInfo } from '../shared/player-keys';
-import { browserUserAgent, isAllowedUrl } from './hosts';
-import { hoverPoint, tvZoom } from './zoom';
-import {
-  blockReason,
-  blockedMessage,
-  describeBlockedUrl,
-  isLoadFailure,
-  noticePageUrl,
-  offlinePageUrl,
-  startingPageUrl,
-  retryDelaySeconds, httpsUpgrade } from './navigation';
+import { createBrowser } from './browser';
+import { readJson } from './store';
+import { browserUserAgent } from './useragent';
 
-const HOME_URL = 'https://www.primevideo.com/';
 const argv = process.argv.slice(1);
 const flag = (name: string): boolean => argv.includes(`--${name}`);
 const value = (name: string): string | undefined =>
   argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 
-const options: LayerOptions = {
+const options = {
   dev: flag('dev'),
   automation: flag('automation'),
-  spike: flag('spike'),
 };
 
 // castLabs builds add `components` (the Widevine component updater). Stock
@@ -40,37 +27,13 @@ interface Components {
 }
 const components = (electron as unknown as { components?: Components }).components;
 
-interface SpikeReport {
-  startedAt: string;
-  versions: NodeJS.ProcessVersions;
-  userAgent: string;
-  widevineComponent: unknown;
-  events: Array<SpikeEvent & { at: string; url: string }>;
-}
-let spikeReport: SpikeReport | undefined;
-
-function saveSpikeReport(): void {
-  if (!spikeReport) return;
-  const file = join(app.getPath('userData'), 'spike-report.json');
-  writeFileSync(file, JSON.stringify(spikeReport, null, 2));
-}
-
 /** Reads <user data>/config.json. A missing file is normal; a broken one is reported and ignored. */
 function loadConfig(): UserConfig {
-  const file = join(app.getPath('userData'), 'config.json');
-  let raw: unknown;
-  try {
-    raw = JSON.parse(readFileSync(file, 'utf8'));
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') console.error(`[longboard] config.json could not be read: ${String(err).slice(0, 200)}`);
-    return { keys: {} };
-  }
+  const raw = readJson(join(app.getPath('userData'), 'config.json'), (why) => console.error(`[longboard] config.json could not be read: ${why}`));
   const { config, problems } = parseConfig(raw);
   for (const problem of problems) console.error(`[longboard] config.json: ${problem}`);
   return config;
 }
-let userConfig: UserConfig = { keys: {} };
-let siteAdapter: unknown = null;
 
 /**
  * The site adapter: the one in the package, unless the user has put a newer
@@ -78,284 +41,19 @@ let siteAdapter: unknown = null;
  * Nothing is fetched; the file gets there by the user's own hand.
  */
 function loadAdapter(): unknown {
-  const read = (file: string): unknown => {
-    try {
-      return JSON.parse(readFileSync(file, 'utf8'));
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') console.error(`[longboard] ${file} could not be read: ${String(err).slice(0, 200)}`);
-      return null;
-    }
-  };
-  const choice = chooseAdapter(read(join(app.getAppPath(), 'adapters', 'primevideo.json')), read(join(app.getPath('userData'), 'adapter.json')));
+  const note = (file: string) => (why: string) => console.error(`[longboard] ${file} could not be read: ${why}`);
+  const bundled = join(app.getAppPath(), 'adapters', 'primevideo.json');
+  const users = join(app.getPath('userData'), 'adapter.json');
+  const choice = chooseAdapter(readJson(bundled, note(bundled)) ?? null, readJson(users, note(users)) ?? null);
   if (choice.note) console.error(`[longboard] ${choice.note}`);
   if (choice.source === 'user') console.log('[longboard] using adapter.json from the data folder');
   return choice.raw;
 }
 
-function startUrl(): string {
-  const override = value('url');
-  if (override && options.dev && isAllowedUrl(override, { dev: true })) return override;
-  return HOME_URL;
-}
-
-function createWindow(ready: Promise<void>): BrowserWindow {
-  const boot = encodeURIComponent(
-    JSON.stringify({ options: { ...options, version: app.getVersion(), keys: userConfig.keys, buttons: userConfig.buttons ?? {} }, adapter: siteAdapter }),
-  );
-  const win = new BrowserWindow({
-    width: 1280,
-    height: 720,
-    // The spike is a diagnostic run: keep it windowed so the desktop stays reachable.
-    fullscreen: flag('fullscreen') || (!options.dev && !options.spike),
-    backgroundColor: '#000000',
-    autoHideMenuBar: true,
-    title: 'Longboard',
-    webPreferences: {
-      preload: join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      sandbox: true,
-      nodeIntegration: false,
-      webSecurity: true,
-      additionalArguments: [`--longboard-boot=${boot}`],
-    },
-  });
-  win.removeMenu();
-
-  const wc = win.webContents;
-
-  // Quit must work even when the page never loads and the layer is not
-  // running, otherwise a fullscreen window with a blank page traps the user.
-  wc.on('before-input-event', (event, input) => {
-    if (input.type === 'keyDown' && input.control && !input.alt && !input.meta && input.key.toLowerCase() === 'q') {
-      event.preventDefault();
-      app.quit();
-    }
-  });
-  // A page that cannot be reached (no network, service down): say so and keep
-  // trying, instead of leaving a blank window.
-  let retryTimer: NodeJS.Timeout | undefined;
-  let retryAttempt = 0;
-  wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
-    if (!isMainFrame || !isLoadFailure(code, url)) return;
-    console.error(`[longboard] page failed to load (${code} ${description}): ${describeBlockedUrl(url)}`);
-    if (blockReason(url, options)) return;
-    retryAttempt += 1;
-    const wait = retryDelaySeconds(retryAttempt);
-    clearTimeout(retryTimer);
-    void wc.loadURL(offlinePageUrl(description, wait));
-    retryTimer = setTimeout(() => {
-      if (!wc.isDestroyed()) void wc.loadURL(url);
-    }, wait * 1000);
-  });
-  wc.on('did-navigate', (_e, url) => {
-    if (!url.startsWith('data:') && url !== 'about:blank') retryAttempt = 0;
-  });
-  wc.on('render-process-gone', (_e, details) => {
-    console.error(`[longboard] renderer exited: ${details.reason}`);
-  });
-
-  // True once a real page has been shown. Until then a refused navigation
-  // would leave the window blank, so a notice page is loaded instead.
-  let pageShown = false;
-  wc.on('did-navigate', (_e, url) => {
-    if (!url.startsWith('data:') && url !== 'about:blank') pageShown = true;
-  });
-
-  let lastNoticeAt = 0;
-  const NOTICE_GAP_MS = 5000;
-  /** Returns true when `url` may load. A refusal is always logged and shown, never silent. */
-  const allowed = (url: string): boolean => {
-    const reason = blockReason(url, options);
-    if (!reason) return true;
-    // Plain http on an allowed host: load the https page instead (see httpsUpgrade).
-    const upgraded = httpsUpgrade(url, options);
-    if (upgraded) {
-      setImmediate(() => {
-        if (!wc.isDestroyed()) void wc.loadURL(upgraded);
-      });
-      return false;
-    }
-    console.error(`[longboard] blocked navigation (${reason}): ${describeBlockedUrl(url)}`);
-    if (pageShown) {
-      // Said once, not for every try: a page that keeps asking would keep the message up.
-      if (Date.now() - lastNoticeAt > NOTICE_GAP_MS) wc.send('longboard:notice', blockedMessage(reason));
-      lastNoticeAt = Date.now();
-    } else {
-      // Deferred so the refused navigation is fully cancelled first.
-      setImmediate(() => {
-        if (!wc.isDestroyed() && !pageShown) void wc.loadURL(noticePageUrl(reason, url));
-      });
-    }
-    return false;
-  };
-
-  wc.on('will-navigate', (e, url) => {
-    if (!allowed(url)) e.preventDefault();
-  });
-  // The allowlist is about where the window goes. Frames inside the page are
-  // the site's own business (Hard rule 4): refusing their redirects cancelled
-  // the site's measurement frames and put a "blocked" message on screen for
-  // something nobody had pressed (seen on Steamboat's service, 2026-11-17).
-  wc.on('will-redirect', (e, url, _isInPlace, isMainFrame) => {
-    if (!isMainFrame) return;
-    if (!allowed(url)) e.preventDefault();
-  });
-  // No pop-ups: an allowed link opens in the one window, anything else is dropped.
-  wc.setWindowOpenHandler(({ url }) => {
-    if (allowed(url)) void wc.loadURL(url);
-    return { action: 'deny' };
-  });
-
-  // TV scaling: ordinary page zoom, chosen from the window's height (see zoom.ts).
-  const applyZoom = (): void => {
-    if (win.isDestroyed()) return;
-    const [width = 0, height = 0] = win.getContentSize();
-    const zoom = tvZoom({ width, height }, value('zoom') ?? (userConfig.zoom === undefined ? undefined : String(userConfig.zoom)));
-    if (Math.abs(wc.getZoomFactor() - zoom) > 0.001) wc.setZoomFactor(zoom);
-  };
-  wc.on('did-navigate', applyZoom);
-  win.on('resize', applyZoom);
-  win.on('enter-full-screen', applyZoom);
-  win.on('leave-full-screen', applyZoom);
-
-  const tvCss = readFileSync(join(__dirname, 'tv.css'), 'utf8');
-  wc.on('dom-ready', () => {
-    void wc.insertCSS(tvCss, { cssOrigin: 'user' });
-  });
-
-  // A TV shows one thing at a time. When another app comes in front:
-  //  - what is playing is paused, by the layer, with the site's own key;
-  //  - the app is silenced, so a preview cannot carry on talking unseen;
-  //  - a fullscreen window is minimised. The page is then hidden, and the
-  //    site stops its own previews (seen on the live site). Launching the
-  //    app again brings the window back (see 'second-instance').
-  // Sound returns with the window; playback waits for the user.
-  let awayAt = 0;
-  let awayTimer: NodeJS.Timeout | undefined;
-  const away = (): void => {
-    if (wc.isDestroyed()) return;
-    wc.send('longboard:away');
-    wc.setAudioMuted(true);
-    awayAt = Date.now();
-    clearTimeout(awayTimer);
-    // A moment later, and only if focus is still gone: the pause key must
-    // land first, and a focus loss that lasts an instant is not leaving.
-    awayTimer = setTimeout(() => {
-      if (!win.isDestroyed() && win.isFullScreen() && !win.isFocused() && !win.isMinimized()) win.minimize();
-    }, 700);
-  };
-  const returned = (): void => {
-    clearTimeout(awayTimer);
-    awayAt = 0;
-    if (!wc.isDestroyed()) wc.setAudioMuted(false);
-  };
-  win.on('blur', away);
-  win.on('minimize', away);
-  win.on('hide', away);
-  win.on('focus', returned);
-  win.on('restore', returned);
-  win.on('show', returned);
-  // If the desktop never says the window has focus again, a key press in it
-  // still proves someone is here. (Not the layer's own pause key, just sent.)
-  wc.on('before-input-event', (_event, input) => {
-    if (awayAt !== 0 && input.type === 'keyDown' && Date.now() - awayAt > 1500) returned();
-  });
-
-  // The window is up at once with a notice; the site loads when the playback
-  // component is ready, so protected playback works on the first page.
-  void wc.loadURL(startingPageUrl());
-  void ready.then(() => {
-    if (!wc.isDestroyed()) void wc.loadURL(startUrl());
-  });
-  return win;
-}
-
-function wireMessages(): void {
-  let blocker: number | undefined;
-  let nudge = false;
-  ipcMain.on('longboard:msg', (event, msg: BridgeMessage) => {
-    // Only the top frame of our own window may talk to the shell.
-    if (event.senderFrame !== event.sender.mainFrame) return;
-    switch (msg.kind) {
-      case 'exit':
-        app.quit();
-        break;
-      case 'playerKey': {
-        // An ordinary key press, delivered to the page like one from a keyboard.
-        const info = playerKeyInfo(msg.key);
-        if (info) {
-          event.sender.sendInputEvent({ type: 'keyDown', keyCode: info.code });
-          if (info.char) event.sender.sendInputEvent({ type: 'char', keyCode: info.char });
-          event.sender.sendInputEvent({ type: 'keyUp', keyCode: info.code });
-        }
-        break;
-      }
-      case 'typeText': {
-        const text = typableText(msg.text);
-        if (text) void event.sender.insertText(text);
-        break;
-      }
-      case 'revealControls': {
-        // An ordinary pointer movement across the middle of the picture. One
-        // step is not enough on the live site, and steps sent together are
-        // merged into one, so it is a short sweep spread over time, in
-        // alternating directions so every call is a real movement.
-        const size = BrowserWindow.fromWebContents(event.sender)?.getContentSize();
-        if (size) {
-          nudge = !nudge;
-          const [w = 0, h = 0] = size;
-          const steps = nudge ? [0, 20, 40, 60] : [60, 40, 20, 0];
-          const wc = event.sender;
-          steps.forEach((dx, i) => {
-            setTimeout(() => {
-              if (wc.isDestroyed()) return;
-              const x = Math.round(w / 2) + dx;
-              const y = Math.round(h / 2);
-              // A real pointer reports how far it moved; some players ignore a move that reports zero.
-              wc.sendInputEvent({ type: 'mouseMove', x, y, globalX: x, globalY: y, movementX: nudge ? 20 : -20, movementY: 0 });
-            }, i * 40);
-          });
-        }
-        break;
-      }
-      case 'hover': {
-        // An ordinary pointer movement to a point the layer names. Page
-        // coordinates are CSS pixels; input events are in window pixels.
-        const size = BrowserWindow.fromWebContents(event.sender)?.getContentSize();
-        const point = hoverPoint(msg, event.sender.getZoomFactor(), size);
-        if (point) {
-          const wc = event.sender;
-          // Two steps: a single event is not always treated as movement.
-          wc.sendInputEvent({ type: 'mouseMove', x: Math.max(0, point.x - 3), y: point.y, movementX: 0, movementY: 0 });
-          setTimeout(() => {
-            if (!wc.isDestroyed()) wc.sendInputEvent({ type: 'mouseMove', x: point.x, y: point.y, movementX: 3, movementY: 0 });
-          }, 40);
-        }
-        break;
-      }
-      case 'playback':
-        if (msg.playing && blocker === undefined) {
-          blocker = powerSaveBlocker.start('prevent-display-sleep');
-        } else if (!msg.playing && blocker !== undefined) {
-          powerSaveBlocker.stop(blocker);
-          blocker = undefined;
-        }
-        break;
-      case 'diagnostics': {
-        const dir = join(app.getPath('userData'), 'diagnostics');
-        mkdirSync(dir, { recursive: true });
-        const name = `outline-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
-        writeFileSync(join(dir, name), `# ${String(msg.url).slice(0, 300)}\n${String(msg.outline).slice(0, 2_000_000)}\n`);
-        break;
-      }
-      case 'spike':
-        if (spikeReport) {
-          spikeReport.events.push({ ...msg.event, at: new Date().toISOString(), url: new URL(event.sender.getURL()).pathname.slice(0, 40) });
-          saveSpikeReport();
-        }
-        break;
-    }
-  });
+/** The address to open at start: `--url=` or a bare address on the command line. Null shows Home. */
+function startUrl(config: UserConfig): string | null {
+  const given = value('url') ?? argv.find((a) => /^https?:\/\//i.test(a));
+  return given ? resolveAddress(given, config.search) : null;
 }
 
 async function main(): Promise<void> {
@@ -365,8 +63,8 @@ async function main(): Promise<void> {
   }
 
   // Before the browser starts: its switches cannot be changed afterwards.
-  userConfig = loadConfig();
-  if (userConfig.hardwareDecode) {
+  const config = loadConfig();
+  if (config.hardwareDecode) {
     // Chromium's own switches for decoding video on the graphics chip on
     // Linux, which it does not promise to support. Off unless asked for.
     app.commandLine.appendSwitch('enable-features', 'AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL');
@@ -378,24 +76,30 @@ async function main(): Promise<void> {
     .getGPUInfo('basic')
     .then(() => {
       const status = app.getGPUFeatureStatus() as unknown as Record<string, string>;
-      console.log(`[longboard] video decode: ${status['video_decode'] ?? 'unknown'}${userConfig.hardwareDecode ? ' (hardwareDecode is on)' : ''}`);
+      console.log(`[longboard] video decode: ${status['video_decode'] ?? 'unknown'}${config.hardwareDecode ? ' (hardwareDecode is on)' : ''}`);
     })
     .catch(() => undefined);
   app.userAgentFallback = browserUserAgent(app.userAgentFallback);
 
-  // Grant only what playback needs; refuse camera, microphone, location, notifications and the rest.
-  const GRANTED = new Set(['fullscreen', 'mediaKeySystem']);
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-    callback(GRANTED.has(permission));
+  // Nothing but our two views is ever created; a page cannot embed another browser.
+  app.on('web-contents-created', (_e, contents) => {
+    contents.on('will-attach-webview', (event) => event.preventDefault());
   });
 
-  siteAdapter = loadAdapter();
-  wireMessages();
+  const adapter = loadAdapter();
+  const adapterHosts = /(^|\.)primevideo\.com$/;
+  const adapterFor = (url: string): unknown => {
+    try {
+      return adapterHosts.test(new URL(url).hostname) ? adapter : null;
+    } catch {
+      return null;
+    }
+  };
 
   // The window opens before the component is ready, never after: on a first
   // run the component is a download, and a slow one must not look like an
-  // app that did not start. If it is still not ready after a while the site
-  // is loaded anyway, so browsing works and the terminal says what is missing.
+  // app that did not start. If it is still not ready after a while sites are
+  // loaded anyway, so browsing works and the terminal says what is missing.
   const COMPONENT_WAIT_MS = 45_000;
   const componentsReady = (async (): Promise<void> => {
     let widevine: unknown = 'unavailable: not a castLabs Electron build';
@@ -411,26 +115,23 @@ async function main(): Promise<void> {
       }
     }
     console.log('[longboard] widevine component:', JSON.stringify(widevine));
-    if (options.spike) {
-      spikeReport = {
-        startedAt: new Date().toISOString(),
-        versions: process.versions,
-        userAgent: app.userAgentFallback,
-        widevineComponent: widevine,
-        events: [],
-      };
-      saveSpikeReport();
-      console.log('[longboard] spike report:', join(app.getPath('userData'), 'spike-report.json'));
-    }
   })();
 
-  const win = createWindow(componentsReady);
+  const win = createBrowser({
+    options,
+    config,
+    startUrl: startUrl(config),
+    // Windowed while developing, so the desktop stays reachable.
+    fullscreen: flag('fullscreen') || !options.dev,
+    zoomOverride: value('zoom'),
+    ready: componentsReady,
+    adapterFor,
+  });
   app.on('second-instance', () => {
     if (win.isMinimized()) win.restore();
     win.focus();
   });
   app.on('window-all-closed', () => app.quit());
-  app.on('before-quit', saveSpikeReport);
 }
 
 void main();

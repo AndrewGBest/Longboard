@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   blockReason,
   blockedMessage,
+  certificatePageUrl,
+  isCertificateError,
   describeBlockedUrl,
-  httpsUpgrade,
   isLoadFailure,
   noticePageUrl,
   offlinePageUrl,
@@ -11,48 +12,34 @@ import {
   retryDelaySeconds,
 } from '../src/main/navigation';
 
-const live = { dev: false, automation: false };
-const auto = { dev: false, automation: true };
+const live = { automation: false };
+const auto = { automation: true };
 
 describe('blockReason', () => {
-  it('lets the service and its sign-in pages through', () => {
-    expect(blockReason('https://www.primevideo.com/', live)).toBeNull();
-    expect(blockReason('https://www.amazon.ca/ap/signin', auto)).toBeNull();
+  it('lets any web address through', () => {
+    expect(blockReason('https://www.example.com/', live)).toBeNull();
+    expect(blockReason('http://example.org/page?x=1', live)).toBeNull();
+    expect(blockReason('http://127.0.0.1:8080/fixture.html', auto)).toBeNull();
+    expect(blockReason('about:blank', live)).toBeNull();
   });
 
-  it('refuses other sites in every mode', () => {
-    expect(blockReason('https://example.com/', live)).toBe('other-site');
-    expect(blockReason('https://example.com/', auto)).toBe('other-site');
-    expect(blockReason('not a url', live)).toBe('other-site');
+  it('refuses everything that is not a web address, in every mode', () => {
+    for (const url of ['file:///etc/passwd', 'javascript:alert(1)', 'data:text/html,<p>x', 'chrome://settings', 'devtools://devtools/x', 'blob:https://example.com/1', 'ftp://example.com/', 'view-source:https://example.com/', 'about:config', 'not a url', '']) {
+      expect(blockReason(url, live), url).toBe('not-web');
+      expect(blockReason(url, auto), url).toBe('not-web');
+    }
+  });
+
+  it('refuses an address that carries a user name or password', () => {
+    expect(blockReason('https://user:pw@www.example.com/', live)).toBe('credentials');
+    expect(blockReason('https://www.example.com@evil.example/', live)).toBe('credentials');
   });
 
   it('refuses spend-looking pages only under automation', () => {
-    const url = 'https://www.primevideo.com/offers/landing?ref_=abc';
+    const url = 'https://www.example.com/offers/landing?ref_=abc';
     expect(blockReason(url, live)).toBeNull();
     expect(blockReason(url, auto)).toBe('automation-spend');
-  });
-
-  it('reports another site as such even when its path also looks like a spend flow', () => {
-    expect(blockReason('https://example.com/checkout', auto)).toBe('other-site');
-  });
-});
-
-describe('httpsUpgrade', () => {
-  it('gives the https form of an http address on the service', () => {
-    expect(httpsUpgrade('http://www.primevideo.com/home?x=1', live)).toBe('https://www.primevideo.com/home?x=1');
-  });
-  it('does nothing for other sites, https addresses, credentials or nonsense', () => {
-    expect(httpsUpgrade('http://example.com/home', live)).toBeNull();
-    expect(httpsUpgrade('https://www.primevideo.com/home', live)).toBeNull();
-    expect(httpsUpgrade('http://user:pw@www.primevideo.com/home', live)).toBeNull();
-    expect(httpsUpgrade('not a url', live)).toBeNull();
-  });
-  it('does not upgrade into a page automation refuses', () => {
-    expect(httpsUpgrade('http://www.primevideo.com/offers/landing', auto)).toBeNull();
-    expect(httpsUpgrade('http://www.primevideo.com/offers/landing', live)).not.toBeNull();
-  });
-  it('leaves local fixtures in dev alone', () => {
-    expect(httpsUpgrade('http://127.0.0.1:8080/x', { dev: true, automation: false })).toBeNull();
+    expect(blockReason('https://example.com/checkout', auto)).toBe('automation-spend');
   });
 });
 
@@ -81,7 +68,8 @@ describe('describeBlockedUrl', () => {
 
 describe('blockedMessage', () => {
   it('has a distinct message per reason', () => {
-    expect(blockedMessage('other-site')).toMatch(/another site/i);
+    expect(blockedMessage('not-web')).toMatch(/web addresses/i);
+    expect(blockedMessage('credentials')).toMatch(/password/i);
     expect(blockedMessage('automation-spend')).toMatch(/automation/i);
   });
 });
@@ -101,12 +89,13 @@ describe('noticePageUrl', () => {
   });
 
   it('escapes markup in the blocked address', () => {
-    const page = decode(noticePageUrl('other-site', 'https://example.com/<img onerror=x>/"&'));
+    const page = decode(noticePageUrl('credentials', 'https://example.com/<img onerror=x>/"&'));
     expect(page).not.toMatch(/<img/i);
   });
 
-  it('does not mention automation for an ordinary blocked site', () => {
-    expect(decode(noticePageUrl('other-site', 'https://example.com/'))).not.toContain('--automation');
+  it('does not mention automation for an ordinary refusal', () => {
+    expect(decode(noticePageUrl('not-web', 'file:///etc/passwd'))).not.toContain('--automation');
+    expect(decode(noticePageUrl('not-web', 'file:///etc/passwd'))).toContain('web addresses');
   });
 });
 
@@ -129,7 +118,7 @@ describe('load failures', () => {
 
   it('shows a self-contained page that says what happened and that it will retry', () => {
     const page = decode(offlinePageUrl('ERR_INTERNET_DISCONNECTED', 10));
-    expect(page).toContain('Cannot reach the streaming service');
+    expect(page).toContain('Cannot reach this site');
     expect(page).toContain('ERR_INTERNET_DISCONNECTED');
     expect(page).toContain('10 seconds');
     expect(page).toContain('Ctrl+Q');
@@ -140,6 +129,20 @@ describe('load failures', () => {
     const page = decode(offlinePageUrl('<img onerror=x> "&', 5));
     expect(page).not.toMatch(/<img|onerror=x>/i);
     expect(decode(offlinePageUrl('', 5))).toContain('no details');
+  });
+});
+
+describe('certificate errors', () => {
+  it('knows the certificate range of error codes', () => {
+    expect([-200, -201, -202, -207, -299].every(isCertificateError)).toBe(true);
+    expect([-199, -300, -106, -3, 0].some(isCertificateError)).toBe(false);
+  });
+
+  it('shows a page that offers no way through', () => {
+    const page = decodeURIComponent(certificatePageUrl('ERR_CERT_AUTHORITY_INVALID'));
+    expect(page).toContain('not secure');
+    expect(page).toContain('ERR_CERT_AUTHORITY_INVALID');
+    expect(page).not.toMatch(/<script|src=|href=|url\(|<button|<a /i);
   });
 });
 

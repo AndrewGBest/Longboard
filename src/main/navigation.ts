@@ -1,39 +1,32 @@
-// Why a navigation was refused, and what to tell the person at the screen.
-// Pure: no Electron imports, so every rule here is unit-tested.
+// Which addresses the page view may open, why one was refused, and what to
+// tell the person at the screen. Pure: no Electron imports, so every rule
+// here is unit-tested.
 import { looksLikeSpendUrl } from '../layer/guard/purchase-guard';
-import { isAllowedUrl } from './hosts';
 
-export type BlockReason = 'other-site' | 'automation-spend';
-
-export function blockReason(url: string, opts: { dev: boolean; automation: boolean }): BlockReason | null {
-  if (!isAllowedUrl(url, { dev: opts.dev })) return 'other-site';
-  // Automation must never reach a payment or sign-up flow, even by URL.
-  if (opts.automation && looksLikeSpendUrl(url)) return 'automation-spend';
-  return null;
-}
+export type BlockReason = 'not-web' | 'credentials' | 'automation-spend';
 
 /**
- * The https form of a plain-http address that would be allowed as https, or
- * null. A service's own front page can redirect a signed-in visitor to an
- * http address on its own host (seen on Steamboat's service, 2026-11-17; not
- * seen on this one); a browser that knows the
- * host is https-only upgrades it silently. The app never loads plain http, so
- * it loads this instead of refusing.
+ * Longboard opens web addresses: http and https. Files on this machine,
+ * script and data addresses and the browser's own internal pages are never
+ * opened in the page view (ARCHITECTURE.md section 2). An address carrying a
+ * user name or password is refused too: it is a common disguise for a
+ * look-alike site.
  */
-export function httpsUpgrade(url: string, opts: { dev: boolean; automation: boolean }): string | null {
+export function blockReason(url: string, opts: { automation: boolean }): BlockReason | null {
   let u: URL;
   try {
     u = new URL(url);
   } catch {
-    return null;
+    return 'not-web';
   }
-  if (u.protocol !== 'http:' || u.username || u.password) return null;
-  // Dev fixtures on localhost are allowed as http already; leave them alone.
-  if (blockReason(url, opts) === null) return null;
-  u.protocol = 'https:';
-  u.port = '';
-  const upgraded = u.toString();
-  return blockReason(upgraded, opts) === null ? upgraded : null;
+  // A blank page is what a site's own pop-up starts as.
+  if (url === 'about:blank') return null;
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return 'not-web';
+  if (!u.hostname) return 'not-web';
+  if (u.username || u.password) return 'credentials';
+  // Automation must never reach a payment or sign-up flow, even by URL.
+  if (opts.automation && looksLikeSpendUrl(url)) return 'automation-spend';
+  return null;
 }
 
 const MAX_DESCRIPTION = 80;
@@ -54,9 +47,9 @@ export function describeBlockedUrl(url: string): string {
 
 /** One line, shown as a toast over the page that stays on screen. */
 export function blockedMessage(reason: BlockReason): string {
-  return reason === 'automation-spend'
-    ? 'Blocked: automation mode never opens purchase or sign-up pages'
-    : 'Blocked: that link goes to another site';
+  if (reason === 'automation-spend') return 'Blocked: automation mode never opens purchase or sign-up pages';
+  if (reason === 'credentials') return 'Blocked: that address carries a user name or password';
+  return 'Blocked: Longboard only opens web addresses';
 }
 
 const escapeHtml = (s: string): string =>
@@ -83,7 +76,7 @@ function noticePage(title: string, heading: string, paragraphs: readonly string[
   <h1>${escapeHtml(heading)}</h1>
 ${paragraphs.map((p) => `  <p>${escapeHtml(p)}</p>`).join('\n')}
 ${detail ? `  <p>${escapeHtml(detail.label)}: <code>${escapeHtml(detail.value)}</code></p>` : ''}
-  <p class="hint">Press Ctrl+Q to quit.</p>
+  <p class="hint">Press Back to go back. Press Ctrl+Q to quit.</p>
 </main>
 </body>
 </html>`;
@@ -92,14 +85,16 @@ ${detail ? `  <p>${escapeHtml(detail.label)}: <code>${escapeHtml(detail.value)}<
 
 /**
  * A page to show when a navigation is refused before anything has loaded, so
- * the window is not left blank.
+ * the view is not left blank.
  */
 export function noticePageUrl(reason: BlockReason, url: string): string {
   const why =
     reason === 'automation-spend'
-      ? 'The app was started with --automation, which refuses any page that looks like a purchase, subscription or sign-up flow. ' +
-        'If nobody is signed in yet, quit, start the app without --automation and sign in by hand.'
-      : 'This app only opens the streaming service and its sign-in pages. The address it was sent to is somewhere else.';
+      ? 'Longboard was started with --automation, which refuses any page that looks like a purchase, subscription or sign-up flow. ' +
+        'To use such a page, quit and start Longboard without --automation.'
+      : reason === 'credentials'
+        ? 'The address carries a user name or password in front of the site name. Longboard does not open such addresses.'
+        : 'Longboard only opens web addresses (http and https). Files on this machine and internal pages are not opened.';
   return noticePage('page blocked', 'This page was blocked', [why], { label: 'Blocked address', value: describeBlockedUrl(url) });
 }
 
@@ -126,12 +121,30 @@ export function retryDelaySeconds(attempt: number): number {
   return Math.min(30, 5 * Math.max(1, Math.round(attempt)));
 }
 
-/** The page shown while the service cannot be reached. */
+/**
+ * Chromium's codes for a certificate that cannot be trusted: -200 to -299.
+ * Such a page is never opened and there is no way to click through (Hard rule 13).
+ */
+export function isCertificateError(code: number): boolean {
+  return code <= -200 && code > -300;
+}
+
+/** The page shown for a site whose certificate cannot be trusted. Not retried. */
+export function certificatePageUrl(description: string): string {
+  return noticePage(
+    'not secure',
+    'This site is not secure',
+    ["The site's security certificate could not be verified, so the page was not opened. Longboard has no way around this, on purpose."],
+    { label: 'What the browser reported', value: description.replace(/[^A-Za-z0-9_ :.-]/g, '').slice(0, 60) || 'no details' },
+  );
+}
+
+/** The page shown while a site cannot be reached. */
 export function offlinePageUrl(description: string, nextTrySeconds: number): string {
   return noticePage(
     'cannot connect',
-    'Cannot reach the streaming service',
-    ['Check the network connection.', `Trying again in ${Math.round(nextTrySeconds)} seconds, and it will keep trying.`],
+    'Cannot reach this site',
+    ['Check the address and the network connection.', `Trying again in ${Math.round(nextTrySeconds)} seconds, and it will keep trying.`],
     { label: 'What the browser reported', value: description.replace(/[^A-Za-z0-9_ :.-]/g, '').slice(0, 60) || 'no details' },
   );
 }

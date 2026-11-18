@@ -1,5 +1,5 @@
-// Bundles the three entry points. Each output is a single file so the sandboxed
-// preload never needs `require` at runtime.
+// Bundles the entry points. Each output is a single file so the sandboxed
+// preloads never need `require` at runtime.
 import { build } from 'esbuild';
 import { mkdir, copyFile } from 'node:fs/promises';
 
@@ -21,14 +21,18 @@ await build({
   external: ['electron'],
 });
 
-await build({
-  ...common,
-  entryPoints: ['src/preload/index.ts'],
-  outfile: 'dist/preload.js',
-  platform: 'browser',
-  format: 'iife',
-  external: ['electron'],
-  loader: { '.css': 'text' },
-});
+// The page view's preload (the layer) and the chrome view's (Longboard's own screens).
+for (const [entry, outfile] of [['src/preload/index.ts', 'dist/preload.js'], ['src/chrome/index.ts', 'dist/chrome.js']]) {
+  await build({
+    ...common,
+    entryPoints: [entry],
+    outfile,
+    platform: 'browser',
+    format: 'iife',
+    external: ['electron'],
+    loader: { '.css': 'text' },
+  });
+}
 
 await copyFile('src/layer/ui/tv.css', 'dist/tv.css');
+await copyFile('src/chrome/chrome.html', 'dist/chrome.html');

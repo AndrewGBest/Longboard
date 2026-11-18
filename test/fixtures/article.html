@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: long article</title>
+<!-- A made-up article page for testing: long text with few things to press.
+     It imitates no real site and its words are filler written for this file. -->
+<style>
+  body { margin: 0; background: #fafafa; color: #222; font: 18px/1.6 Georgia, serif; }
+  header { padding: 16px 32px; background: #eee; display: flex; gap: 24px; }
+  article { max-width: 720px; margin: 0 auto; padding: 24px 32px; }
+  p { margin: 0 0 24px; }
+  .gap { height: 1400px; background: linear-gradient(#f0f0f0, #e0e0e0); margin: 0 0 24px; }
+  footer { padding: 24px 32px; background: #eee; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/home.html" id="top-home">Front page</a>
+  <a href="#sections" id="top-sections">Sections</a>
+</header>
+<article>
+  <h1>A long page with little to press</h1>
+  <p id="p1">This paragraph is filler. It stands for the opening of an article, where a reader starts and where nothing can be pressed. A remote has to be able to read on from here without a target to move to.</p>
+  <p>More filler follows so that the page is several screens tall. The first link is far below, past a tall picture that has no links in it at all.</p>
+  <div class="gap" id="gap1"></div>
+  <p>Here, in the middle of the page, is <a href="#one" id="mid-link">the first link in the text</a>, which the highlight should pick up as it comes into view.</p>
+  <div class="gap" id="gap2"></div>
+  <p>And near the end there is <a href="#two" id="late-link">a second link</a>.</p>
+  <div class="gap" id="gap3"></div>
+  <p id="last">The article ends here.</p>
+</article>
+<footer><a href="#contact" id="foot-contact">Contact</a></footer>
+</body>
+</html>

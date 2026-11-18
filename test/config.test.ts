@@ -69,7 +69,7 @@ describe('key overrides', () => {
   });
 
   it('can switch a built-in key off', () => {
-    expect(keyToAction({ key: 'o', ctrlKey: true }, 'browse')).toEqual({ type: 'settings' });
+    expect(keyToAction({ key: 'o', ctrlKey: true }, 'browse')).toEqual({ type: 'menu' });
     expect(keyToAction({ key: 'o', ctrlKey: true }, 'browse', keys)).toBeNull();
   });
 
@@ -86,15 +86,15 @@ describe('key overrides', () => {
 
 describe('gamepad button overrides', () => {
   it('are read from the config and validated', () => {
-    const { config, problems } = parseConfig({ buttons: { '8': 'about', '09': 'playPause', '40': 'back', x: 'back', '3': 'fly' } });
-    expect(config.buttons).toEqual({ '8': 'about', '9': 'playPause' });
+    const { config, problems } = parseConfig({ buttons: { '8': 'menu', '09': 'playPause', '40': 'back', x: 'back', '3': 'fly' } });
+    expect(config.buttons).toEqual({ '8': 'menu', '9': 'playPause' });
     expect(problems).toHaveLength(3);
   });
 
   it('win over the built-in table and can switch a button off', () => {
-    const buttons = { [String(Btn.Y)]: 'about', [String(Btn.X)]: 'none' } as const;
+    const buttons = { [String(Btn.Y)]: 'menu', [String(Btn.X)]: 'none' } as const;
     expect(buttonToAction(Btn.Y, 'browse')).toEqual({ type: 'search' });
-    expect(buttonToAction(Btn.Y, 'browse', buttons)).toEqual({ type: 'settings' });
+    expect(buttonToAction(Btn.Y, 'browse', buttons)).toEqual({ type: 'menu' });
     expect(buttonToAction(Btn.X, 'browse', buttons)).toBeNull();
     expect(buttonToAction(Btn.A, 'browse', buttons)).toEqual({ type: 'select' });
   });

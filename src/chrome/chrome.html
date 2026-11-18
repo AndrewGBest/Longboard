@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Longboard's own screens. Nothing here loads from anywhere: no scripts, no
+     images, no fonts. The screens are drawn by the preload in its isolated world. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+<title>Longboard</title>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body { background: #0d1014; color: #eef0f3; font: 3vh/1.35 system-ui, sans-serif; overflow: hidden; }
+  button, input { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+  /* The highlight is the layer's ring; a remote has no pointer. */
+  [data-longboard-focus] { outline: none; }
+  * { cursor: none; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+
+  /* Home: 5% kept clear at every edge for TVs that cut the picture off. */
+  #home { box-sizing: border-box; height: 100%; padding: 5vh 5vw; display: flex; flex-direction: column; gap: 3vh; overflow-y: auto; }
+  #home h1 { margin: 0; font-size: 4.4vh; font-weight: 700; letter-spacing: .02em; }
+  #go, #address {
+    box-sizing: border-box; width: 100%; height: 9vh; padding: 0 3vh; border: 0; border-radius: 1.6vh;
+    background: #1c222b; text-align: left; font-size: 3.4vh;
+  }
+  #go { color: #aeb6c2; }
+  #address { outline: none; }
+  h2 { margin: 1vh 0 0; font-size: 2.6vh; font-weight: 600; color: #9aa3af; text-transform: uppercase; letter-spacing: .08em; }
+  #tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3vh; }
+  .tile {
+    display: flex; flex-direction: column; justify-content: flex-end; gap: .6vh; box-sizing: border-box; height: 21vh;
+    padding: 2vh; border: 0; border-radius: 1.6vh; background: #1c222b; text-align: left; overflow: hidden;
+  }
+  .tile .mono {
+    width: 7vh; height: 7vh; border-radius: 1.4vh; background: #2f6f73; color: #fff; margin-bottom: auto;
+    font-size: 4.2vh; font-weight: 700; line-height: 7vh; text-align: center; text-transform: uppercase;
+  }
+  .tile .site { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .title { font-size: 2.3vh; color: #9aa3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 3vh; }
+  #empty, #hint { color: #9aa3af; font-size: 2.6vh; margin: 0; }
+  #hint { margin-top: auto; }
+
+  /* The panel: a strip down the right. Over Home it lies on top of it; over
+     a website the view itself is the strip, so the panel fills it. */
+  #panel {
+    position: fixed; top: 0; right: 0; bottom: 0; box-sizing: border-box; width: 38vw; padding: 5vh 4vh;
+    display: flex; flex-direction: column; gap: 1.4vh; background: #141920; box-shadow: -1vh 0 4vh rgba(0,0,0,.6);
+    overflow-y: auto;
+  }
+  body.strip #panel { width: 100%; box-shadow: none; }
+  #panel h1 { margin: 0; font-size: 3.6vh; }
+  #panel .where { margin: 0 0 1.6vh; color: #9aa3af; font-size: 2.4vh; overflow-wrap: anywhere; }
+  #panel button, #panel input {
+    box-sizing: border-box; width: 100%; min-height: 7.4vh; padding: 0 2.4vh; border: 0; border-radius: 1.2vh;
+    background: #222a35; text-align: left; flex: none;
+  }
+  #panel input { outline: none; }
+  #panel button:disabled { color: #5b6370; background: #181d25; }
+  #panel .pair { display: flex; gap: 1.4vh; flex: none; }
+  #panel .pair button { width: auto; flex: 1 1 0; min-width: 0; padding: 0; text-align: center; }
+  #panel p { margin: 0 0 1.6vh; color: #c3c9d2; font-size: 2.5vh; }
+  #panel dl { display: grid; grid-template-columns: 1fr; gap: .2vh; margin: 0 0 1.6vh; font-size: 2.3vh; }
+  #panel dt { font-weight: 700; margin-top: 1vh; }
+  #panel dd { margin: 0; color: #c3c9d2; }
+</style>
+</head>
+<body></body>
+</html>

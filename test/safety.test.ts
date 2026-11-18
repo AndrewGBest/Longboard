@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { installPurchaseGuard, isSpendControl, looksLikeSpendUrl } from '../src/layer/guard/purchase-guard';
 import { buildOutline, maskIdentifier, sanitizeUrl } from '../src/layer/diagnostics/outline';
 import { adapterReport, chooseAdapter, parseAdapter } from '../src/layer/adapter/adapter';
-import { browserUserAgent, isAllowedUrl } from '../src/main/hosts';
+import { browserUserAgent } from '../src/main/useragent';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { aboutTitle, NOTICE } from '../src/shared/about';
@@ -161,29 +161,6 @@ describe('adapter parsing', () => {
     expect(a.revision).toBe(3);
     expect(parseAdapter({ schema: 2, selectors: { extraFocusable: ['.x'] } }).selectors.extraFocusable).toEqual([]);
     expect(parseAdapter(null).id).toBe('none');
-  });
-});
-
-describe('navigation allowlist', () => {
-  it('allows the service and its account pages over https only', () => {
-    expect(isAllowedUrl('https://www.primevideo.com/')).toBe(true);
-    expect(isAllowedUrl('https://www.amazon.ca/ap/signin')).toBe(true);
-    expect(isAllowedUrl('http://www.primevideo.com/')).toBe(false);
-  });
-
-  it('rejects look-alikes and other sites', () => {
-    expect(isAllowedUrl('https://primevideo.com.evil.example/')).toBe(false);
-    expect(isAllowedUrl('https://evilprimevideo.com/')).toBe(false);
-    expect(isAllowedUrl('https://user:pw@www.primevideo.com/')).toBe(false);
-    expect(isAllowedUrl('https://example.com/')).toBe(false);
-    expect(isAllowedUrl('javascript:alert(1)')).toBe(false);
-    expect(isAllowedUrl('file:///etc/passwd')).toBe(false);
-  });
-
-  it('allows local fixtures only in dev mode', () => {
-    expect(isAllowedUrl('file:///tmp/fixture.html', { dev: true })).toBe(true);
-    expect(isAllowedUrl('http://localhost:5173/', { dev: true })).toBe(true);
-    expect(isAllowedUrl('http://example.com/', { dev: true })).toBe(false);
   });
 });
 

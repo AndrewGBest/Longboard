@@ -12,13 +12,16 @@ export type Action =
   | { type: 'playPause' }
   | { type: 'seek'; seconds: number }
   | { type: 'search' }
-  | { type: 'settings' }
+  /** Open or close Longboard's menu panel. */
+  | { type: 'menu' }
+  /** Switch pointer mode on or off. */
+  | { type: 'pointer' }
   | { type: 'diagnostics' }
   | { type: 'exit' };
 
 export type ActionType = Action['type'];
 
-/** Messages the page-side layer may send to the main process. Keep this list short. */
+/** Messages a layer (in the page view or in Longboard's own screens) may send to the shell. Keep this list short. */
 export type BridgeMessage =
   | { kind: 'exit' }
   | { kind: 'playback'; playing: boolean }
@@ -30,21 +33,35 @@ export type BridgeMessage =
   /** Ask the shell to rest the pointer on a point of the page (CSS pixels), for menus that open on hover. */
   | { kind: 'hover'; x: number; y: number }
   | { kind: 'diagnostics'; outline: string; url: string }
-  | { kind: 'spike'; event: SpikeEvent };
+  /** Go back one page; the shell goes Home when there is no page to go back to. */
+  | { kind: 'back' }
+  /** The menu button was pressed. */
+  | { kind: 'menu' }
+  /** The pointer button was pressed. */
+  | { kind: 'pointer' }
+  /** Pointer mode cannot continue (the on-screen keyboard needs the arrows). */
+  | { kind: 'pointerOff' }
+  /** Directions held on a game controller while pointer mode is on. */
+  | { kind: 'pointerHeld'; dirs: Direction[] }
+  /** Under automation: the layer has checked the point and a click there is allowed. */
+  | { kind: 'pointerClickOk'; id: number };
 
-export type SpikeEvent =
-  | { name: 'eme-access'; ok: boolean; detail: string }
-  | { name: 'video'; event: string; width: number; height: number; currentTime: number; protected: boolean }
-  | { name: 'video-error'; code: number; message: string };
+/** Which of Longboard's two views a layer is running in. */
+export type Surface = 'page' | 'chrome';
 
 export interface LayerOptions {
   dev: boolean;
   automation: boolean;
-  spike: boolean;
-  /** App version, shown on the About panel. */
-  version?: string;
+  surface?: Surface;
   /** Key mappings from the user's config file. */
   keys?: Record<string, ActionName>;
   /** Gamepad button mappings from the user's config file. */
   buttons?: Record<string, ActionName>;
+}
+
+/** What the shell hands a preload when a page starts. */
+export interface BootData {
+  options: LayerOptions;
+  /** Site adapter data for this address, or null. */
+  adapter: unknown;
 }

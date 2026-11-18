@@ -7,20 +7,23 @@ import { buildOutline, sanitizeUrl } from './diagnostics/outline';
 import { installPurchaseGuard } from './guard/purchase-guard';
 import { startPolling } from './input/gamepad';
 import { keyToAction, type Mode } from './input/keys';
-import { aboutTitle, HELP, NOTICE } from '../shared/about';
 import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
 import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo, type PlayerKey } from '../shared/player-keys';
 import { findMainVideo, isPlayerActive, isSeekBar, playerIsOwnPage, playerScope } from './player';
 import { coveredByScreen, edgeControl, isVisible, MENU_ENTRY, openDialog, SpatialNavigator } from './spatial/navigator';
 import { HOST_TAG, Overlay } from './ui/overlay';
-import { installSpikeProbes } from './spike';
 
 export interface LayerDeps {
   doc: Document;
   options: LayerOptions;
   adapter: SiteAdapter;
   send: (msg: BridgeMessage) => void;
+  /** Longboard's own screens answer some keys themselves. */
+  hooks?: {
+    /** Back, when nothing on the page claimed it. Return true when handled. */
+    back?: () => boolean;
+  };
 }
 
 /**
@@ -46,10 +49,14 @@ export interface Layer {
   notice: (text: string) => void;
   /** The app's window stopped being the one in front: pause what is playing. */
   away: () => void;
+  /** Puts the highlight on the first control inside `container`. */
+  focusFirstIn: (container: Element) => boolean;
+  /** Puts the highlight on `el`. */
+  focus: (el: Element) => boolean;
   stop: () => void;
 }
 
-export function startLayer({ doc, options, adapter, send }: LayerDeps): Layer {
+export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): Layer {
   const view = doc.defaultView;
   if (!view) throw new Error('layer needs a window');
 
@@ -181,7 +188,6 @@ export function startLayer({ doc, options, adapter, send }: LayerDeps): Layer {
   // remote can type. It types through the shell, like a real keyboard would.
   const osk = new OskModel();
   let oskOpen = false;
-  let aboutOpen = false;
   let oskSubmit = 'enter';
   let oskSide: 'top' | 'bottom' = 'bottom';
   const drawOsk = (): void => overlay.keyboard(oskOpen ? osk.rows : null, { row: osk.row, index: osk.index }, oskSubmit, oskSide);
@@ -194,8 +200,10 @@ export function startLayer({ doc, options, adapter, send }: LayerDeps): Layer {
   };
   const openOsk = (field: Element): void => {
     if (!oskOpen) osk.reset();
-    // The key says what it does: it only searches in a search field.
-    oskSubmit = isSearchField(field) ? 'search' : 'enter';
+    // The key says what it does: the page's own word for it when it gives
+    // one (the standard enterkeyhint attribute), "search" in a search field.
+    const hint = (field.getAttribute('enterkeyhint') ?? '').toLowerCase();
+    oskSubmit = ['go', 'search', 'send', 'next', 'done'].includes(hint) ? hint : isSearchField(field) ? 'search' : 'enter';
     // Keep the keyboard off the field, so what is typed can be seen.
     const box = field.getBoundingClientRect();
     oskSide = oskDock({ top: box.top, bottom: box.bottom }, doc.defaultView?.innerHeight ?? 0);
@@ -331,6 +339,7 @@ export function startLayer({ doc, options, adapter, send }: LayerDeps): Layer {
       (active as HTMLElement).blur();
       return;
     }
+    if (hooks?.back?.()) return;
     if (openToggle) {
       const { label, input } = openToggle;
       openToggle = null;
@@ -391,20 +400,9 @@ export function startLayer({ doc, options, adapter, send }: LayerDeps): Layer {
     }
     goBack();
   };
-  // Going back a page. Some pages add a second history entry for themselves
-  // as they load (seen on the title pages of Steamboat's service), and the first step
-  // back then changes nothing the user can see. One more step is taken when
-  // the address has not changed and no other key has come in.
-  let backTimer: number | undefined;
-  const goBack = (): void => {
-    if (view.history.length <= 1) return;
-    const before = view.location.pathname + view.location.search;
-    view.history.back();
-    view.clearTimeout(backTimer);
-    backTimer = view.setTimeout(() => {
-      if (view.location.pathname + view.location.search === before && !inPlayer() && !openDialog(doc)) view.history.back();
-    }, 600);
-  };
+  // The shell does the going back: it knows whether there is a page to go
+  // back to, and shows Home when there is not.
+  const goBack = (): void => send({ kind: 'back' });
 
   // Some sites keep the search field hidden until a control is activated.
   // The control is clicked like any other; the field is focused once it shows.
@@ -448,16 +446,7 @@ export function startLayer({ doc, options, adapter, send }: LayerDeps): Layer {
     // overrides it (Back right after Enter must not have focus put back).
     view.clearTimeout(refocusTimer);
     view.clearTimeout(followTimer);
-    view.clearTimeout(backTimer);
     view.clearInterval(coverTimer);
-    if (aboutOpen) {
-      // The panel only needs closing; every other key waits until it is gone.
-      if (a.type === 'back' || a.type === 'select' || a.type === 'settings') {
-        aboutOpen = false;
-        overlay.about(null);
-      }
-      if (a.type !== 'exit') return;
-    }
     if (oskOpen) {
       if (a.type === 'move') {
         // Up from the top row leaves the keyboard for the page.
@@ -558,10 +547,13 @@ export function startLayer({ doc, options, adapter, send }: LayerDeps): Layer {
         send({ kind: 'diagnostics', outline: `# ${adapterReport(adapter, doc)}\n${buildOutline(doc.documentElement)}`, url: sanitizeUrl(view.location.href) });
         overlay.toast('Page outline saved (structure only, no text)');
         break;
-      case 'settings':
+      case 'menu':
         closeOsk();
-        aboutOpen = true;
-        overlay.about({ title: aboutTitle(options.version), notice: NOTICE, help: HELP });
+        send({ kind: 'menu' });
+        break;
+      case 'pointer':
+        closeOsk();
+        send({ kind: 'pointer' });
         break;
       case 'exit':
         send({ kind: 'exit' });
@@ -650,8 +642,6 @@ export function startLayer({ doc, options, adapter, send }: LayerDeps): Layer {
       )
     : (): void => undefined;
 
-  const stopSpike = options.spike ? installSpikeProbes(doc, send) : (): void => undefined;
-
   return {
     dispatch,
     notice: (text) => overlay.toast(text, 6000),
@@ -667,6 +657,8 @@ export function startLayer({ doc, options, adapter, send }: LayerDeps): Layer {
         pressKey('playPause');
       }
     },
+    focusFirstIn: (container) => nav.focusFirstIn(container),
+    focus: (el) => nav.focus(el),
     stop: () => {
       view.removeEventListener('keydown', onKey, true);
       doc.removeEventListener('focusin', onFocusIn, true);
@@ -680,10 +672,8 @@ export function startLayer({ doc, options, adapter, send }: LayerDeps): Layer {
       view.clearTimeout(dialogTimer);
       view.clearTimeout(hoverTimer);
       view.clearTimeout(edgeTimer);
-      view.clearTimeout(backTimer);
       stopPads();
       stopGuard();
-      stopSpike();
     },
   };
 }

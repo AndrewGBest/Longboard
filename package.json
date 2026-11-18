@@ -12,10 +12,9 @@
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run test && npm run build && node scripts/check-rules.mjs",
     "start": "npm run build && electron . --dev",
-    "spike": "npm run build && electron . --spike",
-    "e2e": "npm run build && node test/e2e/fixture-smoke.mjs",
+    "e2e": "npm run build && node test/e2e/run.mjs",
     "dist": "npm run build && electron-builder --linux",
-    "live:walk": "node test/live/walk.mjs"
+    "tv": "npm run build && electron ."
   },
   "build": {
     "appId": "io.github.andrewgbest.Longboard",

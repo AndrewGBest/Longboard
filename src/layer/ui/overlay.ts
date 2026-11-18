@@ -25,19 +25,6 @@ const CSS = `
 @keyframes bump-up { 50% { transform: translateY(-1.4vh); } }
 @keyframes bump-down { 50% { transform: translateY(1.4vh); } }
 @keyframes pulse { 50% { transform: scale(.96); } }
-.about {
-  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  display: none; width: 76vw; max-height: 84vh; overflow: hidden; box-sizing: border-box;
-  padding: 4vh 5vh; border-radius: 2vh; background: rgba(12,14,18,.97); color: #f2f2f2;
-  font: 2.9vh/1.45 system-ui, sans-serif; box-shadow: 0 1vh 6vh rgba(0,0,0,.7);
-}
-.about.show { display: block; }
-.about h1 { font-size: 4.6vh; margin: 0 0 2vh; }
-.about p { margin: 0 0 2.4vh; color: #c9ccd1; }
-.about dl { display: grid; grid-template-columns: max-content 1fr; gap: .8vh 3vh; margin: 0 0 2.4vh; }
-.about dt { font-weight: 700; }
-.about dd { margin: 0; color: #c9ccd1; }
-.about .hint { color: #8f949c; margin: 0; }
 .toast {
   position: fixed; left: 50%; bottom: 8vh; transform: translateX(-50%);
   background: rgba(16,16,16,.94); color: #fff; font: 600 3.4vh/1.3 system-ui, sans-serif;
@@ -69,7 +56,6 @@ export class Overlay {
   private readonly ring: HTMLElement;
   private readonly toastEl: HTMLElement;
   private readonly oskEl: HTMLElement;
-  private readonly aboutEl: HTMLElement;
   private readonly host: HTMLElement;
   private target: Element | null = null;
   private toastTimer: number | undefined;
@@ -97,10 +83,7 @@ export class Overlay {
     this.oskEl.className = 'osk';
     this.oskEl.setAttribute('role', 'group');
     this.oskEl.setAttribute('aria-label', 'On-screen keyboard');
-    this.aboutEl = doc.createElement('div');
-    this.aboutEl.className = 'about';
-    this.aboutEl.setAttribute('role', 'dialog');
-    root.append(this.ring, this.toastEl, this.oskEl, this.aboutEl);
+    root.append(this.ring, this.toastEl, this.oskEl);
     doc.documentElement.append(host);
     this.host = host;
     // Anything that scrolls may be carrying the target (a row, a list); the
@@ -189,24 +172,6 @@ export class Overlay {
         } else if (this.raf === 0 && !this.doc.hidden && this.place()) this.wake();
       }, WATCH_MS);
     }
-  }
-
-  /** Shows the About and help panel; `null` hides it. */
-  about(content: { title: string; notice: string; help: readonly (readonly [string, string])[] } | null): void {
-    if (!content) {
-      this.aboutEl.classList.remove('show');
-      return;
-    }
-    const el = (tag: string, text: string, cls?: string): HTMLElement => {
-      const node = this.doc.createElement(tag);
-      node.textContent = text;
-      if (cls) node.className = cls;
-      return node;
-    };
-    const list = this.doc.createElement('dl');
-    for (const [keys, what] of content.help) list.append(el('dt', keys), el('dd', what));
-    this.aboutEl.replaceChildren(el('h1', content.title), el('p', content.notice), list, el('p', 'Press Back to close.', 'hint'));
-    this.aboutEl.classList.add('show');
   }
 
   /**

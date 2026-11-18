@@ -24,7 +24,7 @@ describe('keyToAction', () => {
   it('knows the usual remote and media-keyboard buttons', () => {
     for (const key of ['GoBack', 'MediaStop', 'BrowserBack']) expect(keyToAction({ key }, 'player')).toEqual({ type: 'back' });
     expect(keyToAction({ key: 'BrowserSearch' }, 'browse')).toEqual({ type: 'search' });
-    for (const key of ['ContextMenu', 'Info', 'Help']) expect(keyToAction({ key }, 'browse')).toEqual({ type: 'settings' });
+    for (const key of ['ContextMenu', 'Info', 'Help']) expect(keyToAction({ key }, 'browse')).toEqual({ type: 'menu' });
     expect(keyToAction({ key: 'MediaPlayPause' }, 'browse')).toEqual({ type: 'playPause' });
   });
 

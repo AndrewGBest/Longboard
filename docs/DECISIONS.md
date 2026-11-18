@@ -3,6 +3,31 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: phase 0 and phase 1 choices made by the agent
+
+Andrew asked the agent to work through the roadmap alone and to record its
+own choices here as assumptions. Every row is **an assumption by the agent**
+and can be reversed.
+
+| Topic | Chosen | Why |
+|---|---|---|
+| Electron version | castLabs 45.2.1, not Tropic Video's 44.10.1 | Hard rule 14: it was the current stable on the releases page when the code was carried over. Tropic Video's whole test suite passed on it unchanged |
+| Not carried over | The `--spike` protected-playback probe, the live-site walk script and the release workflow | The probe and walk were tools for one service; the release workflow can come back when a release is wanted, and until then nothing can publish one by accident |
+| Two views | The website and Longboard's own screens are separate views with separate sessions; the chrome view's session is in memory only | ARCHITECTURE.md section 4. A website can then never reach Home, the menu or a permission question |
+| How the chrome screens talk to the shell | Their preload draws them from the isolated world and uses IPC itself. The page has no script and no `contextBridge` API | Keeps Hard rule 13 true for every view, not only the website's, and lets the rule check keep banning `exposeInMainWorld` outright |
+| Plain http | Opened, like https | A general browser has to open the devices and old sites on a home network. Typed host names still get https first |
+| What is never opened | `file:`, `data:`, `javascript:`, `blob:`, internal pages, and any address with a user name or password in it | ARCHITECTURE.md section 2; the last is a common disguise for a look-alike site |
+| Search engine | DuckDuckGo (`https://duckduckgo.com/?q=%s`), changeable with `"search"` in config.json | Something has to be the default, and one that does not need an account or build a profile of the person fits principle 7. No arrangement with them exists; it is an ordinary link |
+| Permissions | Full screen granted. Protected playback asked once per site and remembered. Everything else refused without asking | ARCHITECTURE.md section 2 names those two as the ones that make sense on a TV. The decision is a tested pure function |
+| Home tiles | A letter and the site's name; no icons yet | Hard rule 6 wants icons to come from the site at run time, and fetching them when Home opens would contact every listed site again. Needs a cache filled at visit time; not built |
+| What goes on Home | Addresses the person typed or opened from a tile; one tile per site, twelve at most. Searches and links followed inside a site do not | "Recently opened sites" in DESIGN.md 4.1, read as sites the person went to on purpose. It is not a history |
+| Going Home | The site stays loaded, silenced, with a full-screen video paused by the site's own key; Back on Home returns to it | No tabs yet, and losing a page by pressing Home would be a dead end |
+| Back | The shell decides: back one page, past Longboard's own notices and repeated entries; Home from the first page | "Back always goes back" (DESIGN.md section 7) needs one place that knows the history |
+| Menu key | Menu/ContextMenu, Info, Help, Ctrl+O; Start on a controller | DESIGN.md section 6 |
+| Pointer key | F2; right stick click on a controller | DESIGN.md left it "to be chosen". No remote has a pointer key, F2 collides with nothing a page commonly uses, and config.json can map any other key or button to `pointer` |
+| Downloads | Refused with a message | ARCHITECTURE.md section 2 |
+| Certificate errors | A notice page, no retry, no way through | Hard rule 13 |
+
 ## 2026-11-18: ad blocking, verified sites, profile licence, profiles repo
 
 Andrew, in chat, over two messages:
