@@ -142,9 +142,11 @@ export function typableText(text: unknown): string | null {
  * keeps nothing. A scripted run never does (Hard rule 9): under --automation
  * the keyboard stays out of these fields.
  */
-export function isSecretField(type: string | null, autocomplete: string | null): boolean {
+export function isSecretField(type: string | null, autocomplete: string | null, name: string | null = null): boolean {
   if ((type ?? '').toLowerCase() === 'password') return true;
-  return /password|one-time-code/i.test(autocomplete ?? '');
+  if (/password|one-time-code|cc-csc|cc-number/i.test(autocomplete ?? '')) return true;
+  // Many sites mark a code field only by what they call it.
+  return /(^|[^a-z])(otp|totp|2fa|mfa|pin|cvv|cvc|passcode|passwd|password)([^a-z]|$)|(security|verification|auth|one.?time|sms).?code/i.test(name ?? '');
 }
 
 /**

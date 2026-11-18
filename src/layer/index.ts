@@ -14,7 +14,7 @@ import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
 import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo, type PlayerKey, type TextKey } from '../shared/player-keys';
 import { findMainVideo, GENERIC_PLAYER_SHARE, isPlayerActive, isSeekBar, playerIsOwnPage, playerScope } from './player';
-import { coveredByScreen, edgeControl, isVisible, MENU_ENTRY, openDialog, SpatialNavigator, type NavigatorOptions } from './spatial/navigator';
+import { coveredByScreen, edgeControl, isVisible, MENU_ENTRY, openDialog, press, SpatialNavigator, type NavigatorOptions } from './spatial/navigator';
 import { HOST_TAG, Overlay } from './ui/overlay';
 
 export interface LayerDeps {
@@ -84,10 +84,11 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   const inPlayer = (): boolean => isPlayerActive(doc, playerRoots, playerShare());
   /** While the player is open, focus stays among its own controls. */
   const scope = (): Element | null => {
-    // An open hover menu lies over the page; what is underneath is not reachable until it is closed.
-    if (hoverHost?.isConnected) return hoverHost;
     // A pop-up the page opened in front of everything: only it can be reached.
     const dialog = openDialog(doc);
+    // An open hover menu lies over the page; what is underneath is not
+    // reachable until it is closed. A pop-up opened from the menu is in front of both.
+    if (hoverHost?.isConnected && !(dialog && !deepContains(hoverHost, dialog))) return hoverHost;
     if (dialog) return dialog;
     if (!inPlayer()) return null;
     const v = mainVideo();
@@ -97,7 +98,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   const overlay = new Overlay(doc);
   /** A scripted run never types a password or a one-time code (Hard rule 9). A person may. */
   const keyboardBarred = (el: Element): boolean =>
-    options.automation && isSecretField(el.getAttribute('type'), el.getAttribute('autocomplete'));
+    options.automation && isSecretField(el.getAttribute('type'), el.getAttribute('autocomplete'), `${el.getAttribute('name') ?? ''} ${el.id}`);
   // The navigator keeps this object, so setRules can change what it goes by.
   const navOptions: NavigatorOptions = {
     extraFocusable: rules.selectors.extraFocusable,
@@ -226,7 +227,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       if (from) overlay.feedback(dir);
       return;
     }
-    (hit.control as HTMLElement).click();
+    press(hit.control);
     view.clearTimeout(edgeTimer);
     // Twice: the new slide can still be sliding in at the first look, and
     // what was picked then may itself be put away when it settles.
@@ -290,6 +291,13 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     drawOsk();
   };
   const pressOsk = (): void => {
+    // The field may have changed under the keyboard since it was opened: the
+    // page moved the cursor on to the password, or turned the field into one.
+    const into = deepActiveElement(doc);
+    if (into && keyboardBarred(into)) {
+      closeOsk();
+      return;
+    }
     const key = osk.key;
     if (osk.switchPage()) {
       drawOsk();
@@ -309,8 +317,9 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
 
   const mode = (): Mode => {
     if (oskOpen) {
-      // The keyboard only makes sense while its field still has focus.
-      if (isTextEntry(deepActiveElement(doc))) return 'browse';
+      // The keyboard only makes sense while its field still has focus, and is one it may type in.
+      const into = deepActiveElement(doc);
+      if (isTextEntry(into) && !(into && keyboardBarred(into))) return 'browse';
       closeOsk();
     }
     // A text field under the highlight is only that until someone types in
@@ -426,13 +435,14 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     const active = deepActiveElement(doc);
     if (isTextEntry(active)) {
       (active as HTMLElement).blur();
-      return;
+      // A field that takes the cursor straight back must not make Back useless.
+      if (deepActiveElement(doc) !== active) return;
     }
     if (hooks?.back?.()) return;
     // Something the profile says Back closes first (a banner, a panel).
     const closer = visibleMatch(rules.selectors.dismiss);
     if (closer) {
-      (closer as HTMLElement).click();
+      press(closer);
       return;
     }
     if (openToggle) {
@@ -464,7 +474,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       }
       const close = firstMatch(doc, rules.selectors.playerClose);
       if (close) {
-        (close as HTMLElement).click();
+        press(close);
         return;
       }
       // A player that is a page of its own is left like any page, once any
@@ -526,7 +536,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     }
     const opener = visibleMatch([...rules.selectors.searchOpen, ...GENERIC_SEARCH_OPEN]);
     if (!opener) return;
-    (opener as HTMLElement).click();
+    press(opener);
     let tries = 0;
     view.clearInterval(searchPoll);
     searchPoll = view.setInterval(() => {
@@ -706,7 +716,9 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   };
 
   const onKey = (e: KeyboardEvent): void => {
-    if (!e.isTrusted && !options.automation) return;
+    // Only keys that were really pressed (by a person, or by a script through
+    // the browser's own input channel). A key event the page made up is not one.
+    if (!e.isTrusted) return;
     // A key the layer asked the shell to press: it belongs to the site.
     if (e.isTrusted && injected.consume(e.key, Date.now())) return;
     // A real keyboard is in use: typing a character puts the on-screen one away.
@@ -735,6 +747,19 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     dispatch(action);
   };
   view.addEventListener('keydown', onKey, true);
+
+  // An embedded frame that takes the keys for itself would leave the remote
+  // dead: nothing pressed would reach here again. Outside pointer mode (where
+  // a click into a frame is the point) the keys are taken back.
+  const reclaim = (): void => {
+    view.setTimeout(() => {
+      const active = doc.activeElement;
+      if (pointerOn || !(active instanceof HTMLIFrameElement)) return;
+      active.blur();
+      view.focus();
+    }, 0);
+  };
+  view.addEventListener('blur', reclaim);
 
   // A text field the page focused by itself (a sign-in page puts the cursor
   // in its first field): take it as the remote's focus too, so the ring is on
@@ -881,10 +906,10 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       rules.version = next.version;
     },
     mayClickAt: (x, y) => {
-      const el = doc.elementFromPoint(x, y);
+      const el = elementAt(doc, x, y);
       // What is inside a frame cannot be seen from here; the shell asks the frame's own guard.
       if (el instanceof HTMLIFrameElement) return 'frame';
-      if (el && !(el instanceof HTMLEmbedElement) && !(el instanceof HTMLObjectElement) && !isSpendControl(el, rules.selectors.purchaseControls)) return 'yes';
+      if (el && !(el instanceof HTMLEmbedElement) && !(el instanceof HTMLObjectElement) && !isSpendControl(el, rules.selectors.purchaseControls, view.location.href)) return 'yes';
       overlay.toast('Blocked: automation mode never activates purchase or sign-up controls');
       return 'no';
     },
@@ -893,6 +918,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     focus: (el) => nav.focus(el),
     stop: () => {
       view.removeEventListener('keydown', onKey, true);
+      view.removeEventListener('blur', reclaim);
       doc.removeEventListener('focusin', onFocusIn, true);
       view.removeEventListener('mousemove', onPointer);
       view.removeEventListener('mousedown', onMouseDown, true);

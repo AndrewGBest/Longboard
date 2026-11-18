@@ -211,6 +211,25 @@ await scenario('a page driven with the arrows', { url: `${site.origin}/home.html
   check('a blocked navigation shows a toast', await page.toastText(), 'Blocked: that address carries a user name or password');
   check('a blocked navigation is logged without its query or the password', [/blocked navigation \(credentials\): http:\/\/127\.0\.0\.1:\d+\/home\.html\n/.test(app.log), /SECRET|user:pw/.test(app.log)], [true, false]);
 
+  // What a page makes up is not a key press, and a web component does not hide a purchase button.
+  const before = await focused();
+  await evaluate('window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })); document.dispatchEvent(new KeyboardEvent("keydown", { key: "q", ctrlKey: true, bubbles: true })); 0');
+  await sleep(300);
+  check('a key event the page made up moves nothing and quits nothing', await focused(), before);
+  await evaluate(`(() => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = host.attachShadow({ mode: 'open' });
+    root.innerHTML = '<button id="buy"><span>Buy now</span></button><button id="fine">Fine</button>';
+    window.__shadow = [];
+    root.getElementById('buy').addEventListener('click', () => window.__shadow.push('buy'));
+    root.getElementById('fine').addEventListener('click', () => window.__shadow.push('fine'));
+    root.querySelector('span').click();
+    root.getElementById('fine').click();
+    host.remove();
+  })(); 0`);
+  check('a purchase button inside a web component is still not pressed in a scripted run', await evaluate('__shadow'), ['fine']);
+
   // Nothing that is not a web address opens, and nothing is granted that the policy does not list.
   await evaluate('window.open("file:///etc/passwd"); 0');
   await sleep(400);

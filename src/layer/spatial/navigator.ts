@@ -87,6 +87,15 @@ export function zoomTarget(el: Element): Element {
   return target;
 }
 
+/**
+ * Presses something as a click would. Most elements can be asked to click
+ * themselves; a drawing (SVG) cannot, and is sent the click it would have got.
+ */
+export function press(el: Element): void {
+  if (typeof (el as HTMLElement).click === 'function') (el as HTMLElement).click();
+  else el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, view: el.ownerDocument.defaultView }));
+}
+
 export interface NavigatorOptions {
   /** Extra selectors from the site adapter. */
   extraFocusable?: string[];
@@ -890,7 +899,7 @@ export class SpatialNavigator {
   activate(): boolean {
     const el = this.focused;
     if (!el) return false;
-    (el as HTMLElement).click();
+    press(el);
     return true;
   }
 

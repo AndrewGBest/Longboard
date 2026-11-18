@@ -174,3 +174,63 @@ describe('about panel', () => {
     expect(aboutTitle(undefined)).toBe('Longboard');
   });
 });
+
+describe('the guard, after an independent review', () => {
+  const el = (html: string, pick = 'button, a, input'): Element => {
+    document.body.innerHTML = html;
+    return document.body.querySelector(pick)!;
+  };
+
+  it('sees a button inside a web component as the button it is', () => {
+    document.body.innerHTML = '<div id="host"></div>';
+    const root = document.getElementById('host')!.attachShadow({ mode: 'open' });
+    root.innerHTML = '<button id="b"><span>Buy now</span></button><button id="ok">Close</button>';
+    expect(isSpendControl(root.querySelector('span')!)).toBe(true);
+    expect(isSpendControl(root.getElementById('ok')!)).toBe(false);
+    const blocked: Element[] = [];
+    const stop = installPurchaseGuard(document, [], (e) => blocked.push(e));
+    let reached = 0;
+    root.getElementById('b')!.addEventListener('click', () => (reached += 1));
+    root.getElementById('ok')!.addEventListener('click', () => (reached += 10));
+    (root.querySelector('span') as HTMLElement).click();
+    (root.getElementById('ok') as HTMLElement).click();
+    stop();
+    expect([blocked.length, reached]).toEqual([1, 10]);
+  });
+
+  it('judges a form that names nowhere to go by the page it is on', () => {
+    const submit = el('<form><button>Continue</button></form>');
+    expect(isSpendControl(submit, [], 'https://shop.example/checkout/step-2')).toBe(true);
+    expect(isSpendControl(submit, [], 'https://shop.example/search')).toBe(false);
+    expect(isSpendControl(el('<form><button type="button">Continue</button></form>'), [], 'https://shop.example/checkout')).toBe(false);
+  });
+
+  it('knows more of the words, a price, and a picture button', () => {
+    for (const text of ['Rentals', 'Register', 'Join now', 'Get started', 'Try free', 'Order now', 'Pay $3.99', 'Sign-up', 'Signup', '$3.99', '3,99 €']) {
+      expect(isSpendControl(el(`<button>${text}</button>`)), text).toBe(true);
+    }
+    expect(isSpendControl(el('<button><img alt="Buy"></button>'))).toBe(true);
+    expect(isSpendControl(el('<input type="image" alt="Subscribe">'))).toBe(true);
+    for (const text of ['Play', 'More details', 'Episode 3', 'Paying attention', 'Enjoy', 'Season 2']) {
+      expect(isSpendControl(el(`<button>${text}</button>`)), text).toBe(false);
+    }
+  });
+
+  it('reads all of a real control, however long, but not a container', () => {
+    const long = 'A long description of a film that goes on for a good while, well past eighty characters. ';
+    expect(isSpendControl(el(`<a href="/title/1">${long} Rent from $3.99</a>`))).toBe(true);
+    document.body.innerHTML = `<div id="box">${long} Buy</div>`;
+    expect(isSpendControl(document.getElementById('box')!)).toBe(false);
+  });
+
+  it('knows a payment host as well as a payment path', () => {
+    expect(looksLikeSpendUrl('https://checkout.example.com/')).toBe(true);
+    expect(looksLikeSpendUrl('https://pay.example.com/x')).toBe(true);
+    expect(looksLikeSpendUrl('https://www.example.com/watch')).toBe(false);
+    expect(looksLikeSpendUrl('https://paypal-news.example.com/')).toBe(false);
+  });
+
+  it('survives a profile selector it cannot read', () => {
+    expect(isSpendControl(el('<button>Play</button>'), ['a[href', '.buy'])).toBe(false);
+  });
+});

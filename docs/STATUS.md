@@ -53,13 +53,20 @@ one were brought up to date in place. What changed:
   on "no" and ignore a yes in their first moments. The list is in
   DECISIONS.md. Left as it is: an access grant is per host name, so
   `https://site:8443` shares the answer given to `https://site`.
+- A second independent review, of the page layer, found twelve problems.
+  The ones against the Hard rules are fixed and tested: the purchase guard
+  did not see into web components, went up after the page's scripts, and
+  missed forms without an address; the on-screen keyboard could be led into
+  a password field in a scripted run. What was left alone, and why, is in
+  DECISIONS.md. **The guard is still wording in English plus addresses: it
+  is a safety net, not a guarantee.**
 - **Ad blocking is still not started.** The agent began on it after a
   second "keep going", was stopped by the permission system, and undid the
   one thing it had done (installing the library). It needs Andrew to say
   plainly that phase 5 may start. The licence findings are in DECISIONS.md.
 
-Verified by `npm run check` (unit tests, 351 of them) and the end-to-end run
-(22 scenarios, 253 checks), which has new checks for each item above. Not verified: any
+Verified by `npm run check` (unit tests, 359 of them) and the end-to-end run
+(22 scenarios, 255 checks), which has new checks for each item above. Not verified: any
 of it by a person on a TV; a download bigger than 200 KB.
 
 ## 2026-11-18, later: phases 0 to 4 built by the agent working alone
@@ -84,13 +91,13 @@ DECISIONS.md, each marked as an assumption.
 All of this was checked by scripts on a headless virtual machine. **None of
 it was checked by a person, with a remote, on a TV.**
 
-- `npm run check`: 351 unit tests (geometry, input mapping, address rules,
+- `npm run check`: 359 unit tests (geometry, input mapping, address rules,
   navigation policy, permission policy, pointer movement, profile validation,
   matching and choosing, the interpreter, the profile store, the catalogue
   fetcher, the guard, the outline sanitiser), the build, and the rule checks.
 - `xvfb-run -a npm run e2e`: the real app, always with `--automation`, driven
   over the DevTools protocol against invented fixture pages served from this
-  machine. 22 scenarios, 253 checks. They cover: arrows on a grid of
+  machine. 22 scenarios, 255 checks. They cover: arrows on a grid of
   cards; the on-screen keyboard; pop-ups; refused addresses, downloads and
   permissions; Home, the address field, the menu, zoom and Back; searching;
   notices for blocked and unreachable pages; a full-screen video with the

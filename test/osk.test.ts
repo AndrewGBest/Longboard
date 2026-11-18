@@ -114,6 +114,21 @@ describe('typableText', () => {
   });
 });
 
+describe('isSecretField, by what the site calls the field', () => {
+  it('takes a code or PIN field for a secret', () => {
+    for (const name of ['otp', 'user_otp', 'pin', 'card-cvv', 'cvc', 'verificationCode', 'sms_code', 'security-code', 'totp', 'passcode', 'one_time_code']) {
+      expect(isSecretField('text', null, name), name).toBe(true);
+    }
+    expect(isSecretField('tel', 'cc-csc')).toBe(true);
+    expect(isSecretField('text', 'cc-number')).toBe(true);
+  });
+  it('does not take ordinary fields for one', () => {
+    for (const name of ['search', 'q', 'email', 'username', 'shipping', 'spinner', 'pinterest', 'option', 'zipcode', 'promo', '']) {
+      expect(isSecretField('text', null, name), name).toBe(false);
+    }
+  });
+});
+
 describe('isSecretField', () => {
   it('recognises passwords and one-time codes', () => {
     expect(isSecretField('password', null)).toBe(true);

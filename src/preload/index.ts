@@ -19,6 +19,14 @@ function guardFrame(): void {
   ipcRenderer.send('longboard:frame', 'guarded');
 }
 
+// In a scripted run the guard goes up now, before any of the page's own
+// scripts have run, so nothing the page sets up can get in ahead of it.
+// What it says when it stops something waits for the layer to exist.
+const scripted = process.argv.includes('--longboard-automation');
+const guarded: string[] = [];
+let sayBlocked: () => void = () => undefined;
+if (scripted && window.top === window) installPurchaseGuard(document, guarded, () => sayBlocked());
+
 const start = (): void => {
   if (window.top !== window) return;
   // Asked for when the page starts, so the shell can choose by the page's address.
@@ -30,6 +38,11 @@ const start = (): void => {
     rules: rulesFromUntrusted(boot.profile, document),
     send,
   });
+  if (scripted) {
+    // The profile's own list of purchase controls joins the early guard.
+    guarded.push(...rulesFromUntrusted(boot.profile, document).selectors.purchaseControls);
+    sayBlocked = () => layer.notice('Blocked: automation mode never activates purchase or sign-up controls');
+  }
 
   // From the shell to the layer. These arrive in the isolated world; the
   // page's own scripts never see them.

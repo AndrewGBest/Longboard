@@ -53,7 +53,10 @@ export function genericRules(): SiteRules {
 function usable(sel: string, doc?: Document): boolean {
   if (!doc) return true;
   try {
+    // Tried as it will be used: in a list with others. A selector left open
+    // at its end can be read alone and still spoil the list.
     doc.querySelector(sel);
+    doc.querySelector(`${sel}, a`);
     return true;
   } catch {
     return false;

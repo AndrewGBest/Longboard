@@ -2,6 +2,8 @@
 // AI agent, no click may reach a control that could spend money or start a
 // subscription. Ordinary users are never affected: this is only installed in
 // automation mode.
+import { deepClosest } from '../spatial/deep';
+
 /**
  * Account matters an agent or script has no business in: leaving the account,
  * or changing who is on it. The words are here so the guard does not rest on
@@ -10,15 +12,21 @@
 const ACCOUNT_WORDS = /\b(log ?out|sign ?out|(add|edit|delete|manage) profiles?|account( settings)?|billing|payment (method|details)|cancel (subscription|membership|plan))\b/i;
 
 const SPEND_WORDS =
-  /\b(buy|rent|purchase|pre-?order|subscribe|subscription|free trial|start (your )?trial|join prime|sign up|upgrade|(go )?ad[- ]free|add to (cart|basket)|place (your )?order|pay now|checkout|1-click)\b/i;
+  /\b(buy|rent|rentals?|purchase|pre-?order|subscribe|subscription|free trial|start (your )?trial|try (it |for )?free|join (prime|now|today|free)|sign[- ]?up|register|get started|upgrade|(go )?ad[- ]free|add to (cart|basket)|place (your )?order|order now|pay|checkout|1-click)\b/i;
+/** A price on a button: "$3.99", "€ 5", "3,99 €". */
+const PRICE = /[$£€¥]\s?\d|\d\s?[$£€¥]/;
+/** What counts as a control in its own right, whatever is inside it. */
+const CONTROL = 'a, button, [role="button"], [role="link"], input[type="submit"], input[type="button"], input[type="image"]';
 
 /** URL fragments that indicate a payment or sign-up flow. Heuristic until confirmed on the live site. */
 const SPEND_URL = /(checkout|\/buy\b|\/gp\/buy|purchase|signup|sign-up|\/offers?\b|subscribe|payment)/i;
+/** The same for the first part of a host name: checkout.example.com. */
+const SPEND_HOST = /^(checkout|pay|payments?|billing|buy|subscribe|signup)\./i;
 
 export function looksLikeSpendUrl(url: string): boolean {
   try {
     const u = new URL(url, 'https://invalid.example');
-    return SPEND_URL.test(u.pathname + u.search);
+    return SPEND_URL.test(u.pathname + u.search) || SPEND_HOST.test(u.hostname);
   } catch {
     return true; // Unparseable target: refuse rather than guess.
   }
@@ -30,26 +38,44 @@ function describe(el: Element): string {
     el.getAttribute('aria-label') ?? '',
     el.getAttribute('title') ?? '',
     el.getAttribute('value') ?? '',
+    el.getAttribute('alt') ?? '',
+    // A button that is only a picture says what it is in the picture's description.
+    ...[...el.querySelectorAll('img[alt], svg[aria-label], [aria-label]')].slice(0, 8).map((n) => n.getAttribute('alt') ?? n.getAttribute('aria-label') ?? ''),
   ];
   return parts.join(' ').replace(/\s+/g, ' ').trim();
 }
 
-/** True when activating `target` could plausibly spend money. Errs toward blocking. */
-export function isSpendControl(target: Element, extraSelectors: readonly string[] = []): boolean {
-  const control =
-    target.closest('a, button, [role="button"], [role="link"], input[type="submit"], input[type="button"]') ??
-    target;
+/** True when pressing `control` would send the form it is in. */
+function submits(control: Element): boolean {
+  const type = (control.getAttribute('type') ?? '').toLowerCase();
+  if (control.matches('input')) return type === 'submit' || type === 'image';
+  return control.matches('button') && type !== 'button' && type !== 'reset';
+}
+
+/**
+ * True when activating `target` could plausibly spend money. Errs toward
+ * blocking. `pageUrl` is the address of the page the control is on: a form
+ * that names nowhere to go sends to its own page. Looks out through shadow
+ * roots, so a button inside a web component is judged as the button it is.
+ */
+export function isSpendControl(target: Element, extraSelectors: readonly string[] = [], pageUrl = ''): boolean {
+  const found = deepClosest(target, CONTROL);
+  const control = found ?? target;
   for (const sel of extraSelectors) {
-    if (control.closest(sel)) return true;
+    try {
+      if (deepClosest(control, sel)) return true;
+    } catch {
+      // a selector this browser cannot read names nothing
+    }
   }
   const text = describe(control);
-  // Long text means we climbed to a container, not a button; judge only real controls.
-  if (text.length <= 80 && (SPEND_WORDS.test(text) || ACCOUNT_WORDS.test(text))) return true;
+  // Outside a real control, long text means a container was reached, not a button.
+  if ((found || text.length <= 80) && (SPEND_WORDS.test(text) || ACCOUNT_WORDS.test(text) || (text.length <= 80 && PRICE.test(text)))) return true;
   const href = control.getAttribute('href');
   if (href && looksLikeSpendUrl(href)) return true;
-  if (control.closest('form[action]')) {
-    const action = control.closest('form[action]')?.getAttribute('action') ?? '';
-    if (looksLikeSpendUrl(action)) return true;
+  const form = deepClosest(control, 'form');
+  if (form && (submits(control) || form.hasAttribute('action'))) {
+    if (looksLikeSpendUrl(form.getAttribute('action') || pageUrl)) return true;
   }
   return false;
 }
@@ -59,10 +85,14 @@ export function installPurchaseGuard(
   extraSelectors: readonly string[],
   onBlocked: (el: Element) => void,
 ): () => void {
+  const here = (): string => doc.defaultView?.location.href ?? '';
   const handler = (e: Event): void => {
-    const t = e.target;
+    // Seen from the window, something inside a web component looks like the
+    // component itself; the path says what was really pressed.
+    const first = typeof e.composedPath === 'function' ? e.composedPath()[0] : null;
+    const t = first instanceof Element ? first : e.target;
     if (!(t instanceof Element)) return;
-    if (isSpendControl(t, extraSelectors)) {
+    if (isSpendControl(t, extraSelectors, here())) {
       e.preventDefault();
       e.stopImmediatePropagation();
       onBlocked(t);
@@ -70,7 +100,7 @@ export function installPurchaseGuard(
   };
   const submit = (e: Event): void => {
     const form = e.target;
-    if (form instanceof HTMLFormElement && looksLikeSpendUrl(form.getAttribute('action') ?? '')) {
+    if (form instanceof HTMLFormElement && looksLikeSpendUrl(form.getAttribute('action') || here())) {
       e.preventDefault();
       e.stopImmediatePropagation();
       onBlocked(form);
