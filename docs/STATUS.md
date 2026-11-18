@@ -21,7 +21,7 @@ one were brought up to date in place. What changed:
 - The menu lists this run's downloads, how far each has got, and can cancel
   one.
 
-Verified by `npm run check` (unit tests, 345 of them) and the end-to-end run
+Verified by `npm run check` (unit tests, 344 of them) and the end-to-end run
 (22 scenarios), which has new checks for each item above. Not verified: any
 of it by a person on a TV; the safe margin together with pointer mode; a
 download bigger than 200 KB.
@@ -48,7 +48,7 @@ DECISIONS.md, each marked as an assumption.
 All of this was checked by scripts on a headless virtual machine. **None of
 it was checked by a person, with a remote, on a TV.**
 
-- `npm run check`: 345 unit tests (geometry, input mapping, address rules,
+- `npm run check`: 344 unit tests (geometry, input mapping, address rules,
   navigation policy, permission policy, pointer movement, profile validation,
   matching and choosing, the interpreter, the profile store, the catalogue
   fetcher, the guard, the outline sanitiser), the build, and the rule checks.

@@ -11,6 +11,30 @@ and whether pointer mode comes up. It cannot tell whether the highlight went
 somewhere *sensible*, or whether the site is pleasant to use from a couch.
 That still needs a person with a remote, and has not been done.
 
+## 2026-11-18, second run (commit 388f736)
+
+Same machine and settings, after the changes to held keys, profiles that
+change with the address, and downloads. Every site still loads, gets a
+highlight and has pointer mode. Some counts moved, in both directions
+(github.com 12 to 9 presses that moved or scrolled, www.youtube.com 7 to 5,
+developer.mozilla.org 9 to 12 with the highlight twice left off screen).
+**Not known** whether that is the sites serving different pages (the element
+counts changed on five of them) or the changes here: one run each is not
+enough to tell, and nobody looked at the screens.
+
+| Site | Kind | Loaded | First press lands on | Presses that moved or scrolled (of 12) | Highlight left off screen | Key press, median / worst (ms) | Elements | Pointer mode |
+|---|---|---|---|---|---|---|---|---|
+| example.com | one link | yes | a | 2 | 2 | 2 / 7 | 23 | yes |
+| en.wikipedia.org | long article | yes | a | 12 | 0 | 29 / 152 | 11812 | yes |
+| news.ycombinator.com | dense list of links | yes | a | 12 | 0 | 7 / 26 | 811 | yes |
+| www.bbc.com | news front page | yes | a | 10 | 0 | 6 / 23 | 1389 | yes |
+| developer.mozilla.org | documentation | yes | a | 12 | 2 | 5 / 18 | 1573 | yes |
+| github.com | web app | yes | a | 9 | 0 | 11 / 44 | 1794 | yes |
+| archive.org | grid of cards | yes | nothing | 7 | 0 | 5 / 18 | 72 | yes |
+| duckduckgo.com | search form | yes | a | 11 | 3 | 5 / 29 | 1705 | yes |
+| www.youtube.com | video site | yes | button | 5 | 0 | 4 / 22 | 1952 | yes |
+| www.openstreetmap.org | map | yes | a | 10 | 0 | 3 / 10 | 503 | yes |
+
 ## 2026-11-18, first run
 
 Run headless on a 4-core virtual machine with no graphics chip, in a
