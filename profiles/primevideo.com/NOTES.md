@@ -23,9 +23,10 @@ The site's name is used only to say which website this file is for.
 
 ## Evidence
 
-`outline.txt` holds the trimmed page outlines that show each selector. In the
-Longboard repository a test rebuilds those pages from the outline and checks
-every selector against them (`test/profile-evidence.test.ts`).
+`outline.txt` holds the trimmed page outlines that show each selector. The
+same files are in the Longboard repository, where a test rebuilds those pages
+from the outline and checks every selector against them
+(`test/profile-evidence.test.ts`).
 
 ## What was tested
 

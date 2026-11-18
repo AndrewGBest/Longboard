@@ -43,6 +43,12 @@ it was checked by a person, with a remote, on a TV.**
   how it was found that key releases never reach the shell (DECISIONS.md).
 - `xvfb-run -a npm run scorecard`: ten public sites with no profile. Results
   and their limits are in SCORECARD.md.
+- The real catalogue, once: the app was started with `--catalogue=` set to
+  the published address on GitHub. It fetched the index and the one profile,
+  the checksum matched, and the profile was on disk afterwards.
+- CI on GitHub: the workflow (check, then the end-to-end run under Xvfb) has
+  passed on every commit pushed so far, and the profiles repository's check
+  has passed on both of its commits.
 
 ### Not verified
 
@@ -58,14 +64,10 @@ it was checked by a person, with a remote, on a TV.**
 - **The Prime Video profile in Longboard against the live site.** It is a
   conversion of selectors that worked in Tropic Video, checked against the
   same outlines. Nobody has signed in with Longboard.
-- **The real catalogue download.** The fetcher is tested against a made-up
-  catalogue on this machine and, by unit tests, against failures. See the
-  next section for the real one.
 - Import from an actual USB stick, and anything inside a Flatpak.
 - Packaging: `npm run dist` has not been run for Longboard. The icon is still
   Tropic Video's (original artwork of that project, so no rule is broken,
   but it is the wrong picture).
-- CI: the workflow was pushed; whether it passes on GitHub was not looked at.
 
 ### Known gaps and rough edges
 
