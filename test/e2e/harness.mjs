@@ -149,7 +149,13 @@ async function attach(target) {
       }
       await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...key(name) });
     },
-    type: (text) => cdp.send('Input.insertText', { text }),
+    /** Types text the way a plugged-in keyboard does: a key press for every character. */
+    type: async (text) => {
+      for (const ch of text) {
+        await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ch, text: ch });
+        await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch });
+      }
+    },
     focused: () => evaluate('document.querySelector("[data-longboard-focus]")?.id ?? null'),
     ringClass: () => overlay(({ cls }) => (/\bring\b/.test(cls) ? cls : undefined)),
     toastText: () => overlay(({ cls, text }) => (/\btoast\b/.test(cls) && /\bshow\b/.test(cls) ? text() : undefined)),
@@ -168,14 +174,14 @@ let nextPort = 9300 + Math.floor(Math.random() * 400);
  * throw-away data folder. `url` is the address to open; without it the app
  * starts on Home. `config` is written as the user's config.json.
  */
-export async function launch({ url, config, args = [] } = {}) {
+export async function launch({ url, config, args = [], width, height } = {}) {
   const port = nextPort++;
   const userData = mkdtempSync(join(tmpdir(), 'longboard-e2e-'));
   // Searches go to a name that can never resolve, so a test never contacts a search engine.
   writeFileSync(join(userData, 'config.json'), JSON.stringify({ search: 'https://search.invalid/find?q=%s', ...config }));
   const child = spawn(
     electronPath,
-    [root, '--dev', '--automation', '--zoom=1', ...(url ? [`--url=${url}`] : []), ...args, `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--no-sandbox', '--disable-gpu'],
+    [root, '--dev', '--automation', ...(args.some((x) => x.startsWith('--zoom=')) ? [] : ['--zoom=1']), ...(width ? [`--size=${width}x${height}`] : []), ...(url ? [`--url=${url}`] : []), ...args, `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--no-sandbox', '--disable-gpu'],
     { stdio: ['ignore', 'pipe', 'pipe'] },
   );
   const app = { child, userData, log: '' };

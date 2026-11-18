@@ -104,13 +104,14 @@ await scenario('a page driven with the arrows', { url: `${site.origin}/home.html
   await press('Escape');
   check('back closes the keyboard and then leaves the field', await evaluate('document.activeElement?.id ?? ""'), '');
 
-  // A field the page focuses by itself (as a sign-in page does) gets the keyboard without a key press.
+  // A field the page focuses by itself (as search and sign-in pages do when
+  // they load) gets the highlight, and the keyboard on OK.
   await evaluate('document.getElementById("search").value = ""; document.getElementById("search").focus()');
   await sleep(200);
-  check('a field the page focused becomes the remote focus', await focused(), 'search');
-  await press('Enter'); // "a", on the keyboard that opened by itself
-  await sleep(300);
-  check('the keyboard is already open on it', await evaluate('document.getElementById("search").value'), 'a');
+  check('a field the page focused becomes the remote focus, without a keyboard over the page', [await focused(), await page.keyboardShown()], ['search', false]);
+  await press('Enter', 300); // brings the keyboard up
+  await press('Enter', 300); // "a"
+  check('OK brings the keyboard up on it', [await page.keyboardShown(), await evaluate('document.getElementById("search").value')], [true, 'a']);
   await evaluate('document.getElementById("search").value = ""');
   await press('Escape');
   await press('Escape');
@@ -356,11 +357,13 @@ await scenario('a form, and things that only look clickable', { url: `${site.ori
   const value = (id) => evaluate(`document.getElementById("${id}").value`);
   await sleep(800);
   await press('ArrowDown', 300);
-  check('the first press lands in the text field and the keyboard comes up', [await focused(), await page.keyboardShown()], ['name', true]);
+  check('the first press lands on the text field, and no keyboard gets in the way', [await focused(), await page.keyboardShown()], ['name', false]);
   await press('Enter', 300);
-  check('and types', await value('name'), 'a');
+  check('OK on it brings the keyboard up', await page.keyboardShown(), true);
+  await press('Enter', 300);
+  check('and it types', await value('name'), 'a');
   await press('Escape');
-  await press('Escape');
+  check('Back puts the keyboard away', await page.keyboardShown(), false);
   await press('ArrowDown');
   check('down goes to the drop-down', await focused(), 'colour');
   await press('Enter', 500);
@@ -381,9 +384,11 @@ await scenario('a form, and things that only look clickable', { url: `${site.ori
   await press('ArrowRight', 300);
   check('left and right move a slider', await value('level'), '7');
   await press('ArrowDown', 300);
-  check('down goes to the text box, with the keyboard', [await focused(), await page.keyboardShown()], ['notes', true]);
-  await press('Escape');
-  await press('Escape');
+  check('down passes over the text box without the keyboard', [await focused(), await page.keyboardShown()], ['notes', false]);
+  // A plugged-in keyboard just types, and then the keys are the field's.
+  await page.type('h ');
+  await sleep(200);
+  check('a real keyboard types straight into it, spaces included', [await value('notes'), await page.keyboardShown()], ['h ', false]);
   await press('ArrowDown');
   await press('Enter');
   check('the form can be sent', [await focused(), await evaluate('__f.submitted')], ['send', 1]);

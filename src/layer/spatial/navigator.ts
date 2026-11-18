@@ -321,9 +321,14 @@ export class SpatialNavigator {
   private zoomed: Element | null = null;
   /** Where focus last was in each sideways-scrolling row. */
   private readonly rowMemory = new WeakMap<Element, Element>();
-  /** Whether each element shows the hand cursor, for the page at `handFor`. */
-  private hand = new WeakMap<Element, boolean>();
-  private handFor = '';
+  /** True while this navigator is itself giving an element keyboard focus (so the layer can tell that from the page doing it). */
+  focusing = false;
+  /** The outermost elements found to show the hand cursor. */
+  private readonly hands = new Set<Element>();
+  /** Elements already looked at for the hand cursor. */
+  private readonly looked = new WeakSet<Element>();
+  private handsLooked = false;
+  private lookWaiting = false;
   /** When the last move was made, to tell a held key from single presses. */
   private lastMoveAt = 0;
   private rapid = false;
@@ -355,7 +360,7 @@ export class SpatialNavigator {
     const seen = new Set<Element>();
     const faded = new Map<Element, boolean>();
     const found = deepQueryAll(scope ?? this.doc, selector);
-    if (this.opts.looksClickable) found.push(...this.handCursorTargets(scope ?? this.doc, view, selector, near ? { above, below } : null));
+    if (this.opts.looksClickable) found.push(...this.handCursorTargets(scope ?? this.doc, near ? { above, below } : null));
     for (const el of found) {
       if (this.opts.ignoreWithin && deepClosest(el, this.opts.ignoreWithin)) continue;
       if (skip && el.matches(skip)) continue;
@@ -399,8 +404,15 @@ export class SpatialNavigator {
     }
     // Drop wrappers that contain another candidate, so a card and the link
     // inside it do not both receive focus.
-    const list = [...seen];
-    const inner = list.filter((el) => !list.some((other) => other !== el && deepContains(el, other)));
+    // (Found by walking up from each candidate, not by comparing every pair:
+    // a long article has thousands of links.)
+    const wrappers = new Set<Element>();
+    for (const el of seen) {
+      for (let up = composedParent(el); up; up = composedParent(up)) {
+        if (seen.has(up)) wrappers.add(up);
+      }
+    }
+    const inner = [...seen].filter((el) => !wrappers.has(el));
     // Drop backdrops too: a link stretched over a whole banner, with the
     // banner's real buttons lying on top of it. Seen on the live site, where
     // such a link swallowed sideways movement.
@@ -427,44 +439,92 @@ export class SpatialNavigator {
    * is inherited, so everything inside a clickable card reports it too; only
    * the one whose parent does not is taken.
    *
-   * Each element is asked once and remembered: asking costs a style lookup,
-   * and while the layer is hiding the real pointer (a class on the root that
-   * sets every cursor to none) the class has to come off for the asking,
-   * which restyles the page. On a page that has not changed nothing is asked.
+   * Finding them means a look at every element near the screen, and a style
+   * lookup for many. On a page of ten thousand elements that is far too much
+   * to do on a key press, so it is not done there: a key press uses what is
+   * already known, and the looking is done when the page is first asked
+   * about and after that in idle moments (see lookForHands).
    */
-  private handCursorTargets(root: ParentNode, view: Window, known: string, band: { above: number; below: number } | null): Element[] {
-    const href = view.location.href;
-    if (href !== this.handFor) {
-      this.handFor = href;
-      this.hand = new WeakMap();
+  private handCursorTargets(root: ParentNode, band: { above: number; below: number } | null): Element[] {
+    if (!this.handsLooked) this.lookForHands();
+    else this.lookSoon();
+    const out: Element[] = [];
+    for (const el of this.hands) {
+      if (!el.isConnected) {
+        this.hands.delete(el);
+        continue;
+      }
+      if (root !== this.doc && !deepContains(root as Element, el)) continue;
+      if (band) {
+        const r = el.getBoundingClientRect();
+        if (r.bottom < band.above || r.top > band.below) continue;
+      }
+      out.push(el);
     }
-    const pool: Element[] = [];
-    const unknown: Element[] = [];
-    for (const el of deepQueryAll(root, MAYBE_CLICKABLE)) {
+    return out;
+  }
+
+  /** Asks for a look in the next idle moment, unless one is already waiting. */
+  private lookSoon(): void {
+    const view = this.doc.defaultView;
+    if (!view || this.lookWaiting) return;
+    this.lookWaiting = true;
+    const run = (): void => {
+      this.lookWaiting = false;
+      this.lookForHands();
+    };
+    if (typeof view.requestIdleCallback === 'function') view.requestIdleCallback(run, { timeout: 400 });
+    else view.setTimeout(run, 120);
+  }
+
+  /**
+   * Looks at the elements near the screen that have not been looked at yet
+   * and remembers which show the hand cursor. While the layer is hiding the
+   * real pointer (a class on the root that sets every cursor to none) the
+   * class has to come off for the looking, which restyles the page; that is
+   * the other reason this is kept away from key presses.
+   */
+  private lookForHands(): void {
+    const view = this.doc.defaultView;
+    if (!view || !this.opts.looksClickable) return;
+    this.handsLooked = true;
+    const known = [FOCUSABLE, ...(this.opts.extraFocusable ?? [])].join(',');
+    const above = -2 * view.innerHeight;
+    const below = 3 * view.innerHeight;
+    const fresh: Element[] = [];
+    for (const el of deepQueryAll(this.doc, MAYBE_CLICKABLE)) {
+      if (this.looked.has(el)) continue;
       const r = el.getBoundingClientRect();
+      // Not yet near the screen: looked at when it is.
+      if (r.bottom < above || r.top > below) continue;
+      this.looked.add(el);
       if (r.width < 10 || r.height < 10) continue;
-      if (band && (r.bottom < band.above || r.top > band.below)) continue;
       // Inside a real control it is that control's cursor.
       if (deepClosest(el, known)) continue;
-      if (pool.length >= MAX_STYLE_LOOKS) break;
-      pool.push(el);
-      if (!this.hand.has(el)) unknown.push(el);
-      const parent = composedParent(el);
-      if (parent && !this.hand.has(parent)) unknown.push(parent);
+      fresh.push(el);
+      if (fresh.length >= MAX_STYLE_LOOKS) break;
     }
-    if (unknown.length) {
-      const rootEl = this.doc.documentElement;
-      const hiding = this.opts.cursorHiddenClass;
-      const wasHidden = hiding !== undefined && rootEl.classList.contains(hiding);
-      if (wasHidden) rootEl.classList.remove(hiding);
-      for (const el of unknown) this.hand.set(el, view.getComputedStyle(el).cursor === 'pointer');
-      if (wasHidden) rootEl.classList.add(hiding);
-    }
-    return pool.filter((el) => {
-      if (!this.hand.get(el)) return false;
+    if (fresh.length === 0) return;
+    const rootEl = this.doc.documentElement;
+    const hiding = this.opts.cursorHiddenClass;
+    const wasHidden = hiding !== undefined && rootEl.classList.contains(hiding);
+    if (wasHidden) rootEl.classList.remove(hiding);
+    const hand = new Map<Element, boolean>();
+    const isHand = (el: Element): boolean => {
+      let answer = hand.get(el);
+      if (answer === undefined) {
+        answer = this.hands.has(el) || view.getComputedStyle(el).cursor === 'pointer';
+        hand.set(el, answer);
+      }
+      return answer;
+    };
+    for (const el of fresh) {
+      if (!isHand(el)) continue;
       const parent = composedParent(el);
-      return !parent || parent === this.doc.body || parent === this.doc.documentElement || !this.hand.get(parent);
-    });
+      if (parent && parent !== this.doc.body && parent !== rootEl && isHand(parent)) continue;
+      this.hands.add(el);
+    }
+    if (wasHidden) rootEl.classList.add(hiding);
   }
 
   private validSelector(list: readonly string[] | undefined): string | null {
@@ -748,7 +808,12 @@ export class SpatialNavigator {
       const active = this.doc.activeElement;
       if (active instanceof HTMLElement && active !== this.doc.body) active.blur();
     } else if (el instanceof HTMLElement || 'focus' in el) {
-      (el as HTMLElement).focus({ preventScroll: true });
+      this.focusing = true;
+      try {
+        (el as HTMLElement).focus({ preventScroll: true });
+      } finally {
+        this.focusing = false;
+      }
     }
     // Anything on the first screenful (the bar and the banner under it) is
     // shown with the page at the very top, so the banner is seen whole and

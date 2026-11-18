@@ -14,7 +14,8 @@
     "start": "npm run build && electron . --dev",
     "e2e": "npm run build && node test/e2e/run.mjs",
     "dist": "npm run build && electron-builder --linux",
-    "tv": "npm run build && electron ."
+    "tv": "npm run build && electron .",
+    "scorecard": "npm run build && node test/scorecard/run.mjs"
   },
   "build": {
     "appId": "io.github.andrewgbest.Longboard",

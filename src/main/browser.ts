@@ -37,6 +37,8 @@ export interface BrowserDeps {
   /** An address given on the command line; Home is shown when there is none. */
   startUrl: string | null;
   fullscreen: boolean;
+  /** The --size=WIDTHxHEIGHT option: the window's size when it is not full screen. */
+  size: [number, number] | undefined;
   /** The --zoom= option, which wins over everything. */
   zoomOverride: string | undefined;
   /** Resolves when the protected-playback component is ready (or has been given up on). */
@@ -59,8 +61,9 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   const sites: Record<string, SiteSettings> = parseSites(readJson(sitesFile, complain('sites.json')));
 
   const win = new BrowserWindow({
-    width: 1280,
-    height: 720,
+    width: deps.size?.[0] ?? 1280,
+    height: deps.size?.[1] ?? 720,
+    useContentSize: true,
     fullscreen: deps.fullscreen,
     backgroundColor: '#000000',
     autoHideMenuBar: true,

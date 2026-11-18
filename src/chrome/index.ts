@@ -67,7 +67,7 @@ function home(s: ChromeState): HTMLElement {
         typing = true;
         render();
         const field = document.getElementById('address');
-        if (field) layer?.focus(field);
+        if (field) layer?.typeIn(field);
       });
   if (typing) {
     // Leaving the field without opening anything puts the button back.

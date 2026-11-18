@@ -124,6 +124,7 @@ async function main(): Promise<void> {
     // Windowed while developing, so the desktop stays reachable.
     fullscreen: flag('fullscreen') || !options.dev,
     zoomOverride: value('zoom'),
+    size: /^\d{3,5}x\d{3,5}$/.test(value('size') ?? '') ? (value('size') as string).split('x').map(Number) as [number, number] : undefined,
     ready: componentsReady,
     adapterFor,
   });

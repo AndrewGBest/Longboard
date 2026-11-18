@@ -1,0 +1,15 @@
+{
+  "note": "The fixed list of public sites generic mode is measured against. No sign-in is needed for any of them. Plain-text addresses only; nothing from these sites is stored in the repository.",
+  "sites": [
+    { "url": "https://example.com/", "kind": "one link" },
+    { "url": "https://en.wikipedia.org/wiki/Television", "kind": "long article" },
+    { "url": "https://news.ycombinator.com/", "kind": "dense list of links" },
+    { "url": "https://www.bbc.com/news", "kind": "news front page" },
+    { "url": "https://developer.mozilla.org/en-US/docs/Web/HTML", "kind": "documentation" },
+    { "url": "https://github.com/AndrewGBest/Longboard", "kind": "web app" },
+    { "url": "https://archive.org/", "kind": "grid of cards" },
+    { "url": "https://duckduckgo.com/", "kind": "search form" },
+    { "url": "https://www.youtube.com/", "kind": "video site" },
+    { "url": "https://www.openstreetmap.org/", "kind": "map" }
+  ]
+}

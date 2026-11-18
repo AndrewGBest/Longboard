@@ -2,6 +2,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { composedParent, deepActiveElement, deepClosest, deepContains, deepQueryAll } from '../src/layer/spatial/deep';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
+import { forgetShadowHosts as forgetHosts } from '../src/layer/spatial/deep';
+import { beforeEach as beforeEachForget } from 'vitest';
+
+// Pages are rebuilt faster here than the layer's short memory of shadow roots lasts.
+beforeEachForget(() => forgetHosts(document));
 
 // A player built the way Steamboat's service builds its own: controls inside
 // nested open shadow roots, each real button hidden from assistive technology

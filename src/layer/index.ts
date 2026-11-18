@@ -54,6 +54,8 @@ export interface Layer {
   focusFirstIn: (container: Element) => boolean;
   /** Puts the highlight on `el`. */
   focus: (el: Element) => boolean;
+  /** Puts the highlight on a text field and brings up the on-screen keyboard. */
+  typeIn: (field: Element) => void;
   /** Pointer mode: where the shell has put the pointer, or null when it is off. */
   pointer: (spot: PointerSpot) => void;
   /** Under automation: may the pointer click at this point? Says so on screen when not. */
@@ -92,9 +94,9 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
     ignoreWithin: HOST_TAG,
     onFocusChange: (el) => {
       overlay.track(el);
-      if (!el || !isTextEntry(el)) return;
-      if (keyboardBarred(el)) return;
-      openOsk(el);
+      // The highlight passing over a text field does not bring the keyboard
+      // up: OK on the field does (DESIGN.md 3.2).
+      if (typedInto !== el) typedInto = null;
     },
     scope,
     skip: [...adapter.selectors.rowPrev, ...adapter.selectors.rowNext],
@@ -102,6 +104,12 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
     cursorHiddenClass: 'longboard-no-pointer',
     readingScroll: generic,
   });
+
+  /** When the person last pressed OK or clicked: a text field the page focuses soon after is one they asked for. */
+  let lastPressAt = 0;
+  const PRESS_ANSWER_MS = 1500;
+  /** The text field a plugged-in keyboard has typed into; while it has focus the keys are the field's. */
+  let typedInto: Element | null = null;
 
   // Pointer mode. The shell owns it: it moves the pointer and clicks with
   // ordinary mouse events, so it works in embedded frames this layer cannot
@@ -291,7 +299,10 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       if (isTextEntry(deepActiveElement(doc))) return 'browse';
       closeOsk();
     }
-    if (isTextEntry(deepActiveElement(doc))) return 'text';
+    // A text field under the highlight is only that until someone types in
+    // it: the arrows still move on, and OK brings the keyboard up.
+    const active = deepActiveElement(doc);
+    if (isTextEntry(active)) return typedInto === active ? 'text' : 'browse';
     if (!inPlayer()) return 'browse';
     return onPlayerControl() ? 'browse' : 'player';
   };
@@ -477,12 +488,17 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
     }
     return null;
   };
+  /** Puts the highlight on a text field and brings the keyboard up: the person has asked to type there. */
+  const typeIn = (field: Element): void => {
+    nav.focus(field);
+    if (isTextEntry(field) && !keyboardBarred(field)) openOsk(field);
+  };
   let searchPoll: number | undefined;
   const openSearch = (): void => {
     const inputs = [...adapter.selectors.searchInput, ...GENERIC_SEARCH];
     const input = visibleMatch(inputs);
     if (input) {
-      nav.focus(input);
+      typeIn(input);
       return;
     }
     const opener = visibleMatch([...adapter.selectors.searchOpen, ...GENERIC_SEARCH_OPEN]);
@@ -492,7 +508,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
     view.clearInterval(searchPoll);
     searchPoll = view.setInterval(() => {
       const shown = visibleMatch(inputs);
-      if (shown) nav.focus(shown);
+      if (shown) typeIn(shown);
       if (shown || ++tries >= 15) view.clearInterval(searchPoll);
     }, 100);
   };
@@ -559,10 +575,17 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
         break;
       case 'select': {
         lastControlKeyAt = Date.now();
+        lastPressAt = Date.now();
         const target = nav.focused;
         const box = target?.getBoundingClientRect();
         if (target && !inPlayer() && opensMenuFirst(target)) {
           hoverOn(target);
+          break;
+        }
+        // OK on a text field brings up the keyboard.
+        if (target && isTextEntry(target) && !inPlayer()) {
+          if (deepActiveElement(doc) !== target) nav.focus(target);
+          if (!keyboardBarred(target)) openOsk(target);
           break;
         }
         // An embedded frame cannot be driven from here: hand over to the pointer, on it.
@@ -664,7 +687,12 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
     if (e.isTrusted && injected.consume(e.key, Date.now())) return;
     // A real keyboard is in use: typing a character puts the on-screen one away.
     // Not Space: on some remotes that is the OK button, and it must press the highlighted key.
-    if (oskOpen && e.isTrusted && e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    // Backspace in a text field deletes, as it always has; it is only Back elsewhere.
+    if (e.isTrusted && e.key === 'Backspace' && !oskOpen && isTextEntry(deepActiveElement(doc))) return;
+    const typing = e.isTrusted && e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.altKey && !e.metaKey;
+    if (typing && isTextEntry(deepActiveElement(doc))) {
+      // From here on the field has the keys, as in any browser, until focus moves.
+      typedInto = deepActiveElement(doc);
       closeOsk();
       return;
     }
@@ -688,11 +716,21 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
   // in its first field): take it as the remote's focus too, so the ring is on
   // it and the on-screen keyboard is up without a key press.
   const adoptField = (el: Element | null): void => {
+    // Not the highlight's own arrival on a field: only focus given by the
+    // page, or by a click in pointer mode, says that typing is wanted.
+    if (nav.focusing) return;
     if (!el || !isTextEntry(el) || el.closest(HOST_TAG)) return;
     if (nav.focused !== el) nav.focus(el);
-    // Already the remote's focus from before (the field was left and the page came back to it).
-    else if (!oskOpen && !keyboardBarred(el)) openOsk(el);
+    // The keyboard comes up only when the page is answering something the
+    // person just did (OK on a search button, a click on the field). A page
+    // that puts the cursor in a field as it loads, as search pages do, gets
+    // the highlight there and no more; OK then brings the keyboard up.
+    if (Date.now() - lastPressAt < PRESS_ANSWER_MS && !oskOpen && !keyboardBarred(el)) openOsk(el);
   };
+  const onMouseDown = (e: MouseEvent): void => {
+    if (e.isTrusted) lastPressAt = Date.now();
+  };
+  view.addEventListener('mousedown', onMouseDown, true);
   const onFocusIn = (e: FocusEvent): void => adoptField(e.target instanceof Element ? e.target : null);
   doc.addEventListener('focusin', onFocusIn, true);
   adoptField(deepActiveElement(doc));
@@ -786,12 +824,14 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       overlay.toast('Blocked: automation mode never activates purchase or sign-up controls');
       return 'no';
     },
+    typeIn,
     focusFirstIn: (container) => nav.focusFirstIn(container),
     focus: (el) => nav.focus(el),
     stop: () => {
       view.removeEventListener('keydown', onKey, true);
       doc.removeEventListener('focusin', onFocusIn, true);
       view.removeEventListener('mousemove', onPointer);
+      view.removeEventListener('mousedown', onMouseDown, true);
       view.clearInterval(playbackTimer);
       view.clearInterval(searchPoll);
       view.clearInterval(controlsTimer);
