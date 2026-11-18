@@ -73,6 +73,8 @@ export type ChromeMessage =
   | { kind: 'openApp'; id: string }
   /** Take a tile off Home. Removing an app also removes what `removeApp` in the menu does. */
   | { kind: 'cancelDownload'; id: number }
+  /** A site's icon, drawn here and handed back as a PNG data: address; null when it could not be drawn. */
+  | { kind: 'icon'; id: number; png: string | null }
   | { kind: 'removeRecent'; url: string }
   | { kind: 'removeApp'; id: string }
   /** The profile editor's buttons. */

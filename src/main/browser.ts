@@ -2,7 +2,7 @@
 // shows Longboard's own screens (Home, the menu panel, questions). They are
 // separate renderers with separate sessions; a website can never reach the
 // chrome view or the shell (Hard rule 13).
-import { app, BaseWindow, ipcMain, nativeImage, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
+import { app, BaseWindow, ipcMain, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -37,6 +37,7 @@ import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeL
 import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
 import { canvasOf, type Profile, type ProfileSource } from '../shared/profile';
 import { hoverPoint, pageBounds, tvZoom } from './zoom';
+import { ICON_SIZE, iconDataUrl, pngFromDataUrl } from '../shared/icons';
 
 export interface BrowserDeps {
   options: { dev: boolean; automation: boolean };
@@ -1301,19 +1302,39 @@ export function createBrowser(deps: BrowserDeps): Browser {
    * never in the repository. Nothing is saved when the site offers none that
    * can be read as a picture.
    */
+  /** Icons handed to Longboard's own screen to be drawn, waiting to come back as a PNG. */
+  const drawing = new Map<number, (png: Buffer | null) => void>();
+  let lastDrawing = 0;
+  /**
+   * Turns what a site sent into a small PNG without the shell ever decoding
+   * it: the sandboxed process that draws Longboard's own screens does, as it
+   * would for any picture on a page, and sends back a PNG of its own making.
+   */
+  const drawIcon = (dataUrl: string): Promise<Buffer | null> =>
+    new Promise((resolve) => {
+      if (chrome.isDestroyed()) return resolve(null);
+      const id = ++lastDrawing;
+      const timer = setTimeout(() => {
+        drawing.delete(id);
+        resolve(null);
+      }, 8000);
+      drawing.set(id, (png) => {
+        clearTimeout(timer);
+        drawing.delete(id);
+        resolve(png);
+      });
+      chrome.send('longboard:icon', { id, dataUrl, size: ICON_SIZE });
+    });
   const saveIcon = async (id: string, candidates: readonly string[], from: Electron.Session): Promise<boolean> => {
     for (const url of candidates) {
       try {
         const response = await from.fetch(url, { cache: 'force-cache' });
         if (!response.ok) continue;
-        const bytes = Buffer.from(await response.arrayBuffer());
-        if (bytes.length === 0 || bytes.length > 2_000_000) continue;
-        let image = nativeImage.createFromBuffer(bytes);
-        if (image.isEmpty()) continue;
-        const { width, height } = image.getSize();
-        if (Math.max(width, height) > 256) image = image.resize(width >= height ? { width: 256 } : { height: 256 });
+        const dataUrl = iconDataUrl(Buffer.from(await response.arrayBuffer()), response.headers.get('content-type'));
+        const png = dataUrl ? await drawIcon(dataUrl) : null;
+        if (!png) continue;
         mkdirSync(iconsDir, { recursive: true });
-        writeFileSync(join(iconsDir, `${id}.png`), image.toPNG());
+        writeFileSync(join(iconsDir, `${id}.png`), png);
         iconData.delete(id);
         return true;
       } catch {
@@ -1479,6 +1500,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'openApp':
         if (typeof msg.id === 'string') openApp(msg.id);
+        break;
+      case 'icon':
+        // A picture Longboard's own screen drew from a site's icon.
+        if (typeof msg.id === 'number') drawing.get(msg.id)?.(pngFromDataUrl(msg.png));
         break;
       case 'cancelDownload': {
         const d = downloads.find((x) => x.id === msg.id);

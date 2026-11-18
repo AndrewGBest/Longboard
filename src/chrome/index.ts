@@ -336,6 +336,33 @@ ipcRenderer.on('longboard:chrome-state', (_event, next: ChromeState) => {
   state = next;
   render();
 });
+// A site's own icon, to be drawn small and handed back as a PNG made here.
+// This process is sandboxed, so it is the right place for a picture from a
+// website to be decoded; the shell never decodes one.
+ipcRenderer.on('longboard:icon', (_event, job: { id: number; dataUrl: string; size: number }) => {
+  if (!job || typeof job.id !== 'number' || typeof job.dataUrl !== 'string' || !job.dataUrl.startsWith('data:image/')) return;
+  const size = Math.min(256, Math.max(16, Number(job.size) || 128));
+  const done = (png: string | null): void => tell({ kind: 'icon', id: job.id, png });
+  const img = new Image();
+  img.onerror = () => done(null);
+  img.onload = () => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const w = img.naturalWidth || size;
+      const h = img.naturalHeight || size;
+      const scale = Math.min(size / w, size / h);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return done(null);
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, (size - w * scale) / 2, (size - h * scale) / 2, w * scale, h * scale);
+      done(canvas.toDataURL('image/png'));
+    } catch {
+      done(null);
+    }
+  };
+  img.src = job.dataUrl;
+});
 ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
   if (typeof text === 'string') layer?.notice(text.slice(0, 200));
 });
