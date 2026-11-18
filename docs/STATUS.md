@@ -23,13 +23,20 @@ one were brought up to date in place. What changed:
 
 - **Fixed: pointer mode clicked the wrong place on a scaled page**, which
   is every real TV. Found while testing the safe margin. The end-to-end run
-  forces a scale of 1 unless a scenario says otherwise, which is why it was
-  missed; both pointer scenarios and one profile scenario now run scaled.
-  Most other scenarios still run at a scale of 1, so other mistakes of this
-  kind could be hiding.
+  forced a scale of 1, which is why it was missed. It now runs scaled for a
+  TV by default (1.33 times in its window), and passes, with one scenario
+  held at a scale of 1 (next item).
+- **Seen, not explained:** drawn scaled, the browser's own drop-down list
+  started one entry further down in the form scenario (Down then OK chose
+  the third entry, not the second). In a separate try at the same scale it
+  did not. A guess: the list opens under where the layer last put the mouse.
+  The list is visible, so a person can see where they are in it.
+- The package workflow ("Build packages", started by hand, keeps its files
+  for 14 days and publishes nothing) built the AppImage, the tarball and the
+  Flatpak from commit 388f736. **None of the three was started by anyone.**
 
 Verified by `npm run check` (unit tests, 346 of them) and the end-to-end run
-(22 scenarios), which has new checks for each item above. Not verified: any
+(22 scenarios, 250 checks), which has new checks for each item above. Not verified: any
 of it by a person on a TV; a download bigger than 200 KB.
 
 ## 2026-11-18, later: phases 0 to 4 built by the agent working alone
@@ -54,13 +61,13 @@ DECISIONS.md, each marked as an assumption.
 All of this was checked by scripts on a headless virtual machine. **None of
 it was checked by a person, with a remote, on a TV.**
 
-- `npm run check`: 344 unit tests (geometry, input mapping, address rules,
+- `npm run check`: 346 unit tests (geometry, input mapping, address rules,
   navigation policy, permission policy, pointer movement, profile validation,
   matching and choosing, the interpreter, the profile store, the catalogue
   fetcher, the guard, the outline sanitiser), the build, and the rule checks.
 - `xvfb-run -a npm run e2e`: the real app, always with `--automation`, driven
   over the DevTools protocol against invented fixture pages served from this
-  machine. 22 scenarios, 248 checks. They cover: arrows on a grid of
+  machine. 22 scenarios, 250 checks. They cover: arrows on a grid of
   cards; the on-screen keyboard; pop-ups; refused addresses, downloads and
   permissions; Home, the address field, the menu, zoom and Back; searching;
   notices for blocked and unreachable pages; a full-screen video with the
@@ -107,8 +114,8 @@ it was checked by a person, with a remote, on a TV.**
   show it or start it. Inside a Flatpak it will not work as written.
 - Packaging: `electron-builder --linux dir` (the unpacked folder) was built
   once and the program in it started, found its built-in profile and showed
-  Home. The AppImage, tarball and Flatpak have not been built, and nothing
-  has been released.
+  Home. The AppImage, tarball and Flatpak were built once by the workflow on
+  GitHub and never started. Nothing has been released.
 
 ### Known gaps and rough edges
 

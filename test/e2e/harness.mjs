@@ -174,6 +174,10 @@ let nextPort = 9300 + Math.floor(Math.random() * 400);
  * throw-away data folder. `url` is the address to open; without it the app
  * starts on Home. `config` is written as the user's config.json. `seed` is
  * called with the data folder before the app starts.
+ *
+ * The page is scaled for a TV, as it is for a person (1.33 times in the
+ * default window), unless a scenario passes --zoom=. Running everything at
+ * a scale of 1 once hid a pointer bug that every real TV would have shown.
  */
 export async function launch({ url, config, args = [], width, height, seed } = {}) {
   const port = nextPort++;
@@ -184,7 +188,7 @@ export async function launch({ url, config, args = [], width, height, seed } = {
   if (seed) seed(userData);
   const child = spawn(
     electronPath,
-    [root, '--dev', '--automation', ...(args.some((x) => x.startsWith('--zoom=')) ? [] : ['--zoom=1']), ...(width ? [`--size=${width}x${height}`] : []), ...(url ? [`--url=${url}`] : []), `--downloads=${join(userData, 'downloads')}`, ...args, `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--no-sandbox', '--disable-gpu'],
+    [root, '--dev', '--automation', ...(width ? [`--size=${width}x${height}`] : []), ...(url ? [`--url=${url}`] : []), `--downloads=${join(userData, 'downloads')}`, ...args, `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--no-sandbox', '--disable-gpu'],
     // The desktop's app list is kept inside the throw-away folder too: a test never writes to the real one.
     { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, XDG_DATA_HOME: join(userData, 'xdg') } },
   );
