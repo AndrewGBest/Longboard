@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: a video in a page</title>
+<!-- A made-up page with a video that uses the browser's own controls, first
+     as part of the page and then filling the screen. The picture is drawn on
+     a canvas, so no media file is needed. It imitates no real site. -->
+<style>
+  body { margin: 0; padding: 24px 32px; background: #111; color: #eee; font: 16px/1.5 system-ui, sans-serif; }
+  a, button { color: #eee; background: #2a2a2a; border: 0; border-radius: 8px; padding: 10px 18px; font: inherit; text-decoration: none; display: inline-block; }
+  video { display: block; width: 480px; height: 270px; margin: 16px 0; background: #000; }
+  body.theatre video { position: fixed; inset: 0; width: 100%; height: 100%; margin: 0; }
+</style>
+</head>
+<body>
+<a href="#back" id="up-link">Back to the list</a>
+<video id="v" controls playsinline></video>
+<button id="theatre">Fill the screen</button>
+<a href="#next" id="next">Next video</a>
+<script>
+  const video = document.getElementById('v');
+  const canvas = document.createElement('canvas');
+  canvas.width = 320; canvas.height = 180;
+  const ctx = canvas.getContext('2d');
+  let frame = 0;
+  setInterval(() => { ctx.fillStyle = `hsl(${frame++ % 360} 60% 30%)`; ctx.fillRect(0, 0, 320, 180); }, 100);
+  video.srcObject = canvas.captureStream(10);
+  video.muted = false;
+  video.play();
+  window.__v = { keys: [] };
+  window.addEventListener('keydown', (e) => window.__v.keys.push(e.key));
+  document.getElementById('theatre').addEventListener('click', () => document.body.classList.toggle('theatre'));
+</script>
+</body>
+</html>

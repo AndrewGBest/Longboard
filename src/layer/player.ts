@@ -25,9 +25,9 @@ function largestVideo(scope: ParentNode, skipMuted: boolean): { video: HTMLVideo
  * in. When any of them matches, only videos inside it count, which keeps a
  * full-width background trailer from being mistaken for the player. When none
  * matches (empty or stale adapter) the generic rule applies: the largest
- * unmuted video, if it covers at least half the viewport.
+ * unmuted video, if it covers at least `minShare` of the viewport.
  */
-export function findMainVideo(doc: Document, playerRoots: readonly string[] = []): HTMLVideoElement | null {
+export function findMainVideo(doc: Document, playerRoots: readonly string[] = [], minShare = 0.5): HTMLVideoElement | null {
   const view = doc.defaultView;
   if (!view) return null;
   const viewport = view.innerWidth * view.innerHeight;
@@ -51,11 +51,22 @@ export function findMainVideo(doc: Document, playerRoots: readonly string[] = []
   } else {
     found = largestVideo(doc, true);
   }
-  return found && found.area / viewport >= 0.5 ? found.video : null;
+  if (!found) return null;
+  // A video the page has put in full screen is being watched, whatever its box says.
+  const full = doc.fullscreenElement;
+  if (full && (full === found.video || full.contains(found.video))) return found.video;
+  return found.area / viewport >= minShare ? found.video : null;
 }
 
-export function isPlayerActive(doc: Document, playerRoots: readonly string[] = []): boolean {
-  const v = findMainVideo(doc, playerRoots);
+/**
+ * How much of the screen a video must fill to count as "being watched" on a
+ * site with no profile: all of it, near enough. A video that only takes up
+ * most of a page still has a page around it that the arrows must reach.
+ */
+export const GENERIC_PLAYER_SHARE = 0.85;
+
+export function isPlayerActive(doc: Document, playerRoots: readonly string[] = [], minShare = 0.5): boolean {
+  const v = findMainVideo(doc, playerRoots, minShare);
   return !!v && (!v.paused || v.currentTime > 0) && v.readyState > 0;
 }
 
@@ -76,8 +87,12 @@ export function playerScope(video: HTMLVideoElement, playerRoots: readonly strin
   const view = video.ownerDocument.defaultView;
   const maxW = (view?.innerWidth ?? 0) + 2;
   const maxH = (view?.innerHeight ?? 0) + 2;
+  // Never the page itself: a video placed straight in the body has no
+  // player around it, and its "controls" would be everything on the page.
+  const page = (el: Element | null): boolean => !el || el === video.ownerDocument.body || el === video.ownerDocument.documentElement;
+  if (page(video.parentElement)) return video;
   let scope: Element = video.parentElement ?? video;
-  for (let el = scope.parentElement; el && el !== video.ownerDocument.body; el = el.parentElement) {
+  for (let el = scope.parentElement; !page(el) && el; el = el.parentElement) {
     const r = el.getBoundingClientRect();
     if (r.width > maxW || r.height > maxH) break;
     scope = el;

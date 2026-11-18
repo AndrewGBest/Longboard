@@ -1,6 +1,7 @@
 // DOM side of directional focus: finds candidates, moves focus, activates.
 import type { Direction } from '../../shared/actions';
 import { composedParent, deepClosest, deepContains, deepQueryAll } from './deep';
+import { scrollBy } from '../generic/scroll';
 import { pickInitial, pickNext, type Rect } from './geometry';
 
 const FOCUSABLE = [
@@ -22,7 +23,33 @@ const FOCUSABLE = [
   'label:has(input[type="checkbox"])',
   // The same, with the input elsewhere and tied by `for` (checked below).
   'label[for]',
+  // What ordinary sites use besides: more roles, disclosure widgets, inline
+  // handlers, editable regions, and media with the browser's own controls.
+  '[role="checkbox"]',
+  '[role="radio"]',
+  '[role="switch"]',
+  '[role="menuitemcheckbox"]',
+  '[role="menuitemradio"]',
+  '[role="combobox"]',
+  '[role="slider"]',
+  '[role="treeitem"]',
+  '[role="textbox"]',
+  'summary',
+  'area[href]',
+  '[onclick]',
+  '[contenteditable=""]',
+  '[contenteditable="true"]',
+  'video[controls]',
+  'audio[controls]',
+  // A frame from elsewhere cannot be driven from here; it can be landed on,
+  // and OK on it hands over to pointer mode (see the layer).
+  'iframe',
 ].join(',');
+
+/** Elements that are often made clickable with a script and nothing in the markup to say so. */
+const MAYBE_CLICKABLE = 'div, span, li, img, svg, td, article, section, figure, picture, p, h1, h2, h3, h4, h5, h6, i, b, em, strong';
+/** How many such elements are looked at in one pass: the look costs a style lookup each. */
+const MAX_STYLE_LOOKS = 2500;
 
 /** For a `label[for]`: the checkbox or radio it stands for, or null when it labels something else. */
 function labelledToggle(label: Element): HTMLInputElement | null {
@@ -69,6 +96,21 @@ export interface NavigatorOptions {
   skip?: string[];
   /** When it returns an element, only candidates inside that element are considered. */
   scope?: () => Element | null;
+  /** Selectors that are never candidates, nor anything inside them (a profile's "exclude"). */
+  exclude?: string[];
+  /**
+   * Also offer elements that only look clickable: the page shows the hand
+   * cursor over them. For sites with no profile, where it is the only sign.
+   */
+  looksClickable?: boolean;
+  /** A class the layer puts on the root element while it hides the real pointer; see handCursorTargets. */
+  cursorHiddenClass?: string;
+  /**
+   * A target more than a screen beyond the edge is scrolled toward, not
+   * jumped to, so the text in between can be read. For sites with no
+   * profile; a held key does this everywhere.
+   */
+  readingScroll?: boolean;
 }
 
 /**
@@ -268,6 +310,9 @@ const FOOTER = 'footer, [role="contentinfo"]';
 /** What a menu's entries are. */
 export const MENU_ENTRY = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], [role="radio"]';
 
+/** How far past the screen's edge a target may be, in screens, and still be jumped to while reading. */
+export const READING_REACH = 0.35;
+
 /** Moves closer together than this are a held key (or a very quick thumb). */
 const RAPID_MS = 220;
 
@@ -276,6 +321,9 @@ export class SpatialNavigator {
   private zoomed: Element | null = null;
   /** Where focus last was in each sideways-scrolling row. */
   private readonly rowMemory = new WeakMap<Element, Element>();
+  /** Whether each element shows the hand cursor, for the page at `handFor`. */
+  private hand = new WeakMap<Element, boolean>();
+  private handFor = '';
   /** When the last move was made, to tell a held key from single presses. */
   private lastMoveAt = 0;
   private rapid = false;
@@ -302,12 +350,21 @@ export class SpatialNavigator {
     const below = 3 * view.innerHeight;
     const selector = [FOCUSABLE, ...(this.opts.extraFocusable ?? [])].join(',');
     const scope = this.opts.scope?.() ?? null;
-    const skip = this.skipSelector();
+    const skip = this.validSelector(this.opts.skip);
+    const exclude = this.validSelector(this.opts.exclude);
     const seen = new Set<Element>();
     const faded = new Map<Element, boolean>();
-    for (const el of deepQueryAll(scope ?? this.doc, selector)) {
+    const found = deepQueryAll(scope ?? this.doc, selector);
+    if (this.opts.looksClickable) found.push(...this.handCursorTargets(scope ?? this.doc, view, selector, near ? { above, below } : null));
+    for (const el of found) {
       if (this.opts.ignoreWithin && deepClosest(el, this.opts.ignoreWithin)) continue;
       if (skip && el.matches(skip)) continue;
+      if (exclude && deepClosest(el, exclude)) continue;
+      // A frame too small to hold anything worth pointing at is a tracker or a spacer.
+      if (el instanceof HTMLIFrameElement) {
+        const box = el.getBoundingClientRect();
+        if (box.width < 120 || box.height < 60) continue;
+      }
       if (near) {
         const r = el.getBoundingClientRect();
         if (r.bottom < above || r.top > below) continue;
@@ -364,8 +421,54 @@ export class SpatialNavigator {
     return front.filter((el) => kept.has(el));
   }
 
-  private skipSelector(): string | null {
-    const valid = (this.opts.skip ?? []).filter((sel) => {
+  /**
+   * Elements the page shows the hand cursor over, that nothing in the markup
+   * marks as controls: the outermost element of each such region. The cursor
+   * is inherited, so everything inside a clickable card reports it too; only
+   * the one whose parent does not is taken.
+   *
+   * Each element is asked once and remembered: asking costs a style lookup,
+   * and while the layer is hiding the real pointer (a class on the root that
+   * sets every cursor to none) the class has to come off for the asking,
+   * which restyles the page. On a page that has not changed nothing is asked.
+   */
+  private handCursorTargets(root: ParentNode, view: Window, known: string, band: { above: number; below: number } | null): Element[] {
+    const href = view.location.href;
+    if (href !== this.handFor) {
+      this.handFor = href;
+      this.hand = new WeakMap();
+    }
+    const pool: Element[] = [];
+    const unknown: Element[] = [];
+    for (const el of deepQueryAll(root, MAYBE_CLICKABLE)) {
+      const r = el.getBoundingClientRect();
+      if (r.width < 10 || r.height < 10) continue;
+      if (band && (r.bottom < band.above || r.top > band.below)) continue;
+      // Inside a real control it is that control's cursor.
+      if (deepClosest(el, known)) continue;
+      if (pool.length >= MAX_STYLE_LOOKS) break;
+      pool.push(el);
+      if (!this.hand.has(el)) unknown.push(el);
+      const parent = composedParent(el);
+      if (parent && !this.hand.has(parent)) unknown.push(parent);
+    }
+    if (unknown.length) {
+      const rootEl = this.doc.documentElement;
+      const hiding = this.opts.cursorHiddenClass;
+      const wasHidden = hiding !== undefined && rootEl.classList.contains(hiding);
+      if (wasHidden) rootEl.classList.remove(hiding);
+      for (const el of unknown) this.hand.set(el, view.getComputedStyle(el).cursor === 'pointer');
+      if (wasHidden) rootEl.classList.add(hiding);
+    }
+    return pool.filter((el) => {
+      if (!this.hand.get(el)) return false;
+      const parent = composedParent(el);
+      return !parent || parent === this.doc.body || parent === this.doc.documentElement || !this.hand.get(parent);
+    });
+  }
+
+  private validSelector(list: readonly string[] | undefined): string | null {
+    const valid = (list ?? []).filter((sel) => {
       try {
         this.doc.querySelector(sel);
         return true;
@@ -537,13 +640,21 @@ export class SpatialNavigator {
     // a target far outside the screen may only be the next thing loaded so
     // far (the footer, with rows still to come before it). Scroll toward it
     // and let the next repeat decide again.
-    if (target && view && this.rapid && (dir === 'up' || dir === 'down')) {
+    if (target && view && (this.rapid || this.opts.readingScroll) && (dir === 'up' || dir === 'down')) {
       const r = target.getBoundingClientRect();
-      const far = dir === 'down' ? r.top > view.innerHeight : r.bottom < 0;
-      if (far) {
+      // A single press on a page being read jumps to what is just past the
+      // edge: bringing it to the middle then moves the page by less than a
+      // screen, so nothing in between goes by unseen. Further than that is
+      // scrolled toward.
+      const reach = this.rapid ? 0 : view.innerHeight * READING_REACH;
+      const far = dir === 'down' ? r.top > view.innerHeight + reach : r.bottom < -reach;
+      if (far && this.rapid) {
         view.scrollBy({ top: (dir === 'down' ? 0.8 : -0.8) * view.innerHeight, behavior: 'instant' });
         return true;
       }
+      // Whatever holds the target is what scrolls (the page, or a pane of a
+      // web app). If nothing can scroll that way the target is jumped to after all.
+      if (far && scrollBy(this.doc, target, dir, false) !== null) return true;
     }
     return this.focus(target);
   }
@@ -586,7 +697,38 @@ export class SpatialNavigator {
     return this.focusNearest(point, plain.length ? plain : all);
   }
 
-  focus(el: Element | null): boolean {
+  /**
+   * Focuses a control that is wholly on screen, without moving the page: the
+   * first one in reading order after a scroll down, the last after a scroll
+   * up. Used when the page was scrolled because there was nothing to move to.
+   * `within` is what was scrolled.
+   */
+  focusOnScreen(dir: Direction, within?: Element): boolean {
+    const view = this.doc.defaultView;
+    if (!view) return false;
+    const cache = new Map<Element, boolean>();
+    // Only what the scrolling brought: inside the pane that scrolled, when it was a pane.
+    const pane = within && within !== this.doc.scrollingElement && within !== this.doc.documentElement && within !== this.doc.body ? within : null;
+    const onScreen = this.candidates(true).filter((el) => {
+      if (pane && !deepContains(pane, el)) return false;
+      const r = el.getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= view.innerHeight && r.left >= 0 && r.right <= view.innerWidth && !isPinned(el, view, cache);
+    });
+    if (onScreen.length === 0) return false;
+    const rects = onScreen.map(toRect);
+    let pick = pickInitial(rects);
+    if (dir === 'up') {
+      // The lowest row, and its left-most control.
+      pick = 0;
+      rects.forEach((r, i) => {
+        const b = rects[pick]!;
+        if (r.top > b.top + 8 || (Math.abs(r.top - b.top) <= 8 && r.left < b.left)) pick = i;
+      });
+    }
+    return this.focus(onScreen[pick] ?? null, { scroll: false });
+  }
+
+  focus(el: Element | null, how: { scroll?: boolean } = {}): boolean {
     if (!el) return false;
     this.current?.removeAttribute(FOCUS_ATTR);
     this.zoomed?.removeAttribute(ZOOM_ATTR);
@@ -600,7 +742,12 @@ export class SpatialNavigator {
       this.zoomed = zoomTarget(el);
       this.zoomed.setAttribute(ZOOM_ATTR, '');
     }
-    if (el instanceof HTMLElement || 'focus' in el) {
+    if (el instanceof HTMLIFrameElement) {
+      // Keyboard focus on a frame sends the keys into it, where nothing of
+      // ours would hear them again. The highlight rests on it; the keys stay here.
+      const active = this.doc.activeElement;
+      if (active instanceof HTMLElement && active !== this.doc.body) active.blur();
+    } else if (el instanceof HTMLElement || 'focus' in el) {
       (el as HTMLElement).focus({ preventScroll: true });
     }
     // Anything on the first screenful (the bar and the banner under it) is
@@ -608,7 +755,9 @@ export class SpatialNavigator {
     // not half under the bar. Further down, the focused row is centred.
     const top = view ? el.getBoundingClientRect().top + view.scrollY : Infinity;
     const bottom = view ? top + el.getBoundingClientRect().height : Infinity;
-    if (view && bottom <= view.innerHeight) {
+    if (how.scroll === false) {
+      // Already where the person is looking; the page stays put.
+    } else if (view && bottom <= view.innerHeight) {
       // Only this: a second scroll request would replace it and stop short of the top.
       view.scrollTo({ top: 0, behavior: this.rapid ? 'instant' : 'smooth' });
       scrollWithinList(el, view);

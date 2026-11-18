@@ -1,6 +1,6 @@
 // Gamepad handling. The state machine is pure (time is passed in) so repeat
 // behaviour is unit-tested; `startPolling` is the thin browser wrapper.
-import type { Action } from '../../shared/actions';
+import type { Action, Direction } from '../../shared/actions';
 import { actionFor, type ActionName } from '../../shared/config';
 import type { Mode } from './keys';
 
@@ -128,11 +128,31 @@ export class RepeatTracker {
 // otherwise a physical pad and its Steam twin would both fire.
 const STEAM_VIRTUAL_PAD = /Vendor: 28de Product: 11ff/i;
 
+/** The directions held on the D-pad or the left stick, in a fixed order. */
+export function heldDirections(held: ReadonlySet<number>): Direction[] {
+  const dirs: Direction[] = [];
+  if (held.has(Btn.Up) || held.has(STICK_UP)) dirs.push('up');
+  if (held.has(Btn.Down) || held.has(STICK_DOWN)) dirs.push('down');
+  if (held.has(Btn.Left) || held.has(STICK_LEFT)) dirs.push('left');
+  if (held.has(Btn.Right) || held.has(STICK_RIGHT)) dirs.push('right');
+  return dirs;
+}
+
+/**
+ * Pointer mode moves for as long as a direction is held, so there the held
+ * directions are reported as they change instead of being turned into moves.
+ */
+export interface PointerPad {
+  active: () => boolean;
+  held: (dirs: Direction[]) => void;
+}
+
 export function startPolling(
   view: Window,
   getMode: () => Mode,
   dispatch: (a: Action) => void,
   overrides: Readonly<Record<string, ActionName>> = {},
+  pointer?: PointerPad,
 ): () => void {
   const trackers = new Map<number, RepeatTracker>();
   let stopped = false;
@@ -149,6 +169,7 @@ export function startPolling(
   // nothing to read, and a callback every frame for as long as the app is
   // open is work a small TV box should not be doing.
   let running = false;
+  let reported = '';
   const tick = (): void => {
     if (stopped) return;
     const pads = [...view.navigator.getGamepads()].filter((p): p is Gamepad => !!p && p.connected);
@@ -166,9 +187,17 @@ export function startPolling(
           trackers.set(pad.index, tracker);
         }
         const held = heldButtons({ buttons: pad.buttons.map((b) => b.pressed), axes: pad.axes });
+        const pointing = pointer?.active() === true;
+        if (pointer) {
+          const dirs = pointing ? heldDirections(held) : [];
+          if (dirs.join() !== reported) {
+            reported = dirs.join();
+            pointer.held(dirs);
+          }
+        }
         for (const b of tracker.update(held, view.performance.now())) {
           const action = buttonToAction(b, getMode(), overrides);
-          if (action) dispatch(action);
+          if (action && !(pointing && action.type === 'move')) dispatch(action);
         }
       }
     }

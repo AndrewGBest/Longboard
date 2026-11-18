@@ -37,14 +37,20 @@ export type BridgeMessage =
   | { kind: 'back' }
   /** The menu button was pressed. */
   | { kind: 'menu' }
-  /** The pointer button was pressed. */
-  | { kind: 'pointer' }
+  /** The pointer button was pressed. With a point (CSS pixels), pointer mode starts there. */
+  | { kind: 'pointer'; x?: number; y?: number }
+  /** OK was pressed on a game controller while pointer mode is on. */
+  | { kind: 'pointerClick' }
   /** Pointer mode cannot continue (the on-screen keyboard needs the arrows). */
   | { kind: 'pointerOff' }
   /** Directions held on a game controller while pointer mode is on. */
   | { kind: 'pointerHeld'; dirs: Direction[] }
-  /** Under automation: the layer has checked the point and a click there is allowed. */
-  | { kind: 'pointerClickOk'; id: number };
+  /**
+   * Under automation: the layer has checked the point and a click there is
+   * allowed. `frame` says the point is on an embedded frame, which the layer
+   * cannot see into; the shell then clicks only if that frame has its own guard.
+   */
+  | { kind: 'pointerClickOk'; id: number; frame: boolean };
 
 /** Which of Longboard's two views a layer is running in. */
 export type Surface = 'page' | 'chrome';
@@ -58,6 +64,9 @@ export interface LayerOptions {
   /** Gamepad button mappings from the user's config file. */
   buttons?: Record<string, ActionName>;
 }
+
+/** Where the on-screen pointer is, in the page's CSS pixels; null when pointer mode is off. */
+export type PointerSpot = { x: number; y: number } | null;
 
 /** What the shell hands a preload when a page starts. */
 export interface BootData {

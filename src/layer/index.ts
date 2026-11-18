@@ -1,16 +1,17 @@
 // Entry point of the page-side layer. Runs in the preload's isolated world:
 // it shares the DOM with the site but not its JavaScript, so the site cannot
 // tamper with it and it does not modify the site's own scripts.
-import type { Action, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
+import type { Action, BridgeMessage, Direction, LayerOptions, PointerSpot } from '../shared/actions';
 import { adapterReport, firstMatch, type SiteAdapter } from './adapter/adapter';
 import { buildOutline, sanitizeUrl } from './diagnostics/outline';
-import { installPurchaseGuard } from './guard/purchase-guard';
+import { scrollBy } from './generic/scroll';
+import { installPurchaseGuard, isSpendControl } from './guard/purchase-guard';
 import { startPolling } from './input/gamepad';
 import { keyToAction, type Mode } from './input/keys';
 import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
-import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo, type PlayerKey } from '../shared/player-keys';
-import { findMainVideo, isPlayerActive, isSeekBar, playerIsOwnPage, playerScope } from './player';
+import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo, type PlayerKey, type TextKey } from '../shared/player-keys';
+import { findMainVideo, GENERIC_PLAYER_SHARE, isPlayerActive, isSeekBar, playerIsOwnPage, playerScope } from './player';
 import { coveredByScreen, edgeControl, isVisible, MENU_ENTRY, openDialog, SpatialNavigator } from './spatial/navigator';
 import { HOST_TAG, Overlay } from './ui/overlay';
 
@@ -53,6 +54,10 @@ export interface Layer {
   focusFirstIn: (container: Element) => boolean;
   /** Puts the highlight on `el`. */
   focus: (el: Element) => boolean;
+  /** Pointer mode: where the shell has put the pointer, or null when it is off. */
+  pointer: (spot: PointerSpot) => void;
+  /** Under automation: may the pointer click at this point? Says so on screen when not. */
+  mayClickAt: (x: number, y: number) => 'yes' | 'no' | 'frame';
   stop: () => void;
 }
 
@@ -60,8 +65,12 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
   const view = doc.defaultView;
   if (!view) throw new Error('layer needs a window');
 
+  /** No profile for this site: everything is worked out from the page itself. */
+  const generic = adapter.id === 'none';
   const playerRoots = adapter.selectors.playerRoot;
-  const inPlayer = (): boolean => isPlayerActive(doc, playerRoots);
+  const playerShare = generic ? GENERIC_PLAYER_SHARE : 0.5;
+  const mainVideo = (): HTMLVideoElement | null => findMainVideo(doc, playerRoots, playerShare);
+  const inPlayer = (): boolean => isPlayerActive(doc, playerRoots, playerShare);
   /** While the player is open, focus stays among its own controls. */
   const scope = (): Element | null => {
     // An open hover menu lies over the page; what is underneath is not reachable until it is closed.
@@ -70,7 +79,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
     const dialog = openDialog(doc);
     if (dialog) return dialog;
     if (!inPlayer()) return null;
-    const v = findMainVideo(doc, playerRoots);
+    const v = mainVideo();
     return v ? playerScope(v, playerRoots) : null;
   };
 
@@ -89,7 +98,26 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
     },
     scope,
     skip: [...adapter.selectors.rowPrev, ...adapter.selectors.rowNext],
+    looksClickable: generic,
+    cursorHiddenClass: 'longboard-no-pointer',
+    readingScroll: generic,
   });
+
+  // Pointer mode. The shell owns it: it moves the pointer and clicks with
+  // ordinary mouse events, so it works in embedded frames this layer cannot
+  // see into. The layer only draws the pointer and stays out of the way.
+  let pointerOn = false;
+
+  // One of the browser's own lists may be open (a drop-down). While it is,
+  // the browser gives it the keyboard's keys directly; a game controller's
+  // buttons come through this layer and have to be turned into those keys.
+  // There is no event for the list closing, so this is "may be": it is
+  // dropped on the first key that reaches the page, and when focus moves on.
+  let nativeList: HTMLSelectElement | null = null;
+  const listOpen = (): boolean => {
+    if (nativeList && deepActiveElement(doc) !== nativeList) nativeList = null;
+    return nativeList !== null;
+  };
 
   // Some menus open only when the pointer rests on their button. If Enter on
   // a button that says it is collapsed leaves it collapsed, the shell is asked
@@ -133,7 +161,14 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
   // adapter knows it. A carousel that swaps slides leaves focus on something
   // no longer shown, so focus then moves to the new slide.
   let edgeTimer: number | undefined;
+  let scrollTimer: number | undefined;
   const moveInPage = (dir: Direction): void => {
+    // A slider takes left and right itself, as the keys they are.
+    const slider = nav.focused;
+    if (slider instanceof HTMLInputElement && slider.type === 'range' && (dir === 'left' || dir === 'right') && deepActiveElement(doc) === slider) {
+      pressKey(dir === 'left' ? 'seekBack' : 'seekForward');
+      return;
+    }
     let moved = nav.move(dir);
     // Sideways out of an open menu: close it and carry on along the bar.
     if (!moved && hoverHost && (dir === 'left' || dir === 'right')) {
@@ -144,14 +179,29 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
     }
     if (moved) return;
     const from = nav.focused;
-    if (!from) return;
     const hit =
-      dir === 'left' || dir === 'right'
+      from && (dir === 'left' || dir === 'right')
         ? edgeControl(from, dir === 'left' ? adapter.selectors.rowPrev : adapter.selectors.rowNext, view)
         : null;
     if (!hit) {
+      // Nothing to move to: scroll, and take up whatever comes into view.
+      // Sideways only inside something that scrolls sideways itself; a page
+      // a little wider than the screen must not slide about under the arrows.
+      const sideways = dir === 'left' || dir === 'right';
+      const here = from && isVisible(from, view) && !nav.focusIsOffScreen() ? from : null;
+      const scrolled = !sideways || here ? scrollBy(doc, here, dir, false) : null;
+      if (scrolled) {
+        view.clearTimeout(scrollTimer);
+        scrollTimer = view.setTimeout(() => {
+          const f = nav.focused;
+          // The highlight follows the reading: it moves on when what had it
+          // has gone out of sight, or was never in what is being scrolled.
+          if (!f || nav.focusIsOffScreen() || !deepContains(scrolled, f)) nav.focusOnScreen(dir, scrolled);
+        }, 350);
+        return;
+      }
       // Nowhere to go: say so, rather than seeming not to have heard the key.
-      overlay.feedback(dir);
+      if (from) overlay.feedback(dir);
       return;
     }
     (hit.control as HTMLElement).click();
@@ -199,6 +249,8 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
     }
   };
   const openOsk = (field: Element): void => {
+    // The keyboard needs the arrows; the pointer gives them up.
+    if (pointerOn) send({ kind: 'pointerOff' });
     if (!oskOpen) osk.reset();
     // The key says what it does: the page's own word for it when it gives
     // one (the standard enterkeyhint attribute), "search" in a search field.
@@ -247,14 +299,23 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
   // Player control is a real key press made by the shell, so the site's own
   // player decides what it does (it may refuse a seek during an advertisement).
   const injected = new InjectedKeys();
-  const pressKey = (key: PlayerKey): void => {
+  const pressKey = (key: PlayerKey | TextKey): void => {
     const info = playerKeyInfo(key);
     if (!info) return;
     injected.expect(info.domKey, Date.now());
     send({ kind: 'playerKey', key });
   };
   const pressPlayerKey = (key: PlayerKey): void => {
-    if (inPlayer()) pressKey(key);
+    if (!inPlayer()) return;
+    watchNativeVideo();
+    pressKey(key);
+  };
+  // A video with the browser's own controls answers keys only while it has
+  // keyboard focus. Giving it focus is all that is done; the keys are still
+  // ordinary key presses and the browser's player decides what they do.
+  const watchNativeVideo = (): void => {
+    const v = mainVideo();
+    if (v?.controls && deepActiveElement(doc) !== v && !isTextEntry(deepActiveElement(doc))) v.focus({ preventScroll: true });
   };
 
   /** Moves focus into a pop-up that has opened, if it is not there already. */
@@ -442,6 +503,29 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       playerMenuSeen = false;
     }
     doc.documentElement.classList.add('longboard-no-pointer');
+    if (pointerOn) {
+      // From a game controller (the shell takes a remote's keys itself). The
+      // directions arrive as held buttons, not as moves.
+      if (a.type === 'select') send({ kind: 'pointerClick' });
+      else if (a.type === 'back') send({ kind: 'pointerOff' });
+      else if (a.type === 'pointer') send({ kind: 'pointer' });
+      else if (a.type === 'menu') send({ kind: 'menu' });
+      else if (a.type === 'exit') send({ kind: 'exit' });
+      return;
+    }
+    if (listOpen()) {
+      // From a game controller: its buttons become the list's own keys.
+      if (a.type === 'move' && (a.dir === 'up' || a.dir === 'down')) pressKey(a.dir);
+      else if (a.type === 'select') {
+        nativeList = null;
+        pressKey('enter');
+      } else if (a.type === 'back') {
+        nativeList = null;
+        pressKey('close');
+      }
+      if (a.type === 'move' || a.type === 'select' || a.type === 'back') return;
+    }
+    view.clearTimeout(scrollTimer);
     // A pending "pick focus up again" belongs to the previous key; a new key
     // overrides it (Back right after Enter must not have focus put back).
     view.clearTimeout(refocusTimer);
@@ -479,6 +563,19 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
         const box = target?.getBoundingClientRect();
         if (target && !inPlayer() && opensMenuFirst(target)) {
           hoverOn(target);
+          break;
+        }
+        // An embedded frame cannot be driven from here: hand over to the pointer, on it.
+        if (target instanceof HTMLIFrameElement && box) {
+          overlay.toast('Pointer mode: this part of the page needs the pointer');
+          send({ kind: 'pointer', x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2 });
+          break;
+        }
+        // A drop-down opens as the browser's own list, with the key that opens it.
+        if (target instanceof HTMLSelectElement && !target.multiple) {
+          target.focus({ preventScroll: true });
+          nativeList = target;
+          pressKey('space');
           break;
         }
         if (!nav.activate()) {
@@ -571,6 +668,9 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       closeOsk();
       return;
     }
+    // An open list takes its keys itself and the page never sees them. A
+    // key that arrives here therefore means the list has closed.
+    nativeList = null;
     const action = keyToAction(e, mode(), options.keys);
     if (!action) return;
     // In the player, a key that is already the site's own key for the action
@@ -599,12 +699,15 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
 
   const onPointer = (): void => {
     // The shell's own nudge (see revealControls) is not the user reaching for a mouse.
-    if (Date.now() < ignorePointerUntil) return;
+    if (pointerOn || Date.now() < ignorePointerUntil) return;
     doc.documentElement.classList.remove('longboard-no-pointer');
   };
   view.addEventListener('mousemove', onPointer, { passive: true });
 
-  const stopPads = startPolling(view, mode, dispatch, options.buttons);
+  const stopPads = startPolling(view, mode, dispatch, options.buttons, {
+    active: () => pointerOn,
+    held: (dirs) => send({ kind: 'pointerHeld', dirs }),
+  });
 
   // Tell the shell when video is playing so it can hold off the screensaver.
   let lastPlaying = false;
@@ -619,8 +722,9 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       }
       return;
     }
-    const v = findMainVideo(doc, playerRoots);
+    const v = mainVideo();
     const playing = !!v && !v.paused && !v.ended;
+    if (v && inPlayer() && !pointerOn) watchNativeVideo();
     // Mark the player so the stylesheet can hide controls the site has disabled.
     if (v && inPlayer()) playerScope(v, playerRoots).setAttribute('data-longboard-player', '');
     // Focus left over from the page behind must not carry into the player, and
@@ -651,11 +755,36 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       // The shell may say it more than once for one departure (focus lost,
       // then minimised); a second key would start playback again.
       if (Date.now() - lastAwayAt < 3000) return;
-      const v = findMainVideo(doc, playerRoots);
+      const v = mainVideo();
       if (v && inPlayer() && !v.paused && !v.ended) {
         lastAwayAt = Date.now();
         pressKey('playPause');
       }
+    },
+    pointer: (spot) => {
+      const was = pointerOn;
+      pointerOn = spot !== null;
+      overlay.pointer(spot);
+      if (pointerOn && !was) {
+        // One indicator at a time: the ring goes while the pointer is out.
+        closeOsk();
+        nav.clear();
+        doc.documentElement.classList.add('longboard-no-pointer');
+      }
+      if (!pointerOn && was) {
+        // A click may have left the keys inside an embedded frame, where
+        // this layer would never hear them. Take them back.
+        const active = doc.activeElement;
+        if (active instanceof HTMLIFrameElement) active.blur();
+      }
+    },
+    mayClickAt: (x, y) => {
+      const el = doc.elementFromPoint(x, y);
+      // What is inside a frame cannot be seen from here; the shell asks the frame's own guard.
+      if (el instanceof HTMLIFrameElement) return 'frame';
+      if (el && !(el instanceof HTMLEmbedElement) && !(el instanceof HTMLObjectElement) && !isSpendControl(el, adapter.selectors.purchaseControls)) return 'yes';
+      overlay.toast('Blocked: automation mode never activates purchase or sign-up controls');
+      return 'no';
     },
     focusFirstIn: (container) => nav.focusFirstIn(container),
     focus: (el) => nav.focus(el),
@@ -672,6 +801,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       view.clearTimeout(dialogTimer);
       view.clearTimeout(hoverTimer);
       view.clearTimeout(edgeTimer);
+      view.clearTimeout(scrollTimer);
       stopPads();
       stopGuard();
     },

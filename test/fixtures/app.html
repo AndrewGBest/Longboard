@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: a web app with its own scrolling pane</title>
+<!-- A made-up web app: the window itself never scrolls; a pane inside it does. It imitates no real site. -->
+<style>
+  html, body { height: 100%; margin: 0; overflow: hidden; font: 16px/1.5 system-ui, sans-serif; }
+  header { height: 56px; background: #223; color: #fff; display: flex; align-items: center; gap: 16px; padding: 0 24px; }
+  header a { color: #fff; }
+  #pane { height: calc(100% - 56px); overflow-y: auto; padding: 24px; box-sizing: border-box; }
+  .block { height: 900px; background: linear-gradient(#eee, #ccd); margin-bottom: 24px; }
+</style>
+</head>
+<body>
+<header><a href="#inbox" id="inbox">Inbox</a><a href="#sent" id="sent">Sent</a></header>
+<div id="pane">
+  <p>The top of the pane. Nothing here can be pressed.</p>
+  <div class="block"></div>
+  <a href="#deep" id="deep">A link deep in the pane</a>
+  <div class="block"></div>
+  <p id="end">The end of the pane.</p>
+</div>
+</body>
+</html>

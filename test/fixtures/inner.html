@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: inside the frame</title>
+<style>
+  body { margin: 0; padding: 20px; background: #eef; font: 16px system-ui, sans-serif; }
+  button { position: absolute; top: 80px; height: 100px; font: inherit; }
+  #inside { left: 200px; width: 200px; }
+  #buy { left: 430px; width: 140px; }
+</style>
+</head>
+<body>
+<button id="inside">Inside the frame</button>
+<button id="buy">Buy now</button>
+<script>
+  let n = 0;
+  document.getElementById('inside').addEventListener('click', () => parent.postMessage(`clicked ${++n}`, '*'));
+  document.getElementById('buy').addEventListener('click', () => parent.postMessage('bought', '*'));
+  window.addEventListener('keydown', (e) => parent.postMessage(`key ${e.key}`, '*'));
+</script>
+</body>
+</html>

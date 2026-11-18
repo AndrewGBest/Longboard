@@ -309,6 +309,208 @@ await scenario('a full-screen video', { url: `${site.origin}/player.html`, confi
   check('third Back closes the player and stays on the page', await evaluate('[__p.closed, location.pathname.endsWith("player.html")]'), [1, true]);
 });
 
+await scenario('a long article: reading with the arrows', { url: `${site.origin}/article.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const { evaluate, press, focused } = page;
+  await sleep(800);
+  const screen = await evaluate('innerHeight');
+  await press('ArrowDown');
+  check('the first press takes the first link', await focused(), 'top-home');
+  // Down the page to the first link in the text: the page must scroll there a
+  // screen at a time, never jump over what lies between.
+  let biggest = 0;
+  let last = await evaluate('scrollY');
+  let presses = 0;
+  for (; presses < 12 && (await focused()) !== 'mid-link'; presses++) {
+    await press('ArrowDown', 600);
+    const now = await evaluate('scrollY');
+    biggest = Math.max(biggest, now - last);
+    last = now;
+  }
+  check('down reaches the link in the middle of the text', await focused(), 'mid-link');
+  check('by scrolling no more than a screen per press', [presses >= 2, biggest <= screen], [true, true]);
+  check('and the link it lands on is on screen', await evaluate('(() => { const r = document.getElementById("mid-link").getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()'), true);
+  for (let i = 0; i < 20 && (await focused()) !== 'foot-contact'; i++) await press('ArrowDown', 500);
+  check('and carries on to the end of the page', [await focused(), await evaluate('Math.ceil(scrollY + innerHeight) >= document.documentElement.scrollHeight - 2')], ['foot-contact', true]);
+  await press('ArrowDown', 500);
+  check('at the very end the ring bumps instead', await page.ringClass(), 'ring bump-down');
+  for (let i = 0; i < 12 && (await focused()) !== 'late-link'; i++) await press('ArrowUp', 500);
+  check('up reads back the same way', await focused(), 'late-link');
+});
+
+await scenario('a web app whose window does not scroll', { url: `${site.origin}/app.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const { evaluate, press, focused } = page;
+  await sleep(800);
+  await press('ArrowDown');
+  check('the first press takes the bar (there is nothing else on screen)', await focused(), 'inbox');
+  for (let i = 0; i < 6 && (await focused()) !== 'deep'; i++) await press('ArrowDown', 600);
+  check('down reaches a link deep in the scrolling pane', [await focused(), (await evaluate('document.getElementById("pane").scrollTop')) > 0, await evaluate('scrollY')], ['deep', true, 0]);
+  for (let i = 0; i < 4; i++) await press('ArrowDown', 500);
+  check('and scrolls the pane to its end when there is nothing more to move to', await evaluate('(() => { const p = document.getElementById("pane"); return Math.ceil(p.scrollTop + p.clientHeight) >= p.scrollHeight - 2; })()'), true);
+});
+
+await scenario('a form, and things that only look clickable', { url: `${site.origin}/form.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const { evaluate, press, focused } = page;
+  const value = (id) => evaluate(`document.getElementById("${id}").value`);
+  await sleep(800);
+  await press('ArrowDown', 300);
+  check('the first press lands in the text field and the keyboard comes up', [await focused(), await page.keyboardShown()], ['name', true]);
+  await press('Enter', 300);
+  check('and types', await value('name'), 'a');
+  await press('Escape');
+  await press('Escape');
+  await press('ArrowDown');
+  check('down goes to the drop-down', await focused(), 'colour');
+  await press('Enter', 500);
+  await press('ArrowDown', 300);
+  await press('Enter', 400);
+  check("OK opens the browser's own list, the arrows move in it and OK chooses", await value('colour'), 'green');
+  await press('ArrowDown');
+  check('after which the arrows move the highlight again', await focused(), 'agree');
+  await press('Enter');
+  check('a checkbox is ticked', await evaluate('document.getElementById("agree").checked'), true);
+  await press('ArrowDown');
+  await press('ArrowRight');
+  await press('Enter');
+  check('a radio button is chosen', [await focused(), await evaluate('document.getElementById("large").checked')], ['large', true]);
+  await press('ArrowDown');
+  check('down goes to the slider', await focused(), 'level');
+  await press('ArrowRight', 300);
+  await press('ArrowRight', 300);
+  check('left and right move a slider', await value('level'), '7');
+  await press('ArrowDown', 300);
+  check('down goes to the text box, with the keyboard', [await focused(), await page.keyboardShown()], ['notes', true]);
+  await press('Escape');
+  await press('Escape');
+  await press('ArrowDown');
+  await press('Enter');
+  check('the form can be sent', [await focused(), await evaluate('__f.submitted')], ['send', 1]);
+  await press('ArrowDown');
+  check('a card that is clickable only by script and cursor takes the highlight', await focused(), 'card1');
+  await press('Enter');
+  await press('ArrowRight');
+  await press('Enter');
+  await press('ArrowRight');
+  check('and is pressed; what is not clickable is passed over', [await evaluate('__f.clicks'), await focused()], [['card1', 'card2'], 'card2']);
+  await press('ArrowLeft');
+  await press('ArrowDown');
+  await press('Enter');
+  check('an element with an inline handler works', [await focused(), await evaluate('__f.clicks.at(-1)')], ['old', 'old']);
+  await press('ArrowDown');
+  await press('Enter');
+  check('a disclosure opens', [await focused(), await evaluate('document.getElementById("more").open')], ['summary', true]);
+});
+
+await scenario('a video with the browser\'s own controls', { url: `${site.origin}/video.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const { evaluate, press, focused } = page;
+  const paused = () => evaluate('document.getElementById("v").paused');
+  await sleep(1200);
+  check('the video is playing as part of the page', await evaluate('!document.getElementById("v").paused && document.getElementById("v").currentTime > 0'), true);
+  await press('ArrowDown');
+  await press('ArrowDown');
+  check('while it is only part of the page the arrows move the highlight, and can land on it', await focused(), 'v');
+  await press('ArrowDown');
+  check('and move on past it', await focused(), 'theatre');
+  await press('Enter', 2500);
+  check('once it fills the screen the highlight is put away', [await evaluate('document.body.classList.contains("theatre")'), await focused()], [true, null]);
+  await press(' ', 500);
+  check('Space pauses it', await paused(), true);
+  await press('Enter', 500);
+  check('OK resumes it', await paused(), false);
+  check('with ordinary key presses, not by calling the video', (await evaluate('__v.keys')).filter((k) => k === ' ').length, 2);
+});
+
+await scenario('pointer mode', { url: `${site.origin}/frames.html` }, async (app) => {
+  const page = await app.page(`${site.origin}/frames.html`);
+  const { evaluate, press, focused } = page;
+  const messages = () => evaluate('__frame.messages');
+  await sleep(1000);
+  check('no pointer is shown to begin with', await page.pointerAt(), null);
+  await press('ArrowDown');
+  await press('ArrowDown');
+  check('the highlight can land on an embedded frame', await focused(), 'frame');
+  await press('Enter', 500);
+  const start = await page.pointerAt();
+  const box = await evaluate('(() => { const r = document.getElementById("frame").getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; })()');
+  check('OK on it switches to pointer mode, with the pointer on the frame and the ring put away', [!!start && start.x > box.l && start.x < box.r && start.y > box.t && start.y < box.b, await focused()], [true, null]);
+  await press('Enter', 600);
+  check('OK clicks what is under the pointer, inside the frame', [await messages(), await page.toastText()], [['clicked 1'], 'Pointer mode: this part of the page needs the pointer']);
+
+  // The guard reaches into the frame: a purchase button there is not pressed either.
+  check('the pointer can be walked to another button in the frame', await page.pointTo(start.x + 200, start.y), true);
+  await press('Enter', 700);
+  check('a purchase control inside the frame is not clicked in automation mode', [await messages(), await page.toastText()], [['clicked 1'], 'Blocked: automation mode never activates purchase or sign-up controls']);
+  await page.pointTo(start.x, start.y);
+
+  // Moving: a tap is a small step, a held key travels.
+  const before = await page.pointerAt();
+  await press('ArrowRight', 200);
+  const tapped = await page.pointerAt();
+  check('a tap moves the pointer a little', [tapped.x > before.x, tapped.x - before.x < 20, tapped.y === before.y], [true, true, true]);
+  check('and no further', (await sleep(500), await page.pointerAt()), tapped);
+  await page.hold('ArrowLeft', 900);
+  await sleep(250);
+  const held = await page.pointerAt();
+  check('a held key moves it a long way', tapped.x - held.x > 100, true);
+  check('and it stops when the key is let go', (await sleep(300), (await page.pointerAt()).x), held.x);
+  check('the arrows went to the pointer, not into the frame', (await messages()).filter((m) => m.startsWith('key Arrow')), []);
+
+  // Leaving: the same key, or Back; the keys come back to the page.
+  await press('F2', 400);
+  check('the pointer key puts the pointer away', await page.pointerAt(), null);
+  await press('ArrowDown', 300);
+  check('and the arrows move the highlight again, though the click left the keys in the frame', (await focused()) !== null, true);
+  await press('F2', 400);
+  check('the pointer key brings it back, in the middle of the screen', await page.pointerAt(), { x: (await evaluate('innerWidth')) / 2, y: (await evaluate('innerHeight')) / 2 });
+  await press('Escape', 400);
+  check('Back puts it away too', await page.pointerAt(), null);
+});
+
+await scenario('pointer mode: edges, the menu and the guard', { url: `${site.origin}/home.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const { evaluate, press } = page;
+  await sleep(800);
+  const pointTo = page.pointTo;
+  const centre = (id) => evaluate(`(() => { const r = document.getElementById("${id}").getBoundingClientRect(); return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }; })()`);
+
+  await press('F2', 400);
+  const play = await centre('play');
+  check('the pointer can be walked to a button', await pointTo(play.x, play.y), true);
+  await press('Enter', 500);
+  check('and OK presses it, as a mouse click', await evaluate('__clicks'), ['play']);
+  const rent = await centre('rent');
+  await pointTo(rent.x, rent.y);
+  await press('Enter', 500);
+  check('a purchase control is not clicked in automation mode', [await evaluate('__clicks'), await page.toastText()], [['play'], 'Blocked: automation mode never activates purchase or sign-up controls']);
+
+  // The menu knows about it.
+  const chrome = await app.chrome();
+  await press('ContextMenu', 500);
+  check('the menu says pointer mode is on', await chrome.evaluate('document.getElementById("menu-pointer").textContent'), 'Pointer mode: on');
+  for (let i = 0; i < 8 && (await chrome.focused()) !== 'menu-pointer'; i++) await chrome.press('ArrowDown');
+  await chrome.press('Enter', 500);
+  check('and switches it off', await page.pointerAt(), null);
+
+  // Pushing against the bottom edge scrolls the page.
+  await evaluate('document.body.insertAdjacentHTML("beforeend", "<div style=\\"height:3000px\\"></div>"); 0');
+  await press('F2', 400);
+  await page.hold('ArrowDown', 2200);
+  await sleep(400);
+  const at = await page.pointerAt();
+  check('holding down runs the pointer to the bottom edge and then scrolls the page', [at.y >= (await evaluate('innerHeight')) - 2, (await evaluate('scrollY')) > 100], [true, true]);
+
+  // A text field takes the keyboard, and the keyboard takes the arrows.
+  await evaluate('scrollTo(0, 0); 0');
+  await sleep(300);
+  const search = await centre('search');
+  await pointTo(search.x, search.y);
+  await press('Enter', 600);
+  check('clicking a text field ends pointer mode and brings up the keyboard', [await page.pointerAt(), await page.keyboardShown(), await evaluate('document.activeElement?.id')], [null, true, 'search']);
+});
+
 // The site cannot be reached at first. The view must say so, keep trying,
 // and load the page once it is there.
 {

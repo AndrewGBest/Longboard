@@ -5,7 +5,7 @@
 import { app, BrowserWindow, ipcMain, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { BootData, BridgeMessage, LayerOptions } from '../shared/actions';
+import type { BootData, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
 import { resolveAddress, siteKey, siteName } from '../shared/address';
 import { MENU_ACTIONS, type ChromeMessage, type ChromeState, type MenuAction, type Panel } from '../shared/chrome';
 import type { UserConfig } from '../shared/config';
@@ -27,6 +27,7 @@ import {
   startingPageUrl,
 } from './navigation';
 import { mayAskProtectedPlayback, permissionDecision } from './permissions';
+import { PointerHolds, pointerGlide, pointerTap, startPoint, type PointerStep } from './pointer';
 import { readJson, writeJson } from './store';
 import { hoverPoint, tvZoom } from './zoom';
 
@@ -68,7 +69,17 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   win.removeMenu();
 
   const hardened = { contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true } as const;
-  const pageView = new WebContentsView({ webPreferences: { ...hardened, preload: join(__dirname, 'preload.js') } });
+  const pageView = new WebContentsView({
+    webPreferences: {
+      ...hardened,
+      preload: join(__dirname, 'preload.js'),
+      // The preload also runs in embedded frames, where in a scripted run it
+      // puts up the purchase guard and nothing else. Despite its name this
+      // gives pages nothing: the view stays sandboxed and isolated.
+      nodeIntegrationInSubFrames: true,
+      additionalArguments: options.automation ? ['--longboard-automation'] : [],
+    },
+  });
   // Its own session, kept in memory only: nothing a website stores is visible to it.
   const chromeView = new WebContentsView({ webPreferences: { ...hardened, preload: join(__dirname, 'chrome.js'), partition: 'longboard-chrome' } });
   pageView.setBackgroundColor('#000000');
@@ -330,16 +341,178 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   win.on('enter-full-screen', applyZoom);
   win.on('leave-full-screen', applyZoom);
 
-  // ---- Pointer mode (filled in by the pointer module) --------------------
+  // ---- Pointer mode --------------------------------------------------------
 
-  const setPointer = (on: boolean): void => {
-    pointerOn = on;
+  // An on-screen pointer moved with the arrows, for what the highlight cannot
+  // reach: maps, canvases, embedded frames. Everything it does is an ordinary
+  // mouse event sent to the page, so the page cannot tell it from a mouse and
+  // nothing in the page is touched. The layer only draws the arrow.
+  const pointer = { x: 0, y: 0, holds: new PointerHolds(), timer: undefined as NodeJS.Timeout | undefined, last: 0, checkId: 0 };
+  const pageSize = (): { width: number; height: number } => {
+    const b = pageView.getBounds();
+    return { width: b.width, height: b.height };
   };
+  // Mouse events for pointer mode go through the browser's DevTools input
+  // channel, attached only while pointer mode is on. Electron's own
+  // sendInputEvent does not deliver mouse events into frames served by
+  // another site (seen 2026-11-18), and those frames are what pointer mode is
+  // for. They are the same ordinary, trusted mouse events either way.
+  let attached = false;
+  const attach = (): void => {
+    if (attached || page.isDestroyed()) return;
+    try {
+      if (!page.debugger.isAttached()) page.debugger.attach('1.3');
+      attached = true;
+    } catch (err) {
+      console.error(`[longboard] pointer mode: falling back to plain input events (${String(err).slice(0, 120)})`);
+    }
+  };
+  const detach = (): void => {
+    if (!attached) return;
+    attached = false;
+    try {
+      if (!page.isDestroyed() && page.debugger.isAttached()) page.debugger.detach();
+    } catch {
+      // already gone
+    }
+  };
+  page.debugger.on('detach', () => {
+    attached = false;
+  });
+  type Mouse = { type: 'move' } | { type: 'down' | 'up' } | { type: 'wheel'; dx: number; dy: number };
+  const mouse = (x: number, y: number, what: Mouse): void => {
+    if (page.isDestroyed()) return;
+    if (attached) {
+      const params =
+        what.type === 'move'
+          ? { type: 'mouseMoved', x, y }
+          : what.type === 'wheel'
+            ? { type: 'mouseWheel', x, y, deltaX: what.dx, deltaY: what.dy }
+            : { type: what.type === 'down' ? 'mousePressed' : 'mouseReleased', x, y, button: 'left', clickCount: 1 };
+      page.debugger.sendCommand('Input.dispatchMouseEvent', params).catch(() => undefined);
+      return;
+    }
+    if (what.type === 'move') page.sendInputEvent({ type: 'mouseMove', x, y, globalX: x, globalY: y, movementX: 0, movementY: 0 });
+    // A wheel's "up" is positive for sendInputEvent; the amounts here are "down is positive".
+    else if (what.type === 'wheel') page.sendInputEvent({ type: 'mouseWheel', x, y, deltaX: -what.dx, deltaY: -what.dy, canScroll: true });
+    else page.sendInputEvent({ type: what.type === 'down' ? 'mouseDown' : 'mouseUp', x, y, button: 'left', clickCount: 1 });
+  };
+  const showPointer = (): void => {
+    if (page.isDestroyed()) return;
+    const zoom = page.getZoomFactor() || 1;
+    page.send('longboard:pointer', pointerOn ? { x: pointer.x / zoom, y: pointer.y / zoom } : null);
+  };
+  const applyStep = (step: PointerStep): void => {
+    if (page.isDestroyed()) return;
+    const x = Math.round(step.x);
+    const y = Math.round(step.y);
+    const moved = x !== Math.round(pointer.x) || y !== Math.round(pointer.y);
+    pointer.x = step.x;
+    pointer.y = step.y;
+    if (moved) {
+      mouse(x, y, { type: 'move' });
+      showPointer();
+    }
+    // Pushing against an edge scrolls, as a wheel would.
+    const dx = Math.round(step.scrollX);
+    const dy = Math.round(step.scrollY);
+    if (dx !== 0 || dy !== 0) mouse(x, y, { type: 'wheel', dx, dy });
+  };
+  const stopGlide = (): void => {
+    clearInterval(pointer.timer);
+    pointer.timer = undefined;
+    pointer.holds.clear();
+  };
+  /** Runs while something is held or a press may still turn into a hold, and not otherwise. */
+  const glide = (): void => {
+    if (pointer.timer) return;
+    pointer.last = Date.now();
+    pointer.timer = setInterval(() => {
+      if (!pointerOn || page.isDestroyed() || active() !== page) {
+        stopGlide();
+        return;
+      }
+      const now = Date.now();
+      const held = pointer.holds.held(now);
+      if (held.size > 0) applyStep(pointerGlide(pointer, held, now, now - pointer.last, pageSize()));
+      pointer.last = now;
+      if (pointer.holds.idle(now)) {
+        clearInterval(pointer.timer);
+        pointer.timer = undefined;
+      }
+    }, 16);
+  };
+  /** A direction key of a keyboard or remote went down. */
+  const keyPointer = (dir: Direction, isRepeat: boolean): void => {
+    if (pointer.holds.keyDown(dir, isRepeat, Date.now())) applyStep(pointerTap(pointer, dir, pageSize()));
+    glide();
+  };
+  /** What a game controller holds now. */
+  const padPointer = (dirs: readonly Direction[]): void => {
+    for (const dir of pointer.holds.setPad(dirs, Date.now())) applyStep(pointerTap(pointer, dir, pageSize()));
+    glide();
+  };
+  const click = (): void => {
+    if (page.isDestroyed()) return;
+    const x = Math.round(pointer.x);
+    const y = Math.round(pointer.y);
+    mouse(x, y, { type: 'down' });
+    mouse(x, y, { type: 'up' });
+  };
+  /** OK in pointer mode. A scripted run asks the layer first whether the spot is safe (Hard rule 11). */
+  const pressPointer = (): void => {
+    if (!options.automation) {
+      click();
+      return;
+    }
+    const zoom = page.getZoomFactor() || 1;
+    pointer.checkId += 1;
+    page.send('longboard:pointer-check', { id: pointer.checkId, x: pointer.x / zoom, y: pointer.y / zoom });
+  };
+  const setPointer = (on: boolean, at?: { x: number; y: number } | null): void => {
+    if (on === pointerOn && !at) return;
+    stopGlide();
+    pointerOn = on && surface === 'page';
+    if (pointerOn) {
+      attach();
+      const size = pageSize();
+      pointer.x = at?.x ?? size.width / 2;
+      pointer.y = at?.y ?? size.height / 2;
+      mouse(Math.round(pointer.x), Math.round(pointer.y), { type: 'move' });
+    } else {
+      detach();
+    }
+    showPointer();
+  };
+  // A new page has a new layer, which has to be told the pointer is out.
+  page.on('dom-ready', () => {
+    if (pointerOn) showPointer();
+  });
+  // In pointer mode the shell takes the keys before the page sees them: the
+  // pointer must work wherever in the page the keys would have gone.
+  page.on('before-input-event', (event, input) => {
+    if (!pointerOn || active() !== page) return;
+    const action = keyToAction({ key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift }, 'browse', config.keys);
+    if (!action || (action.type !== 'move' && action.type !== 'select' && action.type !== 'back')) return;
+    event.preventDefault();
+    if (input.type !== 'keyDown') return;
+    const repeat = input.isAutoRepeat;
+    // Acted on after this event has been dealt with: sending the page a mouse
+    // event from inside the handling of a key event stalls the key.
+    setImmediate(() => {
+      if (!pointerOn || page.isDestroyed()) return;
+      if (action.type === 'move') keyPointer(action.dir, repeat);
+      else if (repeat) return;
+      else if (action.type === 'select') pressPointer();
+      else setPointer(false);
+    });
+  });
 
   // ---- Keys the shell answers itself ---------------------------------------
 
   const toggleMenu = (): void => {
     if (panel === 'prompt') return;
+    stopGlide();
     panel = panel ? null : 'menu';
     layout();
   };
@@ -360,6 +533,10 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
       } else if (action?.type === 'menu') {
         event.preventDefault();
         toggleMenu();
+      } else if (action?.type === 'pointer') {
+        event.preventDefault();
+        // After this event, for the reason given in the pointer's own key handling.
+        if (wc === page && active() === page) setImmediate(() => setPointer(!pointerOn));
       }
     });
   }
@@ -548,11 +725,54 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
       case 'menu':
         if (wc === active()) toggleMenu();
         break;
+      case 'pointer':
+        if (wc !== page || active() !== page) break;
+        if (msg.x === undefined) setPointer(!pointerOn);
+        else setPointer(true, startPoint(msg, page.getZoomFactor(), pageSize()));
+        break;
+      case 'pointerOff':
+        if (wc === page) setPointer(false);
+        break;
+      case 'pointerHeld':
+        if (wc === page && pointerOn && active() === page && Array.isArray(msg.dirs)) {
+          padPointer(msg.dirs.filter((d): d is Direction => d === 'up' || d === 'down' || d === 'left' || d === 'right'));
+        }
+        break;
+      case 'pointerClick':
+        if (wc === page && pointerOn && active() === page) pressPointer();
+        break;
+      case 'pointerClickOk':
+        // Only the answer to the question just asked, and only while it still stands.
+        if (wc === page && pointerOn && options.automation && msg.id === pointer.checkId) {
+          pointer.checkId += 1;
+          if (msg.frame === true && !framesGuarded()) page.send('longboard:notice', 'Blocked: automation mode could not check an embedded frame');
+          else click();
+        }
+        break;
       default:
         break;
     }
   };
   ipcMain.on('longboard:msg', onMessage);
+
+  // Embedded frames, in a scripted run only: each says when its purchase
+  // guard is up, and when the guard stopped something.
+  const guarded = new Set<string>();
+  const frameKey = (frame: Electron.WebFrameMain): string => `${frame.processId}:${frame.routingId}`;
+  /** True when every frame inside the page has its guard up. */
+  const framesGuarded = (): boolean => page.mainFrame.framesInSubtree.every((f) => f === page.mainFrame || guarded.has(frameKey(f)));
+  const onFrame = (event: Electron.IpcMainEvent, what: unknown): void => {
+    const frame = event.senderFrame;
+    if (event.sender !== page || !frame || frame === page.mainFrame || !options.automation) return;
+    if (what === 'guarded') guarded.add(frameKey(frame));
+    else if (what === 'blocked') page.send('longboard:notice', 'Blocked: automation mode never activates purchase or sign-up controls');
+  };
+  ipcMain.on('longboard:frame', onFrame);
+  page.on('did-navigate', () => guarded.clear());
+  page.on('did-frame-navigate', (_e, _url, _code, _status, isMainFrame, processId, routingId) => {
+    // A frame that has gone somewhere new has to say again that it is guarded.
+    if (!isMainFrame) guarded.delete(`${processId}:${routingId}`);
+  });
 
   // ---- Messages from Longboard's own screens ---------------------------------
 
@@ -630,11 +850,13 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   ipcMain.on('longboard:chrome', onChrome);
 
   win.on('closed', () => {
+    clearInterval(pointer.timer);
     clearTimeout(retryTimer);
     clearTimeout(awayTimer);
     ipcMain.off('longboard:boot', onBoot);
     ipcMain.off('longboard:msg', onMessage);
     ipcMain.off('longboard:chrome', onChrome);
+    ipcMain.off('longboard:frame', onFrame);
   });
 
   // ---- Start -----------------------------------------------------------------

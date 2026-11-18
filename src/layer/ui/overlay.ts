@@ -25,6 +25,12 @@ const CSS = `
 @keyframes bump-up { 50% { transform: translateY(-1.4vh); } }
 @keyframes bump-down { 50% { transform: translateY(1.4vh); } }
 @keyframes pulse { 50% { transform: scale(.96); } }
+.pointer {
+  position: fixed; left: 0; top: 0; width: 4.4vh; height: 4.4vh; display: none;
+  filter: drop-shadow(0 .3vh .5vh rgba(0,0,0,.7));
+}
+.pointer.show { display: block; }
+.pointer path { fill: #fff; stroke: #111; stroke-width: 1.6; stroke-linejoin: round; }
 .toast {
   position: fixed; left: 50%; bottom: 8vh; transform: translateX(-50%);
   background: rgba(16,16,16,.94); color: #fff; font: 600 3.4vh/1.3 system-ui, sans-serif;
@@ -56,6 +62,7 @@ export class Overlay {
   private readonly ring: HTMLElement;
   private readonly toastEl: HTMLElement;
   private readonly oskEl: HTMLElement;
+  private readonly pointerEl: SVGSVGElement;
   private readonly host: HTMLElement;
   private target: Element | null = null;
   private toastTimer: number | undefined;
@@ -83,7 +90,15 @@ export class Overlay {
     this.oskEl.className = 'osk';
     this.oskEl.setAttribute('role', 'group');
     this.oskEl.setAttribute('aria-label', 'On-screen keyboard');
-    root.append(this.ring, this.toastEl, this.oskEl);
+    // The pointer: a plain arrow drawn here, with its tip at the top-left corner.
+    const SVG = 'http://www.w3.org/2000/svg';
+    this.pointerEl = doc.createElementNS(SVG, 'svg') as SVGSVGElement;
+    this.pointerEl.setAttribute('class', 'pointer');
+    this.pointerEl.setAttribute('viewBox', '0 0 24 24');
+    const arrow = doc.createElementNS(SVG, 'path');
+    arrow.setAttribute('d', 'M2 1 L2 19 L7 14.5 L10.5 22.5 L13.5 21.2 L10 13.3 L16.5 13.3 Z');
+    this.pointerEl.append(arrow);
+    root.append(this.ring, this.toastEl, this.oskEl, this.pointerEl);
     doc.documentElement.append(host);
     this.host = host;
     // Anything that scrolls may be carrying the target (a row, a list); the
@@ -211,6 +226,16 @@ export class Overlay {
     this.oskEl.replaceChildren(...keys);
     this.oskEl.classList.toggle('top', dock === 'top');
     this.oskEl.classList.add('show');
+  }
+
+  /** Draws the pointer with its tip at a point of the page (CSS pixels); `null` hides it. */
+  pointer(spot: { x: number; y: number } | null): void {
+    if (!spot) {
+      this.pointerEl.setAttribute('class', 'pointer');
+      return;
+    }
+    this.pointerEl.style.transform = `translate(${Math.round(spot.x)}px, ${Math.round(spot.y)}px)`;
+    this.pointerEl.setAttribute('class', 'pointer show');
   }
 
   toast(message: string, ms = 2500): void {

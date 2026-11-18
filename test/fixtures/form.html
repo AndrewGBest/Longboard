@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: a form and things that only look clickable</title>
+<!-- A made-up page for testing: the form controls an ordinary site uses, and
+     controls built without any markup that says they are controls. It imitates no real site. -->
+<style>
+  body { margin: 0; padding: 24px 32px; background: #fff; color: #222; font: 16px/1.5 system-ui, sans-serif; }
+  form { display: grid; gap: 16px; max-width: 520px; }
+  input[type=text], select, textarea { font: inherit; padding: 8px; width: 100%; box-sizing: border-box; }
+  .cards { display: flex; gap: 16px; margin: 24px 0; }
+  .card { width: 180px; height: 100px; background: #dde; border-radius: 8px; cursor: pointer; padding: 12px; box-sizing: border-box; }
+  .plain { width: 180px; height: 100px; background: #eee; padding: 12px; box-sizing: border-box; }
+  .old { display: inline-block; padding: 8px 12px; background: #dde; }
+</style>
+</head>
+<body>
+<h1>Sign up for nothing</h1>
+<form id="f" action="/form.html">
+  <input type="text" id="name" aria-label="Name" placeholder="Name">
+  <select id="colour" aria-label="Colour">
+    <option value="red">Red</option>
+    <option value="green">Green</option>
+    <option value="blue">Blue</option>
+  </select>
+  <label><input type="checkbox" id="agree"> I agree to nothing</label>
+  <div>
+    <label><input type="radio" name="size" id="small" value="small"> Small</label>
+    <label><input type="radio" name="size" id="large" value="large"> Large</label>
+  </div>
+  <input type="range" id="level" min="0" max="10" value="5" aria-label="Level">
+  <textarea id="notes" rows="2" aria-label="Notes"></textarea>
+  <button type="submit" id="send">Send</button>
+</form>
+
+<div class="cards">
+  <!-- Clickable only because a script says so and the cursor shows it. -->
+  <div class="card" id="card1"><b>First card</b><br><span>Opens by script</span></div>
+  <div class="card" id="card2"><b>Second card</b></div>
+  <div class="plain" id="plain">Not clickable</div>
+</div>
+<span class="old" id="old" onclick="window.__f.clicks.push('old')">An inline handler</span>
+<details id="more"><summary id="summary">More</summary><p>Hidden until opened.</p></details>
+
+<script>
+  const state = (window.__f = { clicks: [], submitted: 0 });
+  for (const id of ['card1', 'card2']) document.getElementById(id).addEventListener('click', () => state.clicks.push(id));
+  document.getElementById('f').addEventListener('submit', (e) => { e.preventDefault(); state.submitted++; });
+</script>
+</body>
+</html>

@@ -4,8 +4,12 @@
 // example during an advertisement). Instead the layer asks the shell to press
 // a real key, and the site's player handles it like any other key press.
 export type PlayerKey = 'playPause' | 'seekBack' | 'seekForward' | 'close';
-/** Keys the on-screen keyboard presses besides typing text. */
-export type TextKey = 'backspace' | 'enter';
+/**
+ * Other ordinary keys the layer asks for: the on-screen keyboard's delete
+ * and enter, and what a controller's buttons stand for while one of the
+ * browser's own lists (a drop-down) is open.
+ */
+export type TextKey = 'backspace' | 'enter' | 'up' | 'down' | 'space';
 
 interface KeyInfo {
   /** Electron accelerator-style key code for `webContents.sendInputEvent`. */
@@ -23,6 +27,9 @@ const KEYS: Record<PlayerKey | TextKey, KeyInfo> = {
   close: { code: 'Escape', domKey: 'Escape' },
   backspace: { code: 'Backspace', domKey: 'Backspace' },
   enter: { code: 'Enter', domKey: 'Enter', char: '\r' },
+  up: { code: 'Up', domKey: 'ArrowUp' },
+  down: { code: 'Down', domKey: 'ArrowDown' },
+  space: { code: 'Space', domKey: ' ', char: ' ' },
 };
 
 /** The player key an action stands for, if any. */

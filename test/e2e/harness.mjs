@@ -66,10 +66,16 @@ function connect(url) {
     ws.onerror = () => rej(new Error('CDP socket error'));
     ws.onopen = () =>
       res({
+        // A call that is never answered must fail the test, not hang it.
         send: (method, params = {}) =>
           new Promise((resolve2, reject) => {
-            pending.set(++id, { resolve: resolve2, reject });
-            ws.send(JSON.stringify({ id, method, params }));
+            const mine = ++id;
+            const timer = setTimeout(() => {
+              pending.delete(mine);
+              reject(new Error(`no answer to ${method} after 15 seconds`));
+            }, 15000);
+            pending.set(mine, { resolve: (v) => (clearTimeout(timer), resolve2(v)), reject: (e) => (clearTimeout(timer), reject(e)) });
+            ws.send(JSON.stringify({ id: mine, method, params }));
           }),
         close: () => ws.close(),
       });
@@ -108,18 +114,48 @@ async function attach(target) {
     };
     return walk(tree) ?? null;
   };
+  const pointerAt = () =>
+    overlay(({ cls, style }) => {
+      if (!/(^| )pointer( |$)/.test(cls)) return undefined;
+      const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(style);
+      return /\bshow\b/.test(cls) && m ? { x: Number(m[1]), y: Number(m[2]) } : null;
+    });
   return {
     cdp,
     url: target.url,
+    /** Walks the pointer to a point (page pixels) with taps, reading where it is after each. */
+    pointTo: async (x, y) => {
+      for (let i = 0; i < 400; i++) {
+        const at = await pointerAt();
+        if (!at) return false;
+        const dx = x - at.x;
+        const dy = y - at.y;
+        if (Math.abs(dx) <= 6 && Math.abs(dy) <= 6) return true;
+        await press(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft') : dy > 0 ? 'ArrowDown' : 'ArrowUp', 20);
+      }
+      return false;
+    },
     evaluate,
     press,
     keyDown: (name, extra = {}) => cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key(name), ...extra }),
     keyUp: (name) => cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...key(name) }),
+    /** Holds a key the way a keyboard does: one press, then repeats until it is let go. */
+    hold: async (name, ms) => {
+      await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key(name) });
+      await sleep(250);
+      for (const end = Date.now() + ms - 250; Date.now() < end; ) {
+        await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key(name), autoRepeat: true });
+        await sleep(33);
+      }
+      await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...key(name) });
+    },
     type: (text) => cdp.send('Input.insertText', { text }),
     focused: () => evaluate('document.querySelector("[data-longboard-focus]")?.id ?? null'),
     ringClass: () => overlay(({ cls }) => (/\bring\b/.test(cls) ? cls : undefined)),
     toastText: () => overlay(({ cls, text }) => (/\btoast\b/.test(cls) && /\bshow\b/.test(cls) ? text() : undefined)),
     keyboardShown: async () => (await overlay(({ cls }) => (/\bosk\b/.test(cls) ? /\bshow\b/.test(cls) : undefined))) === true,
+    /** Where the on-screen pointer is drawn (page pixels), or null when pointer mode is off. */
+    pointerAt,
     overlay,
     close: () => cdp.close(),
   };

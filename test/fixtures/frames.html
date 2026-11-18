@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: a frame from another site</title>
+<!-- A made-up page with an embedded frame served from a different origin
+     (the same test server under its other name), as an embedded player or map would be. -->
+<style>
+  body { margin: 0; padding: 24px 32px; background: #fff; color: #222; font: 16px/1.5 system-ui, sans-serif; }
+  iframe { display: block; width: 600px; height: 260px; border: 2px solid #99a; margin: 16px 0; }
+</style>
+</head>
+<body>
+<a href="#above" id="above">A link above the frame</a>
+<iframe id="frame" title="Embedded"></iframe>
+<a href="#below" id="below">A link below the frame</a>
+<script>
+  window.__frame = { messages: [] };
+  window.addEventListener('message', (e) => window.__frame.messages.push(String(e.data)));
+  // Another origin: this machine under its other name, same port.
+  document.getElementById('frame').src = `http://localhost:${location.port}/inner.html`;
+</script>
+</body>
+</html>

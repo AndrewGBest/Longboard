@@ -3,6 +3,25 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: phase 2 choices made by the agent (generic mode, pointer mode)
+
+All **assumptions by the agent**, made while working alone.
+
+| Topic | Chosen | Why |
+|---|---|---|
+| "Looks clickable" | An element the page shows the hand cursor over, taken at the outermost element of each such region, and only on sites with no profile | It is the one sign a script-only control gives. Each element is asked once and remembered, because asking means briefly lifting the layer's own cursor hiding |
+| Reading | With nothing to move to, the page (or the pane the highlight is in) scrolls by 80% of a screen. A target more than about a third of a screen past the edge is scrolled toward, not jumped to | So a long article can be read with Down alone and nothing between two links goes by unseen. Tropic Video jumped; it still does where a profile applies |
+| Picking up after a scroll | The first control wholly on screen takes the highlight, without moving the page again | DESIGN.md 3.2. When nothing is on screen there is briefly no highlight; the alternative was to stop the reading |
+| When a video is "being watched" | On a site with no profile: only when it fills the screen (85% of it, or the page's own full-screen). With a profile's player container: half, as in Tropic Video | A video that is most of a page still has a page around it that the arrows must reach |
+| Drop-downs | OK opens the browser's own list with the key that opens it; the list takes the arrows itself | It is the browser's control, not the site's, and already works with a keyboard. A controller's buttons are turned into those keys |
+| Embedded frames | The highlight can rest on a frame; OK there starts pointer mode on it | A frame from another site cannot be driven by the layer (ARCHITECTURE.md section 3). This makes the escape hatch discoverable instead of a dead end |
+| Pointer speed | One small step per tap; held, it speeds up over 0.9 s to about two screen-heights a second; pushing against an edge scrolls | DESIGN.md 3.3 asks for acceleration. The numbers are a first guess to be tuned on a TV |
+| How "held" is known | From key repeats, not key release | Measured with real key events: once the shell takes a key, the browser never reports its release. A hold therefore starts moving when the keyboard's own repeat starts (about half a second in), not at once. A controller reports what is held and moves at once |
+| Pointer mode's mouse events | Sent through the browser's DevTools input channel, attached only while pointer mode is on | Measured: Electron's `sendInputEvent` does not deliver mouse events into frames from another site, which is what pointer mode is for. They are the same trusted mouse events. Nothing else of that channel is used |
+| Back in pointer mode | Leaves pointer mode | "The same button switches back" plus Back as the universal way out |
+| Typing in pointer mode | Clicking a text field ends pointer mode and brings up the keyboard | The keyboard needs the arrows |
+| The preload in embedded frames | It runs there (`nodeIntegrationInSubFrames`) and, only under `--automation`, installs the purchase guard and reports that it has | Pointer mode sends real clicks, which reach frames; Hard rule 11 has to hold there too. A scripted click on a frame is refused unless every frame has reported its guard. The option's name is misleading: the view stays sandboxed and isolated and pages gain nothing |
+
 ## 2026-11-18: phase 0 and phase 1 choices made by the agent
 
 Andrew asked the agent to work through the roadmap alone and to record its
