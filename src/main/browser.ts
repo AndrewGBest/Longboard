@@ -87,7 +87,7 @@ export interface BrowserDeps {
 /** Share of the window's width the menu panel takes over a website. */
 const PANEL_WIDTH = 0.38;
 /** How long after a page is left it is frozen: time for the site's own pause key to be dealt with. */
-const FREEZE_AFTER_MS = 600;
+const FREEZE_DELAY_MS = 600;
 /** How long a question has to have been on screen before "yes" is accepted. */
 const PROMPT_SETTLE_MS = 600;
 /** How long a Home tile's icon is used before it is fetched from the site again. */
@@ -847,7 +847,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (wc.isDestroyed() || !leaving.has(wc)) return;
       leaving.delete(wc);
       freeze(wc);
-    }, FREEZE_AFTER_MS);
+    }, FREEZE_DELAY_MS);
   };
   // A page that goes somewhere new starts awake: the frozen state belongs to the page that was left.
   eachPage((wc) => wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
