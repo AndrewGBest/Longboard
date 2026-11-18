@@ -1,11 +1,13 @@
 // Main process: start-up. The window and its views are in browser.ts.
-import { app } from 'electron';
+import { app, session } from 'electron';
 import * as electron from 'electron';
 import { join } from 'node:path';
 import { parseConfig, type UserConfig } from '../shared/config';
 import { resolveAddress } from '../shared/address';
-import { chooseAdapter } from '../layer/adapter/adapter';
+import { DEFAULT_INDEX_URL } from '../shared/catalogue';
 import { createBrowser } from './browser';
+import { refreshCatalogue } from './catalogue';
+import { ProfileStore } from './profiles';
 import { readJson } from './store';
 import { browserUserAgent } from './useragent';
 
@@ -33,21 +35,6 @@ function loadConfig(): UserConfig {
   const { config, problems } = parseConfig(raw);
   for (const problem of problems) console.error(`[longboard] config.json: ${problem}`);
   return config;
-}
-
-/**
- * The site adapter: the one in the package, unless the user has put a newer
- * `adapter.json` for the same site in the data folder (see chooseAdapter).
- * Nothing is fetched; the file gets there by the user's own hand.
- */
-function loadAdapter(): unknown {
-  const note = (file: string) => (why: string) => console.error(`[longboard] ${file} could not be read: ${why}`);
-  const bundled = join(app.getAppPath(), 'adapters', 'primevideo.json');
-  const users = join(app.getPath('userData'), 'adapter.json');
-  const choice = chooseAdapter(readJson(bundled, note(bundled)) ?? null, readJson(users, note(users)) ?? null);
-  if (choice.note) console.error(`[longboard] ${choice.note}`);
-  if (choice.source === 'user') console.log('[longboard] using adapter.json from the data folder');
-  return choice.raw;
 }
 
 /** The address to open at start: `--url=` or a bare address on the command line. Null shows Home. */
@@ -86,15 +73,16 @@ async function main(): Promise<void> {
     contents.on('will-attach-webview', (event) => event.preventDefault());
   });
 
-  const adapter = loadAdapter();
-  const adapterHosts = /(^|\.)primevideo\.com$/;
-  const adapterFor = (url: string): unknown => {
-    try {
-      return adapterHosts.test(new URL(url).hostname) ? adapter : null;
-    } catch {
-      return null;
-    }
-  };
+  const data = app.getPath('userData');
+  const profiles = new ProfileStore({
+    builtin: join(app.getAppPath(), 'profiles'),
+    catalogue: join(data, 'catalogue'),
+    local: join(data, 'profiles'),
+    imported: join(data, 'imported'),
+    exports: join(data, 'exports'),
+    answers: join(data, 'imported-answers.json'),
+  });
+  console.log(`[longboard] profiles: ${profiles.count}`);
 
   // The window opens before the component is ready, never after: on a first
   // run the component is a download, and a slow one must not look like an
@@ -126,8 +114,35 @@ async function main(): Promise<void> {
     zoomOverride: value('zoom'),
     size: /^\d{3,5}x\d{3,5}$/.test(value('size') ?? '') ? (value('size') as string).split('x').map(Number) as [number, number] : undefined,
     ready: componentsReady,
-    adapterFor,
+    profiles,
   });
+  // The reviewed catalogue, in the background and never in the way of starting
+  // (DESIGN.md section 9). A scripted run does not fetch it unless it is
+  // pointed at a catalogue of its own.
+  const indexUrl = value('catalogue') ?? DEFAULT_INDEX_URL;
+  if (config.catalogue !== false && (!options.automation || value('catalogue'))) {
+    // Its own session, kept in memory: no cookies go out and none are kept.
+    const fetcher = session.fromPartition('longboard-catalogue');
+    void refreshCatalogue(
+      {
+        folder: join(data, 'catalogue'),
+        indexUrl,
+        now: () => Date.now(),
+        note: (line) => console.log(`[longboard] ${line}`),
+        fetchBytes: async (url, maxBytes) => {
+          const response = await fetcher.fetch(url, { credentials: 'omit', cache: 'no-store', redirect: 'error' });
+          if (!response.ok) throw new Error(`${response.status} for ${new URL(url).pathname}`);
+          const bytes = Buffer.from(await response.arrayBuffer());
+          if (bytes.length > maxBytes) throw new Error(`${new URL(url).pathname} is larger than expected`);
+          return bytes;
+        },
+      },
+      value('catalogue') !== undefined,
+    ).then((changed) => {
+      if (changed) profiles.load();
+    });
+  }
+
   app.on('second-instance', () => {
     if (win.isMinimized()) win.restore();
     win.focus();

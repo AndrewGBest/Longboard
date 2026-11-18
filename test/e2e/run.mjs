@@ -2,11 +2,27 @@
 // DevTools Protocol against invented fixture pages served from this machine.
 // Run with `npm run e2e` (needs a display; `xvfb-run -a npm run e2e` headless).
 import { createServer } from 'node:http';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { check, fail, failureCount, launch, serveFixtures, sleep, until } from './harness.mjs';
+import { check, fail, failureCount, launch, root, serveFixtures, sleep, until } from './harness.mjs';
+
+// A made-up catalogue: an index and the one profile it lists, with the
+// profile's real checksum, and a second entry whose checksum is wrong.
+const fixtureProfile = readFileSync(join(root, 'test/fixtures/profiles/profile-test.json'));
+const catalogueIndex = JSON.stringify({
+  'longboard-index': 1,
+  profiles: [
+    { id: 'fixture-site', version: '1.0.0', path: 'profiles/profile.test/profile.json', sha256: createHash('sha256').update(fixtureProfile).digest('hex') },
+    { id: 'tampered', version: '1.0.0', path: 'profiles/tampered.test/profile.json', sha256: '0'.repeat(64) },
+  ],
+  verifiedSites: ['profile.test'],
+});
 
 const site = await serveFixtures({
+  '/catalogue/index.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(catalogueIndex),
+  '/catalogue/profiles/profile.test/profile.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(fixtureProfile),
+  '/catalogue/profiles/tampered.test/profile.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(fixtureProfile),
   // A start page that redirects somewhere automation refuses, as a service
   // does for a signed-out visitor.
   '/signed-out': (_req, res) => res.writeHead(302, { location: '/offers/landing?token=SECRET' }).end(),
@@ -515,6 +531,118 @@ await scenario('pointer mode: edges, the menu and the guard', { url: `${site.ori
   await press('Enter', 600);
   check('clicking a text field ends pointer mode and brings up the keyboard', [await page.pointerAt(), await page.keyboardShown(), await evaluate('document.activeElement?.id')], [null, true, 'search']);
 });
+
+// Profiles. The fixture site answers to the made-up name profile.test (mapped
+// to this machine), because a profile names sites by domain.
+const port = new URL(site.origin).port;
+const profiled = `http://profile.test:${port}/profiled.html`;
+const mapHost = '--host-resolver-rules=MAP profile.test 127.0.0.1';
+
+await scenario('a site with no profile, then with one', { url: profiled, args: [mapHost] }, async (app) => {
+  const page = await app.page('http://profile.test');
+  const { evaluate, press, focused } = page;
+  await sleep(800);
+  await press('ArrowDown');
+  check('with no profile the first press takes the banner link, and the tiles cannot be reached', await focused(), 'banner-link');
+  await press('ArrowDown');
+  check('down goes past the tiles to the first real control', ['stray', 'footer-link', 'panel-close'].includes(await focused()), true);
+  const chrome = await app.chrome();
+  await press('ContextMenu', 500);
+  check('the menu says there is no profile', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('No profile for this site: generic mode'), true);
+  check('and offers nothing to export', await chrome.evaluate('!!document.getElementById("menu-export")'), false);
+});
+
+await scenario(
+  'a profile of your own',
+  {
+    url: profiled,
+    args: [mapHost, '--size=1280x720', '--zoom='],
+    seed: (data) => {
+      mkdirSync(join(data, 'profiles'), { recursive: true });
+      copyFileSync(join(root, 'test/fixtures/profiles/profile-test.json'), join(data, 'profiles/fixture.json'));
+      // A file that is not a valid profile must be reported and ignored, not stop anything.
+      writeFileSync(join(data, 'profiles/scripted.json'), JSON.stringify({ longboard: 1, id: 'scripted', scripts: ['evil.js'] }));
+    },
+  },
+  async (app) => {
+    const page = await app.page('http://profile.test');
+    const { evaluate, press, focused } = page;
+    await sleep(800);
+    check('a file with scripts in it is refused and said so', /scripted\.json is not a usable profile: profiles cannot contain scripts/.test(app.log), true);
+    check('the page is drawn at the size the profile asks for', await evaluate('innerWidth'), 640);
+    await press('ArrowDown');
+    check('the highlight starts where the profile says', await focused(), 'a3');
+    await press('Enter');
+    check('a tile only the profile knows about can be pressed', await evaluate('__t.clicks'), ['a3']);
+    await press('ArrowRight');
+    check('right at the end of a row stays in the row', await focused(), 'a3');
+    await press('ArrowDown');
+    await press('ArrowLeft');
+    check('down goes to the next row', await focused(), 'b1');
+    await press('ArrowUp');
+    check('and up comes back to where the highlight was in the first row', await focused(), 'a3');
+    await press('ArrowUp');
+    check('the excluded banner is never highlighted', await focused(), 'a3');
+    await press('Escape', 400);
+    check('Back first closes what the profile says it closes', [await evaluate('!!document.getElementById("panel")'), await evaluate('location.pathname')], [false, '/profiled.html']);
+
+    const chrome = await app.chrome();
+    await press('ContextMenu', 500);
+    check('the menu names the profile and where it came from', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Profile: Fixture Site (your own)'), true);
+    for (let i = 0; i < 12 && (await chrome.focused()) !== 'menu-export'; i++) await chrome.press('ArrowDown');
+    await chrome.press('Enter', 600);
+    const exported = join(app.userData, 'exports/fixture-site.longboard-profile.json');
+    check('the profile can be exported as one file', [existsSync(exported), existsSync(exported) && JSON.parse(readFileSync(exported, 'utf8')).id], [true, 'fixture-site']);
+    check('and the screen says where it went', (await page.toastText())?.startsWith('Profile saved as '), true);
+  },
+);
+
+await scenario(
+  'the reviewed catalogue, and a profile someone gave you',
+  {
+    url: profiled,
+    args: [mapHost, `--catalogue=${site.origin}/catalogue/index.json`],
+    seed: (data) => {
+      // What a USB stick or the import folder would hold: the same profile under another name and version.
+      mkdirSync(join(data, 'import'), { recursive: true });
+      const given = { ...JSON.parse(fixtureProfile.toString()), id: 'given-profile', name: 'Given Profile', version: '2.0.0' };
+      writeFileSync(join(data, 'import/given.longboard-profile.json'), JSON.stringify(given));
+    },
+  },
+  async (app) => {
+    const page = await app.page('http://profile.test');
+    const chrome = await app.chrome();
+    await until(() => app.log, (log) => /catalogue: \d+ profile/.test(log), 100);
+    check('the catalogue is fetched in the background, checked, and what fails its checksum is left out', [/catalogue: 1 profile\(s\), 1 verified site\(s\)/.test(app.log), /tampered\.test\/profile\.json does not match its checksum/.test(app.log)], [true, true]);
+    check('it is kept in the data folder', existsSync(join(app.userData, 'catalogue/profiles/profile.test/profile.json')), true);
+    // The page was opened before the download finished: it picks the profile up when it is next loaded.
+    await page.press('ContextMenu', 500);
+    for (let i = 0; i < 6 && (await chrome.focused()) !== 'menu-reload'; i++) await chrome.press('ArrowDown');
+    await chrome.press('Enter', 1200);
+    await page.press('ArrowDown');
+    check('a reviewed profile is used without asking', await page.focused(), 'a3');
+    await page.press('ContextMenu', 500);
+    check('and the menu says it is reviewed', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Profile: Fixture Site (reviewed)'), true);
+
+    // Importing.
+    for (let i = 0; i < 14 && (await chrome.focused()) !== 'menu-import'; i++) await chrome.press('ArrowDown');
+    await chrome.press('Enter', 700);
+    check('profiles are imported from the import folder', [(await page.toastText())?.startsWith('Imported: Given Profile'), existsSync(join(app.userData, 'imported/given-profile.json'))], [true, true]);
+    await page.evaluate('location.reload(); 0');
+    const asked = await until(() => chrome.evaluate('document.querySelector("#panel h1")?.textContent'), (t) => t === 'Use this profile?', 60);
+    check('an imported profile is not used silently: the next visit asks', asked, 'Use this profile?');
+    check('the question says what it is and which sites it applies to', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('"Given Profile" (version 2.0.0)') && (await chrome.evaluate('document.getElementById("panel").textContent')).includes('profile.test'), true);
+    check('with the highlight on the answer', await chrome.focused(), 'prompt-allow');
+    await chrome.press('Enter', 1500);
+    await page.press('ContextMenu', 600);
+    check('after "Use it" the site is driven by the imported profile, and the menu says nobody reviewed it', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Profile: Given Profile (imported, not reviewed)'), true);
+    check('and the answer is remembered', JSON.parse(readFileSync(join(app.userData, 'imported-answers.json'), 'utf8')), { 'given-profile@2.0.0': 'yes' });
+
+    // Home shows what Longboard has for a site.
+    for (let i = 0; i < 6 && (await chrome.focused()) !== 'menu-home'; i++) await chrome.press('ArrowUp');
+    await chrome.press('Enter', 600);
+  },
+);
 
 // The site cannot be reached at first. The view must say so, keep trying,
 // and load the page once it is there.

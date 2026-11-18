@@ -3,6 +3,22 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: phase 3 choices made by the agent (profiles)
+
+All **assumptions by the agent**, made while working alone.
+
+| Topic | Chosen | Why |
+|---|---|---|
+| Additions to format version 1 | `focus.scrollPrevious` / `focus.scrollNext`, `text.searchOpen`, `player.close`, `guard.purchase` | Needed to carry Tropic Video's adapter over without loss, which the roadmap made the test of the format. Each is still only a selector |
+| `player.keys` | May only name keys from a short fixed list | A profile that could name any key could have a script-driven press mean anything. The list is what players commonly use |
+| Outline format | A text file, `outline.txt`, in the format the app itself saves; several pages in one file, each begun by a `####` line | It is what "Save page outline" produces, so evidence is a copy of what the contributor saw. The catalogue's draft said `outline.json`; nothing produced that |
+| Where the catalogue index is published | `index.json` committed at the top of the profiles repository, fetched from GitHub's raw address | No server to run and no publishing step that can be forgotten; the repository's check fails when the index is stale |
+| Catalogue under `--automation` | Not fetched, unless `--catalogue=` points the run at one | A scripted run should not depend on, or touch, the network without being told to |
+| Import without a file picker | "Import profiles from USB" looks at the top of each plugged-in stick and at `import/` in the data folder, for `*.longboard-profile.json` only | A file picker is a small file manager, hard to drive with six buttons. This covers "from a USB stick" with one menu entry. Unverified inside a Flatpak, which may not see the stick |
+| "Not now" on a question | Back on the question refuses for this run only; the buttons give a remembered answer | Dismissing is not deciding |
+| Which profile applies | Decided by the shell from the frame's real address when a page loads, and validated again by the layer | The page has no say, and the layer trusts nothing it is handed |
+| Built-in copy of the Prime Video profile | Shipped in `profiles/` and also put in the catalogue | So the site works on a first start with no network. The catalogue copy wins once fetched |
+
 ## 2026-11-18: phase 2 choices made by the agent (generic mode, pointer mode)
 
 All **assumptions by the agent**, made while working alone.

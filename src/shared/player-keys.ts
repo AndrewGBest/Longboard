@@ -3,6 +3,8 @@
 // site's own player, which is what decides whether a seek is allowed (for
 // example during an advertisement). Instead the layer asks the shell to press
 // a real key, and the site's player handles it like any other key press.
+import type { PlayerKeyName } from './profile';
+
 export type PlayerKey = 'playPause' | 'seekBack' | 'seekForward' | 'close';
 /**
  * Other ordinary keys the layer asks for: the on-screen keyboard's delete
@@ -20,7 +22,7 @@ interface KeyInfo {
   char?: string;
 }
 
-const KEYS: Record<PlayerKey | TextKey, KeyInfo> = {
+const KEYS: Record<PlayerKey | TextKey | PlayerKeyName, KeyInfo> = {
   playPause: { code: 'Space', domKey: ' ' },
   seekBack: { code: 'Left', domKey: 'ArrowLeft' },
   seekForward: { code: 'Right', domKey: 'ArrowRight' },
@@ -30,6 +32,18 @@ const KEYS: Record<PlayerKey | TextKey, KeyInfo> = {
   up: { code: 'Up', domKey: 'ArrowUp' },
   down: { code: 'Down', domKey: 'ArrowDown' },
   space: { code: 'Space', domKey: ' ', char: ' ' },
+  // The keys a profile may name for a site's player (shared/profile.ts).
+  Space: { code: 'Space', domKey: ' ' },
+  Enter: { code: 'Enter', domKey: 'Enter' },
+  ArrowLeft: { code: 'Left', domKey: 'ArrowLeft' },
+  ArrowRight: { code: 'Right', domKey: 'ArrowRight' },
+  ArrowUp: { code: 'Up', domKey: 'ArrowUp' },
+  ArrowDown: { code: 'Down', domKey: 'ArrowDown' },
+  k: { code: 'k', domKey: 'k' },
+  j: { code: 'j', domKey: 'j' },
+  l: { code: 'l', domKey: 'l' },
+  f: { code: 'f', domKey: 'f' },
+  m: { code: 'm', domKey: 'm' },
 };
 
 /** The player key an action stands for, if any. */
@@ -42,16 +56,23 @@ export function playerKeyFor(action: { type: string; seconds?: number }): Player
 /**
  * True when a physical key press is already the key the site's player expects
  * for this action. Such a press is left alone: handling it and pressing the
- * same key again would deliver it to the site twice.
+ * same key again would deliver it to the site twice. `siteKeys` are the keys
+ * a profile names for this site's player, when it names any.
  */
-export function isNativePlayerKey(domKey: string, action: { type: string; seconds?: number }): boolean {
+export function isNativePlayerKey(
+  domKey: string,
+  action: { type: string; seconds?: number },
+  siteKeys?: { playPause: PlayerKeyName; back: PlayerKeyName; forward: PlayerKeyName },
+): boolean {
   const key = playerKeyFor(action);
-  return key !== null && KEYS[key].domKey === domKey;
+  if (key === null) return false;
+  const name = !siteKeys ? key : key === 'playPause' ? siteKeys.playPause : key === 'seekBack' ? siteKeys.back : key === 'seekForward' ? siteKeys.forward : key;
+  return KEYS[name].domKey === domKey;
 }
 
 /** Validates an untrusted value from the page side; anything else yields null. */
 export function playerKeyInfo(key: unknown): KeyInfo | null {
-  return typeof key === 'string' && Object.hasOwn(KEYS, key) ? KEYS[key as PlayerKey | TextKey] : null;
+  return typeof key === 'string' && Object.hasOwn(KEYS, key) ? KEYS[key as PlayerKey | TextKey | PlayerKeyName] : null;
 }
 
 /**

@@ -65,12 +65,25 @@ for (const [key, val] of Object.entries({
   }
 }
 
-// Rule 8: selectors need evidence. An adapter with selectors must be marked verified.
-for (const file of files.filter((f) => /^adapters\/.+\.json$/.test(f))) {
-  const a = JSON.parse(readFileSync(file, 'utf8'));
-  const count = Object.values(a.selectors ?? {}).reduce((n, v) => n + (Array.isArray(v) ? v.length : 0), 0);
-  if (count > 0 && a.verified !== true) fail(8, file, 'has selectors but is not marked verified');
-  if (count > 0 && !(a.revision > 0)) fail(8, file, 'has selectors but revision was not bumped');
+// Rules 7 and 8: built-in profiles are data, and their selectors need
+// evidence. Each must name an outline file that is there, and must not carry
+// scripts. (That the format refuses unknown keys, and that every selector
+// matches the outline, is checked by the unit tests.)
+for (const file of files.filter((f) => /^profiles\/[^/]+\/profile\.json$/.test(f))) {
+  const p = JSON.parse(readFileSync(file, 'utf8'));
+  if ('scripts' in p) fail(7, file, 'a version 1 profile cannot contain scripts');
+  const outline = p.evidence?.outline;
+  const folder = file.slice(0, file.lastIndexOf('/'));
+  if (typeof outline !== 'string' || !files.includes(`${folder}/${outline}`)) fail(8, file, 'names no outline file that is in the repository');
+  else {
+    const lines = readFileSync(`${folder}/${outline}`, 'utf8').split('\n').filter((l) => l.trim() && !l.startsWith('#'));
+    // An outline line is one token: free text, which would have spaces, cannot be in one.
+    if (lines.some((l) => l.trim().includes(' '))) fail(8, `${folder}/${outline}`, 'has a line with a space in it: outlines hold structure only');
+    if (lines.length === 0) fail(8, `${folder}/${outline}`, 'is empty');
+  }
+}
+for (const file of files) {
+  if (/(^|\/)adapters\//.test(file)) fail(8, file, 'site selectors live in profiles/, with their outline');
 }
 
 if (problems.length) {

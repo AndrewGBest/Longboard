@@ -19,13 +19,14 @@ export const MAX_ZOOM = 4;
  * The viewport after zooming is never smaller than the target in either
  * direction, and a small window is never zoomed out (minimum 1).
  * `override` is the user's `--zoom=` value: a positive number, or absent.
+ * `target` is the canvas a profile asks for, when one applies and asks.
  */
-export function tvZoom(content: { width: number; height: number }, override?: string): number {
+export function tvZoom(content: { width: number; height: number }, override?: string, target: { width: number; height: number } = TARGET_VIEWPORT): number {
   const forced = override === undefined ? NaN : Number(override);
   const raw =
     Number.isFinite(forced) && forced > 0
       ? forced
-      : Math.min(content.width / TARGET_VIEWPORT.width, content.height / TARGET_VIEWPORT.height);
+      : Math.min(content.width / target.width, content.height / target.height);
   if (!Number.isFinite(raw)) return MIN_ZOOM;
   // Rounded down to two decimals: never zooms past the target, and avoids
   // relayout churn from tiny changes while a window is resized.

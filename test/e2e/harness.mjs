@@ -172,13 +172,16 @@ let nextPort = 9300 + Math.floor(Math.random() * 400);
 /**
  * Starts the app. Always with --automation (Hard rule 11) and its own
  * throw-away data folder. `url` is the address to open; without it the app
- * starts on Home. `config` is written as the user's config.json.
+ * starts on Home. `config` is written as the user's config.json. `seed` is
+ * called with the data folder before the app starts.
  */
-export async function launch({ url, config, args = [], width, height } = {}) {
+export async function launch({ url, config, args = [], width, height, seed } = {}) {
   const port = nextPort++;
   const userData = mkdtempSync(join(tmpdir(), 'longboard-e2e-'));
   // Searches go to a name that can never resolve, so a test never contacts a search engine.
   writeFileSync(join(userData, 'config.json'), JSON.stringify({ search: 'https://search.invalid/find?q=%s', ...config }));
+  // Files a scenario wants in the data folder before the app starts.
+  if (seed) seed(userData);
   const child = spawn(
     electronPath,
     [root, '--dev', '--automation', ...(args.some((x) => x.startsWith('--zoom=')) ? [] : ['--zoom=1']), ...(width ? [`--size=${width}x${height}`] : []), ...(url ? [`--url=${url}`] : []), ...args, `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--no-sandbox', '--disable-gpu'],

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: a site that needs a profile</title>
+<!-- A made-up page that generic mode handles badly on purpose, so a profile
+     has something to fix: tiles that nothing marks as pressable, a banner that
+     should be skipped, a row with a stray button beside it, and a panel that
+     Back should close. It imitates no real site. -->
+<style>
+  body { margin: 0; padding: 24px 32px; background: #101418; color: #eee; font: 16px/1.5 system-ui, sans-serif; }
+  .banner { padding: 8px 12px; background: #333; margin-bottom: 16px; }
+  .banner a { color: #9cf; }
+  .strip { display: flex; gap: 16px; margin-bottom: 24px; width: 700px; }
+  .tile { width: 160px; height: 90px; background: #2a3440; border-radius: 8px; flex: none; }
+  #stray { position: absolute; left: 760px; top: 96px; width: 120px; height: 60px; }
+  .panel { position: fixed; right: 24px; bottom: 24px; width: 260px; padding: 16px; background: #333; }
+  button { font: inherit; }
+</style>
+</head>
+<body>
+<div class="banner">We use made-up cookies. <a href="#cookies" id="banner-link">Read more</a></div>
+<div class="strip" id="first">
+  <div class="tile" id="a1"></div><div class="tile" id="a2"></div><div class="tile start" id="a3"></div>
+</div>
+<button id="stray">Stray</button>
+<div class="strip" id="second">
+  <div class="tile" id="b1"></div><div class="tile" id="b2"></div>
+</div>
+<a href="#footer" id="footer-link">A plain link</a>
+<div class="panel" id="panel"><p>A panel in the corner.</p><button class="close" id="panel-close">Close</button></div>
+<script>
+  window.__t = { clicks: [] };
+  for (const tile of document.querySelectorAll('.tile')) tile.addEventListener('click', () => window.__t.clicks.push(tile.id));
+  document.getElementById('panel-close').addEventListener('click', () => document.getElementById('panel').remove());
+</script>
+</body>
+</html>

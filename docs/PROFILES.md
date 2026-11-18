@@ -1,8 +1,9 @@
 # Longboard profiles
 
 A profile tells Longboard how one website is laid out, so the highlight moves
-the way a person expects. This document is the draft of format version 1.
-Nothing here is implemented yet.
+the way a person expects. This document describes format version 1 as it is
+implemented. What is enforced is `src/shared/profile.ts`; if the two ever
+disagree, the code is right and this document needs fixing.
 
 ## 1. Rules of the format
 
@@ -41,17 +42,20 @@ Nothing here is implemented yet.
 
   "focus": {
     "include": ["a.card", "button.play"],
-    "exclude": [".cookie-banner a"],
+    "exclude": [".cookie-banner"],
     "initial": "a.card",
     "groups": [
       { "name": "row", "selector": ".carousel", "axis": "horizontal", "remember": true },
       { "name": "menu", "selector": "nav.main", "axis": "vertical" }
-    ]
+    ],
+    "scrollPrevious": ["button.carousel-left"],
+    "scrollNext": ["button.carousel-right"]
   },
 
   "player": {
     "container": ".player",
     "controls": ".player .controls button",
+    "close": ".player .close",
     "keys": {
       "playPause": "Space",
       "back": "ArrowLeft",
@@ -59,59 +63,92 @@ Nothing here is implemented yet.
     }
   },
 
-  "text": { "search": "input[type=search]" },
+  "text": {
+    "search": "input[type=search]",
+    "searchOpen": "button.show-search"
+  },
 
   "dismiss": [".modal .close"],
 
-  "evidence": { "outline": "outlines/example-video-2026-11-18.json" }
+  "guard": { "purchase": [".buy-button"] },
+
+  "evidence": { "outline": "outline.txt" }
 }
 ```
 
+Only `longboard`, the identity fields, `match` and `evidence` are required.
+
 | Key | Meaning |
 |---|---|
-| `longboard` | Format version. Required |
-| `id`, `name`, `version`, `authors`, `licence` | Identity. `id` is unique in the catalogue |
-| `match.hosts`, `match.paths` | Which pages the profile applies to. Hosts are exact names or a leading `*.` only |
-| `view` | Logical canvas and the margin kept clear at the edges |
-| `focus.include` / `exclude` | Elements that can or cannot take the highlight, added to what generic mode finds |
-| `focus.initial` | Where the highlight starts |
-| `focus.groups` | Containers treated as a row, column or grid; `remember` returns to the last item when you come back |
-| `player` | Where the video and its controls are, and which ordinary key presses the site's own player understands |
-| `text` | Fields that should open the on-screen keyboard |
-| `dismiss` | Close buttons that Back should press first |
-| `evidence` | The outline file that shows the selectors exist |
+| `longboard` | Format version. Must be 1 |
+| `id`, `name`, `version`, `authors`, `licence` | Identity. `id` is lower-case words joined by hyphens and is unique in the catalogue. `version` looks like 1.0.0. `licence` is CC0-1.0 |
+| `match.hosts` | Which sites the profile applies to. Exact domain names, or a leading `*.` for everything under one. No addresses, ports or wildcards elsewhere |
+| `match.paths` | Optional. The profile applies only to addresses under one of these paths, by whole path segments. When two profiles from the same source fit, the longer path wins |
+| `view.canvas` | The size the site is drawn at before being scaled to the screen. 960x540 without it |
+| `view.safeMargin` | The share of the screen kept clear at the edges. Accepted and checked; **not applied yet** |
+| `focus.include` | Elements that can take the highlight, added to what Longboard finds itself |
+| `focus.exclude` | Elements that never take it, nor anything inside them |
+| `focus.initial` | Where the highlight starts on a page |
+| `focus.groups` | Containers treated as a row (`horizontal`), a column (`vertical`) or a `grid`. Movement along a group stays in it while it has a member that way, and left and right never leave a row. `remember` returns to the member last used when the highlight comes back |
+| `focus.scrollPrevious`, `focus.scrollNext` | A row's own arrows. Never highlighted; pressed for the person when left or right runs out |
+| `player.container` | What the site's player lives in. A video inside it that fills half the screen counts as being watched |
+| `player.controls` | The player's own controls, when Longboard does not find them itself |
+| `player.close` | The player's close button, which Back presses |
+| `player.keys` | Which ordinary keys the site's player answers to. Only these can be named: Space, Enter, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, k, j, l, f, m |
+| `text.search` | The search field, for the search key |
+| `text.searchOpen` | A control that reveals the search field when it is hidden |
+| `dismiss` | Close buttons that Back presses first |
+| `guard.purchase` | Controls that buy, rent or subscribe. Only used when Longboard is driven by a script (`--automation`), which then never presses them, whatever they say |
+| `evidence.outline` | The outline file, next to the profile, that shows the selectors exist |
+
+A file with a key not in this table is refused whole, and so is one with a
+`scripts` key. A selector is at most 300 characters and a list at most 50
+entries. A selector the browser cannot parse is dropped, never a reason to
+fail.
 
 What a profile cannot do, by design: run code, rewrite the page's requests or
 content, read what is typed, block or skip ads, press anything by itself, or
 change what the site's player does. It only tells Longboard where things are.
-The person still presses every button.
+The person still presses every button: a row's arrow is pressed when the
+person presses left or right at the row's end, and a close button when they
+press Back.
 
 ## 3. Where profiles come from
 
 Four sources, highest priority first **[Assumption, 2026-11-18]**:
 
-1. **Local:** made or edited on this machine.
-2. **Imported:** a file someone gave you. Unreviewed; asks before first use.
+1. **Local:** made or edited on this machine. `profiles/*.json` in the data
+   folder.
+2. **Imported:** a file someone gave you. Unreviewed; Longboard asks before
+   first use, says what the profile is and which sites it applies to, and
+   remembers the answer. A new version of the same profile is asked about
+   again. Until there is an answer the reviewed profile, if any, is used.
 3. **Catalogue:** reviewed profiles downloaded from the shared repository.
    Applied automatically.
 4. **Built in:** a small set shipped with the app so it works offline.
+
+The data folder is `~/.config/Longboard` on Linux.
 
 ## 4. The shared catalogue **[Decision, 2026-11-18]**
 
 A separate GitHub repository: `AndrewGBest/Longboard-Profiles`.
 
-- One folder per profile: the JSON file, the outline that is its evidence,
-  and a short note on what was tested.
+- One folder per site, named after its main domain: `profile.json`,
+  `outline.txt` (the evidence) and `NOTES.md` (what was tested).
 - People contribute by pull request. An automatic check validates each
   file's shape and rejects unknown keys and scripts. Comparing selectors with
   the outline, and checking outlines for text, names or IDs, is done by the
   reviewer until the outline format is fixed and those checks can be
   automated.
-- A maintainer reviews and merges. A script builds an index file listing
-  every profile with a checksum, plus the verified sites. Publishing that
-  index where Longboard can fetch it is not set up yet.
-- Longboard downloads the index in the background, at most once a day, and
-  checks each profile against its checksum before using it.
+- A maintainer reviews and merges. A script builds `index.json` at the top of
+  the repository: every profile with the SHA-256 of its file, plus the
+  verified sites. The repository's check fails if the index is out of date.
+- Longboard downloads that index from GitHub's raw file address in the
+  background, at most once a day, then each profile it lists, and checks
+  each against its checksum before keeping it. A profile that fails its
+  checksum or the format check is left out. If anything goes wrong the copy
+  already on disk stays as it was.
+- `"catalogue": false` in `config.json` switches the download off.
 - No accounts, no server to run, no upload from the TV.
 
 Privacy note: fetching the index tells GitHub the machine's network address,
@@ -128,10 +165,14 @@ profiles; a profile says nothing about ads.
 
 ## 5. Files by hand **[Decision, 2026-11-18]**
 
-- **Export:** any profile can be saved as a single
-  `name.longboard-profile.json` file.
-- **Import:** from a file on disk or a USB stick. Longboard shows the sites
-  it matches, validates it, and asks before using it.
+- **Export:** the menu's "Export this profile" writes the profile in use as
+  `<id>.longboard-profile.json` in the data folder's `exports` folder and
+  says where it went.
+- **Import:** the menu's "Import profiles from USB" looks at the top of every
+  USB stick or card that is plugged in, and in the data folder's `import`
+  folder, for files named `*.longboard-profile.json`. Valid ones are copied
+  in. The next time a site one of them applies to is opened, Longboard says
+  what the profile is and which sites it applies to, and asks.
 
 An imported file goes through the same validation as a catalogue profile. The
 difference is only that nobody reviewed it.
@@ -140,10 +181,14 @@ difference is only that nobody reviewed it.
 
 Until the on-TV editor exists (roadmap phase 4):
 
-1. Open the site in Longboard and press the key that saves a page outline.
+1. Open the site in Longboard and choose "Save page outline" in the menu
+   (or press Ctrl+Shift+D). The outline is written to the data folder's
+   `diagnostics` folder. It holds structure only; look at it anyway.
 2. Copy `profiles/template.json`, fill in `match` and the selectors you see
-   in the outline.
-3. Put the file in the local profiles folder and reload the site.
+   in the outline. Delete the keys you do not need.
+3. Put the file in the data folder's `profiles` folder and open the site
+   again. A file Longboard cannot use is named in the terminal with the
+   reason.
 4. When it works, export it or open a pull request on the catalogue.
 
 Catalogue profiles are free for anyone to reuse: CC0-1.0 **[Decision,
@@ -152,5 +197,10 @@ Catalogue profiles are free for anyone to reuse: CC0-1.0 **[Decision,
 ## 7. Open questions
 
 - How a profile declares that it supersedes an older `id`.
-- Whether Tropic Video's adapter file maps onto this format without loss.
-  It is the first profile to convert and will test the format.
+- Whether a profile should be chosen again when a site changes its address
+  without loading a new page. Today the choice is made when a page loads.
+
+Answered by the first conversion (2026-11-18): Tropic Video's adapter maps
+onto the format without loss, once the format gained `focus.scrollPrevious`
+and `focus.scrollNext`, `text.searchOpen`, `player.close` and
+`guard.purchase`. See `profiles/primevideo.com/NOTES.md`.

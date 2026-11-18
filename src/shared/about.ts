@@ -4,6 +4,12 @@ export const NOTICE =
   'Longboard is an independent project. It is not affiliated with any website or streaming service it can display. ' +
   'It does not provide, unlock or bypass access to any content and does not remove or work around DRM.';
 
+/** What Longboard fetches by itself, said where the person can read it (Hard rule 12). */
+export const BACKGROUND =
+  'Longboard sends no usage data. Once a day it downloads the list of reviewed profiles and verified sites from the ' +
+  'Longboard-Profiles repository on GitHub; the whole list is fetched, so nothing is revealed about the sites you visit. ' +
+  'Put "catalogue": false in config.json to stop it.';
+
 export const HELP: readonly (readonly [string, string])[] = [
   ['Arrows or D-pad', 'Move'],
   ['OK, Enter or A', 'Select; play or pause on a full-screen video'],

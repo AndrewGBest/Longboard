@@ -6,6 +6,7 @@
 //     "zoom": 2,
 //     "hardwareDecode": true,
 //     "search": "https://duckduckgo.com/?q=%s",
+//     "catalogue": false,
 //     "keys": { "F1": "search", "F9": "menu", "MediaStop": "back", "Ctrl+h": "none" },
 //     "buttons": { "8": "pointer", "9": "playPause" }
 //   }
@@ -27,6 +28,8 @@ export interface UserConfig {
   zoom?: number;
   /** Ask the browser to decode video on the graphics chip. Off unless set; see the README. */
   hardwareDecode?: boolean;
+  /** Set to false to stop the daily download of the profile catalogue. */
+  catalogue?: boolean;
   /** Where typed words are searched for: an https address with %s where the words go. */
   search?: string;
   /** Key (as written by the user, "Ctrl+" normalised) to action. */
@@ -65,6 +68,11 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     else problems.push('"hardwareDecode" must be true or false');
   }
 
+  if (r['catalogue'] !== undefined) {
+    if (typeof r['catalogue'] === 'boolean') config.catalogue = r['catalogue'];
+    else problems.push('"catalogue" must be true or false');
+  }
+
   if (r['search'] !== undefined) {
     if (isSearchTemplate(r['search'])) config.search = r['search'];
     else problems.push('"search" must be an https address containing %s once');
@@ -99,7 +107,7 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     }
   }
   for (const name of Object.keys(r)) {
-    if (name !== 'zoom' && name !== 'keys' && name !== 'buttons' && name !== 'hardwareDecode' && name !== 'search') problems.push(`unknown setting "${name.slice(0, 40)}"`);
+    if (name !== 'zoom' && name !== 'keys' && name !== 'buttons' && name !== 'hardwareDecode' && name !== 'search' && name !== 'catalogue') problems.push(`unknown setting "${name.slice(0, 40)}"`);
   }
   return { config, problems };
 }

@@ -3,9 +3,15 @@
 A web browser for the TV. You drive it from the couch with a remote, a game
 controller or a keyboard, by moving a highlight from one thing to the next.
 
-**Status: design stage.** Nothing here runs yet. The navigation core will be
-carried over from [Tropic Video](https://github.com/AndrewGBest/Tropic-Video),
-which already does this for one website. See [docs/STATUS.md](docs/STATUS.md).
+**Status: early, runs, not released.** You can start it, open any address
+from a home screen, drive ordinary websites with the arrows, switch to an
+on-screen pointer, and use profiles. It has been tested by scripts against
+made-up pages and a handful of public sites, **not yet by a person with a
+remote at a TV**. There are no packages to download; see "Trying it" below.
+[docs/STATUS.md](docs/STATUS.md) says exactly what has been checked.
+
+It grew out of [Tropic Video](https://github.com/AndrewGBest/Tropic-Video),
+which does this for one website.
 
 ## The idea
 
@@ -24,6 +30,45 @@ six buttons: up, down, left, right, OK and Back.
   TV's app list, and it opens like an app.
 - **A pointer when you need one.** One button gives you an on-screen cursor for
   the pages the highlight cannot handle.
+
+## Trying it
+
+Linux x86_64, with Node 22 or newer:
+
+```
+git clone https://github.com/AndrewGBest/Longboard
+cd Longboard
+npm install
+npm start          # in a window
+npm run tv         # full screen, as on a TV
+```
+
+Add an address to open it straight away: `npm start -- https://example.com`.
+
+| Button | Does |
+|---|---|
+| Arrows, D-pad | Move the highlight; scroll when there is nothing to move to |
+| OK, Enter, A | Select. On a text field: bring up the on-screen keyboard |
+| Back, Backspace, Escape, B | Back; Home from a site's first page |
+| Menu key, Ctrl+O, Start | The menu: address, Home, Back, Reload, zoom, pointer, profiles |
+| F2, right stick click | Pointer mode on and off |
+| Ctrl+Q | Quit |
+
+Keys and controller buttons can be remapped in `~/.config/Longboard/config.json`
+(see `src/shared/config.ts`).
+
+## What is missing
+
+Compared with a mainstream browser, today:
+
+- **No Safe Browsing.** Nothing warns about known phishing or malware sites.
+- No tabs, history, bookmarks or downloads. Home remembers the sites you
+  opened lately and that is all.
+- No ad blocking yet. It is the last phase of the roadmap.
+- Permissions are simple: full screen is allowed, protected video is asked
+  about, everything else (camera, microphone, location, notifications) is
+  refused.
+- No packages, no automatic updates.
 
 ## What it will not do
 
@@ -45,6 +90,7 @@ six buttons: up, down, left, right, OK and Back.
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Order of work |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Choices made, with dates and reasons |
 | [docs/STATUS.md](docs/STATUS.md) | What exists and what has been checked |
+| [docs/SCORECARD.md](docs/SCORECARD.md) | How generic mode did on a fixed list of public sites |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to help, with code or with profiles |
 | [CLAUDE.md](CLAUDE.md) | Working rules for every contributor, human or AI |
 

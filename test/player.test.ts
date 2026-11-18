@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { findMainVideo, isPlayerActive, playerScope, isSeekBar, playerIsOwnPage } from '../src/layer/player';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
 import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo } from '../src/shared/player-keys';
+import { PLAYER_KEY_NAMES } from '../src/shared/profile';
 
 // jsdom has no layout, so each test gives its videos a size by hand.
 function video(id: string, w: number, h: number, opts: { muted?: boolean; playing?: boolean } = {}): string {
@@ -66,9 +67,22 @@ describe('player keys', () => {
     expect(playerKeyInfo('close')).toEqual({ code: 'Escape', domKey: 'Escape' });
     expect(playerKeyInfo('backspace')?.code).toBe('Backspace');
     expect(playerKeyInfo('enter')).toEqual({ code: 'Enter', domKey: 'Enter', char: '\r' });
-    for (const bad of ['Enter', 'toString', '__proto__', '', 5, null, undefined, {}]) {
+    for (const bad of ['Tab', 'F5', 'a', 'toString', '__proto__', '', 5, null, undefined, {}]) {
       expect(playerKeyInfo(bad)).toBeNull();
     }
+  });
+
+  it('knows every key a profile may name for a player, and nothing a profile may not', () => {
+    for (const name of PLAYER_KEY_NAMES) expect(playerKeyInfo(name), name).not.toBeNull();
+    expect(playerKeyInfo('k')).toEqual({ code: 'k', domKey: 'k' });
+  });
+
+  it("takes a site's own keys into account when deciding what is already the right key", () => {
+    const keys = { playPause: 'k', back: 'j', forward: 'l' } as const;
+    expect(isNativePlayerKey('k', { type: 'playPause' }, keys)).toBe(true);
+    expect(isNativePlayerKey(' ', { type: 'playPause' }, keys)).toBe(false);
+    expect(isNativePlayerKey('l', { type: 'seek', seconds: 10 }, keys)).toBe(true);
+    expect(isNativePlayerKey('ArrowRight', { type: 'seek', seconds: 10 }, keys)).toBe(false);
   });
 
   it('maps actions to player keys', () => {

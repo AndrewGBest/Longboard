@@ -111,3 +111,17 @@ necessary, not sufficient.
 | `test/` | Unit tests, invented fixtures, end-to-end harness |
 | `scripts/` | Build and rule checks |
 | `docs/` | Design, architecture, profiles, guardrails, roadmap, status, decisions |
+
+## Commands
+
+```
+npm run check        # typecheck + unit tests + build + rule checks
+npm run e2e          # the real app against the invented fixtures, driven over the DevTools protocol
+npm run scorecard    # generic mode against the fixed list of public sites (test/scorecard/)
+npm start            # a window; add an address to open it
+npm run tv           # full screen
+```
+
+`e2e` and `scorecard` need a display: `xvfb-run -a npm run e2e` when headless.
+Every scripted run uses `--automation` (rule 11); the harness in
+`test/e2e/harness.mjs` adds it and there is no way to launch through it without.

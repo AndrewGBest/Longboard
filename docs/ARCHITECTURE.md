@@ -1,6 +1,8 @@
 # Longboard: architecture
 
-Design only; nothing is built. Labels as in DESIGN.md.
+Labels as in DESIGN.md. Sections 2 to 5, 8 and 10 describe what is built
+(roadmap phases 0 to 3); sections 6 and 7 are still design. `docs/STATUS.md`
+says what has been checked and how.
 
 ## 1. Shape
 

@@ -1,0 +1,149 @@
+// The profile store: the profiles on this machine, where each came from, and
+// which one applies to an address. Every file is validated when it is read
+// and a file with any problem is not used (shared/profile.ts).
+import { copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { chooseProfile, exportName, importKey, validateProfile, type Profile, type ProfileChoice, type ProfileSource, type StoredProfile } from '../shared/profile';
+import { readJson, writeJson } from './store';
+
+export interface ProfileFolders {
+  /** Shipped with the app: `<folder>/<site>/profile.json`. */
+  builtin: string;
+  /** The downloaded catalogue: `<folder>/profiles/<site>/profile.json`. */
+  catalogue: string;
+  /** Made or edited on this machine: `<folder>/*.json`. */
+  local: string;
+  /** Given by someone else, not reviewed: `<folder>/*.json`. */
+  imported: string;
+  /** Where exported profiles are written. */
+  exports: string;
+  /** Answers to "use this imported profile?". */
+  answers: string;
+}
+
+const MAX_FILE = 200_000;
+const EXPORT_SUFFIX = '.longboard-profile.json';
+
+function listDir(dir: string): string[] {
+  try {
+    return readdirSync(dir).sort();
+  } catch {
+    return [];
+  }
+}
+
+/** Reads and validates one profile file. Problems are reported and the file is left out. */
+function readProfile(file: string, note: (line: string) => void): Profile | null {
+  try {
+    if (statSync(file).size > MAX_FILE) {
+      note(`${file}: too large to be a profile; ignored`);
+      return null;
+    }
+  } catch {
+    return null;
+  }
+  const raw = readJson(file, (why) => note(`${file} could not be read: ${why}`));
+  if (raw === undefined) return null;
+  const { profile, problems } = validateProfile(raw);
+  if (!profile) note(`${file} is not a usable profile: ${problems.slice(0, 5).join('; ')}`);
+  return profile;
+}
+
+export class ProfileStore {
+  private stored: StoredProfile[] = [];
+  private answers: Record<string, 'yes' | 'no'> = {};
+  /** Imported profiles turned down for now, until the app is next started. */
+  private readonly later = new Set<string>();
+
+  constructor(
+    private readonly folders: ProfileFolders,
+    private readonly note: (line: string) => void = (line) => console.error(`[longboard] ${line}`),
+  ) {
+    this.load();
+  }
+
+  /** Reads everything again from disk. */
+  load(): void {
+    const stored: StoredProfile[] = [];
+    const add = (source: ProfileSource, file: string): void => {
+      const profile = readProfile(file, this.note);
+      if (profile) stored.push({ profile, source });
+    };
+    for (const name of listDir(this.folders.local)) if (name.endsWith('.json')) add('local', join(this.folders.local, name));
+    for (const name of listDir(this.folders.imported)) if (name.endsWith('.json')) add('imported', join(this.folders.imported, name));
+    for (const name of listDir(join(this.folders.catalogue, 'profiles'))) add('catalogue', join(this.folders.catalogue, 'profiles', name, 'profile.json'));
+    for (const name of listDir(this.folders.builtin)) add('builtin', join(this.folders.builtin, name, 'profile.json'));
+    this.stored = stored;
+    const saved = readJson(this.folders.answers);
+    this.answers = {};
+    if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+      for (const [key, value] of Object.entries(saved)) if (value === 'yes' || value === 'no') this.answers[key] = value;
+    }
+  }
+
+  get count(): number {
+    return this.stored.length;
+  }
+
+  /** Which profile applies to an address (shared/profile.ts chooseProfile). */
+  choose(url: string): ProfileChoice {
+    const answers = { ...this.answers };
+    for (const key of this.later) answers[key] ??= 'no';
+    return chooseProfile(url, this.stored, answers);
+  }
+
+  /** Records the answer to "use this imported profile?". `remember` false keeps it for this run only. */
+  answer(profile: Profile, use: boolean, remember: boolean): void {
+    const key = importKey(profile);
+    if (!remember) {
+      if (!use) this.later.add(key);
+      return;
+    }
+    this.answers[key] = use ? 'yes' : 'no';
+    writeJson(this.folders.answers, this.answers);
+  }
+
+  /** Writes a profile as a single file anyone can be given. Returns where it went, or null. */
+  exportProfile(profile: Profile): string | null {
+    try {
+      mkdirSync(this.folders.exports, { recursive: true });
+      const file = join(this.folders.exports, exportName(profile));
+      writeFileSync(file, `${JSON.stringify(profile, null, 2)}\n`);
+      return file;
+    } catch (err) {
+      this.note(`could not export ${profile.id}: ${String(err).slice(0, 200)}`);
+      return null;
+    }
+  }
+
+  /**
+   * Copies profile files found at the top of `folders` into the imported
+   * folder. Only files named `*.longboard-profile.json` are looked at, and
+   * only valid ones are taken. Nothing imported is used until the person
+   * says so. Returns the names of the profiles taken.
+   */
+  importFrom(folders: readonly string[]): string[] {
+    const taken: string[] = [];
+    for (const dir of folders) {
+      for (const name of listDir(dir)) {
+        if (!name.endsWith(EXPORT_SUFFIX)) continue;
+        const profile = readProfile(join(dir, name), this.note);
+        if (!profile) continue;
+        try {
+          mkdirSync(this.folders.imported, { recursive: true });
+          copyFileSync(join(dir, name), join(this.folders.imported, `${profile.id}.json`));
+          taken.push(profile.name);
+        } catch (err) {
+          this.note(`could not import ${name}: ${String(err).slice(0, 200)}`);
+        }
+      }
+    }
+    if (taken.length) this.load();
+    return taken;
+  }
+}
+
+/** How a profile's source is said on screen. */
+export function sourceLabel(source: ProfileSource): string {
+  return source === 'local' ? 'your own' : source === 'imported' ? 'imported, not reviewed' : source === 'catalogue' ? 'reviewed' : 'reviewed, built in';
+}

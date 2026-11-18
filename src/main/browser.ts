@@ -28,7 +28,10 @@ import {
 } from './navigation';
 import { mayAskProtectedPlayback, permissionDecision } from './permissions';
 import { PointerHolds, pointerGlide, pointerTap, startPoint, type PointerStep } from './pointer';
+import { sourceLabel, type ProfileStore } from './profiles';
 import { readJson, writeJson } from './store';
+import { removableFolders } from '../platform';
+import { canvasOf, type Profile, type ProfileSource } from '../shared/profile';
 import { hoverPoint, tvZoom } from './zoom';
 
 export interface BrowserDeps {
@@ -43,8 +46,8 @@ export interface BrowserDeps {
   zoomOverride: string | undefined;
   /** Resolves when the protected-playback component is ready (or has been given up on). */
   ready: Promise<void>;
-  /** Site adapter data for an address, or null. */
-  adapterFor: (url: string) => unknown;
+  /** The profiles on this machine. */
+  profiles: ProfileStore;
 }
 
 /** Share of the window's width the menu panel takes over a website. */
@@ -97,14 +100,22 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
   let surface: 'home' | 'page' = 'home';
   let panel: Panel | null = null;
   let pointerOn = false;
-  /** The protected-playback question waiting for an answer. */
-  let pending: { site: string; answer: Array<(granted: boolean) => void> } | null = null;
+  /** The question waiting for an answer: protected playback for a site, or whether to use an imported profile. */
+  let pending: { what: 'protectedPlayback'; site: string; answer: Array<(granted: boolean) => void> } | { what: 'profile'; profile: Profile } | null = null;
+
+  /** The profile that applies to an address now, without asking about one that still needs an answer. */
+  const profileFor = (url: string): { profile: Profile; source: ProfileSource } | null => {
+    const choice = deps.profiles.choose(url);
+    return choice.kind === 'use' ? choice : choice.kind === 'ask' ? choice.fallback : null;
+  };
 
   const pageSite = (): string | null => siteKey(page.getURL());
   const pageLoaded = (): boolean => page.navigationHistory.getAllEntries().some((e) => !isNotice(e.url));
   const autoZoom = (): number => {
     const [width = 0, height = 0] = win.getContentSize();
-    return tvZoom({ width, height }, deps.zoomOverride ?? (config.zoom === undefined ? undefined : String(config.zoom)));
+    // A profile may say what size the site should be drawn at.
+    const canvas = canvasOf(profileFor(page.getURL())?.profile ?? null);
+    return tvZoom({ width, height }, deps.zoomOverride ?? (config.zoom === undefined ? undefined : String(config.zoom)), canvas ?? undefined);
   };
   const siteZoom = (): number => {
     const key = pageSite();
@@ -115,7 +126,12 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
     surface,
     panel,
     version: app.getVersion(),
-    home: { recents },
+    home: {
+      recents: recents.map((r) => {
+        const source = profileFor(r.url)?.source;
+        return { ...r, profile: source === 'local' ? ('own' as const) : source === 'catalogue' || source === 'builtin' ? ('reviewed' as const) : null };
+      }),
+    },
     page: pageLoaded()
       ? {
           site: siteName(page.getURL()) || 'this page',
@@ -123,10 +139,14 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
           canGoBack: backIndex() >= 0,
           zoomPercent: Math.round(siteZoom() * 100),
           pointer: pointerOn,
-          profile: null,
+          profile: ((p) => (p ? `${p.profile.name} (${sourceLabel(p.source)})` : null))(profileFor(page.getURL())),
         }
       : null,
-    prompt: pending ? { site: pending.site, what: 'protectedPlayback' } : null,
+    prompt: !pending
+      ? null
+      : pending.what === 'profile'
+        ? { what: 'profile', name: pending.profile.name, version: pending.profile.version, hosts: pending.profile.match.hosts.slice(0, 6) }
+        : { what: 'protectedPlayback', site: pending.site },
   });
 
   const active = (): WebContents => (surface === 'home' || panel ? chrome : page);
@@ -585,13 +605,13 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
       return;
     }
     // Only the page view's own page is asked about, and one site at a time.
-    if (wc !== page || !key || !mayAskProtectedPlayback(url) || (pending && pending.site !== key)) {
+    if (wc !== page || !key || !mayAskProtectedPlayback(url) || (pending && (pending.what !== 'protectedPlayback' || pending.site !== key))) {
       callback(false);
       return;
     }
     if (pending) pending.answer.push(callback);
     else {
-      pending = { site: key, answer: [callback] };
+      pending = { what: 'protectedPlayback', site: key, answer: [callback] };
       panel = 'prompt';
       layout();
     }
@@ -605,17 +625,31 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
     const asked = pending;
     if (!asked) return;
     pending = null;
+    panel = null;
+    if (asked.what === 'profile') {
+      deps.profiles.answer(asked.profile, allow, remember);
+      layout();
+      // The page starts again so the profile applies from its first moment.
+      if (allow && surface === 'page') page.reload();
+      return;
+    }
     if (remember) {
       sites[asked.site] = { ...sites[asked.site], protectedPlayback: allow ? 'granted' : 'denied' };
       saveSites();
     }
     for (const answer of asked.answer) answer(allow);
-    panel = null;
+    layout();
+  };
+  /** Asks, once, whether to use a profile someone gave the person (docs/PROFILES.md section 3). */
+  const askAboutProfile = (profile: Profile): void => {
+    if (pending || surface !== 'page') return;
+    pending = { what: 'profile', profile };
+    panel = 'prompt';
     layout();
   };
   // A question belongs to the page that asked it.
   page.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
-    if (isMainFrame && !isInPlace && pending) answerPrompt(false, false);
+    if (isMainFrame && !isInPlace && pending?.what === 'protectedPlayback') answerPrompt(false, false);
   });
 
   // No downloads in this version (ARCHITECTURE.md section 2).
@@ -641,8 +675,18 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
       return;
     }
     const layerOptions: LayerOptions = { ...options, surface: wc === chrome ? 'chrome' : 'page', keys: config.keys, buttons: config.buttons ?? {} };
-    const boot: BootData & { state?: ChromeState } = { options: layerOptions, adapter: wc === page ? deps.adapterFor(event.senderFrame?.url ?? '') : null };
+    const boot: BootData & { state?: ChromeState } = { options: layerOptions, profile: null };
     if (wc === chrome) boot.state = chromeState();
+    else {
+      // Chosen by the shell from the frame's real address, never from anything the page says.
+      const choice = deps.profiles.choose(event.senderFrame?.url ?? '');
+      const use = choice.kind === 'use' ? choice : choice.kind === 'ask' ? choice.fallback : null;
+      boot.profile = use?.profile ?? null;
+      if (choice.kind === 'ask') {
+        const asked = choice.profile;
+        setImmediate(() => askAboutProfile(asked));
+      }
+    }
     event.returnValue = boot;
   };
   ipcMain.on('longboard:boot', onBoot);
@@ -817,6 +861,21 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
         layout();
         if (surface === 'page') page.send('longboard:action', 'diagnostics');
         break;
+      case 'exportProfile': {
+        panel = null;
+        layout();
+        const current = surface === 'page' ? profileFor(page.getURL()) : null;
+        const file = current ? deps.profiles.exportProfile(current.profile) : null;
+        notify(file ? `Profile saved as ${file}` : 'There is no profile to export here');
+        break;
+      }
+      case 'importProfiles': {
+        panel = null;
+        layout();
+        const taken = deps.profiles.importFrom([join(dataDir, 'import'), ...removableFolders()]);
+        notify(taken.length ? `Imported: ${taken.join(', ')}. You will be asked before each is used.` : 'No profile files (*.longboard-profile.json) were found');
+        break;
+      }
       case 'about':
         panel = 'about';
         layout();
@@ -844,7 +903,8 @@ export function createBrowser(deps: BrowserDeps): BrowserWindow {
         if (MENU_ACTIONS.includes(msg.action)) menu(msg.action);
         break;
       case 'answer':
-        answerPrompt(msg.allow === true, true);
+        // Back on the question is "not now": asked again another time.
+        answerPrompt(msg.allow === true, msg.remember !== false);
         break;
       default:
         break;

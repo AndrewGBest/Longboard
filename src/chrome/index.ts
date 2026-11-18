@@ -8,9 +8,9 @@
 import { ipcRenderer } from 'electron';
 import type { BootData, BridgeMessage } from '../shared/actions';
 import type { ChromeMessage, ChromeState, MenuAction } from '../shared/chrome';
-import { aboutTitle, HELP, NOTICE } from '../shared/about';
+import { aboutTitle, BACKGROUND, HELP, NOTICE } from '../shared/about';
 import { siteName } from '../shared/address';
-import { emptyAdapter } from '../layer/adapter/adapter';
+import { genericRules } from '../layer/profile/rules';
 import { startLayer, type Layer } from '../layer/index';
 
 const boot = ipcRenderer.sendSync('longboard:boot') as BootData & { state?: ChromeState };
@@ -83,7 +83,13 @@ function home(s: ChromeState): HTMLElement {
     const site = siteName(r.url);
     const tile = button(`tile-${i}`, '', () => tell({ kind: 'openRecent', url: r.url }));
     tile.className = 'tile';
-    tile.append(el('span', { cls: 'mono', text: site.slice(0, 1) || '?' }), el('span', { cls: 'site', text: site }), el('span', { cls: 'title', text: r.title }));
+    const mark = r.profile === 'own' ? 'Your profile' : r.profile === 'reviewed' ? 'Reviewed profile' : '';
+    tile.append(
+      el('span', { cls: 'mono', text: site.slice(0, 1) || '?' }),
+      el('span', { cls: 'site', text: site }),
+      el('span', { cls: 'title', text: r.title }),
+      el('span', { cls: 'mark', text: mark }),
+    );
     return tile;
   });
   const main = el('main', { id: 'home' }, [el('h1', { text: 'Longboard' }), go]);
@@ -115,7 +121,9 @@ function menuPanel(s: ChromeState): Node[] {
       button('menu-outline', 'Save page outline', act('outline')),
       el('p', { cls: 'where', text: page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode' }),
     );
+    if (page.profile) items.push(button('menu-export', 'Export this profile', act('exportProfile')));
   }
+  items.push(button('menu-import', 'Import profiles from USB', act('importProfiles')));
   items.push(button('menu-about', 'About and help', act('about')), button('menu-quit', 'Quit Longboard', act('quit')));
   return items;
 }
@@ -123,16 +131,33 @@ function menuPanel(s: ChromeState): Node[] {
 function aboutPanel(s: ChromeState): Node[] {
   const list = el('dl');
   for (const [keys, what] of HELP) list.append(el('dt', { text: keys }), el('dd', { text: what }));
-  return [el('h1', { text: aboutTitle(s.version) }), el('p', { text: NOTICE }), list, button('about-close', 'Close', () => tell({ kind: 'menu', action: 'close' }))];
+  return [
+    el('h1', { text: aboutTitle(s.version) }),
+    el('p', { text: NOTICE }),
+    el('p', { text: BACKGROUND }),
+    list,
+    button('about-close', 'Close', () => tell({ kind: 'menu', action: 'close' })),
+  ];
 }
 
 function promptPanel(s: ChromeState): Node[] {
-  const site = s.prompt?.site ?? 'This site';
+  const answer = (allow: boolean) => (): void => tell({ kind: 'answer', allow });
+  if (s.prompt?.what === 'profile') {
+    return [
+      el('h1', { text: 'Use this profile?' }),
+      el('p', { text: `"${s.prompt.name}" (version ${s.prompt.version}) is a profile someone gave you. Nobody has reviewed it.` }),
+      el('p', { text: `It applies to: ${s.prompt.hosts.join(', ')}` }),
+      el('p', { text: 'A profile is settings, not a program: it tells Longboard where things are on a site and cannot run anything. Your answer is remembered.' }),
+      button('prompt-allow', 'Use it', answer(true)),
+      button('prompt-deny', 'Do not use it', answer(false)),
+    ];
+  }
+  const site = s.prompt?.what === 'protectedPlayback' ? s.prompt.site : 'This site';
   return [
     el('h1', { text: 'Allow protected video?' }),
     el('p', { text: `${site} wants to play protected (DRM) video. Longboard plays it through the browser's standard, unmodified playback component. Your answer is remembered for this site.` }),
-    button('prompt-allow', 'Allow', () => tell({ kind: 'answer', allow: true })),
-    button('prompt-deny', 'Not now', () => tell({ kind: 'answer', allow: false })),
+    button('prompt-allow', 'Allow', answer(true)),
+    button('prompt-deny', 'Not now', answer(false)),
   ];
 }
 
@@ -182,12 +207,12 @@ const start = (): void => {
   layer = startLayer({
     doc: document,
     options: boot.options,
-    adapter: emptyAdapter(),
+    rules: genericRules(),
     send,
     hooks: {
       back: () => {
         if (!state) return true;
-        if (state.panel === 'prompt') tell({ kind: 'answer', allow: false });
+        if (state.panel === 'prompt') tell({ kind: 'answer', allow: false, remember: false });
         else if (state.panel) tell({ kind: 'menu', action: 'close' });
         else if (state.page) tell({ kind: 'menu', action: 'resume' });
         return true;

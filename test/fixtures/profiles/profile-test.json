@@ -1,0 +1,18 @@
+{
+  "longboard": 1,
+  "id": "fixture-site",
+  "name": "Fixture Site",
+  "version": "1.0.0",
+  "authors": ["longboard-tests"],
+  "licence": "CC0-1.0",
+  "match": { "hosts": ["profile.test"], "paths": ["/profiled.html"] },
+  "view": { "canvas": "640x360" },
+  "focus": {
+    "include": [".tile"],
+    "exclude": [".banner"],
+    "initial": ".tile.start",
+    "groups": [{ "name": "row", "selector": ".strip", "axis": "horizontal", "remember": true }]
+  },
+  "dismiss": [".panel .close"],
+  "evidence": { "outline": "outline.txt" }
+}

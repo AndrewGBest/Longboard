@@ -3,7 +3,7 @@
 // API, so site scripts cannot call into the app.
 import { ipcRenderer } from 'electron';
 import type { Action, BootData, BridgeMessage, PointerSpot } from '../shared/actions';
-import { parseAdapter } from '../layer/adapter/adapter';
+import { rulesFromUntrusted } from '../layer/profile/rules';
 import { installPurchaseGuard } from '../layer/guard/purchase-guard';
 import { startLayer, type Layer } from '../layer/index';
 
@@ -22,12 +22,12 @@ function guardFrame(): void {
 const start = (): void => {
   if (window.top !== window) return;
   // Asked for when the page starts, so the shell can choose by the page's address.
-  const boot = (ipcRenderer.sendSync('longboard:boot') as BootData | null) ?? { options: { dev: false, automation: false }, adapter: null };
+  const boot = (ipcRenderer.sendSync('longboard:boot') as BootData | null) ?? { options: { dev: false, automation: false }, profile: null };
   const send = (msg: BridgeMessage): void => ipcRenderer.send('longboard:msg', msg);
   const layer: Layer = startLayer({
     doc: document,
     options: boot.options,
-    adapter: parseAdapter(boot.adapter, document),
+    rules: rulesFromUntrusted(boot.profile, document),
     send,
   });
 

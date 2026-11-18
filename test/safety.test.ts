@@ -2,7 +2,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { installPurchaseGuard, isSpendControl, looksLikeSpendUrl } from '../src/layer/guard/purchase-guard';
 import { buildOutline, maskIdentifier, sanitizeUrl } from '../src/layer/diagnostics/outline';
-import { adapterReport, chooseAdapter, parseAdapter } from '../src/layer/adapter/adapter';
 import { browserUserAgent } from '../src/main/useragent';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -151,19 +150,6 @@ describe('diagnostics outline', () => {
   });
 });
 
-describe('adapter parsing', () => {
-  it('drops invalid selectors and unknown schemas', () => {
-    const a = parseAdapter(
-      { schema: 1, id: 'x', revision: 3, verified: true, selectors: { extraFocusable: ['.ok', '>>bad<<', 42, ''] } },
-      document,
-    );
-    expect(a.selectors.extraFocusable).toEqual(['.ok']);
-    expect(a.revision).toBe(3);
-    expect(parseAdapter({ schema: 2, selectors: { extraFocusable: ['.x'] } }).selectors.extraFocusable).toEqual([]);
-    expect(parseAdapter(null).id).toBe('none');
-  });
-});
-
 describe('user agent', () => {
   it('removes app tokens and keeps the real engine and OS', () => {
     const ua =
@@ -186,32 +172,5 @@ describe('about panel', () => {
   it('shows the version when it has one', () => {
     expect(aboutTitle('0.0.1')).toBe('Longboard 0.0.1');
     expect(aboutTitle(undefined)).toBe('Longboard');
-  });
-});
-
-describe('choosing between the built-in adapter and a user file', () => {
-  const bundled = { schema: 1, id: 'site', revision: 3, verified: true, selectors: { rowNext: ['.next'] } };
-  it('uses the built-in one when there is no file', () => {
-    expect(chooseAdapter(bundled, null).source).toBe('bundled');
-  });
-  it('uses a newer file for the same site', () => {
-    const newer = { ...bundled, revision: 4 };
-    expect(chooseAdapter(bundled, newer)).toEqual({ raw: newer, source: 'user' });
-  });
-  it('ignores an older or equal file, another site, or something that is not an adapter, and says why', () => {
-    for (const file of [{ ...bundled, revision: 3 }, { ...bundled, revision: 2 }, { ...bundled, id: 'other', revision: 9 }, { revision: 9 }, 'text', 7]) {
-      const choice = chooseAdapter(bundled, file);
-      expect(choice.source).toBe('bundled');
-      expect(choice.raw).toBe(bundled);
-      expect(choice.note).toMatch(/ignored/);
-    }
-  });
-});
-
-describe('adapterReport', () => {
-  it('counts what each list matches, so a renamed control shows as zero', () => {
-    document.body.innerHTML = '<button class="next"></button><button class="next"></button>';
-    const adapter = parseAdapter({ schema: 1, id: 'site', revision: 3, selectors: { rowNext: ['.next'], rowPrev: ['.gone'], searchOpen: ['>>bad'] } });
-    expect(adapterReport(adapter, document)).toBe('adapter site revision 3: searchOpen=0 rowPrev=0 rowNext=2');
   });
 });

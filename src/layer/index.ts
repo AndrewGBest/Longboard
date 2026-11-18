@@ -2,7 +2,8 @@
 // it shares the DOM with the site but not its JavaScript, so the site cannot
 // tamper with it and it does not modify the site's own scripts.
 import type { Action, BridgeMessage, Direction, LayerOptions, PointerSpot } from '../shared/actions';
-import { adapterReport, firstMatch, type SiteAdapter } from './adapter/adapter';
+import type { PlayerKeyName } from '../shared/profile';
+import { firstMatch, rulesReport, type SiteRules } from './profile/rules';
 import { buildOutline, sanitizeUrl } from './diagnostics/outline';
 import { scrollBy } from './generic/scroll';
 import { installPurchaseGuard, isSpendControl } from './guard/purchase-guard';
@@ -18,7 +19,8 @@ import { HOST_TAG, Overlay } from './ui/overlay';
 export interface LayerDeps {
   doc: Document;
   options: LayerOptions;
-  adapter: SiteAdapter;
+  /** What the profile for this site says, or the empty rules of generic mode. */
+  rules: SiteRules;
   send: (msg: BridgeMessage) => void;
   /** Longboard's own screens answer some keys themselves. */
   hooks?: {
@@ -63,13 +65,13 @@ export interface Layer {
   stop: () => void;
 }
 
-export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): Layer {
+export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Layer {
   const view = doc.defaultView;
   if (!view) throw new Error('layer needs a window');
 
   /** No profile for this site: everything is worked out from the page itself. */
-  const generic = adapter.id === 'none';
-  const playerRoots = adapter.selectors.playerRoot;
+  const generic = rules.generic;
+  const playerRoots = rules.selectors.playerRoot;
   const playerShare = generic ? GENERIC_PLAYER_SHARE : 0.5;
   const mainVideo = (): HTMLVideoElement | null => findMainVideo(doc, playerRoots, playerShare);
   const inPlayer = (): boolean => isPlayerActive(doc, playerRoots, playerShare);
@@ -90,7 +92,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
   const keyboardBarred = (el: Element): boolean =>
     options.automation && isSecretField(el.getAttribute('type'), el.getAttribute('autocomplete'));
   const nav = new SpatialNavigator(doc, {
-    extraFocusable: adapter.selectors.extraFocusable,
+    extraFocusable: rules.selectors.extraFocusable,
     ignoreWithin: HOST_TAG,
     onFocusChange: (el) => {
       overlay.track(el);
@@ -99,7 +101,10 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       if (typedInto !== el) typedInto = null;
     },
     scope,
-    skip: [...adapter.selectors.rowPrev, ...adapter.selectors.rowNext],
+    skip: [...rules.selectors.rowPrev, ...rules.selectors.rowNext],
+    exclude: rules.selectors.exclude,
+    groups: rules.groups,
+    initial: rules.initial ?? undefined,
     looksClickable: generic,
     cursorHiddenClass: 'longboard-no-pointer',
     readingScroll: generic,
@@ -189,7 +194,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
     const from = nav.focused;
     const hit =
       from && (dir === 'left' || dir === 'right')
-        ? edgeControl(from, dir === 'left' ? adapter.selectors.rowPrev : adapter.selectors.rowNext, view)
+        ? edgeControl(from, dir === 'left' ? rules.selectors.rowPrev : rules.selectors.rowNext, view)
         : null;
     if (!hit) {
       // Nothing to move to: scroll, and take up whatever comes into view.
@@ -251,7 +256,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
   const drawOsk = (): void => overlay.keyboard(oskOpen ? osk.rows : null, { row: osk.row, index: osk.index }, oskSubmit, oskSide);
   const isSearchField = (el: Element): boolean => {
     try {
-      return el.matches([...adapter.selectors.searchInput, ...GENERIC_SEARCH].join(','));
+      return el.matches([...rules.selectors.searchInput, ...GENERIC_SEARCH].join(','));
     } catch {
       return false;
     }
@@ -310,16 +315,19 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
   // Player control is a real key press made by the shell, so the site's own
   // player decides what it does (it may refuse a seek during an advertisement).
   const injected = new InjectedKeys();
-  const pressKey = (key: PlayerKey | TextKey): void => {
+  const pressKey = (key: PlayerKey | TextKey | PlayerKeyName): void => {
     const info = playerKeyInfo(key);
     if (!info) return;
     injected.expect(info.domKey, Date.now());
     send({ kind: 'playerKey', key });
   };
+  /** The ordinary key this site's player uses for an action: the usual one, unless the profile names another. */
+  const siteKey = (key: PlayerKey): PlayerKey | PlayerKeyName =>
+    key === 'playPause' ? rules.playerKeys.playPause : key === 'seekBack' ? rules.playerKeys.back : key === 'seekForward' ? rules.playerKeys.forward : key;
   const pressPlayerKey = (key: PlayerKey): void => {
     if (!inPlayer()) return;
     watchNativeVideo();
-    pressKey(key);
+    pressKey(siteKey(key));
   };
   // A video with the browser's own controls answers keys only while it has
   // keyboard focus. Giving it focus is all that is done; the keys are still
@@ -412,6 +420,12 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       return;
     }
     if (hooks?.back?.()) return;
+    // Something the profile says Back closes first (a banner, a panel).
+    const closer = visibleMatch(rules.selectors.dismiss);
+    if (closer) {
+      (closer as HTMLElement).click();
+      return;
+    }
     if (openToggle) {
       const { label, input } = openToggle;
       openToggle = null;
@@ -439,7 +453,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
         nav.clear();
         return;
       }
-      const close = firstMatch(doc, adapter.selectors.playerClose);
+      const close = firstMatch(doc, rules.selectors.playerClose);
       if (close) {
         (close as HTMLElement).click();
         return;
@@ -495,13 +509,13 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
   };
   let searchPoll: number | undefined;
   const openSearch = (): void => {
-    const inputs = [...adapter.selectors.searchInput, ...GENERIC_SEARCH];
+    const inputs = [...rules.selectors.searchInput, ...GENERIC_SEARCH];
     const input = visibleMatch(inputs);
     if (input) {
       typeIn(input);
       return;
     }
-    const opener = visibleMatch([...adapter.selectors.searchOpen, ...GENERIC_SEARCH_OPEN]);
+    const opener = visibleMatch([...rules.selectors.searchOpen, ...GENERIC_SEARCH_OPEN]);
     if (!opener) return;
     (opener as HTMLElement).click();
     let tries = 0;
@@ -664,7 +678,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       case 'diagnostics':
         // The first line says how much of the adapter still matches this page:
         // a zero where there used to be matches is the site having changed.
-        send({ kind: 'diagnostics', outline: `# ${adapterReport(adapter, doc)}\n${buildOutline(doc.documentElement)}`, url: sanitizeUrl(view.location.href) });
+        send({ kind: 'diagnostics', outline: `# ${rulesReport(rules, doc)}\n${buildOutline(doc.documentElement)}`, url: sanitizeUrl(view.location.href) });
         overlay.toast('Page outline saved (structure only, no text)');
         break;
       case 'menu':
@@ -703,7 +717,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
     if (!action) return;
     // In the player, a key that is already the site's own key for the action
     // goes straight to the site, untouched.
-    if (isNativePlayerKey(e.key, action) && inPlayer()) return;
+    if (isNativePlayerKey(e.key, action, rules.playerKeys) && inPlayer()) return;
     e.preventDefault();
     // Immediate: the site may also listen on the window, and must not see a
     // key the layer has taken.
@@ -779,7 +793,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
   }, 2000);
 
   const stopGuard = options.automation
-    ? installPurchaseGuard(doc, adapter.selectors.purchaseControls, () =>
+    ? installPurchaseGuard(doc, rules.selectors.purchaseControls, () =>
         overlay.toast('Blocked: automation mode never activates purchase or sign-up controls'),
       )
     : (): void => undefined;
@@ -796,7 +810,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       const v = mainVideo();
       if (v && inPlayer() && !v.paused && !v.ended) {
         lastAwayAt = Date.now();
-        pressKey('playPause');
+        pressKey(siteKey('playPause'));
       }
     },
     pointer: (spot) => {
@@ -820,7 +834,7 @@ export function startLayer({ doc, options, adapter, send, hooks }: LayerDeps): L
       const el = doc.elementFromPoint(x, y);
       // What is inside a frame cannot be seen from here; the shell asks the frame's own guard.
       if (el instanceof HTMLIFrameElement) return 'frame';
-      if (el && !(el instanceof HTMLEmbedElement) && !(el instanceof HTMLObjectElement) && !isSpendControl(el, adapter.selectors.purchaseControls)) return 'yes';
+      if (el && !(el instanceof HTMLEmbedElement) && !(el instanceof HTMLObjectElement) && !isSpendControl(el, rules.selectors.purchaseControls)) return 'yes';
       overlay.toast('Blocked: automation mode never activates purchase or sign-up controls');
       return 'no';
     },

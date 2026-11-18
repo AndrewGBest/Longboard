@@ -3,6 +3,7 @@ import type { Direction } from '../../shared/actions';
 import { composedParent, deepClosest, deepContains, deepQueryAll } from './deep';
 import { scrollBy } from '../generic/scroll';
 import { pickInitial, pickNext, type Rect } from './geometry';
+import type { ProfileGroup } from '../../shared/profile';
 
 const FOCUSABLE = [
   'a[href]',
@@ -98,6 +99,10 @@ export interface NavigatorOptions {
   scope?: () => Element | null;
   /** Selectors that are never candidates, nor anything inside them (a profile's "exclude"). */
   exclude?: string[];
+  /** Containers a profile names as a row, a column or a grid. */
+  groups?: ProfileGroup[];
+  /** Where the highlight starts on a page, when a profile says. */
+  initial?: string | undefined;
   /**
    * Also offer elements that only look clickable: the page shows the hand
    * cursor over them. For sites with no profile, where it is the only sign.
@@ -321,6 +326,8 @@ export class SpatialNavigator {
   private zoomed: Element | null = null;
   /** Where focus last was in each sideways-scrolling row. */
   private readonly rowMemory = new WeakMap<Element, Element>();
+  /** Where the highlight last was in each group a profile asked to be remembered. */
+  private readonly groupMemory = new WeakMap<Element, Element>();
   /** True while this navigator is itself giving an element keyboard focus (so the layer can tell that from the page doing it). */
   focusing = false;
   /** The outermost elements found to show the hand cursor. */
@@ -539,6 +546,21 @@ export class SpatialNavigator {
     return valid.length ? valid.join(',') : null;
   }
 
+  /** The innermost group a profile names that `el` sits in, if any. */
+  private groupOf(el: Element): { el: Element; group: ProfileGroup } | null {
+    let found: { el: Element; group: ProfileGroup } | null = null;
+    for (const group of this.opts.groups ?? []) {
+      let container: Element | null = null;
+      try {
+        container = deepClosest(el, group.selector);
+      } catch {
+        // A selector this browser cannot parse names no group.
+      }
+      if (container && (!found || deepContains(found.el, container))) found = { el: container, group };
+    }
+    return found;
+  }
+
   /** Focuses the candidate whose centre is nearest to a point, for picking up where a vanished control was. */
   focusNearest(point: { x: number; y: number }, pool: readonly Element[] = this.candidates()): boolean {
     let best: Element | null = null;
@@ -650,6 +672,16 @@ export class SpatialNavigator {
         }
         return true;
       }
+      // A profile may say where the highlight starts.
+      if (this.opts.initial) {
+        let first: Element | null = null;
+        try {
+          first = all.find((el) => el.matches(this.opts.initial!)) ?? null;
+        } catch {
+          // A selector this browser cannot parse names nothing.
+        }
+        if (first) return this.focus(first);
+      }
       // Nothing has focus yet on this page. The first press goes to what the
       // page is about (its main button, its first card), not to the bar
       // pinned across the top; Up, which points at the bar, still gets it.
@@ -688,10 +720,31 @@ export class SpatialNavigator {
       const peers = others.filter((el) => el.getRootNode() === home && el.matches(MENU_ENTRY));
       if (pickNext(toRect(from), peers.map(toRect), dir) !== -1) others = peers;
     }
+    // A group a profile names: movement along it stays in it while it has a
+    // member that way, and a row's end is its end (left and right never leave
+    // a row). Across it, movement leaves as usual.
+    const home = this.groupOf(from);
+    if (home) {
+      const sideways = dir === 'left' || dir === 'right';
+      const along = home.group.axis === 'grid' || (home.group.axis === 'horizontal') === sideways;
+      if (along) {
+        const peers = others.filter((el) => deepContains(home.el, el));
+        if (pickNext(toRect(from), peers.map(toRect), dir) !== -1) others = peers;
+        else if (home.group.axis === 'horizontal') return null;
+      }
+    }
     const i = pickNext(toRect(from), others.map(toRect), dir);
     if (i === -1) return null;
     let target = others[i] ?? null;
     if (target && (dir === 'up' || dir === 'down')) target = this.rowEntry(target, from, others);
+    // Coming into a group that remembers: back to where the highlight last was in it.
+    if (target) {
+      const dest = this.groupOf(target);
+      if (dest?.group.remember && dest.el !== home?.el) {
+        const last = this.groupMemory.get(dest.el);
+        if (last && others.includes(last)) target = last;
+      }
+    }
     // A held key stops at the last row and does not run on into the page's
     // footer: more rows may be about to load in front of it, and the footer
     // would carry the focus away from them. A single press still goes there.
@@ -797,6 +850,8 @@ export class SpatialNavigator {
     const view = this.doc.defaultView;
     const row = view ? rowOf(el, view) : null;
     if (row) this.rowMemory.set(row, el);
+    const group = this.groupOf(el);
+    if (group) this.groupMemory.set(group.el, el);
     el.setAttribute(FOCUS_ATTR, '');
     if (view && shouldZoom(el, view)) {
       this.zoomed = zoomTarget(el);
