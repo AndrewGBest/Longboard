@@ -5,7 +5,7 @@ import type { Action, BridgeMessage, Direction, EditView, LayerOptions, PointerS
 import type { PlayerKeyName } from '../shared/profile';
 import { firstMatch, rulesReport, type SiteRules } from './profile/rules';
 import { buildOutline, sanitizeUrl } from './diagnostics/outline';
-import { pickChain } from './edit/selector';
+import { elementAt, matchesOf, pickChain } from './edit/selector';
 import { scrollBy } from './generic/scroll';
 import { installPurchaseGuard, isSpendControl } from './guard/purchase-guard';
 import { startPolling } from './input/gamepad';
@@ -839,7 +839,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       }
     },
     editPick: (x, y) => {
-      const el = doc.elementFromPoint(x, y);
+      const el = elementAt(doc, x, y);
       // Nothing of the layer's own, and nothing inside a frame, can be marked.
       if (!el || el.closest(HOST_TAG) || el === doc.documentElement || el === doc.body) {
         overlay.toast('Nothing there can be marked');
@@ -854,11 +854,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       }
       const list: Array<{ el: Element; kind: string }> = [];
       const add = (selector: string, kind: string): void => {
-        try {
-          for (const el of doc.querySelectorAll(selector)) if (list.length < 120 && !el.closest(HOST_TAG)) list.push({ el, kind });
-        } catch {
-          // a selector the browser cannot parse marks nothing
-        }
+        for (const el of matchesOf(doc, selector)) if (list.length < 120 && !el.closest(HOST_TAG)) list.push({ el, kind });
       };
       for (const kind of ['include', 'exclude', 'row', 'player'] as const) for (const selector of show.marks[kind]) add(selector, kind);
       if (show.picked) add(show.picked, 'picked');

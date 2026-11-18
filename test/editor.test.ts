@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { pickChain, selectorLike } from '../src/layer/edit/selector';
+import { matchesOf, pickChain, selectorLike } from '../src/layer/edit/selector';
+import { forgetShadowHosts } from '../src/layer/spatial/deep';
 import { hasContent, hasMark, localProfileId, marksOf, nextVersion, parsePicked, startDraft, toggleMark } from '../src/shared/editor';
 import { validateProfile, type Profile } from '../src/shared/profile';
 
@@ -26,6 +27,25 @@ describe('writing a selector for what was pointed at', () => {
     page('<ul class="menu"><li id="r1"><a id="a8f3k2Lq" href="#">x</a></li></ul>');
     expect(selectorLike($('a'))).toBe('a');
     expect(selectorLike($('li'))).toBe('li#r1');
+  });
+
+  it("prefers a site's own test id to its classes", () => {
+    page('<div class="erovmj card" data-testid="card-media">x</div>');
+    expect(selectorLike($('div'))).toBe('div[data-testid="card-media"]');
+  });
+
+  it('sees into web components, where the document only knows the outermost one', () => {
+    page('<app-root></app-root>');
+    const root = $('app-root').attachShadow({ mode: 'open' });
+    root.innerHTML = '<nav class="top"><a class="tab" href="#">x</a><a class="tab" href="#">y</a></nav>';
+    forgetShadowHosts(document);
+    expect(pickChain(root.querySelector('a')!)).toEqual([
+      { selector: 'a.tab', matches: 2 },
+      { selector: 'nav.top', matches: 1 },
+      { selector: 'app-root', matches: 1 },
+    ]);
+    expect(matchesOf(document, 'a.tab')).toHaveLength(2);
+    expect(matchesOf(document, '>>bad')).toEqual([]);
   });
 
   it('falls back to "directly inside its container"', () => {

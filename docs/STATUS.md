@@ -24,7 +24,7 @@ DECISIONS.md, each marked as an assumption.
 All of this was checked by scripts on a headless virtual machine. **None of
 it was checked by a person, with a remote, on a TV.**
 
-- `npm run check`: 325 unit tests (geometry, input mapping, address rules,
+- `npm run check`: 327 unit tests (geometry, input mapping, address rules,
   navigation policy, permission policy, pointer movement, profile validation,
   matching and choosing, the interpreter, the profile store, the catalogue
   fetcher, the guard, the outline sanitiser), the build, and the rule checks.
@@ -92,9 +92,14 @@ it was checked by a person, with a remote, on a TV.**
   without loading.
 - The menu has no ad-blocking switch (phase 5).
 - The profile editor marks four things and writes nothing else of the
-  format. Its selectors are a first guess at "things like this one"; on a
-  site whose markup has only machine-made names it may find nothing useful
-  to write. It has been tried on one made-up page and no real site.
+  format. Its selectors are a first guess at "things like this one". End to
+  end it has only been used on a made-up page. On four real pages (a link
+  list, an encyclopedia article, a news front page, a site built from web
+  components) the agent pointed at three places each and read what was
+  picked: the selectors were usable, but where a site has only machine-made
+  class names and no test ids, one of those names can end up in a selector,
+  and such a profile would stop matching when the site is next rebuilt.
+  Nothing was saved or committed from those sites.
 - An app's name and choices cannot be changed after it is added; remove it
   and add it again.
 - The same shared code lives in Tropic Video and Steamboat. Fixes made here
