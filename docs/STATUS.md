@@ -2,6 +2,36 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-18, late: Settings
+
+Andrew asked for a Settings screen, a setting for ad blocking over all sites,
+and a place to edit the list of sites where it starts off. Built, tested and
+pushed. What is in it is in DESIGN.md section 4.8.
+
+**Verified, and how:**
+
+- Unit tests (17 new, 401 in all): what a change does to `config.json` and
+  what is refused; the three ad-blocking settings; editing the list; a site
+  typed as a person would; kinds of access closed to every site.
+- End to end (28 scenarios and 304 checks in all): the whole Settings screen
+  driven with the arrows, every page, each change read back from
+  `config.json`; ad blocking on for every site on a site from the reviewed
+  list; a reviewed site taken off the list; off for every site, with the
+  menu's switch greyed out; a kind of access closed, refused without a
+  question; opening with the last site.
+
+**Not verified:**
+
+- "Sign out of every site and clear what sites have stored" was never
+  pressed: the automation guard stops a scripted run from pressing it
+  (DECISIONS.md). Its code was read, not run.
+- "Clear saved copies of pages", "Clear the recently opened sites",
+  "Download the filter list now", "Look for reviewed profiles now" and the
+  hardware-decoding setting taking effect at the next start: none has a test.
+- The three search sites other than Google were not searched with.
+- How Settings reads on a TV: long lines wrap in the narrow panel beside a
+  page, and nobody has looked.
+
 ## 2026-11-18, evening: phase 5, ad blocking
 
 Andrew said to start it. Built, tested and pushed.
@@ -226,9 +256,10 @@ it was checked by a person, with a remote, on a TV.**
 
 ### Open questions for Andrew
 
-- Hard rule 12 says the two background requests are "disclosed in
-  Settings". There is no Settings screen; they are disclosed in the About
-  panel. Reword the rule, or should a Settings screen be built?
+- Ad blocking "on for every site" leaves a site off if you switched that
+  site off yourself. Is that what you meant by fully enabled?
+- Hard rule 5's wording does not mention the setting over all sites. The
+  agent did not reword it.
 - Otherwise none open. Answered on 2026-11-18: Google is the default search; the
   keyboard follows Android TV; the protected-playback row of the ad-blocking
   defaults is dropped; permissions are asked about; downloads work.

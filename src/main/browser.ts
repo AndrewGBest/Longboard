@@ -8,7 +8,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { BootData, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
 import { resolveAddress, siteKey, siteName } from '../shared/address';
-import { EDIT_ACTIONS, MENU_ACTIONS, type ChromeMessage, type ChromeState, type EditAction, type MenuAction, type Panel } from '../shared/chrome';
+import { EDIT_ACTIONS, MENU_ACTIONS, SETTINGS_ACTIONS, type ChromeMessage, type ChromeState, type EditAction, type MenuAction, type Panel, type SettingsAction } from '../shared/chrome';
 import { EDIT_MARKS, hasMark, marksOf, parsePicked, startDraft, toggleMark, type PickedStep } from '../shared/editor';
 import type { UserConfig } from '../shared/config';
 import { addRecent, parseRecents, removeRecent, titleRecent, type RecentSite } from '../shared/home';
@@ -38,7 +38,10 @@ import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApp
 import { canvasOf, type Profile, type ProfileSource } from '../shared/profile';
 import { hoverPoint, pageBounds, tvZoom } from './zoom';
 import { filterSession, type FilterSet } from './adblock';
-import { blockingOn, isVerified } from '../shared/adblock';
+import { blockingOn, cleanDomain, editStartsOff, isVerified, startsOffEntries, type BlockingMode } from '../shared/adblock';
+import { searchName } from '../shared/settings';
+import { DEFAULT_SEARCH } from '../shared/address';
+import { NEVER_ASKABLE } from '../shared/config';
 import { ICON_SIZE, iconDataUrl, MAX_ICON_BYTES, pngFromDataUrl } from '../shared/icons';
 
 export interface BrowserDeps {
@@ -60,7 +63,21 @@ export interface BrowserDeps {
   /** The profiles on this machine. */
   profiles: ProfileStore;
   /** Ad blocking: whether it is there at all, the filters (null until downloaded), and the verified sites. */
-  adBlock: { enabled: boolean; filters: () => FilterSet | null; verified: () => readonly string[] };
+  adBlock: {
+    /** The person's setting over all sites. */
+    mode: () => BlockingMode;
+    /** The filters, or null until a list has been downloaded. */
+    filters: () => FilterSet | null;
+    /** The sites where blocking starts off, after the person's own changes. */
+    verified: () => readonly string[];
+    /** The reviewed list as it came, before those changes. */
+    reviewed: () => readonly string[];
+    fetchedAt: () => number | null;
+    /** Downloads the list now. */
+    refresh: () => Promise<boolean>;
+  };
+  /** The Settings screen's way to config.json. `set` is false when the value is not one the setting can take. */
+  settings: { set: (name: string, value: unknown) => boolean; reset: () => void; refreshCatalogue: () => Promise<boolean> };
 }
 
 /** Share of the window's width the menu panel takes over a website. */
@@ -214,7 +231,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   /** Whether requests are filtered for the site at this address (Hard rule 5): the person's choice, else where the switch starts. */
   const blockingAt = (url: string): boolean => {
     const key = siteKey(url);
-    return deps.adBlock.enabled && blockingOn(key, key ? sites[key]?.adBlocking : undefined, deps.adBlock.verified());
+    return blockingOn(key, key ? sites[key]?.adBlocking : undefined, deps.adBlock.verified(), deps.adBlock.mode());
   };
   /** How many requests were refused for the page each view is showing. */
   const refused = new WeakMap<WebContents, number>();
@@ -228,7 +245,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     const { width, height } = pageArea();
     // A profile may say what size the site should be drawn at.
     const canvas = canvasOf(profileFor(page.getURL())?.profile ?? null);
-    return tvZoom({ width, height }, deps.zoomOverride ?? (config.zoom === undefined ? undefined : String(config.zoom)), canvas ?? undefined);
+    return tvZoom({ width, height }, deps.zoomOverride ?? (config.zoom === undefined ? undefined : String(config.zoom)), canvas ?? undefined) * (config.pageSize ?? 1);
   };
   const siteZoom = (): number => {
     const key = pageSite();
@@ -260,7 +277,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
             return parts.length ? parts.join('. ') : null;
           })(sites[pageSite() ?? '']?.answers ?? {}),
           adBlocking: ((key) => {
-            if (!deps.adBlock.enabled || !key) return null;
+            if (!key) return null;
+            const mode = deps.adBlock.mode();
+            if (mode === 'off') return { on: false, locked: true, note: 'Ad blocking is off everywhere. Settings can turn it on.' };
             const on = blockingAt(page.getURL());
             const chosen = typeof sites[key]?.adBlocking === 'boolean';
             const count = refused.get(page) ?? 0;
@@ -269,14 +288,36 @@ export function createBrowser(deps: BrowserDeps): Browser {
               : on
                 ? `${count === 1 ? '1 request' : `${count} requests`} refused on this page.`
                 : !chosen && isVerified(key, deps.adBlock.verified())
-                  ? 'Off to start with: this is a verified site.'
+                  ? 'Off to start with: this site is on the list of sites where it starts off.'
                   : 'Off for this site: your choice.';
-            return { on, note };
+            return { on, note, locked: false };
           })(pageSite()),
           app: ((a) => (a ? { id: a.id, name: a.name } : null))(appFor(apps, page.getURL())),
           canAddToAppList: launcherFolder() !== null,
         }
       : null,
+    settings:
+      panel !== 'settings'
+        ? null
+        : {
+            search: searchName(config.search),
+            searchTemplate: config.search ?? DEFAULT_SEARCH,
+            startWith: config.startWith ?? 'home',
+            pageSize: config.pageSize ?? 1,
+            adBlocking: {
+              mode: deps.adBlock.mode(),
+              listUpdated: ((at) => (at === null ? 'not downloaded yet' : `downloaded ${new Date(at).toISOString().slice(0, 10)}`))(deps.adBlock.fetchedAt()),
+              startsOff: startsOffEntries(deps.adBlock.reviewed(), config.adBlockingStartsOff, config.adBlockingStartsOn),
+            },
+            catalogue: config.catalogue !== false,
+            profiles: deps.profiles.count,
+            hardwareDecode: config.hardwareDecode === true,
+            neverAsk: config.neverAsk ?? [],
+            askable: NEVER_ASKABLE.map((name) => ({ name, words: ASKABLE[name] })),
+            sitesWithChoices: Object.keys(sites).length,
+            downloads: deps.downloads,
+            dataFolder: dataDir,
+          },
     downloads: downloads.map((d) => ({
       id: d.id,
       name: d.name,
@@ -857,7 +898,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     const key = siteKey(url);
     const mediaTypes = 'mediaTypes' in details && Array.isArray(details.mediaTypes) ? details.mediaTypes : [];
     // An answer given to a site counts only for its pages loaded securely.
-    const decision = permissionDecision(permission, key && mayAsk(url) ? sites[key] : undefined, mediaTypes);
+    const decision = permissionDecision(permission, key && mayAsk(url) ? sites[key] : undefined, mediaTypes, config.neverAsk);
     if (decision.kind !== 'ask') {
       callback(decision.kind === 'grant');
       return;
@@ -879,7 +920,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   eachSession((web) => web.setPermissionCheckHandler((_wc, permission, origin, details) => {
     const key = siteKey(origin);
     const mediaType = details.mediaType === 'video' || details.mediaType === 'audio' ? [details.mediaType] : [];
-    return hasPermission(permission, key && mayAsk(origin) ? sites[key] : undefined, mediaType);
+    return hasPermission(permission, key && mayAsk(origin) ? sites[key] : undefined, mediaType, config.neverAsk);
   }));
   const answerPrompt = (allow: boolean, remember: boolean): void => {
     const asked = pending;
@@ -1582,7 +1623,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       case 'adBlocking': {
         // The switch is the person's: this is the only place it is ever changed.
         const key = surface === 'page' ? pageSite() : null;
-        if (!key || !deps.adBlock.enabled) break;
+        if (!key || deps.adBlock.mode() === 'off') break;
         sites[key] = { ...sites[key], adBlocking: !blockingAt(page.getURL()) };
         saveSites();
         // The page is loaded again so what it shows matches the switch.
@@ -1611,8 +1652,61 @@ export function createBrowser(deps: BrowserDeps): Browser {
         panel = 'about';
         layout();
         break;
+      case 'settings':
+        panel = 'settings';
+        layout();
+        break;
       case 'quit':
         app.quit();
+        break;
+    }
+  };
+  /** The buttons on the Settings screen that do something once, as against changing a setting. */
+  const settingsAction = (action: SettingsAction): void => {
+    const webSessions = (): Electron.Session[] => [(views.get('') ?? pageView).webContents.session, ...apps.filter((a) => a.ownSession).map((a) => session.fromPartition(appPartition(a)))];
+    switch (action) {
+      case 'clearSiteData':
+        // Cookies and everything sites have stored: signs out of every site, apps with their own sign-ins included.
+        void Promise.all(webSessions().map((s) => s.clearStorageData().catch(() => undefined))).then(() => {
+          if (surface === 'page' && !page.isDestroyed()) page.reload();
+          notify('Cleared. You are signed out of every site');
+        });
+        break;
+      case 'clearCache':
+        void Promise.all(webSessions().map((s) => s.clearCache().catch(() => undefined))).then(() => notify('Cleared the saved copies of pages and pictures'));
+        break;
+      case 'clearHome':
+        recents = [];
+        saveRecents();
+        layout();
+        notify('Cleared the recently opened sites');
+        break;
+      case 'forgetSites':
+        for (const key of Object.keys(sites)) delete sites[key];
+        saveSites();
+        applyZoom();
+        layout();
+        notify("Forgotten: every site's answers, size and ad-blocking switch");
+        break;
+      case 'updateFilters':
+        notify('Downloading the filter list');
+        void deps.adBlock.refresh().then((ok) => {
+          if (panel === 'settings') layout();
+          notify(ok ? 'The filter list is up to date' : 'The filter list could not be downloaded');
+        });
+        break;
+      case 'updateCatalogue':
+        notify('Looking for reviewed profiles');
+        void deps.settings.refreshCatalogue().then((ok) => {
+          if (panel === 'settings') layout();
+          notify(ok ? 'Reviewed profiles are up to date' : 'Reviewed profiles could not be downloaded');
+        });
+        break;
+      case 'reset':
+        deps.settings.reset();
+        applyZoom();
+        layout();
+        notify('Settings are back to the usual');
         break;
     }
   };
@@ -1637,6 +1731,31 @@ export function createBrowser(deps: BrowserDeps): Browser {
         // A picture Longboard's own screen drew from a site's icon.
         if (typeof msg.id === 'number') drawing.get(msg.id)?.(pngFromDataUrl(msg.png));
         break;
+      case 'setting':
+        if (panel !== 'settings' || typeof msg.name !== 'string') break;
+        if (!deps.settings.set(msg.name, msg.value)) {
+          notify('That setting could not be changed');
+          break;
+        }
+        if (msg.name === 'pageSize') applyZoom();
+        layout();
+        break;
+      case 'startsOff': {
+        const domain = cleanDomain(msg.domain);
+        if (panel !== 'settings' || (msg.op !== 'add' && msg.op !== 'toggle')) break;
+        if (!domain) {
+          notify('That is not a site name. Try something like example.com');
+          break;
+        }
+        const next = editStartsOff(deps.adBlock.reviewed(), config.adBlockingStartsOff ?? [], config.adBlockingStartsOn ?? [], msg.op, domain);
+        deps.settings.set('adBlockingStartsOff', next.added.length ? next.added : null);
+        deps.settings.set('adBlockingStartsOn', next.removed.length ? next.removed : null);
+        layout();
+        break;
+      }
+      case 'settingsAction':
+        if (panel === 'settings' && SETTINGS_ACTIONS.includes(msg.action)) settingsAction(msg.action);
+        break;
       case 'cancelDownload': {
         const d = downloads.find((x) => x.id === msg.id);
         if (panel === 'downloads' && d?.state === 'going') d.item.cancel();
@@ -1653,8 +1772,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
         }
         break;
       case 'removeApp':
-        if (surface === 'home' && typeof msg.id === 'string' && apps.some((a) => a.id === msg.id)) {
-          panel = null;
+        if ((surface === 'home' || panel === 'settings') && typeof msg.id === 'string' && apps.some((a) => a.id === msg.id)) {
+          // From Settings the screen stays open; from a Home tile the menu closes.
+          if (panel !== 'settings') panel = null;
           removeAppById(msg.id);
           layout();
         }
@@ -1715,6 +1835,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
     void page.loadURL(startingPageUrl());
     void deps.ready.then(() => {
       if (!page.isDestroyed()) open(url, false);
+    });
+  } else if (config.startWith === 'last' && recents[0]) {
+    // "Open with the last site": the one opened most recently, when nothing else was asked for.
+    const url = recents[0].url;
+    showPage();
+    void page.loadURL(startingPageUrl());
+    void deps.ready.then(() => {
+      if (!page.isDestroyed()) open(url, true);
     });
   } else {
     layout();

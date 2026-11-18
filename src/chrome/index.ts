@@ -7,7 +7,9 @@
 // Longboard's own interface is the first user of its navigation engine.
 import { ipcRenderer } from 'electron';
 import type { BootData, BridgeMessage } from '../shared/actions';
-import type { ChromeMessage, ChromeState, EditAction, MenuAction } from '../shared/chrome';
+import type { ChromeMessage, ChromeState, EditAction, MenuAction, SettingsAction } from '../shared/chrome';
+import { PAGE_SIZES, SEARCH_CHOICES } from '../shared/settings';
+import { BLOCKING_MODES } from '../shared/adblock';
 import { aboutTitle, BACKGROUND, HELP, NOTICE } from '../shared/about';
 import { siteName } from '../shared/address';
 import { genericRules } from '../layer/profile/rules';
@@ -23,6 +25,11 @@ let layer: Layer | undefined;
 let typing = false;
 /** What the person has chosen so far on the "add as an app" panel. */
 let draft = { name: '', ownSession: false, launcher: true };
+/** Which page of Settings is showing. */
+type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles';
+let settingsPage: SettingsPage = 'main';
+/** A button that clears something has been pressed once and waits for the second press. */
+let confirming: string | null = null;
 /** The Home tile the highlight was on when the menu was opened from Home; the menu offers to remove it. */
 let menuFor: { kind: 'recent'; url: string; name: string } | { kind: 'app'; id: string; name: string } | null = null;
 
@@ -163,7 +170,7 @@ function menuPanel(s: ChromeState): Node[] {
       el('p', { cls: 'where', text: page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode' }),
     );
     if (page.adBlocking) {
-      items.push(button('menu-adblock', page.adBlocking.on ? 'Ad blocking: on' : 'Ad blocking: off', act('adBlocking')), el('p', { cls: 'where', text: page.adBlocking.note }));
+      items.push(button('menu-adblock', page.adBlocking.on ? 'Ad blocking: on' : 'Ad blocking: off', act('adBlocking'), page.adBlocking.locked), el('p', { cls: 'where', text: page.adBlocking.note }));
     }
     if (page.profile) items.push(button('menu-export', 'Export this profile', act('exportProfile')));
     if (page.answers) {
@@ -177,7 +184,7 @@ function menuPanel(s: ChromeState): Node[] {
     items.push(button('menu-downloads', going ? `Downloads (${going} under way)` : 'Downloads', act('downloads')));
   }
   items.push(button('menu-import', 'Import profiles from USB', act('importProfiles')));
-  items.push(button('menu-about', 'About and help', act('about')), button('menu-quit', 'Quit Longboard', act('quit')));
+  items.push(button('menu-settings', 'Settings', act('settings')), button('menu-about', 'About and help', act('about')), button('menu-quit', 'Quit Longboard', act('quit')));
   return items;
 }
 
@@ -238,6 +245,177 @@ function editPanel(s: ChromeState): Node[] {
     button('edit-discard', 'Finish without saving', press('discard')),
   );
   return items;
+}
+
+/**
+ * Settings: a first page of headings, and a page for each. Every change is
+ * sent to the shell, which checks it, keeps it in config.json and sends the
+ * new state back; nothing is decided here.
+ */
+function settingsPanel(s: ChromeState): Node[] {
+  const st = s.settings;
+  if (!st) return [el('h1', { text: 'Settings' })];
+  const set = (name: string, value: unknown) => (): void => tell({ kind: 'setting', name, value });
+  const go = (page: SettingsPage) => (): void => {
+    settingsPage = page;
+    confirming = null;
+    render();
+  };
+  const back = button('settings-back', 'Back to Settings', go('main'));
+  const say = (text: string): HTMLElement => el('p', { cls: 'where', text });
+  const yesNo = (on: boolean): string => (on ? 'yes' : 'no');
+  /** A button that clears something: the first press asks, the second does it. */
+  const twice = (id: string, text: string, sure: string, action: SettingsAction): HTMLButtonElement =>
+    button(id, confirming === id ? sure : text, () => {
+      if (confirming === id) {
+        confirming = null;
+        tell({ kind: 'settingsAction', action });
+      } else {
+        confirming = id;
+        render();
+      }
+    });
+  const once = (id: string, text: string, action: SettingsAction): HTMLButtonElement => button(id, text, () => tell({ kind: 'settingsAction', action }));
+
+  switch (settingsPage) {
+    case 'general': {
+      const at = SEARCH_CHOICES.findIndex((c) => c.template === st.searchTemplate);
+      const next = SEARCH_CHOICES[(at + 1) % SEARCH_CHOICES.length]!;
+      return [
+        el('h1', { text: 'Search and starting' }),
+        button('set-search', `Search with: ${st.search}`, set('search', next.template)),
+        say('Words typed into the address field are looked up there. Press to change. Another search site can be put in config.json.'),
+        button('set-start', st.startWith === 'last' ? 'Open with: the last site' : 'Open with: Home', set('startWith', st.startWith === 'last' ? 'home' : 'last')),
+        back,
+      ];
+    }
+    case 'display': {
+      const at = PAGE_SIZES.reduce((best, size, i) => (Math.abs(size - st.pageSize) < Math.abs(PAGE_SIZES[best]! - st.pageSize) ? i : best), 0);
+      const step = (by: number): number => PAGE_SIZES[Math.min(PAGE_SIZES.length - 1, Math.max(0, at + by))]!;
+      return [
+        el('h1', { text: 'Size and video' }),
+        say('The size of everything on every site. Each site can also be made bigger or smaller from the menu.'),
+        el('div', { cls: 'pair' }, [
+          button('set-size-down', 'Smaller', set('pageSize', step(-1)), at === 0),
+          button('set-size-reset', `${Math.round(st.pageSize * 100)}%`, set('pageSize', null)),
+          button('set-size-up', 'Bigger', set('pageSize', step(1)), at === PAGE_SIZES.length - 1),
+        ]),
+        button('set-decode', `Decode video on the graphics chip: ${yesNo(st.hardwareDecode)}`, set('hardwareDecode', !st.hardwareDecode)),
+        say('Can make video smoother on some boxes and break it on others. Takes effect the next time Longboard starts.'),
+        back,
+      ];
+    }
+    case 'ads': {
+      const words = { sites: 'each site has its own switch', everywhere: 'on for every site', off: 'off for every site' } as const;
+      const about = {
+        sites: 'It starts off on the sites in the list below and on everywhere else. The menu has the switch for the site in front.',
+        everywhere: 'On for every site, the list below ignored. A site you switch off yourself from the menu stays off.',
+        off: 'Nothing is refused anywhere, and the filter list is not downloaded.',
+      } as const;
+      const mode = st.adBlocking.mode;
+      const next = BLOCKING_MODES[(BLOCKING_MODES.indexOf(mode) + 1) % BLOCKING_MODES.length]!;
+      const off = st.adBlocking.startsOff.filter((e) => e.off).length;
+      return [
+        el('h1', { text: 'Ad blocking' }),
+        button('set-ads', `Ad blocking: ${words[mode]}`, set('adBlocking', next === 'sites' ? null : next)),
+        say(`${about[mode]} Press to change.`),
+        button('set-ads-list', `Sites where it starts off (${off})`, go('adsList')),
+        say(`Filter list: EasyList, ${st.adBlocking.listUpdated}. It is downloaded from easylist.to every four days.`),
+        once('set-ads-update', 'Download the filter list now', 'updateFilters'),
+        back,
+      ];
+    }
+    case 'adsList': {
+      const add = el('input', { id: 'starts-off-add' });
+      add.type = 'text';
+      add.placeholder = 'Add a site: example.com';
+      add.setAttribute('aria-label', 'Add a site');
+      add.setAttribute('enterkeyhint', 'done');
+      add.autocapitalize = 'off';
+      add.spellcheck = false;
+      add.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const text = add.value.trim();
+        if (!text) return;
+        add.value = '';
+        add.blur();
+        tell({ kind: 'startsOff', op: 'add', domain: text });
+      });
+      const items: Node[] = [
+        el('h1', { text: 'Sites where ad blocking starts off' }),
+        say('Sites whose advertising is left alone unless you switch blocking on for them. The reviewed list comes with Longboard; you can add to it and take sites off it. Press a site to change it.'),
+        add,
+      ];
+      st.adBlocking.startsOff.forEach((entry, i) => {
+        const what = entry.from === 'you' ? 'added by you: press to remove' : entry.off ? 'reviewed list: press to take off' : 'taken off by you: press to put back';
+        items.push(button(`starts-off-${i}`, `${entry.domain} (${what})`, () => tell({ kind: 'startsOff', op: 'toggle', domain: entry.domain })));
+      });
+      if (!st.adBlocking.startsOff.length) items.push(say('The list is empty.'));
+      items.push(button('settings-back', 'Back to ad blocking', go('ads')));
+      return items;
+    }
+    case 'privacy':
+      return [
+        el('h1', { text: 'Privacy and site data' }),
+        twice('clear-data', 'Sign out of every site and clear what sites have stored', 'Press again to sign out everywhere', 'clearSiteData'),
+        once('clear-cache', 'Clear saved copies of pages and pictures', 'clearCache'),
+        once('clear-home', 'Clear the recently opened sites on Home', 'clearHome'),
+        twice('clear-sites', `Forget every site's own settings (${st.sitesWithChoices})`, "Press again to forget every site's settings", 'forgetSites'),
+        say("A site's own settings are what you allowed it, its size and its ad-blocking switch."),
+        el('p', { text: BACKGROUND }),
+        back,
+      ];
+    case 'access': {
+      const items: Node[] = [el('h1', { text: 'What sites may ask for' }), say('A site has to ask before it gets any of these, and you answer for that site. Say no here and no site can even ask.')];
+      for (const kind of st.askable) {
+        const never = st.neverAsk.includes(kind.name);
+        const next = never ? st.neverAsk.filter((n) => n !== kind.name) : [...st.neverAsk, kind.name];
+        items.push(button(`ask-${kind.name}`, `Sites may ask to ${kind.words}: ${yesNo(!never)}`, set('neverAsk', next.length ? next : null)));
+      }
+      items.push(back);
+      return items;
+    }
+    case 'profiles': {
+      const items: Node[] = [
+        el('h1', { text: 'Profiles and apps' }),
+        say(`${st.profiles === 1 ? '1 profile' : `${st.profiles} profiles`} on this machine.`),
+        button('set-catalogue', `Look for reviewed profiles every day: ${yesNo(st.catalogue)}`, set('catalogue', st.catalogue ? false : null)),
+        once('set-catalogue-now', 'Look for reviewed profiles now', 'updateCatalogue'),
+        button('set-import', 'Import profiles from USB', () => tell({ kind: 'menu', action: 'importProfiles' })),
+      ];
+      s.home.apps.forEach((a, i) => {
+        const id = `set-app-${i}`;
+        items.push(
+          button(id, confirming === id ? `Press again to remove "${a.name}"` : `Remove the app "${a.name}"`, () => {
+            if (confirming === id) {
+              confirming = null;
+              tell({ kind: 'removeApp', id: a.id });
+            } else {
+              confirming = id;
+              render();
+            }
+          }),
+        );
+      });
+      items.push(back);
+      return items;
+    }
+    default:
+      return [
+        el('h1', { text: 'Settings' }),
+        button('settings-general', 'Search and starting', go('general')),
+        button('settings-display', 'Size and video', go('display')),
+        button('settings-ads', 'Ad blocking', go('ads')),
+        button('settings-privacy', 'Privacy and site data', go('privacy')),
+        button('settings-access', 'What sites may ask for', go('access')),
+        button('settings-profiles', 'Profiles and apps', go('profiles')),
+        say(`Downloads are saved in ${st.downloads}. Settings are kept in config.json in ${st.dataFolder}.`),
+        twice('settings-reset', 'Put every setting back to the usual', 'Press again to put every setting back', 'reset'),
+        button('settings-about', 'About and help', () => tell({ kind: 'menu', action: 'about' })),
+        button('settings-close', 'Close', () => tell({ kind: 'menu', action: 'close' })),
+      ];
+  }
 }
 
 /** What was downloaded in this run and how each one went. Longboard does not open the files. */
@@ -309,7 +487,7 @@ function render(): void {
   if (!strip) parts.push(home(s));
   let panel: HTMLElement | null = null;
   if (s.panel) {
-    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : promptPanel(s));
+    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : promptPanel(s));
     // The layer keeps the highlight inside an open modal dialog.
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
@@ -335,6 +513,9 @@ function render(): void {
 ipcRenderer.on('longboard:chrome-state', (_event, next: ChromeState) => {
   // A panel that opens or closes ends any typing in the Home field.
   if (state && (state.panel !== next.panel || state.surface !== next.surface)) typing = false;
+  // Settings opens on its first page each time.
+  if (next.panel === 'settings' && state?.panel !== 'settings') settingsPage = 'main';
+  if (next.panel !== 'settings') confirming = null;
   // The "add as an app" panel starts from the page's own name each time it opens.
   if (next.panel === 'addApp' && state?.panel !== 'addApp') draft = { name: next.page?.title || next.page?.site || '', ownSession: false, launcher: true };
   // The menu opened from Home is about the tile the highlight was on.
@@ -388,6 +569,12 @@ const start = (): void => {
         if (state.panel === 'prompt') tell({ kind: 'answer', allow: false, remember: false });
         // Back on the editor's panel goes back to pointing; the panel's own buttons end the editing.
         else if (state.panel === 'edit') tell({ kind: 'edit', action: 'pickAgain' });
+        // Back inside Settings goes up a page before it closes.
+        else if (state.panel === 'settings' && settingsPage !== 'main') {
+          settingsPage = settingsPage === 'adsList' ? 'ads' : 'main';
+          confirming = null;
+          render();
+        }
         else if (state.panel) tell({ kind: 'menu', action: 'close' });
         else if (state.page) tell({ kind: 'menu', action: 'resume' });
         return true;

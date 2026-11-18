@@ -163,6 +163,28 @@ meant for something else.
   Downloads entry lists the downloads of this run, how far each has got,
   and can cancel one.
 
+### 4.8 Settings **[Decision, 2026-11-18; the contents are the agent's assumption]**
+
+The menu has "Settings": a first page of headings and a page under each,
+driven like everything else. Every change takes effect at once (one says it
+needs a restart) and is kept in `config.json`, so the file and the screen are
+two ways to the same settings.
+
+| Page | What is there |
+|---|---|
+| Search and starting | The search site, stepped through by name (Google, DuckDuckGo, Bing, Brave Search). Open with Home or with the last site |
+| Size and video | Everything bigger or smaller, for every site. Decode video on the graphics chip (next start) |
+| Ad blocking | Each site has its own switch / on for every site / off for every site. The list of sites where it starts off, which can be added to and taken from. When the filter list was downloaded, and a button to download it now |
+| Privacy and site data | Sign out of every site and clear what sites stored. Clear saved copies of pages. Clear the recently opened sites. Forget every site's own settings. What Longboard downloads by itself (Hard rule 12) |
+| What sites may ask for | For each kind of access (camera, microphone, location...): may sites ask at all |
+| Profiles and apps | How many profiles there are; look for reviewed profiles daily, and now; import from USB; remove an app |
+| First page | Where downloads go and where settings are kept; put every setting back; About and help |
+
+Buttons that clear something need a second press. Not in Settings, because
+Longboard does not have them: saved passwords, autofill, history, tabs,
+languages, a choice of downloads folder (it needs a folder picker), and key
+mappings (still `config.json` only).
+
 ## 5. Ad blocking **[Decision, 2026-11-18]**
 
 Every site has an ad-blocking switch. Only the starting position differs.
@@ -188,6 +210,18 @@ The switch is in the menu, as "Ad blocking: on" or "off", with a line under
 it: how many requests were refused on this page, or why it is off (a
 verified site, or the person's choice). Pressing it changes it for that site,
 keeps the choice, and loads the page again.
+
+Settings has one setting over all sites **[Decision, Andrew, 2026-11-18]**:
+
+- **Each site has its own switch** (the usual): as in the table above.
+- **On for every site:** the list of sites where it starts off is ignored.
+  A site the person has switched off themselves, from the menu, stays off.
+- **Off for every site:** nothing is refused anywhere, the menu's switch
+  cannot be pressed, and the filter list is not downloaded.
+
+The list of sites where blocking starts off can be edited in Settings: a
+site can be added, and a reviewed site can be taken off (and put back). The
+reviewed list itself is not changed; the person's changes are kept beside it.
 
 Longboard never changes the switch by itself. Blocking means refusing network
 requests that match public filter lists. Gaps left where an advertisement

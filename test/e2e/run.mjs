@@ -1027,19 +1027,143 @@ await scenario('ad blocking', { url: `${site.origin}/ads.html`, args: [`--filter
   await sleep(600);
   check('on a verified site nothing is refused to begin with', [await until(() => verifiedPage.evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v !== null, 60), asks.adverts], ['advert,site', 2]);
   await verifiedPage.press('ContextMenu', 500);
-  check('the menu says the switch starts off there, and why', [await chrome.evaluate('document.getElementById("menu-adblock")?.textContent'), await line()], ['Ad blocking: off', 'Off to start with: this is a verified site.']);
+  check('the menu says the switch starts off there, and why', [await chrome.evaluate('document.getElementById("menu-adblock")?.textContent'), await line()], ['Ad blocking: off', 'Off to start with: this site is on the list of sites where it starts off.']);
   await reach('menu-adblock');
   await chrome.press('Enter', 900);
   check('the person can still turn it on there', [JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8'))['profile.test'], await until(() => verifiedPage.evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v === 'site', 60), await chrome.evaluate('document.getElementById("menu-adblock")?.textContent')], [{ adBlocking: true }, 'site', 'Ad blocking: on']);
 });
 
-await scenario('ad blocking left out', { url: `${site.origin}/ads.html`, config: { adBlocking: false }, args: [`--filters=${site.origin}/filters.txt`] }, async (app) => {
+await scenario('ad blocking off for every site, and a kind of access nobody may ask for', { url: `${site.origin}/ads.html`, config: { adBlocking: 'off', neverAsk: ['location'] }, args: [`--filters=${site.origin}/filters.txt`] }, async (app) => {
   const page = await app.page(site.origin);
   const chrome = await app.chrome();
   await sleep(1500);
-  check('with "adBlocking": false nothing is fetched and nothing is refused', [/ad blocking:/.test(app.log), await page.evaluate('window.__seen.join()')], [false, 'advert,site']);
+  check('with ad blocking off in Settings nothing is fetched and nothing is refused', [/ad blocking:/.test(app.log), await page.evaluate('window.__seen.join()')], [false, 'advert,site']);
+  await page.evaluate('window.__geo = new Promise((r) => navigator.geolocation.getCurrentPosition(() => r("allowed"), (e) => r(e.code === 1 ? "refused" : "other"))); 0');
+  await sleep(600);
+  check('a kind of access Settings says no site may ask for is refused without a question', [await page.evaluate('__geo'), await chrome.evaluate('document.visibilityState')], ['refused', 'hidden']);
   await page.press('ContextMenu', 500);
-  check('and the menu has no switch', await chrome.evaluate('document.getElementById("menu-adblock")'), null);
+  check("the menu's switch says so and cannot be pressed", [await chrome.evaluate('document.getElementById("menu-adblock")?.disabled'), await chrome.evaluate('document.getElementById("menu-adblock")?.nextElementSibling?.textContent')], [true, 'Ad blocking is off everywhere. Settings can turn it on.']);
+});
+
+for (const [name, config] of [
+  ['ad blocking on for every site', { adBlocking: 'everywhere' }],
+  ['a reviewed site the person took off the list', { adBlockingStartsOn: ['profile.test'] }],
+]) {
+  await scenario(name, { url: `http://profile.test:${port}/ads.html`, config, args: [`--filters=${site.origin}/filters.txt`, `--catalogue=${site.origin}/catalogue/index.json`, mapHost] }, async (app) => {
+    const page = await app.page('http://profile.test');
+    const chrome = await app.chrome();
+    await until(() => app.log, (log) => /filter list\(s\) fetched/.test(log) && /1 verified site/.test(log), 80);
+    await page.evaluate('location.reload(); 0');
+    await sleep(600);
+    check('on a site from the reviewed list, what the filter list names is refused all the same', await until(() => page.evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v !== null, 60), 'site');
+    await page.press('ContextMenu', 500);
+    check('and the menu shows the switch on, and still the person\'s to turn off', [await chrome.evaluate('document.getElementById("menu-adblock")?.textContent'), await chrome.evaluate('document.getElementById("menu-adblock")?.disabled')], ['Ad blocking: on', false]);
+  });
+}
+
+await scenario(
+  'opening with the last site',
+  { config: { startWith: 'last' }, seed: (data) => writeFileSync(join(data, 'home.json'), JSON.stringify({ recents: [{ url: `${site.origin}/article.html`, title: 'An article', at: 5 }] })) },
+  async (app) => {
+    const page = await app.page(`${site.origin}/article.html`);
+    check('Longboard starts on the site opened most recently', [!!page, await page?.evaluate('document.visibilityState')], [true, 'visible']);
+  },
+);
+
+await scenario('Settings', {}, async (app) => {
+  const chrome = await app.chrome();
+  const file = () => JSON.parse(readFileSync(join(app.userData, 'config.json'), 'utf8'));
+  const text = (id) => chrome.evaluate(`document.getElementById(${JSON.stringify(id)})?.textContent ?? null`);
+  const title = () => chrome.evaluate('document.querySelector("#panel h1")?.textContent ?? null');
+  const reach = async (id) => {
+    for (let i = 0; i < 24 && (await chrome.focused()) !== id; i++) await chrome.press('ArrowDown');
+    return chrome.focused();
+  };
+  const open = async (id) => {
+    await reach(id);
+    await chrome.press('Enter', 400);
+  };
+  await until(() => chrome.focused(), (id) => id === 'go');
+  await chrome.press('ContextMenu', 500);
+  await open('menu-settings');
+  check('the menu opens Settings on its first page', [await title(), await chrome.focused()], ['Settings', 'settings-general']);
+
+  await chrome.press('Enter', 400);
+  check('a page of Settings opens', [await title(), await chrome.focused()], ['Search and starting', 'set-search']);
+  await chrome.press('Enter', 400);
+  await chrome.press('Enter', 400);
+  check('pressing the search setting steps through the search sites, and each choice is kept in config.json', [await text('set-search'), file().search], ['Search with: DuckDuckGo', 'https://duckduckgo.com/?q=%s']);
+  await open('set-start');
+  check('opening with the last site can be chosen', [await text('set-start'), file().startWith], ['Open with: the last site', 'last']);
+  await chrome.press('Escape', 400);
+  check('Back goes up to the first page, not out of Settings', await title(), 'Settings');
+
+  await open('settings-display');
+  await chrome.press('ArrowRight');
+  await chrome.press('ArrowRight');
+  check('the size buttons can be reached', await chrome.focused(), 'set-size-up');
+  await chrome.press('Enter', 400);
+  check('Bigger makes everything bigger, for every site', [await text('set-size-reset'), file().pageSize], ['110%', 1.1]);
+  await open('set-decode');
+  check('video decoding on the graphics chip can be asked for', [await text('set-decode'), file().hardwareDecode], ['Decode video on the graphics chip: yes', true]);
+  await chrome.press('Escape', 400);
+
+  await open('settings-ads');
+  check('ad blocking starts as a switch for each site', await text('set-ads'), 'Ad blocking: each site has its own switch');
+  await chrome.press('Enter', 400);
+  check('it can be turned on for every site', [await text('set-ads'), file().adBlocking], ['Ad blocking: on for every site', 'everywhere']);
+  await chrome.press('Enter', 400);
+  check('or off for every site', [await text('set-ads'), file().adBlocking], ['Ad blocking: off for every site', 'off']);
+  await chrome.press('Enter', 400);
+  check('or back to each site\'s own switch, which is not written down as a choice', [await text('set-ads'), 'adBlocking' in file()], ['Ad blocking: each site has its own switch', false]);
+  check('the filter list is said to be what it is and where it comes from', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Filter list: EasyList, not downloaded yet. It is downloaded from easylist.to every four days.'), true);
+
+  await open('set-ads-list');
+  const entries = () => chrome.evaluate('[...document.querySelectorAll("#panel button[id^=starts-off-]")].map((b) => b.textContent)');
+  check('the list of sites where it starts off shows the reviewed sites', await entries(), ['primevideo.com (reviewed list: press to take off)', 'youtube.com (reviewed list: press to take off)']);
+  await open('starts-off-1');
+  check('pressing a reviewed site takes it off, and says whose doing that was', [await entries(), file().adBlockingStartsOn], [['primevideo.com (reviewed list: press to take off)', 'youtube.com (taken off by you: press to put back)'], ['youtube.com']]);
+  await chrome.press('Enter', 400);
+  check('pressing it again puts it back', [(await entries())[1], 'adBlockingStartsOn' in file()], ['youtube.com (reviewed list: press to take off)', false]);
+  for (let i = 0; i < 6 && (await chrome.focused()) !== 'starts-off-add'; i++) await chrome.press('ArrowUp');
+  await chrome.press('Enter', 400);
+  check('OK on the field brings the keyboard up', [await chrome.evaluate('document.activeElement?.id'), await chrome.keyboardShown()], ['starts-off-add', true]);
+  await chrome.press('Escape', 200);
+  await chrome.type('https://WWW.Example.org/some/page');
+  await chrome.press('Enter', 500);
+  check('a site typed as a person would type it is added to the list', [await entries(), file().adBlockingStartsOff], [['example.org (added by you: press to remove)', 'primevideo.com (reviewed list: press to take off)', 'youtube.com (reviewed list: press to take off)'], ['example.org']]);
+  await open('starts-off-0');
+  check('and pressing it removes it again', [(await entries()).length, 'adBlockingStartsOff' in file()], [2, false]);
+  for (let i = 0; i < 6 && (await chrome.focused()) !== 'starts-off-add'; i++) await chrome.press('ArrowUp');
+  await chrome.press('Enter', 400);
+  await chrome.press('Escape', 200);
+  await chrome.type('not a site');
+  await chrome.press('Enter', 500);
+  check('something that is not a site name is not added, and says why', [(await entries()).length, await chrome.toastText()], [2, 'That is not a site name. Try something like example.com']);
+  await chrome.press('Escape', 400);
+  check('Back from the list goes to ad blocking', await title(), 'Ad blocking');
+  await chrome.press('Escape', 400);
+
+  await open('settings-access');
+  await open('ask-camera');
+  check('a kind of access can be closed to every site', [await text('ask-camera'), file().neverAsk], ['Sites may ask to use the camera: no', ['camera']]);
+  await chrome.press('Escape', 400);
+
+  await open('settings-privacy');
+  check('Settings says what Longboard downloads by itself', ((t) => ['no usage data', 'Longboard-Profiles repository', 'easylist.to'].map((w) => t.includes(w)))(await chrome.evaluate('document.getElementById("panel").textContent')), [true, true, true]);
+  await chrome.press('Enter', 400);
+  check('a scripted run is not let near the button that signs out of every site', [await text('clear-data'), await chrome.toastText()], ['Sign out of every site and clear what sites have stored', 'Blocked: automation mode never activates purchase or sign-up controls']);
+  await open('clear-sites');
+  check("forgetting every site's settings asks first", await text('clear-sites'), "Press again to forget every site's settings");
+  await chrome.press('Enter', 600);
+  check('and the second press does it', await until(() => chrome.toastText(), (t) => /^Forgotten/.test(t ?? ''), 40), "Forgotten: every site's answers, size and ad-blocking switch");
+  await chrome.press('Escape', 400);
+
+  await open('settings-reset');
+  await chrome.press('Enter', 500);
+  check('putting everything back takes two presses and leaves no settings behind', file(), {});
+  await chrome.press('Escape', 400);
+  check('Back on the first page closes Settings', await chrome.evaluate('document.getElementById("panel")'), null);
 });
 
 await scenario('a site added as an app', { url: `${site.origin}/home.html` }, async (app) => {

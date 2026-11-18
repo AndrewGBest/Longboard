@@ -5,12 +5,13 @@ import { join } from 'node:path';
 import { parseConfig, type UserConfig } from '../shared/config';
 import { resolveAddress } from '../shared/address';
 import { DEFAULT_INDEX_URL } from '../shared/catalogue';
-import { DEFAULT_FILTER_LISTS, parseVerified } from '../shared/adblock';
+import { blockingMode, DEFAULT_FILTER_LISTS, effectiveVerified, parseVerified } from '../shared/adblock';
+import { changeSetting, resetSettings } from '../shared/settings';
 import { FilterStore } from './adblock';
 import { createBrowser } from './browser';
 import { refreshCatalogue } from './catalogue';
 import { ProfileStore } from './profiles';
-import { readJson } from './store';
+import { readJson, writeJson } from './store';
 import { browserUserAgent } from './useragent';
 
 const argv = process.argv.slice(1);
@@ -32,11 +33,11 @@ interface Components {
 const components = (electron as unknown as { components?: Components }).components;
 
 /** Reads <user data>/config.json. A missing file is normal; a broken one is reported and ignored. */
-function loadConfig(): UserConfig {
+function loadConfig(): { config: UserConfig; raw: unknown } {
   const raw = readJson(join(app.getPath('userData'), 'config.json'), (why) => console.error(`[longboard] config.json could not be read: ${why}`));
   const { config, problems } = parseConfig(raw);
   for (const problem of problems) console.error(`[longboard] config.json: ${problem}`);
-  return config;
+  return { config, raw };
 }
 
 /** The address to open at start: `--url=` or a bare address on the command line. Null shows Home. */
@@ -52,7 +53,9 @@ async function main(): Promise<void> {
   }
 
   // Before the browser starts: its switches cannot be changed afterwards.
-  const config = loadConfig();
+  const loaded = loadConfig();
+  const config = loaded.config;
+  let rawConfig = loaded.raw;
   if (config.hardwareDecode) {
     // Chromium's own switches for decoding video on the graphics chip on
     // Linux, which it does not promise to support. Off unless asked for.
@@ -107,14 +110,16 @@ async function main(): Promise<void> {
     console.log('[longboard] widevine component:', JSON.stringify(widevine));
   })();
 
-  // Ad blocking (DESIGN.md section 5). The verified sites come from the
-  // catalogue once it has been fetched, and until then from the copy that
-  // ships with Longboard, so a verified site never starts with blocking on.
-  const readVerified = (): string[] => {
+  // Ad blocking (DESIGN.md section 5). The reviewed list of sites where it
+  // starts off comes from the catalogue once that has been fetched, and until
+  // then from the copy that ships with Longboard, so such a site never starts
+  // with blocking on. The person's own changes to the list are in config.json.
+  const readReviewed = (): string[] => {
     const fetched = readJson(join(data, 'catalogue', 'verified-sites.json'));
     return parseVerified(fetched ?? readJson(join(app.getAppPath(), 'profiles', 'verified-sites.json')));
   };
-  let verified = readVerified();
+  let reviewed = readReviewed();
+  let startsOff = effectiveVerified(reviewed, config.adBlockingStartsOff, config.adBlockingStartsOn);
   // Its own session, kept in memory: no cookies go out and none are kept.
   const fetcher = session.fromPartition('longboard-catalogue');
   const fetchBytes = async (url: string, maxBytes: number): Promise<Buffer> => {
@@ -125,7 +130,6 @@ async function main(): Promise<void> {
     return bytes;
   };
   const note = (line: string): void => console.log(`[longboard] ${line}`);
-  const adBlocking = config.adBlocking !== false;
   // A scripted run uses the lists it is pointed at with --filters=, and fetches none otherwise.
   const filterStore = new FilterStore({
     folder: join(data, 'filters'),
@@ -134,7 +138,40 @@ async function main(): Promise<void> {
     now: () => Date.now(),
     note,
   });
-  if (adBlocking) filterStore.load();
+  const mayFetchLists = (): boolean => !options.automation || value('filters') !== undefined;
+  /** Gets the filters ready when ad blocking is in use: from disk, then from the publisher if the copy is old or `force`. */
+  const readyFilters = async (force = false): Promise<boolean> => {
+    if (blockingMode(config.adBlocking) === 'off') return false;
+    if (!filterStore.filters) filterStore.load();
+    return mayFetchLists() ? filterStore.refresh(force) : false;
+  };
+  if (blockingMode(config.adBlocking) !== 'off') filterStore.load();
+
+  // The reviewed catalogue, fetched in the background and never in the way
+  // of starting (DESIGN.md section 9). A scripted run does not fetch it
+  // unless it is pointed at a catalogue of its own.
+  const indexUrl = value('catalogue') ?? DEFAULT_INDEX_URL;
+  const fetchCatalogue = async (force: boolean): Promise<boolean> => {
+    if (options.automation && !value('catalogue')) return false;
+    const changed = await refreshCatalogue({ folder: join(data, 'catalogue'), indexUrl, now: () => Date.now(), note, fetchBytes }, force);
+    if (!changed) return false;
+    profiles.load();
+    reviewed = readReviewed();
+    startsOff = effectiveVerified(reviewed, config.adBlockingStartsOff, config.adBlockingStartsOn);
+    return true;
+  };
+
+  /** Writes config.json after a change made on the Settings screen, and puts the change into effect. */
+  const saveConfig = (next: Record<string, unknown>): void => {
+    rawConfig = next;
+    writeJson(join(data, 'config.json'), next);
+    const parsed = parseConfig(next).config;
+    // The same object the rest of the shell holds, so everything sees the change.
+    for (const key of Object.keys(config) as (keyof UserConfig)[]) delete config[key];
+    Object.assign(config, parsed);
+    startsOff = effectiveVerified(reviewed, config.adBlockingStartsOff, config.adBlockingStartsOn);
+    void readyFilters();
+  };
 
   const browser = createBrowser({
     options,
@@ -149,24 +186,26 @@ async function main(): Promise<void> {
     size: /^\d{3,5}x\d{3,5}$/.test(value('size') ?? '') ? (value('size') as string).split('x').map(Number) as [number, number] : undefined,
     ready: componentsReady,
     profiles,
-    adBlock: { enabled: adBlocking, filters: () => filterStore.filters, verified: () => verified },
+    adBlock: {
+      mode: () => blockingMode(config.adBlocking),
+      filters: () => filterStore.filters,
+      verified: () => startsOff,
+      reviewed: () => reviewed,
+      fetchedAt: () => filterStore.fetchedAt,
+      refresh: () => readyFilters(true),
+    },
+    settings: {
+      set: (name, value) => {
+        const next = changeSetting(rawConfig, name, value);
+        if (next) saveConfig(next);
+        return next !== null;
+      },
+      reset: () => saveConfig(resetSettings(rawConfig)),
+      refreshCatalogue: () => fetchCatalogue(true),
+    },
   });
-  // The filter lists, in the background like the catalogue below.
-  if (adBlocking && (!options.automation || value('filters'))) void filterStore.refresh(value('filters') !== undefined);
-  // The reviewed catalogue, in the background and never in the way of starting
-  // (DESIGN.md section 9). A scripted run does not fetch it unless it is
-  // pointed at a catalogue of its own.
-  const indexUrl = value('catalogue') ?? DEFAULT_INDEX_URL;
-  if (config.catalogue !== false && (!options.automation || value('catalogue'))) {
-    void refreshCatalogue(
-      { folder: join(data, 'catalogue'), indexUrl, now: () => Date.now(), note, fetchBytes },
-      value('catalogue') !== undefined,
-    ).then((changed) => {
-      if (!changed) return;
-      profiles.load();
-      verified = readVerified();
-    });
-  }
+  void readyFilters(value('filters') !== undefined);
+  if (config.catalogue !== false) void fetchCatalogue(value('catalogue') !== undefined);
 
   const { win } = browser;
   // Started again while already running (an entry in the TV's app list was

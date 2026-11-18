@@ -32,6 +32,10 @@ Video's rules, so the scope is written down carefully.
   examples.
 - **Starts on everywhere else.**
 - **Longboard never flips the switch by itself.**
+- **The person can set it for all sites at once** (Andrew, 2026-11-18): on
+  everywhere, ignoring the list of sites where it starts off, or off
+  everywhere. They can also edit that list for themselves. Longboard ships
+  with neither: the starting positions above are what a new copy does.
 - **What it is:** refusing network requests that match public filter lists,
   as many browsers do. As built: only requests are refused. Nothing on a
   page is hidden, no script is put into a page, no response or header is

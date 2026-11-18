@@ -3,6 +3,29 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: Settings, the ad-blocking override, and editing the list
+
+Andrew, in chat: make a Settings with "all the typical things you'd want to
+find in a browser settings", a setting to have ad blocking "fully disabled,
+or fully enabled for every site ignoring the list that turns it off", and "a
+place to edit the list".
+
+How the agent built it. Each row is **an assumption** where Andrew did not say.
+
+| Topic | Chosen | Why |
+|---|---|---|
+| What "typical" comes to here | Search site, what to open with, size of everything, hardware video decoding, ad blocking, clearing site data / cache / recent sites / per-site settings, which kinds of access sites may ask for, profile updates and import, removing apps, reset, and the disclosure of background downloads | The settings a mainstream browser has that mean something in Longboard. Left out because Longboard has no such thing: passwords, autofill, history, tabs, languages. Left out for lack of a folder picker: the downloads folder |
+| Where settings are kept | `config.json`, the file that could already be edited by hand. The screen changes one key at a time and keeps everything else in the file | One place, two ways in. A second file would raise the question of which wins |
+| "Fully enabled for every site" | On everywhere, the starts-off list ignored. A site the person switched off themselves from the menu stays off | The request was to ignore *the list*. A person's own "off" for one site is not the list, and overriding it would be Longboard changing a switch they set (Hard rule 5). **If Andrew meant on with no exceptions, say so** |
+| "Fully disabled" | Nothing refused anywhere, whatever a site's own switch says; the menu's switch is greyed out and says why; the filter list is not downloaded | "Fully" |
+| "The list" | The list of sites where ad blocking starts off (the verified sites). The person can add a site and take a reviewed one off; their changes are kept in `config.json` beside the reviewed list, which is not altered | It is "the list that turns it off" in Andrew's words. The filter list (EasyList) is changed by `"filterLists"` in `config.json`, not on screen: it is addresses of lists, not something to edit by remote |
+| Hard rule 5 | Not reworded. It says ad blocking is "a per-site switch the person controls", never changed for them, with no shipped default that turns it on for a verified site. All still true: the setting over all sites is the person's, and a new copy ships on "each site has its own switch". **For Andrew:** the rule's wording does not mention the setting over all sites; reword it if you want it to |
+| Hard rule 12 | Its "disclosed in Settings" is now literally true: the Privacy page says what is downloaded and how to stop it | Closes the question the agent raised earlier |
+| Search sites offered by name | Google (the usual), DuckDuckGo, Bing, Brave Search | The agent's pick of well-known ones; the addresses are from the agent's memory of their ordinary search links, and each was checked only for being a valid search address, **not by searching with it**. Any other can still be put in `config.json` |
+| Kinds of access | A kind can be closed to every site: then no site can even ask, and earlier yeses for it stop counting while it is closed | The usual browser setting "sites can ask / don't allow sites to ask" |
+| Clearing | "Sign out of every site" and "forget every site's settings" need a second press | They cannot be undone |
+| A scripted run and the sign-out button | The automation guard stops it, because it says "sign out" | Found by the test. Left that way: a script has no business signing the person out (the guard's account words). It means the sign-out button itself has only been read, never pressed, by any test |
+
 ## 2026-11-18: phase 5, ad blocking
 
 Andrew, in chat: "start phase 5, ad blocking". How it was built; each row is

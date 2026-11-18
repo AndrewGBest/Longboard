@@ -18,7 +18,11 @@
 // wins over the built-in one for that key.
 import type { Action } from './actions';
 import { isSearchTemplate } from './address';
-import { MAX_LISTS, parseFilterLists } from './adblock';
+import { BLOCKING_MODES, blockingMode, MAX_LISTS, parseDomains, parseFilterLists, type BlockingMode } from './adblock';
+
+/** The kinds of access the person can say no site may ask for (the names main/permissions.ts asks about). */
+export const NEVER_ASKABLE = ['camera', 'microphone', 'location', 'notifications', 'clipboard', 'midi', 'pointerLock'] as const;
+const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk'] as const;
 
 export const ACTION_NAMES = [
   'up', 'down', 'left', 'right', 'select', 'back', 'playPause',
@@ -33,8 +37,23 @@ export interface UserConfig {
   hardwareDecode?: boolean;
   /** Set to false to stop the daily download of the profile catalogue. */
   catalogue?: boolean;
-  /** Set to false to leave ad blocking out altogether: no switch, no filter lists fetched. */
-  adBlocking?: boolean;
+  /**
+   * Ad blocking over all sites: "sites" (each site's own switch, the usual),
+   * "everywhere" (on for every site, ignoring the list of sites where it
+   * starts off), or "off" (nothing refused anywhere, no filter list fetched).
+   * `false` also means "off".
+   */
+  adBlocking?: BlockingMode;
+  /** Sites the person added to the list where ad blocking starts off. */
+  adBlockingStartsOff?: string[];
+  /** Reviewed sites the person took off that list. */
+  adBlockingStartsOn?: string[];
+  /** What Longboard opens with: "home" (the usual) or "last", the site opened most recently. */
+  startWith?: 'home' | 'last';
+  /** Everything bigger or smaller, on top of the TV scale: 1 is unchanged. */
+  pageSize?: number;
+  /** Kinds of access no site may even ask for: "camera", "location"... */
+  neverAsk?: string[];
   /** The public filter lists to use instead of the usual one: https addresses. */
   filterLists?: string[];
   /** Where typed words are searched for: an https address with %s where the words go. */
@@ -76,8 +95,26 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
   }
 
   if (r['adBlocking'] !== undefined) {
-    if (typeof r['adBlocking'] === 'boolean') config.adBlocking = r['adBlocking'];
-    else problems.push('"adBlocking" must be true or false');
+    if (typeof r['adBlocking'] === 'boolean' || (BLOCKING_MODES as readonly unknown[]).includes(r['adBlocking'])) config.adBlocking = blockingMode(r['adBlocking']);
+    else problems.push('"adBlocking" must be "sites", "everywhere" or "off"');
+  }
+  for (const name of ['adBlockingStartsOff', 'adBlockingStartsOn'] as const) {
+    if (r[name] === undefined) continue;
+    const domains = parseDomains(r[name]);
+    if (domains) config[name] = domains;
+    else problems.push(`"${name}" must be a list of domains such as "example.com"`);
+  }
+  if (r['startWith'] !== undefined) {
+    if (r['startWith'] === 'home' || r['startWith'] === 'last') config.startWith = r['startWith'];
+    else problems.push('"startWith" must be "home" or "last"');
+  }
+  if (r['pageSize'] !== undefined) {
+    if (typeof r['pageSize'] === 'number' && r['pageSize'] >= 0.5 && r['pageSize'] <= 2) config.pageSize = r['pageSize'];
+    else problems.push('"pageSize" must be a number from 0.5 to 2');
+  }
+  if (r['neverAsk'] !== undefined) {
+    if (Array.isArray(r['neverAsk']) && r['neverAsk'].every((n) => typeof n === 'string' && (NEVER_ASKABLE as readonly string[]).includes(n))) config.neverAsk = [...new Set(r['neverAsk'] as string[])];
+    else problems.push(`"neverAsk" must be a list from: ${NEVER_ASKABLE.join(', ')}`);
   }
   if (r['filterLists'] !== undefined) {
     const lists = parseFilterLists(r['filterLists']);
@@ -123,7 +160,7 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     }
   }
   for (const name of Object.keys(r)) {
-    if (name !== 'zoom' && name !== 'keys' && name !== 'buttons' && name !== 'hardwareDecode' && name !== 'search' && name !== 'catalogue' && name !== 'adBlocking' && name !== 'filterLists') problems.push(`unknown setting "${name.slice(0, 40)}"`);
+    if (name !== 'zoom' && name !== 'keys' && name !== 'buttons' && name !== 'hardwareDecode' && name !== 'search' && name !== 'catalogue' && name !== 'adBlocking' && name !== 'filterLists' && !(SETTING_KEYS as readonly string[]).includes(name)) problems.push(`unknown setting "${name.slice(0, 40)}"`);
   }
   return { config, problems };
 }

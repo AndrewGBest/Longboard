@@ -50,12 +50,14 @@ Add an address to open it straight away: `npm start -- https://example.com`.
 | Arrows, D-pad | Move the highlight; scroll when there is nothing to move to |
 | OK, Enter, A | Select. On a text field: bring up the on-screen keyboard |
 | Back, Backspace, Escape, B | Back; Home from a site's first page |
-| Menu key, Ctrl+O, Start | The menu: address, Home, Back, Reload, zoom, pointer, the ad-blocking switch for the site, add as an app, make or edit a profile |
+| Menu key, Ctrl+O, Start | The menu: address, Home, Back, Reload, zoom, pointer, the ad-blocking switch for the site, add as an app, make or edit a profile, Settings |
 | F2, right stick click | Pointer mode on and off |
 | Ctrl+Q | Quit |
 
-Keys and controller buttons can be remapped in `~/.config/Longboard/config.json`
-(see `src/shared/config.ts`).
+Settings (in the menu) has the search site, sizes, ad blocking, privacy, what
+sites may ask for, and profiles. Keys and controller buttons can be remapped
+in `~/.config/Longboard/config.json`, which is also where Settings keeps its
+choices (see `src/shared/config.ts`).
 
 ## What is missing
 

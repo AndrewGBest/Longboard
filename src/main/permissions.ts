@@ -73,10 +73,12 @@ export function askablesFor(permission: string, mediaTypes: readonly string[] = 
  *   and screen capture (each needs a chooser Longboard does not have),
  *   opening other programs, and anything not known here.
  */
-export function permissionDecision(permission: string, saved: SitePermissions | undefined, mediaTypes: readonly string[] = []): PermissionDecision {
+export function permissionDecision(permission: string, saved: SitePermissions | undefined, mediaTypes: readonly string[] = [], never: readonly string[] = []): PermissionDecision {
   if (permission === 'fullscreen' || permission === 'clipboard-sanitized-write') return { kind: 'grant' };
   const names = askablesFor(permission, mediaTypes);
   if (!names) return { kind: 'deny' };
+  // A kind of access the person has said no site may have, in Settings.
+  if (names.some((n) => never.includes(n))) return { kind: 'deny' };
   const answers = saved?.answers ?? {};
   if (names.some((n) => answers[n] === 'denied')) return { kind: 'deny' };
   const open = names.filter((n) => answers[n] !== 'granted');
@@ -89,8 +91,8 @@ export function permissionDecision(permission: string, saved: SitePermissions | 
  * playback is the exception, because there "not asked yet" must not read as
  * refused before the site has made its request.
  */
-export function hasPermission(permission: string, saved: SitePermissions | undefined, mediaTypes: readonly string[] = []): boolean {
-  const decision = permissionDecision(permission, saved, mediaTypes);
+export function hasPermission(permission: string, saved: SitePermissions | undefined, mediaTypes: readonly string[] = [], never: readonly string[] = []): boolean {
+  const decision = permissionDecision(permission, saved, mediaTypes, never);
   return decision.kind === 'grant' || (decision.kind === 'ask' && permission === 'mediaKeySystem');
 }
 

@@ -91,6 +91,12 @@ export class FilterStore {
     return this.set;
   }
 
+  /** When the lists were last fetched, or null when they never were. */
+  get fetchedAt(): number | null {
+    const at = (readJson(join(this.deps.folder, 'state.json')) as { fetchedAt?: unknown } | undefined)?.fetchedAt;
+    return typeof at === 'number' && Number.isFinite(at) ? at : null;
+  }
+
   /** Reads what an earlier run left. Never throws. */
   load(): void {
     const { folder, note } = this.deps;

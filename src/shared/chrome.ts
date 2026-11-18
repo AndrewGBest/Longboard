@@ -3,8 +3,9 @@
 // world of a view that only ever loads Longboard's own file; no website can
 // send or receive any of this.
 import type { RecentSite } from './home';
+import type { BlockingMode, StartsOffEntry } from './adblock';
 
-export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads';
+export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings';
 
 export interface ChromeState {
   /** What fills the window behind any panel. */
@@ -30,8 +31,8 @@ export interface ChromeState {
     profile: string | null;
     /** What this site has been allowed or refused, in words, or null when nothing was ever answered. */
     answers: string | null;
-    /** The ad-blocking switch for this site, and a line about it; null when ad blocking is left out in config.json. */
-    adBlocking: { on: boolean; note: string } | null;
+    /** The ad-blocking switch for this site and a line about it. `locked` when Settings has ad blocking off everywhere; null when the page is not a website. */
+    adBlocking: { on: boolean; note: string; locked: boolean } | null;
     /** The app this site was added as, if it was. */
     app: { id: string; name: string } | null;
     /** Whether the TV's app list can be written to on this system. */
@@ -48,6 +49,31 @@ export interface ChromeState {
     /** How many things are marked in all. */
     marked: number;
   } | null;
+  /** What the Settings screen shows, while it is open. */
+  settings: {
+    /** The search engine by name, and the address it stands for. */
+    search: string;
+    searchTemplate: string;
+    startWith: 'home' | 'last';
+    pageSize: number;
+    adBlocking: {
+      mode: BlockingMode;
+      /** When the filter list was last downloaded, in words. */
+      listUpdated: string;
+      startsOff: StartsOffEntry[];
+    };
+    /** Whether the reviewed catalogue is downloaded daily, and how many profiles there are. */
+    catalogue: boolean;
+    profiles: number;
+    hardwareDecode: boolean;
+    /** Kinds of access no site may ask for, and all the kinds there are with their words. */
+    neverAsk: string[];
+    askable: Array<{ name: string; words: string }>;
+    /** How many sites have settings of their own (answers, size, ad blocking). */
+    sitesWithChoices: number;
+    downloads: string;
+    dataFolder: string;
+  } | null;
   /** The question being asked, while panel is 'prompt'. */
   prompt:
     /** A site wants something it has to be allowed: `wants` says what, in plain words. */
@@ -61,10 +87,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'settings' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'downloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'settings', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -75,6 +101,11 @@ export type ChromeMessage =
   | { kind: 'openApp'; id: string }
   /** Take a tile off Home. Removing an app also removes what `removeApp` in the menu does. */
   | { kind: 'cancelDownload'; id: number }
+  /** A change made on the Settings screen: a setting by its config.json name; null puts it back to the usual. */
+  | { kind: 'setting'; name: string; value: unknown }
+  /** The list of sites where ad blocking starts off: add a typed site, or press an entry. */
+  | { kind: 'startsOff'; op: 'add' | 'toggle'; domain: string }
+  | { kind: 'settingsAction'; action: SettingsAction }
   /** A site's icon, drawn here and handed back as a PNG data: address; null when it could not be drawn. */
   | { kind: 'icon'; id: number; png: string | null }
   | { kind: 'removeRecent'; url: string }
@@ -86,6 +117,9 @@ export type ChromeMessage =
   | { kind: 'menu'; action: MenuAction }
   /** `remember` false is "not now": the question comes again another time. */
   | { kind: 'answer'; allow: boolean; remember?: boolean };
+
+export type SettingsAction = 'clearSiteData' | 'clearCache' | 'clearHome' | 'forgetSites' | 'updateFilters' | 'updateCatalogue' | 'reset';
+export const SETTINGS_ACTIONS: readonly SettingsAction[] = ['clearSiteData', 'clearCache', 'clearHome', 'forgetSites', 'updateFilters', 'updateCatalogue', 'reset'];
 
 export type EditAction = 'include' | 'exclude' | 'row' | 'player' | 'wider' | 'narrower' | 'pickAgain' | 'save' | 'discard';
 export const EDIT_ACTIONS: readonly EditAction[] = ['include', 'exclude', 'row', 'player', 'wider', 'narrower', 'pickAgain', 'save', 'discard'];
