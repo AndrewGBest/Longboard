@@ -41,7 +41,9 @@ Andrew said to start it. Built, tested and pushed.
 
 **Known limits:** one list, English-language sites mostly; no way to pick
 lists or see what was refused from the TV; a request from inside a frame is
-judged against the top page.
+judged against the top page; requests a site makes from a background
+worker (not from a page) are not filtered (from reading the code: they
+carry no page to judge them by).
 
 ## 2026-11-18, later still: gaps closed after "keep going"
 
