@@ -3,6 +3,26 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: phase 5, ad blocking
+
+Andrew, in chat: "start phase 5, ad blocking". How it was built; each row is
+**an assumption by the agent** where DESIGN.md did not already say.
+
+| Topic | Chosen | Why |
+|---|---|---|
+| **Runtime dependency: `@ghostery/adblocker` 2.20.3, MPL-2.0** | Only the core request matcher. Its own dependencies are MPL-2.0 except `tldts-experimental`, MIT (checked with `npm view` on 2026-11-18) | Matching tens of thousands of filter rules quickly is real work and this is a maintained implementation. MPL-2.0 code may be combined into a GPL work (Mozilla's MPL 2.0 FAQ, question 14) |
+| Not the library's Electron wrapper | Longboard installs its own request handler | The wrapper also injects scripts and styles into pages and adds headers. Hard rules 4 and 5 allow refusing requests and nothing else |
+| What a "block" is | The request is cancelled. Hiding filters, scriptlets, HTML and header filters are not even loaded; a "serve a stand-in" filter becomes a plain cancel | Same rules. The cost is visible gaps where ads were, and more sites noticing. Longboard does nothing about a site that notices (rule 5: never anti-detection) |
+| Which list | EasyList alone, from `https://easylist.to/easylist/easylist.txt`; `"filterLists"` in `config.json` replaces it | The design says ad blocking. EasyList is the standard advertising list; tracker and annoyance lists are a wider promise than was made. Dual licensed GPL-3.0-or-later / CC BY-SA 3.0-or-later (https://easylist.to/pages/licence.html) |
+| Lists are fetched, never shipped | Downloaded whole from the publisher every four days, no cookies | Hard rule 1 (no third-party material in the repository) and rule 12 (a disclosed background request that says nothing about sites visited). EasyList's own header asks for an update every four days at most (the agent's recollection of the "Expires" line, not re-read) |
+| Before a list has arrived | Nothing is refused, and the menu says so | First start, or no network. The alternative, shipping a list, breaks rule 1 |
+| Verified sites before the catalogue has arrived | A copy of `verified-sites.json` ships with Longboard and is used until the catalogue's own has been fetched | Otherwise a verified site would start with blocking on at first launch, which rule 5 forbids. It is the project's own file, not third-party material |
+| Where the switch is | The menu, per site, with the count of refused requests or the reason it is off. Pressing it keeps the choice and reloads the page | DESIGN.md asks for a switch on every site. A reload is what makes the page match the switch |
+| "Settings" | `"adBlocking": false` and `"filterLists"` in `config.json`; disclosure in the About panel. No settings screen | There is no settings screen for anything yet. **For Andrew:** Hard rule 12 says both background requests are "disclosed in Settings". They are disclosed in the About panel, because there is no Settings. The agent did not reword the rule; either the wording or the app should change |
+| The top-level page | Never refused, whatever a list says | The person asked for it. A list could otherwise stop a site opening at all |
+| Which page a request belongs to | The page in front in the view the request came from, for both the on/off decision and "is this another site's request" | Simple and predictable. A request from inside an embedded frame is judged against the top page, not the frame |
+| Rule checks | `onBeforeRequest` and the library may appear only in `src/main/adblock.ts`; that file may not mention redirects, headers or injection; the wrapper packages are banned | The old check banned the words "adblock" everywhere "until the ad-blocking phase" |
+
 ## 2026-11-18: gaps closed by the agent after Andrew said "keep going"
 
 All **assumptions**: Andrew asked for more work without saying what, and ad

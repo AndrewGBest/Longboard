@@ -8,7 +8,9 @@ export const NOTICE =
 export const BACKGROUND =
   'Longboard sends no usage data. Once a day it downloads the list of reviewed profiles and verified sites from the ' +
   'Longboard-Profiles repository on GitHub; the whole list is fetched, so nothing is revealed about the sites you visit. ' +
-  'Put "catalogue": false in config.json to stop it.';
+  'Put "catalogue": false in config.json to stop it. ' +
+  'For ad blocking it downloads a public filter list, EasyList, from its authors at easylist.to every four days, also whole. ' +
+  'Put "adBlocking": false in config.json to leave ad blocking out and stop that download.';
 
 export const HELP: readonly (readonly [string, string])[] = [
   ['Arrows or D-pad', 'Move'],

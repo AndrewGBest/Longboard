@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { parseConfig, type UserConfig } from '../shared/config';
 import { resolveAddress } from '../shared/address';
 import { DEFAULT_INDEX_URL } from '../shared/catalogue';
+import { DEFAULT_FILTER_LISTS, parseVerified } from '../shared/adblock';
+import { FilterStore } from './adblock';
 import { createBrowser } from './browser';
 import { refreshCatalogue } from './catalogue';
 import { ProfileStore } from './profiles';
@@ -105,6 +107,35 @@ async function main(): Promise<void> {
     console.log('[longboard] widevine component:', JSON.stringify(widevine));
   })();
 
+  // Ad blocking (DESIGN.md section 5). The verified sites come from the
+  // catalogue once it has been fetched, and until then from the copy that
+  // ships with Longboard, so a verified site never starts with blocking on.
+  const readVerified = (): string[] => {
+    const fetched = readJson(join(data, 'catalogue', 'verified-sites.json'));
+    return parseVerified(fetched ?? readJson(join(app.getAppPath(), 'profiles', 'verified-sites.json')));
+  };
+  let verified = readVerified();
+  // Its own session, kept in memory: no cookies go out and none are kept.
+  const fetcher = session.fromPartition('longboard-catalogue');
+  const fetchBytes = async (url: string, maxBytes: number): Promise<Buffer> => {
+    const response = await fetcher.fetch(url, { credentials: 'omit', cache: 'no-store', redirect: 'error' });
+    if (!response.ok) throw new Error(`${response.status} for ${new URL(url).pathname}`);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > maxBytes) throw new Error(`${new URL(url).pathname} is larger than expected`);
+    return bytes;
+  };
+  const note = (line: string): void => console.log(`[longboard] ${line}`);
+  const adBlocking = config.adBlocking !== false;
+  // A scripted run uses the lists it is pointed at with --filters=, and fetches none otherwise.
+  const filterStore = new FilterStore({
+    folder: join(data, 'filters'),
+    lists: value('filters') ? [value('filters') as string] : (config.filterLists ?? DEFAULT_FILTER_LISTS),
+    fetchBytes,
+    now: () => Date.now(),
+    note,
+  });
+  if (adBlocking) filterStore.load();
+
   const browser = createBrowser({
     options,
     config,
@@ -118,31 +149,22 @@ async function main(): Promise<void> {
     size: /^\d{3,5}x\d{3,5}$/.test(value('size') ?? '') ? (value('size') as string).split('x').map(Number) as [number, number] : undefined,
     ready: componentsReady,
     profiles,
+    adBlock: { enabled: adBlocking, filters: () => filterStore.filters, verified: () => verified },
   });
+  // The filter lists, in the background like the catalogue below.
+  if (adBlocking && (!options.automation || value('filters'))) void filterStore.refresh(value('filters') !== undefined);
   // The reviewed catalogue, in the background and never in the way of starting
   // (DESIGN.md section 9). A scripted run does not fetch it unless it is
   // pointed at a catalogue of its own.
   const indexUrl = value('catalogue') ?? DEFAULT_INDEX_URL;
   if (config.catalogue !== false && (!options.automation || value('catalogue'))) {
-    // Its own session, kept in memory: no cookies go out and none are kept.
-    const fetcher = session.fromPartition('longboard-catalogue');
     void refreshCatalogue(
-      {
-        folder: join(data, 'catalogue'),
-        indexUrl,
-        now: () => Date.now(),
-        note: (line) => console.log(`[longboard] ${line}`),
-        fetchBytes: async (url, maxBytes) => {
-          const response = await fetcher.fetch(url, { credentials: 'omit', cache: 'no-store', redirect: 'error' });
-          if (!response.ok) throw new Error(`${response.status} for ${new URL(url).pathname}`);
-          const bytes = Buffer.from(await response.arrayBuffer());
-          if (bytes.length > maxBytes) throw new Error(`${new URL(url).pathname} is larger than expected`);
-          return bytes;
-        },
-      },
+      { folder: join(data, 'catalogue'), indexUrl, now: () => Date.now(), note, fetchBytes },
       value('catalogue') !== undefined,
     ).then((changed) => {
-      if (changed) profiles.load();
+      if (!changed) return;
+      profiles.load();
+      verified = readVerified();
     });
   }
 

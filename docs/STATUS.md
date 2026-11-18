@@ -2,6 +2,47 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-18, evening: phase 5, ad blocking
+
+Andrew said to start it. Built, tested and pushed.
+
+- Requests that EasyList names are refused on sites where the switch is on.
+  Only that: nothing is hidden, injected, redirected or rewritten.
+- The switch is in the menu for every site. It starts off on verified
+  sites and on everywhere else, and only the person changes it.
+- The list is downloaded from easylist.to every four days; the About panel
+  says so. `"adBlocking": false` in `config.json` leaves it all out.
+
+**Verified, and how:**
+
+- Unit tests (25 new, 384 in all): where the switch starts, the person's
+  choice winning, the verified list, what the filter refuses and never
+  refuses, saving and re-reading filters, a failed download keeping the old.
+- End to end, two new scenarios (24 in all, 271 checks) against a made-up page and a
+  made-up list: listed requests never reach the server and the rest of the
+  page loads; nothing on the page is hidden; the menu shows the switch and
+  the count; off and on again are kept and take effect; a site on the
+  (made-up) verified list starts off and can be switched on; with
+  `"adBlocking": false` nothing is fetched or refused and there is no switch.
+- The real list, once, by script: EasyList downloaded and was ready 0.6
+  seconds after start (2 MB). On www.bbc.com the menu said 9 requests
+  refused; on www.theguardian.com, 0; on www.youtube.com the switch was off
+  as a verified site.
+
+**Not verified:**
+
+- **That any page looks or works right with blocking on.** Nobody looked at
+  a screen. Sites that break, show gaps, or put up a "turn off your ad
+  blocker" notice are to be expected, and Longboard does nothing about the
+  last on purpose.
+- The first-ever start (no list yet) on a real TV box, and the four-day
+  refresh actually happening.
+- Blocking in an app with its own sign-ins, and inside embedded frames.
+
+**Known limits:** one list, English-language sites mostly; no way to pick
+lists or see what was refused from the TV; a request from inside a frame is
+judged against the top page.
+
 ## 2026-11-18, later still: gaps closed after "keep going"
 
 Andrew said to keep going. Ad blocking is still his to start, so the agent
@@ -73,7 +114,7 @@ of it by a person on a TV; a download bigger than 200 KB.
 
 Andrew asked the agent to work through the roadmap without him. Phases 0 to
 4 are built and pushed. Phase 4's profile editor is a first, small version.
-Ad blocking (phase 5) is not started: Andrew said to leave it. Choices the agent made on the way are in
+Ad blocking (phase 5) was not started then: Andrew had said to leave it. Choices the agent made on the way are in
 DECISIONS.md, each marked as an assumption.
 
 ### What there is
@@ -167,7 +208,6 @@ it was checked by a person, with a remote, on a TV.**
 - Sites at the 960-pixel TV scale often show their phone layout.
 - A profile someone gave the person, still waiting for a yes or no, is asked
   about when a page loads, not when a site changes its address without loading.
-- The menu has no ad-blocking switch (phase 5).
 - The profile editor marks four things and writes nothing else of the
   format. Its selectors are a first guess at "things like this one". End to
   end it has only been used on a made-up page. On four real pages (a link
@@ -184,12 +224,15 @@ it was checked by a person, with a remote, on a TV.**
 
 ### Open questions for Andrew
 
-- None open. Answered on 2026-11-18: Google is the default search; the
+- Hard rule 12 says the two background requests are "disclosed in
+  Settings". There is no Settings screen; they are disclosed in the About
+  panel. Reword the rule, or should a Settings screen be built?
+- Otherwise none open. Answered on 2026-11-18: Google is the default search; the
   keyboard follows Android TV; the protected-playback row of the ad-blocking
   defaults is dropped; permissions are asked about; downloads work.
 
 **Next:** try it on the TV box with the remote. Everything after that
-depends on what that shows. Then ad blocking (phase 5), when Andrew says.
+depends on what that shows.
 
 ## 2026-11-18: project started, documents only
 

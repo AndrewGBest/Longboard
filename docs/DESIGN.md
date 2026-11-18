@@ -184,8 +184,14 @@ dropped it **[Decision, 2026-11-18]**: only the verified list starts off. On
 Linux there was also nothing to base it on, because the browser never asks
 about protected playback there.
 
+The switch is in the menu, as "Ad blocking: on" or "off", with a line under
+it: how many requests were refused on this page, or why it is off (a
+verified site, or the person's choice). Pressing it changes it for that site,
+keeps the choice, and loads the page again.
+
 Longboard never changes the switch by itself. Blocking means refusing network
-requests that match public filter lists. It never skips, hides or shortens
+requests that match public filter lists. Gaps left where an advertisement
+would have been are not tidied away: that would mean changing the page. It never skips, hides or shortens
 advertising inside a video stream, and it does nothing to defeat a site's
 detection of blocking.
 

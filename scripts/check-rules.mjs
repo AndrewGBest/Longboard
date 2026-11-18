@@ -26,9 +26,9 @@ const CODE_CHECKS = [
   [3, /SMART-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|AFT[A-Z]|Android TV|PlayStation|Xbox|Cobalt\/|Windows NT|Macintosh|CrOS/, 'looks like a spoofed device or OS identity'],
   // Rule 3: no way to change the user agent per site or per request.
   [3, /setUserAgent\(|userAgent:\s|User-Agent/, 'sets a user agent somewhere other than the one honest fallback'],
-  // Rule 4. Request filtering arrives with the ad-blocking phase, in its own
-  // module and behind the per-site switch (rule 5); until then nothing may touch requests.
-  [4, /onBeforeSendHeaders|onHeadersReceived|onBeforeRequest|interceptBuffer|registerHttpProtocol|setProxy|adblock|ad-?block|skipAd|sponsorblock/i, 'modifies or filters a site\'s traffic'],
+  // Rule 4. Nothing changes a site's traffic. Refusing a request is the one
+  // exception, and only the ad-blocking module may do it (see below).
+  [4, /onBeforeSendHeaders|onHeadersReceived|onSendHeaders|interceptBuffer|registerHttpProtocol|protocol\.handle|setProxy|skipAd|sponsorblock/i, 'modifies a site\'s traffic'],
   [4, /\.(currentTime|playbackRate)\s*[-+]?=(?!=)|\.(play|pause)\(\)/, 'controls the site\'s video element directly instead of sending input'],
   // Rule 12
   [12, /sentry|google-analytics|gtag\(|posthog|mixpanel|crashReporter\.start/i, 'telemetry or crash upload'],
@@ -49,6 +49,23 @@ for (const file of files) {
     if (inTests && rule !== 13) continue;
     const m = pattern.exec(text);
     if (m) fail(rule, file, `${why} (matched "${m[0]}")`);
+  }
+}
+
+// Rules 4 and 5: requests are refused in one module only, and that module
+// does nothing but refuse. The ready-made Electron wrapper of the filtering
+// library also injects scripts, styles and headers, so it is never used.
+const FILTER_MODULE = 'src/main/adblock.ts';
+for (const file of files) {
+  if (file === SELF || file.startsWith('docs/') || file.endsWith('.md') || file.startsWith('test/')) continue;
+  if (!TEXT_EXT.has(extname(file).toLowerCase())) continue;
+  const text = readFileSync(file, 'utf8');
+  if (/adblocker-electron|adblocker-webextension|adblocker-puppeteer|adblocker-playwright/.test(text)) fail(5, file, 'uses a filtering wrapper that changes pages, not only the request matcher');
+  if (file === 'package-lock.json') continue;
+  if (file !== FILTER_MODULE && /onBeforeRequest|@ghostery\/adblocker/.test(text) && file !== 'package.json') fail(4, file, 'filters requests outside the ad-blocking module');
+  if (file === FILTER_MODULE) {
+    const m = /redirectURL|responseHeaders|requestHeaders|insertCSS|executeJavaScript|getCosmeticsFilters|load(Cosmetic|GenericCosmetics|CSP)Filters:\s*true|enableHtmlFiltering:\s*true|loadExtendedSelectors:\s*true/.exec(text);
+    if (m) fail(5, file, `the request filter does more than refuse requests (matched "${m[0]}")`);
   }
 }
 

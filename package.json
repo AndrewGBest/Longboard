@@ -82,5 +82,8 @@
     "vitest": "^3.0.0"
   },
   "author": "Longboard contributors",
-  "desktopName": "io.github.andrewgbest.Longboard.desktop"
+  "desktopName": "io.github.andrewgbest.Longboard.desktop",
+  "dependencies": {
+    "@ghostery/adblocker": "^2.20.3"
+  }
 }

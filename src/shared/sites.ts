@@ -5,6 +5,8 @@ import { ASKABLE_NAMES, type SitePermissions } from '../main/permissions';
 export interface SiteSettings extends SitePermissions {
   /** Zoom relative to the automatic TV scale: 1 is unchanged. */
   zoom?: number;
+  /** The person's own choice for the ad-blocking switch on this site. Absent until they make one. */
+  adBlocking?: boolean;
 }
 
 export const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const;
@@ -34,6 +36,7 @@ export function parseSites(raw: unknown): Record<string, SiteSettings> {
     }
     if (Object.keys(answers).length) site.answers = answers;
     if (typeof v['zoom'] === 'number' && v['zoom'] >= ZOOM_STEPS[0] && v['zoom'] <= ZOOM_STEPS[ZOOM_STEPS.length - 1]!) site.zoom = v['zoom'];
+    if (typeof v['adBlocking'] === 'boolean') site.adBlocking = v['adBlocking'];
     if (Object.keys(site).length) out[host] = site;
   }
   return out;

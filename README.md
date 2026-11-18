@@ -50,7 +50,7 @@ Add an address to open it straight away: `npm start -- https://example.com`.
 | Arrows, D-pad | Move the highlight; scroll when there is nothing to move to |
 | OK, Enter, A | Select. On a text field: bring up the on-screen keyboard |
 | Back, Backspace, Escape, B | Back; Home from a site's first page |
-| Menu key, Ctrl+O, Start | The menu: address, Home, Back, Reload, zoom, pointer, add as an app, make or edit a profile |
+| Menu key, Ctrl+O, Start | The menu: address, Home, Back, Reload, zoom, pointer, the ad-blocking switch for the site, add as an app, make or edit a profile |
 | F2, right stick click | Pointer mode on and off |
 | Ctrl+Q | Quit |
 
@@ -64,7 +64,9 @@ Compared with a mainstream browser, today:
 - **No Safe Browsing.** Nothing warns about known phishing or malware sites.
 - No tabs, history or bookmarks. Home remembers the sites you
   opened lately and that is all.
-- No ad blocking yet. It is the last phase of the roadmap.
+- Ad blocking only refuses requests that a public filter list names. It
+  does not hide the gaps ads leave, and it does nothing about advertising
+  inside a video stream.
 - Downloads are saved, after a question. The menu lists the ones from this
   run and can cancel one under way. Longboard does not open what it saves.
 - A site is asked about before it gets the camera, microphone, location,
@@ -105,6 +107,12 @@ by the owner, who is responsible for what is released.
 
 GPL-3.0 for the application. Profiles in the shared catalogue are data and are
 CC0-1.0, free for anyone to reuse.
+
+Ad blocking uses the request matcher from Ghostery's adblocker library
+(MPL-2.0, https://github.com/ghostery/adblocker), which is built into the
+program, and the EasyList filter list (https://easylist.to, by the EasyList
+authors, GPL-3.0 or CC BY-SA 3.0), which is not part of Longboard: each
+copy of Longboard downloads it from its authors.
 
 Longboard is an independent project. It is not affiliated with any website or
 streaming service it can display. It does not provide, unlock or bypass access

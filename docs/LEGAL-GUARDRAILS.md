@@ -33,7 +33,15 @@ Video's rules, so the scope is written down carefully.
 - **Starts on everywhere else.**
 - **Longboard never flips the switch by itself.**
 - **What it is:** refusing network requests that match public filter lists,
-  as many browsers do.
+  as many browsers do. As built: only requests are refused. Nothing on a
+  page is hidden, no script is put into a page, no response or header is
+  changed, and nothing is served in place of what was refused.
+- **The lists are not Longboard's and are not shipped.** Each copy
+  downloads EasyList from its authors (dual licensed GPL-3.0-or-later and
+  CC BY-SA 3.0-or-later; https://easylist.to/pages/licence.html). The
+  matching code is Ghostery's adblocker library, MPL-2.0, which Mozilla's
+  FAQ says may be combined into a GPL work
+  (https://www.mozilla.org/en-US/MPL/2.0/FAQ/). Both are named in the README.
 - **What it is not:** skipping, hiding or shortening advertising that is part
   of a video stream, or defeating a site's detection of blocking. Those stay
   forbidden whatever the switch says.

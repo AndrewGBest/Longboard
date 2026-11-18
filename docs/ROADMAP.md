@@ -44,6 +44,8 @@ this is a spare-time project and dates would be guesses.
 
 - Request filter, the allowed-here decision, settings.
 - Result: on by default on ordinary sites, off on streaming services.
+- Built on 2026-11-18 (STATUS.md). Not in it: a settings screen (the switch
+  is in the menu, the rest is in `config.json`), and choosing lists on the TV.
 
 Ad blocking is late on purpose. It adds a dependency and the most legal
 exposure, and nothing else depends on it.

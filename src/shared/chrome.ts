@@ -30,6 +30,8 @@ export interface ChromeState {
     profile: string | null;
     /** What this site has been allowed or refused, in words, or null when nothing was ever answered. */
     answers: string | null;
+    /** The ad-blocking switch for this site, and a line about it; null when ad blocking is left out in config.json. */
+    adBlocking: { on: boolean; note: string } | null;
     /** The app this site was added as, if it was. */
     app: { id: string; name: string } | null;
     /** Whether the TV's app list can be written to on this system. */
@@ -59,10 +61,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'downloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =

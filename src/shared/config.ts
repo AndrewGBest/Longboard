@@ -7,6 +7,8 @@
 //     "hardwareDecode": true,
 //     "search": "https://www.google.com/search?q=%s",
 //     "catalogue": false,
+//     "adBlocking": false,
+//     "filterLists": ["https://easylist.to/easylist/easylist.txt"],
 //     "keys": { "F1": "search", "F9": "menu", "MediaStop": "back", "Ctrl+h": "none" },
 //     "buttons": { "8": "pointer", "9": "playPause" }
 //   }
@@ -16,6 +18,7 @@
 // wins over the built-in one for that key.
 import type { Action } from './actions';
 import { isSearchTemplate } from './address';
+import { MAX_LISTS, parseFilterLists } from './adblock';
 
 export const ACTION_NAMES = [
   'up', 'down', 'left', 'right', 'select', 'back', 'playPause',
@@ -30,6 +33,10 @@ export interface UserConfig {
   hardwareDecode?: boolean;
   /** Set to false to stop the daily download of the profile catalogue. */
   catalogue?: boolean;
+  /** Set to false to leave ad blocking out altogether: no switch, no filter lists fetched. */
+  adBlocking?: boolean;
+  /** The public filter lists to use instead of the usual one: https addresses. */
+  filterLists?: string[];
   /** Where typed words are searched for: an https address with %s where the words go. */
   search?: string;
   /** Key (as written by the user, "Ctrl+" normalised) to action. */
@@ -68,6 +75,15 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     else problems.push('"hardwareDecode" must be true or false');
   }
 
+  if (r['adBlocking'] !== undefined) {
+    if (typeof r['adBlocking'] === 'boolean') config.adBlocking = r['adBlocking'];
+    else problems.push('"adBlocking" must be true or false');
+  }
+  if (r['filterLists'] !== undefined) {
+    const lists = parseFilterLists(r['filterLists']);
+    if (lists) config.filterLists = lists;
+    else problems.push(`"filterLists" must be a list of one to ${MAX_LISTS} https addresses`);
+  }
   if (r['catalogue'] !== undefined) {
     if (typeof r['catalogue'] === 'boolean') config.catalogue = r['catalogue'];
     else problems.push('"catalogue" must be true or false');
@@ -107,7 +123,7 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     }
   }
   for (const name of Object.keys(r)) {
-    if (name !== 'zoom' && name !== 'keys' && name !== 'buttons' && name !== 'hardwareDecode' && name !== 'search' && name !== 'catalogue') problems.push(`unknown setting "${name.slice(0, 40)}"`);
+    if (name !== 'zoom' && name !== 'keys' && name !== 'buttons' && name !== 'hardwareDecode' && name !== 'search' && name !== 'catalogue' && name !== 'adBlocking' && name !== 'filterLists') problems.push(`unknown setting "${name.slice(0, 40)}"`);
   }
   return { config, problems };
 }

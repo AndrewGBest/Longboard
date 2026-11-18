@@ -161,7 +161,9 @@ The same repository holds `verified-sites.json`: websites a person has
 reviewed and found to carry non-malicious advertising. Ad blocking starts off
 on them (DESIGN.md section 5). It is a plain list of domains with who
 reviewed each and when, changed by pull request. It is separate from
-profiles; a profile says nothing about ads.
+profiles; a profile says nothing about ads. A copy of the list ships with
+Longboard (`profiles/verified-sites.json` in the application repository) for
+the time before the catalogue has been fetched; keep the two in step.
 
 ## 5. Files by hand **[Decision, 2026-11-18]**
 

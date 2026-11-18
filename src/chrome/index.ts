@@ -162,6 +162,9 @@ function menuPanel(s: ChromeState): Node[] {
       button('menu-outline', 'Save page outline', act('outline')),
       el('p', { cls: 'where', text: page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode' }),
     );
+    if (page.adBlocking) {
+      items.push(button('menu-adblock', page.adBlocking.on ? 'Ad blocking: on' : 'Ad blocking: off', act('adBlocking')), el('p', { cls: 'where', text: page.adBlocking.note }));
+    }
     if (page.profile) items.push(button('menu-export', 'Export this profile', act('exportProfile')));
     if (page.answers) {
       items.push(el('p', { cls: 'where', text: page.answers }), button('menu-forget', 'Forget what this site may do', act('forgetAnswers')));

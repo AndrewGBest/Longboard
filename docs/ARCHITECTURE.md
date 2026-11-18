@@ -105,17 +105,36 @@ and best-tested user of it.
 
 ## 6. Ad blocking
 
-A request filter in the shell's session. The leading candidate is Ghostery's
-adblocker library, which has an Electron wrapper and is MPL-2.0 [Sourced:
-Ghostery]. It needs a line in DECISIONS.md before it is added, with a check
-that MPL-2.0 code and the public filter lists can be shipped with a GPL-3.0
-app **[Guess: believed compatible, not checked]**.
+`src/main/adblock.ts` is the only module that may touch a website's
+requests, and refusing one is all it can do. `scripts/check-rules.mjs`
+enforces both halves: no request handler anywhere else, and nothing in that
+module that redirects, rewrites or injects.
 
-The filter asks the shell "is blocking on for this site?" on each navigation.
-The answer is the person's saved choice for the site if there is one;
-otherwise off for verified sites, on for
-the rest (DESIGN.md section 5). That decision is a pure function with unit
-tests. The verified-sites list is fetched with the profile index.
+- **Matching** is done by the request matcher of Ghostery's adblocker
+  library (MPL-2.0) [Sourced: its package]. Only its core is used. Its
+  ready-made Electron wrapper also injects scripts and styles and adds
+  headers, which Hard rules 4 and 5 forbid, so it is not a dependency.
+- **What is read from a list:** network filters and their exceptions. Hiding
+  (cosmetic) filters, scriptlets, HTML filtering and header filters are
+  dropped when the list is read. A filter that would swap a response for a
+  stand-in is treated as a plain refusal.
+- **What is never refused:** the page the person asked for (the top-level
+  document), and any request that does not come from a website view.
+- **The decision** "is blocking on for the site in front?" is the pure
+  function `blockingOn` in `src/shared/adblock.ts`: the person's saved
+  choice for the site if there is one, otherwise off for verified sites and
+  on for the rest (DESIGN.md section 5). It is asked for every request.
+- **The verified sites** come from the catalogue index once it has been
+  fetched. Until then a copy that ships with Longboard
+  (`profiles/verified-sites.json`) is used, so a verified site never starts
+  with blocking on.
+- **The lists** are fetched in the background from their publishers, whole,
+  with no cookies, every four days, into `filters/` in the data folder:
+  EasyList unless `"filterLists"` in `config.json` names others. They are
+  never in the repository or a package. Until a list has arrived nothing is
+  refused, and the menu says so. `"adBlocking": false` leaves the whole
+  feature out. A scripted run fetches no list unless given one with
+  `--filters=`.
 
 ## 7. Web apps
 

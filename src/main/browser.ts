@@ -37,6 +37,8 @@ import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeL
 import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
 import { canvasOf, type Profile, type ProfileSource } from '../shared/profile';
 import { hoverPoint, pageBounds, tvZoom } from './zoom';
+import { filterSession, type FilterSet } from './adblock';
+import { blockingOn, isVerified } from '../shared/adblock';
 import { ICON_SIZE, iconDataUrl, MAX_ICON_BYTES, pngFromDataUrl } from '../shared/icons';
 
 export interface BrowserDeps {
@@ -57,6 +59,8 @@ export interface BrowserDeps {
   ready: Promise<void>;
   /** The profiles on this machine. */
   profiles: ProfileStore;
+  /** Ad blocking: whether it is there at all, the filters (null until downloaded), and the verified sites. */
+  adBlock: { enabled: boolean; filters: () => FilterSet | null; verified: () => readonly string[] };
 }
 
 /** Share of the window's width the menu panel takes over a website. */
@@ -207,6 +211,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
 
   const pageSite = (): string | null => siteKey(page.getURL());
+  /** Whether requests are filtered for the site at this address (Hard rule 5): the person's choice, else where the switch starts. */
+  const blockingAt = (url: string): boolean => {
+    const key = siteKey(url);
+    return deps.adBlock.enabled && blockingOn(key, key ? sites[key]?.adBlocking : undefined, deps.adBlock.verified());
+  };
+  /** How many requests were refused for the page each view is showing. */
+  const refused = new WeakMap<WebContents, number>();
   const pageLoaded = (): boolean => page.navigationHistory.getAllEntries().some((e) => !isNotice(e.url));
   /** Where the page in front is drawn: the whole window, less the edge its profile asks to be kept clear. */
   const pageArea = (): { x: number; y: number; width: number; height: number } => {
@@ -248,6 +259,20 @@ export function createBrowser(deps: BrowserDeps): Browser {
             const parts = [said('granted') && `Allowed to: ${said('granted')}`, said('denied') && `Not allowed to: ${said('denied')}`].filter(Boolean);
             return parts.length ? parts.join('. ') : null;
           })(sites[pageSite() ?? '']?.answers ?? {}),
+          adBlocking: ((key) => {
+            if (!deps.adBlock.enabled || !key) return null;
+            const on = blockingAt(page.getURL());
+            const chosen = typeof sites[key]?.adBlocking === 'boolean';
+            const count = refused.get(page) ?? 0;
+            const note = !deps.adBlock.filters()
+              ? 'The filter list has not been downloaded yet, so nothing is refused.'
+              : on
+                ? `${count === 1 ? '1 request' : `${count} requests`} refused on this page.`
+                : !chosen && isVerified(key, deps.adBlock.verified())
+                  ? 'Off to start with: this is a verified site.'
+                  : 'Off for this site: your choice.';
+            return { on, note };
+          })(pageSite()),
           app: ((a) => (a ? { id: a.id, name: a.name } : null))(appFor(apps, page.getURL())),
           canAddToAppList: launcherFolder() !== null,
         }
@@ -912,6 +937,25 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (wc === page && isMainFrame && !isInPlace && pending?.what === 'permission') answerPrompt(false, false);
   }));
 
+  // ---- Ad blocking ----------------------------------------------------------
+
+  // Requests that the public filter lists name are refused, for the views
+  // that show websites, when the switch for the site in front is on. That is
+  // all: nothing is redirected, rewritten or put into a page (main/adblock.ts).
+  eachSession((web) => filterSession(web, (url, kind, wc) => {
+    if (!wc || wc.isDestroyed() || !isPageView(wc)) return false;
+    const pageUrl = wc.getURL();
+    if (!blockingAt(pageUrl)) return false;
+    if (!deps.adBlock.filters()?.refuses(url, pageUrl, kind)) return false;
+    refused.set(wc, (refused.get(wc) ?? 0) + 1);
+    return true;
+  }));
+  // Counted from the moment a new page is asked for: its first requests can
+  // be on their way before the shell hears that the page has arrived.
+  eachPage((wc) => wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
+    if (isMainFrame && !isInPlace) refused.set(wc, 0);
+  }));
+
   // ---- Downloads -----------------------------------------------------------
 
   // A file a site sends, or that the person chose to download, is asked about
@@ -1532,6 +1576,17 @@ export function createBrowser(deps: BrowserDeps): Browser {
         panel = null;
         const item = surface === 'page' ? appFor(apps, page.getURL()) : null;
         if (item) removeAppById(item.id);
+        layout();
+        break;
+      }
+      case 'adBlocking': {
+        // The switch is the person's: this is the only place it is ever changed.
+        const key = surface === 'page' ? pageSite() : null;
+        if (!key || !deps.adBlock.enabled) break;
+        sites[key] = { ...sites[key], adBlocking: !blockingAt(page.getURL()) };
+        saveSites();
+        // The page is loaded again so what it shows matches the switch.
+        page.reload();
         layout();
         break;
       }
