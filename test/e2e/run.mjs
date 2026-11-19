@@ -442,12 +442,21 @@ await scenario('downloads', { url: `${site.origin}/home.html` }, async (app) => 
   asks.slow.pop()?.destroy();
 });
 
-await scenario('Home, the address field, the menu and Back', {}, async (app) => {
+await scenario('Home, the address field, the menu and Back', { env: { LONGBOARD_TIPS: '1' } }, async (app) => {
   const chrome = await app.chrome();
   await until(() => chrome.focused(), (id) => id === 'go');
   check('the app starts on Home with the highlight on "go to address"', [await chrome.evaluate('document.querySelector("#home h1")?.textContent'), await chrome.focused()], ['Longboard', 'go']);
   check('Home has no script and no app API in its page', await chrome.evaluate('document.scripts.length + typeof window.require + typeof window.ipcRenderer'), '0undefinedundefined');
   check('no keyboard is shown before it is asked for', await chrome.keyboardShown(), false);
+
+  // A remote with no menu key: the menu is a button on Home. There is no line of key names at the foot (Andrew, 2026-11-19).
+  check('Home has no legend', await chrome.evaluate('!!document.getElementById("hint")'), false);
+  await chrome.press('ArrowUp', 300);
+  check('Up from the address bar reaches the Menu button', await chrome.focused(), 'home-menu');
+  await chrome.press('Enter', 500);
+  check('OK on it opens the menu', await chrome.evaluate('!!document.getElementById("menu-tabs")'), true);
+  await chrome.press('Escape', 400);
+  check('Back closes it, on Home again', [await chrome.evaluate('!!document.getElementById("menu-tabs")'), await chrome.focused()], [false, 'go']);
 
   await chrome.press('Enter', 400);
   check('OK on it opens the address field with the on-screen keyboard', [await chrome.evaluate('document.activeElement?.id'), await chrome.keyboardShown()], ['address', true]);
@@ -464,9 +473,22 @@ await scenario('Home, the address field, the menu and Back', {}, async (app) => 
   if (!page) return;
   await until(() => page.evaluate('document.visibilityState'), (v) => v === 'visible');
   check('the website is in front and Home is put away', [await page.evaluate('document.visibilityState'), await chrome.evaluate('document.visibilityState')], ['visible', 'hidden']);
-  await sleep(500);
+  check('the first website of a run says how to get the menu', await until(() => page.toastText(), (t) => !!t, 60), 'For the menu, press Up twice at the top of the page');
   await page.press('ArrowDown');
   check('the arrows drive the page', await page.focused(), 'nav-home');
+  await page.press('BrowserHome', 600);
+  check('a remote\'s Home button goes Home', [await chrome.evaluate('document.visibilityState'), await chrome.evaluate('!!document.getElementById("resume")')], ['visible', true]);
+  await chrome.press('Escape', 600);
+  check('and Back on Home returns to the page, where the highlight was', [await page.evaluate('document.visibilityState'), await page.focused()], ['visible', 'nav-home']);
+
+  // A remote with no menu key, on a website: Up at the top, then Up again.
+  await page.press('ArrowUp', 500);
+  check('Up at the top of the page says how to get the menu, and does not open it', [await page.toastText(), await chrome.evaluate('!!document.querySelector("#panel h1")')], ['Press Up again for the menu', false]);
+  await page.press('ArrowUp', 600);
+  check('Up again opens the menu', await chrome.evaluate('document.querySelector("#panel h1")?.textContent'), 'Menu');
+  await chrome.press('Escape', 500);
+  check('Back closes it and the highlight is where it was', [await chrome.evaluate('!!document.querySelector("#panel h1")'), await page.focused()], [false, 'nav-home']);
+  check('having opened the menu on a website, it is not said again', JSON.parse(readFileSync(join(app.userData, 'tips.json'), 'utf8')), { menu: true });
 
   // The menu.
   await page.press('ContextMenu', 500);

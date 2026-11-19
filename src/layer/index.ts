@@ -9,6 +9,7 @@ import { elementAt, matchesOf, pickChain } from './edit/selector';
 import { scrollBy } from './generic/scroll';
 import { installPurchaseGuard, isSpendControl } from './guard/purchase-guard';
 import { startPolling } from './input/gamepad';
+import { TopEdge } from './input/top-edge';
 import { keyToAction, type Mode } from './input/keys';
 import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
@@ -194,6 +195,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   // no longer shown, so focus then moves to the new slide.
   let edgeTimer: number | undefined;
   let scrollTimer: number | undefined;
+  const topEdge = new TopEdge();
   const moveInPage = (dir: Direction): void => {
     // A slider takes left and right itself, as the keys they are.
     const slider = nav.focused;
@@ -201,6 +203,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       pressKey(dir === 'left' ? 'seekBack' : 'seekForward');
       return;
     }
+    if (dir !== 'up') topEdge.reset();
     let moved = nav.move(dir);
     // Sideways out of an open menu: close it and carry on along the bar.
     if (!moved && hoverHost && (dir === 'left' || dir === 'right')) {
@@ -233,6 +236,16 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
           if (!f || nav.focusIsOffScreen() || !deepContains(scrolled, f)) nav.focusOnScreen(dir, scrolled);
         }, 350);
         return;
+      }
+      // Up at the very top of a website: pressed again, it opens the menu,
+      // which a remote may have no key for. Not on Longboard's own screens.
+      if (dir === 'up' && !hooks) {
+        const edge = topEdge.up(Date.now());
+        if (edge === 'menu') {
+          send({ kind: 'menu' });
+          return;
+        }
+        if (edge === 'hint') overlay.toast('Press Up again for the menu');
       }
       // Nowhere to go: say so, rather than seeming not to have heard the key.
       if (from) overlay.feedback(dir);

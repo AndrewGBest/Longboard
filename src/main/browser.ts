@@ -40,6 +40,7 @@ import { sizeText, uniqueName, progressText } from '../shared/downloads';
 import { cdpPoint, PointerHolds, pointerGlide, pointerTap, startPoint, type PointerStep } from './pointer';
 import { sourceLabel, type ProfileStore } from './profiles';
 import { readJson, writeJson } from './store';
+import { MENU_TIP } from '../shared/about';
 import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeLauncher } from '../platform';
 import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
 import { canvasOf, type Profile, type ProfileSource } from '../shared/profile';
@@ -806,12 +807,30 @@ export function createBrowser(deps: BrowserDeps): Browser {
   /** The address the person asked for, until its page has given its title. */
   let titleFor: string | null = null;
 
+  // How to get the menu on a website with a remote that has no key for it:
+  // said on the first website of each run, until the menu has once been
+  // opened on a website. A scripted run is told only when it asks to be.
+  const tipsFile = join(dataDir, 'tips.json');
+  let menuTip = (readJson(tipsFile) as { menu?: unknown } | undefined)?.menu !== true && (!options.automation || process.env['LONGBOARD_TIPS'] === '1');
+  let menuTipTimer: NodeJS.Timeout | undefined;
+  const menuLearned = (): void => {
+    clearTimeout(menuTipTimer);
+    if ((readJson(tipsFile) as { menu?: unknown } | undefined)?.menu !== true) writeJson(tipsFile, { menu: true });
+    menuTip = false;
+  };
   const showPage = (): void => {
     surface = 'page';
     panel = null;
     thaw(page);
     page.setAudioMuted(false);
     layout();
+    if (menuTip) {
+      menuTip = false;
+      const to = page;
+      menuTipTimer = setTimeout(() => {
+        if (surface === 'page' && !panel && page === to && !to.isDestroyed()) to.send('longboard:notice', MENU_TIP);
+      }, 2500);
+    }
   };
 
   /** Tabs: a new one (which starts on Home), bringing one in front, or closing one. */
@@ -1405,6 +1424,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     stopGlide();
     // While a profile is being edited the menu key opens the editor's panel.
     panel = panel ? null : edit ? 'edit' : 'menu';
+    if (panel === 'menu' && surface === 'page') menuLearned();
     layout();
   };
 
@@ -1444,6 +1464,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
         event.preventDefault();
         // After this event, for the reason given in the pointer's own key handling.
         if (wc === page && active() === page) setImmediate(() => setPointer(!pointerOn));
+      }
+      else if (!action && input.key === 'BrowserHome') {
+        // A remote's Home button, unless Settings gave it another job.
+        event.preventDefault();
+        if (panel !== 'prompt' && panel !== 'pin' && !edit) setImmediate(() => menu('home'));
       }
       else if (!action) {
         const shortcut = shortcutFor(input, config.keys);
@@ -2335,6 +2360,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const menu = (action: MenuAction): void => (HOME_CHANGES.includes(action) ? withPinForHome(() => menuNow(action)) : menuNow(action));
   const menuNow = (action: MenuAction): void => {
     switch (action) {
+      case 'open':
+        // Home's own Menu button, for a remote without a menu key.
+        if (!panel) toggleMenu();
+        break;
       case 'close':
         // Leaving the choosing of a new PIN goes back to Settings, where it was started.
         panel = panel === 'pin' && pinFor && ('set' in pinFor || pinFor.back === 'settings') ? 'settings' : null;

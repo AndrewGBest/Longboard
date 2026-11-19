@@ -160,6 +160,9 @@ function home(s: ChromeState): HTMLElement {
   if (s.home.privateTab) top.append(el('span', { id: 'private-badge', cls: 'badge private' }, [icon('private'), el('span', { text: 'Private tab' })]));
   if (s.tabs.length > 1) top.append(el('span', { cls: 'badge' }, [icon('tabs'), el('span', { text: `${s.tabs.length} tabs` })]));
   top.append(el('div', { id: 'clock' }, [document.createTextNode(time), el('small', { text: day })]));
+  // The menu, for a remote that has no button for it: everything else (Settings, the pointer, giving a button a job) is behind it.
+  const menuButton = button('home-menu', 'Menu', () => tell({ kind: 'menu', action: 'open' }), false, 'menu');
+  top.append(menuButton);
 
   const main = el('main', { id: 'home' }, [top, go]);
   if (s.home.privateTab) main.append(el('p', { id: 'private', cls: 'where', text: 'Nothing opened in this tab is kept: no history, no recent sites, and what its sites store goes when the tab is closed.' }));
@@ -179,13 +182,11 @@ function home(s: ChromeState): HTMLElement {
       el('p', { id: 'welcome-title', text: `Welcome to ${PRODUCT.name}` }),
       el('div', { id: 'welcome' }, [
         card('search', 'Search or go to a site', 'Press OK on the bar above and type with the on-screen keyboard. A keyboard that is plugged in works too.'),
-        card('apps', 'Your sites live here', 'Sites you open will appear here. The menu can keep a page on Home, or add a site as an app.'),
-        card('pointer', 'A pointer when you need one', 'The arrows move between links and buttons. For a site that needs a mouse, F2 or a click of the right stick brings a pointer.'),
+        card('apps', 'Your sites live here', 'Sites you open will appear here. The menu can keep a page on Home, or add a site as an app. On a website, press Up twice at the top of the page for the menu.'),
+        card('pointer', 'A pointer when you need one', 'The arrows move between links and buttons. For a site that needs a mouse, "Pointer" in the menu puts an arrow on the screen that you steer.'),
       ]),
     );
   }
-  const key = (keys: string[], what: string): HTMLElement => el('span', {}, [...keys.flatMap((k, i) => (i ? [document.createTextNode('or'), el('kbd', { text: k })] : [el('kbd', { text: k })])), document.createTextNode(what)]);
-  main.append(el('p', { id: 'hint' }, [key(['OK'], 'Open'), key(['Menu', 'Start'], 'Menu'), key(['Back'], 'Back'), key(['F2', 'R3'], 'Pointer')]));
   return main;
 }
 

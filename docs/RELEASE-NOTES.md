@@ -2,6 +2,17 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.3:
+
+- **The menu without a menu key.** On a website, press Up at the top of
+  the page, then Up again; Longboard says so on screen until you have
+  done it once. On Home there is a Menu button at the top
+  right. A remote with no menu key could not open the menu before, and so
+  could not reach Settings, the pointer or "Add as an app".
+- **The line of key names at the foot of Home is gone.** It named keys a
+  remote does not have.
+- A remote's Home button goes Home.
+
 New in 0.3.2:
 
 - **Links that run over two lines can be selected.** In an article, a link

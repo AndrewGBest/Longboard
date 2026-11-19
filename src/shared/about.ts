@@ -19,12 +19,17 @@ export const BACKGROUND =
   'If you have added extensions, it asks the Chrome Web Store once a day for newer versions of them; Settings, under Extensions, can stop that. ' +
   'The browser engine itself downloads the component that plays protected video (Widevine) from Google and keeps it up to date; that one cannot be turned off here.';
 
+/** Said on the first website of a run, until the menu has been opened on a website once. */
+export const MENU_TIP = 'For the menu, press Up twice at the top of the page';
+
 export const HELP: readonly (readonly [string, string])[] = [
   ['Arrows or D-pad', 'Move'],
   ['OK, Enter or A', 'Select; play or pause on a full-screen video'],
   ['Back, Backspace, Escape or B', 'Back'],
-  ['Menu key, Ctrl+O or Start', 'Open or close the menu'],
-  ['F2 or right stick click', 'Pointer mode on or off'],
+  ['Menu key (the one with three lines), Ctrl+O or Start', 'Open or close the menu'],
+  ['Up, twice, at the top of a website; Menu on Home', 'Open the menu with a remote that has no key for it'],
+  ['Home key', 'Home'],
+  ['"Pointer" in the menu, F2, or pressing the right stick', 'Pointer mode on or off'],
   ['Space or X', 'Play or pause'],
   ['Left, Right, LB or RB on a video', 'Skip back or forward'],
   ['/ or Y', "Go to the page's search field"],

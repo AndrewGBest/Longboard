@@ -56,8 +56,9 @@ Add an address to open it straight away: `npm start -- https://example.com`.
 | Arrows, D-pad | Move the highlight; scroll when there is nothing to move to |
 | OK, Enter, A | Select. On a text field: bring up the on-screen keyboard |
 | Back, Backspace, Escape, B | Back; Home from a site's first page |
-| Menu key, Ctrl+O, Start | The menu: address, Home, Back, Forward, Reload, zoom, pointer, the ad-blocking switch for the site, Speak, Type from a phone, tabs, history, Settings |
-| F2, right stick click | Pointer mode on and off |
+| Menu key (three lines, on some remotes), Ctrl+O, Start; Up twice at the top of a website; the Menu button on Home | The menu: address, Home, Back, Forward, Reload, zoom, pointer, the ad-blocking switch for the site, Speak, Type from a phone, tabs, history, Settings |
+| "Pointer" in the menu; F2 on a keyboard; pressing the right stick on a controller | Pointer mode on and off |
+| A remote's Home button | Home |
 | Ctrl+Q | Quit |
 
 Settings (in the menu) has the search site, sizes, ad blocking, privacy

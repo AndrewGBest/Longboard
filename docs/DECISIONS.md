@@ -3,6 +3,22 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: six buttons must be enough to reach the menu
+
+Andrew found the legend on Home hard to understand and asked what the menu
+button is and whether remotes have F2 or R3. Every row but the legend's is
+**an assumption by the agent**.
+
+| Choice | Reason |
+|---|---|
+| A Menu button on Home, top right | The menu was reachable only by a key (Menu, Info, Help, Ctrl+O) that a remote may not have, and giving another button the job is done in Settings, which is in the menu. From a site, Back leads to Home |
+| On a website: Up at the top of the page, then Up again, opens the menu | Things that act on the page in front (add as an app, the pointer, the ad-blocking switch) are only in the menu while on that page, so Home's button is not enough. Up at the top has nothing else to do, and browsers for TVs commonly keep their bar above the page (**from memory, no source checked**). The first press shows "Press Up again for the menu"; a held key does not count as the second |
+| How a person learns of it | **Andrew, 2026-11-19:** "We need a way to communicate you can press up twice to get a menu too." How is **the agent's assumption**: said on screen on the first website of each run ("For the menu, press Up twice at the top of the page") until the menu has once been opened on a website, then never again (`tips.json` holds that one flag); on the first Up at the top; on Home's welcome card; under About and help. A scripted run is told only when it asks (`LONGBOARD_TIPS=1`), so other tests' notices are not disturbed |
+| No "hold Back for the menu" | Measured earlier: once the shell takes a key its release is never reported, so a hold could only be told from a press by waiting, which would slow every Back |
+| No legend at the foot of Home | **Andrew, 2026-11-19:** "Honestly id remove the legend at this point". It had shown F2 (a keyboard key) and R3 (a controller button) to everyone. The welcome cards and About and help carry what is needed |
+| The pointer is described as "Pointer in the menu" | No remote has a key for it. F2 and the right stick stay as they were |
+| `BrowserHome` goes Home | **Guess, not measured:** that is the key a remote's Home button is expected to send on Linux. Nothing else used it |
+
 ## 2026-11-19: the Tab order is a referee, not the way to move
 
 Andrew asked whether Longboard should use or learn from Tab selection, and

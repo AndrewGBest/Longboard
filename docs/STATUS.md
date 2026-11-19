@@ -2,6 +2,37 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-19, evening: the legend on Home, and a menu without a Menu key
+
+Andrew, testing at the TV: the legend at the foot of Home is hard to
+understand; what is the menu button; are F2 or R3 on remotes?
+
+- **The gap behind the question:** F2 is a keyboard key and R3 is a game
+  controller's right stick pressed in. No remote has either. The menu key
+  is one some remotes lack, and without it the menu, and so Settings, the
+  pointer and giving a button a job, could not be reached at all.
+- **Home has a Menu button** at the top right, one press Up from the
+  address bar.
+- **On a website, Up at the top of the page and Up again opens the menu.**
+  The first press says so on screen. Needed because adding an app, the
+  pointer and the site's switches are in the menu only while on the site.
+- **It is said on screen:** on the first website of each run, until the
+  menu has once been opened on a website; and on Home's welcome card and
+  under About and help.
+- **The legend is gone.** A first version in plain words was built; Andrew,
+  on reading it: "Honestly id remove the legend at this point". The
+  welcome cards and About and help say what the buttons do.
+- **A remote's Home button goes Home** (the key `BrowserHome`), unless
+  Settings gave it another job.
+- **Verified:** `npm run check` (542 unit tests); the real app headless at
+  1920x1080, with a screenshot of Home looked at; `npm run e2e`, 476
+  checks, all passing, with new ones in "Home, the address field, the menu
+  and Back".
+- **Unverified:** which keys Andrew's remote actually sends, so whether its
+  Home and Menu buttons (if it has them) arrive as `BrowserHome` and
+  `ContextMenu`. Up twice has not been tried with a remote at the TV, nor
+  on real sites that keep their own bar at the top.
+
 ## 2026-11-19, later still: the referee, and links over two lines
 
 Andrew asked whether the Tab key, which works well in Chromium, should be
