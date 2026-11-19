@@ -46,6 +46,8 @@ function pngSquare(size, [r, g, b]) {
 }
 const siteIcon = pngSquare(32, [40, 120, 200]);
 
+/** The package a release has for this machine's kind of processor. */
+const packageName = `Longboard-${process.arch === 'arm64' ? 'arm64' : 'x86_64'}.AppImage`;
 /** What stands for a newer package in the update checks. */
 const newPackage = Buffer.from('#!/bin/sh\n# a made-up newer package\n'.repeat(200));
 /** What the made-up site was asked for, for the download checks. */
@@ -104,11 +106,11 @@ const site = await serveFixtures({
   // A made-up release feed and the package it describes.
   '/releases/latest': (req, res) =>
     res.writeHead(200, { 'content-type': 'application/json' }).end(
-      JSON.stringify({ tag_name: 'v99.0.0', draft: false, prerelease: false, assets: [{ name: 'Longboard-x86_64.AppImage', browser_download_url: `http://${req.headers.host}/releases/package`, size: newPackage.length, digest: `sha256:${createHash('sha256').update(newPackage).digest('hex')}` }] }),
+      JSON.stringify({ tag_name: 'v99.0.0', draft: false, prerelease: false, assets: [{ name: packageName, browser_download_url: `http://${req.headers.host}/releases/package`, size: newPackage.length, digest: `sha256:${createHash('sha256').update(newPackage).digest('hex')}` }] }),
     ),
   '/releases/tampered': (req, res) =>
     res.writeHead(200, { 'content-type': 'application/json' }).end(
-      JSON.stringify({ tag_name: 'v99.0.0', assets: [{ name: 'Longboard-x86_64.AppImage', browser_download_url: `http://${req.headers.host}/releases/package`, size: newPackage.length, digest: `sha256:${'0'.repeat(64)}` }] }),
+      JSON.stringify({ tag_name: 'v99.0.0', assets: [{ name: packageName, browser_download_url: `http://${req.headers.host}/releases/package`, size: newPackage.length, digest: `sha256:${'0'.repeat(64)}` }] }),
     ),
   '/releases/package': (_req, res) => res.writeHead(200, { 'content-type': 'application/octet-stream' }).end(newPackage),
   // What a request arrived with, by header name.

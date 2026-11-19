@@ -3,6 +3,32 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: 64-bit ARM (Andrew: "get to work on arm support")
+
+**What was done** (the agent's choices): the packages are now built for
+64-bit ARM as well as 64-bit Intel/AMD, each on a machine of its own kind,
+and every push is checked on both. GitHub's ARM machines are real ones, so
+the end-to-end run there is the app itself running on ARM.
+
+| Question | Answer | Source |
+|---|---|---|
+| Is there an engine for it? | castLabs publishes `electron-v45.2.1+wvcus-linux-arm64.zip` | Sourced: the release's own list of files |
+| 32-bit ARM? | No. Electron stopped building it at version 44 | Sourced: research file |
+| Protected playback (Widevine)? | castLabs say a build "does work and get a Widevine CDM on linux-arm64" through the component updater, stable from 44. **Not tried**: it needs a real ARM box and a signed-in service | Sourced: castLabs, via the research file |
+| Where is it built? | On GitHub's own ARM machines (`ubuntu-24.04-arm`), free for public repositories. Nothing is cross-built: the Flatpak tool builds only for the machine it runs on | Sourced: GitHub's documentation; flatpak-builder's |
+| Does the updater know? | It did already: it takes `Longboard-arm64.AppImage` on ARM | The code, and its unit test |
+| Anything of Longboard's own that is tied to a processor? | No. Every dependency is JavaScript or WebAssembly, the speech engine included | package.json |
+| Video decoding on the graphics chip? | **Probably not.** Chromium's Linux build leaves out the interface ARM boxes decode through (V4L2), and Electron does not turn it on. So video is decoded by the processor: fine for 1080p on a Raspberry Pi 5 or an RK3588 box by reputation, heavy for 4K | The research agent's inference from Chromium's build files; **not measured on any hardware** |
+
+**Not done, and why:** nothing was tried on an ARM TV box, because there is
+none here. What ARM boxes are in use (a Raspberry Pi, a Rockchip box, which
+desktop) decides what is worth doing next about video.
+
+**Not an option:** the copies of ChromeOS's Widevine that Raspberry Pi
+guides pass round. castLabs call the Raspberry Pi package "not official or
+sanctioned by Google" [Sourced: research file], and Hard rules 1 and 2 would
+forbid bundling or adapting it in any case.
+
 ## 2026-11-19: extensions gone over (Andrew: "spend time on it"), and the store's terms ("check it")
 
 **Why uBlock Origin Lite did not start, and the fix.** It asks for its

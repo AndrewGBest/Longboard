@@ -33,7 +33,13 @@ six buttons: up, down, left, right, OK and Back.
 
 ## Trying it
 
-Linux x86_64, with Node 22 or newer:
+**A package:** from the [latest release](https://github.com/AndrewGBest/Longboard/releases/latest),
+`Longboard-x86_64.AppImage` for 64-bit Intel and AMD machines or
+`Longboard-arm64.AppImage` for 64-bit ARM ones. `chmod +x` it and run it. It
+needs Linux with a desktop session. The ARM package is built and tested on
+ARM machines and has not yet been tried on a TV box.
+
+**From source:** Linux on 64-bit Intel/AMD or ARM, with Node 22 or newer:
 
 ```
 git clone https://github.com/AndrewGBest/Longboard
@@ -50,14 +56,14 @@ Add an address to open it straight away: `npm start -- https://example.com`.
 | Arrows, D-pad | Move the highlight; scroll when there is nothing to move to |
 | OK, Enter, A | Select. On a text field: bring up the on-screen keyboard |
 | Back, Backspace, Escape, B | Back; Home from a site's first page |
-| Menu key, Ctrl+O, Start | The menu: address, Home, Back, Reload, zoom, pointer, the ad-blocking switch for the site, add as an app, make or edit a profile, Settings |
+| Menu key, Ctrl+O, Start | The menu: address, Home, Back, Forward, Reload, zoom, pointer, the ad-blocking switch for the site, Speak, Type from a phone, tabs, history, Settings |
 | F2, right stick click | Pointer mode on and off |
 | Ctrl+Q | Quit |
 
 Settings (in the menu) has the search site, sizes, ad blocking, privacy
 (including "ask sites not to track" and refusing trackers), what sites may
 ask for, a parental lock with a PIN, extensions from the Chrome Web Store
-(not all of them work), new versions, and profiles. The menu's page about the
+(not all of them work), saved passwords, new versions, and profiles. The menu's page about the
 site in front has reader view, "Desktop site", find on the page, and keeping
 the page on Home. Keys and controller buttons can be remapped
 in `~/.config/Longboard/config.json`, which is also where Settings keeps its
@@ -68,8 +74,12 @@ choices (see `src/shared/config.ts`).
 Compared with a mainstream browser, today:
 
 - **No Safe Browsing.** Nothing warns about known phishing or malware sites.
-- No saved passwords, autofill, sync, voice search or translation. Tabs are
-  not kept when Longboard is closed.
+- No sync between machines and no translation. Tabs are not kept when
+  Longboard is closed.
+- Passwords are kept only on a system with a keyring, and only filled in
+  when asked; there is no other autofill. Speech is English only.
+- Extensions that block by rule lists (uBlock Origin Lite) start and block
+  nothing: the engine does not act on such rules.
 - Ad blocking only refuses requests that a public filter list names. It
   does not hide the gaps ads leave, and it does nothing about advertising
   inside a video stream.
@@ -78,8 +88,8 @@ Compared with a mainstream browser, today:
 - A site is asked about before it gets the camera, microphone, location,
   notifications, the clipboard, MIDI or the pointer. USB, serial and screen
   capture are refused: they need a chooser Longboard does not have yet.
-- No published release yet. Once there is one, a copy run as an AppImage
-  looks for new releases daily and installs them; Settings can turn that off.
+- A copy run as an AppImage looks for new releases daily and installs them;
+  Settings can turn that off. Releases are not signed.
 
 ## What it will not do
 

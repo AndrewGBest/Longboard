@@ -10,7 +10,16 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # On both kinds of processor Longboard is built for. The ARM machine is a
+    # real one, so the end-to-end run there is the app itself running on ARM.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: ubuntu-latest }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    name: check (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -34,18 +34,8 @@
       "category": "Network",
       "synopsis": "Web browser for the TV",
       "target": [
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "tar.gz",
-          "arch": [
-            "x64"
-          ]
-        }
+        "AppImage",
+        "tar.gz"
       ],
       "icon": "assets/icon.png",
       "syncDesktopName": true
