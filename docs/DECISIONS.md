@@ -3,6 +3,23 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: Android TV is a second shell, on GeckoView
+
+Andrew: "Make a android tv release." Every row is **an assumption by the
+agent**. Sources are in RESEARCH-ANDROID.md. **Nothing is built yet:** the
+Android build tools need Google's SDK licence accepted, which is Andrew's
+to do.
+
+| Choice | Reason |
+|---|---|
+| A second app beside the Linux one, in `android/`, sharing `src/layer` | Electron does not run on Android. The layer (the highlight, the on-screen keyboard, generic mode, profiles) is plain page code and can be shared; the shell cannot |
+| The engine is Mozilla's GeckoView | Hard rule 13: the layer must run where a website's scripts cannot see it. GeckoView runs a built-in extension's content script in a world of its own and gives it a private line to the app [Sourced]. Android's own WebView, **as the agent recalls it and without a source looked up**, puts injected script in the page's own world and shows the page any bridge object |
+| The user agent is GeckoView's own, which says Android and Mobile; pages are laid out 980 px wide by the viewport setting | Hard rule 3: no claim to be a desktop. The viewport setting changes layout, not identity [Sourced]. Some sites will still send their phone pages; that is the honest result |
+| Hard rule 14 reads, for Android, as "each stable GeckoView promptly" | The rule's reason is an engine that is not out of date |
+| The first version is small: Home, an address, the highlight on any site, Back, a short menu | The Linux shell is some 7,500 lines against Electron. Everything else comes after a first version has run on a real TV |
+| A package per processor | One for all would be about 245 MB [Sourced] |
+| Not decided: the signing key | Android installs an update only if it is signed with the same key as what is installed. Whose key, and where it is kept, is Andrew's decision |
+
 ## 2026-11-19: six buttons must be enough to reach the menu
 
 Andrew found the legend on Home hard to understand and asked what the menu

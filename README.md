@@ -114,6 +114,7 @@ Compared with a mainstream browser, today:
 | [docs/STATUS.md](docs/STATUS.md) | What exists and what has been checked |
 | [docs/RESEARCH-BROWSERS.md](docs/RESEARCH-BROWSERS.md) | What TV design guidance and other browsers do, with sources |
 | [docs/RESEARCH-STORE-ARM.md](docs/RESEARCH-STORE-ARM.md) | The Chrome Web Store's terms, and what ARM needs, with sources |
+| [docs/RESEARCH-ANDROID.md](docs/RESEARCH-ANDROID.md) | What an Android TV version needs, with sources |
 | [docs/RESEARCH-VOICE.md](docs/RESEARCH-VOICE.md) | Ways to recognise speech on the device, and search-suggestion addresses, with sources |
 | [docs/SCORECARD.md](docs/SCORECARD.md) | How generic mode did on a fixed list of public sites |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to help, with code or with profiles |

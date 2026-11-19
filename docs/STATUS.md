@@ -2,6 +2,19 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-19, night: Android TV asked for; researched, not started
+
+Andrew: "Make a android tv release."
+
+- **Nothing is built.** It is a second app, not a package of this one
+  (DECISIONS.md). What it needs was read from Mozilla's and Android's
+  documents (RESEARCH-ANDROID.md).
+- **Waiting on Andrew:** Google's Android SDK licence has to be accepted by
+  him before the build tools can be installed. A JDK and the SDK's
+  command-line tools are under `~/.local/opt` on the build machine. The
+  machine can run an Android TV emulator (KVM is usable).
+- **Also his to decide before any release:** the signing key.
+
 ## 2026-11-19, evening: the legend on Home, and a menu without a Menu key
 
 Andrew, testing at the TV: the legend at the foot of Home is hard to
