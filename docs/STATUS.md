@@ -36,9 +36,9 @@ switch.
 
 - **uBlock Origin Lite does not work:** it installs, but its background
   worker fails to start. Other extensions will fail too; only two were tried.
-- Extensions in a packaged build (the libraries now have to be found in the
-  package's `node_modules`): v0.1.0 does not contain them, and no package
-  with them has been built yet.
+- Extensions in a packaged build: a package built from this code has the
+  two libraries inside and starts without complaint, but no extension was
+  added in it. v0.1.0 was made before extensions and does not have them.
 - Extension updates, and whether any extension's panel is usable with a
   remote on a TV. Panels opened as a page are not attached to another tab.
 - The updater: a restart is not forced, so a person keeps the old version
