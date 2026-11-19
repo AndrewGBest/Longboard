@@ -2,6 +2,31 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-20, later still: past the age question
+
+Andrew: "Test beyond the age gate".
+
+- **The survey can answer an age question** (`--answer-gate`) and go one
+  page further in (`--open-first`), with the remote's own keys.
+- **Results, on the live sites, no pictures taken:**
+
+| Site (by rank in the 50) | Age question | Front page after it | One page in |
+|---|---|---|---|
+| 26th | Answered with OK | 24 of 24 presses moved; 119 of 119 Tab stops | A page with video elements; 24 of 24 moved; 120 of 120 |
+| 27th and 45th (the same site under two names) | None shown here | 24 of 24; 119 of 119 | A page with video elements; 24 of 24; 120 of 120 |
+| 35th | None shown here | 24 of 24; 68 of 68 | A page with a video element; 22 of 24; 43 of 43 |
+| 38th | Answered with OK | 24 of 24; 12 of 13 | Not opened: the script found no card to open |
+
+- **One thing to know:** on the 26th, answering the question brings the
+  on-screen keyboard up, because the site puts the cursor in its search
+  field. Back puts it away. Left as it is (DECISIONS.md).
+- **A mistake of the agent's, corrected:** it first reported the highlight
+  stuck on that search field. It was the on-screen keyboard taking the
+  arrows, as it should.
+- **Verified:** `npm run check` (560 unit tests); `npm run e2e` (496 checks, all passing); the runs above.
+- **Unverified:** playing a video on any of them; anything behind a
+  sign-in; the 38th past its front page; any of it with a remote at a TV.
+
 ## 2026-11-20, later: the five adult sites in the top 50
 
 Andrew: adults will use this browser, so these sites have to work too. The

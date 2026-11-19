@@ -658,7 +658,13 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
           const now = activeOption(combo);
           overlay.track(now ?? nav.focused);
           // A page that does nothing with the key: move as on any page.
-          if (!now && !before && dir === 'down') moveInPage('down');
+          // (Seen on a video site: its search field says its list is open
+          // and one entry is always marked; the keys change nothing, and
+          // the highlight could not leave the field.)
+          if (now === before) {
+            overlay.track(nav.focused);
+            moveInPage(dir);
+          }
         }, 150);
         return;
       }

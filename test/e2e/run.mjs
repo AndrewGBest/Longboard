@@ -749,6 +749,14 @@ await scenario('a search field with suggestions, and a top bar', { url: `${site.
   await page.press('ArrowUp', 500);
   check('Up from there passes over the link that jumps lower when it gets the cursor', await page.focused(), 'logo');
   check('a side menu parked off the screen, calling itself a modal dialog, did not take the page away', await page.inLayer('globalThis.longboardReferee.targets().length > 4'), true);
+  await page.evaluate('document.getElementById("stuck").focus(); 0');
+  await sleep(400);
+  await page.press('ArrowDown', 700);
+  check('a field whose "open list" does nothing with the keys does not hold the highlight: Down moves on', await page.focused(), 'after');
+  await page.evaluate('document.getElementById("stuck").focus(); 0');
+  await sleep(400);
+  await page.press('ArrowUp', 700);
+  check('and so does Up', await page.focused(), 'second');
 });
 
 await scenario('a question laid over the whole page, with nothing to say it is a dialog', { url: `${site.origin}/gate.html`, args: ['--zoom=1'] }, async (app) => {

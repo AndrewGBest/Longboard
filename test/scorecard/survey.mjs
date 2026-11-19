@@ -4,7 +4,7 @@
 // where nothing moves although the page goes on, a highlight left off
 // screen, and controls Tab reaches that the highlight cannot.
 //
-//   xvfb-run -a -s "-screen 0 1920x1080x24" node test/scorecard/survey.mjs [words] [--out=file.jsonl] [--shots=folder] [--part=1/2]
+//   xvfb-run -a -s "-screen 0 1920x1080x24" node test/scorecard/survey.mjs [words] [--out=file.jsonl] [--shots=folder] [--part=1/2] [--answer-gate] [--open-first]
 //
 // Always --automation (Hard rule 11): nothing is typed, bought or signed in
 // to. What is written holds kinds, sizes and counts, never a page's words.
@@ -16,6 +16,8 @@ const args = process.argv.slice(2);
 const opt = (name) => args.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 const shots = opt('shots');
 const out = opt('out');
+const answerGate = args.includes('--answer-gate');
+const openFirst = args.includes('--open-first');
 const [part, parts] = (opt('part') ?? '1/1').split('/').map(Number);
 const only = args.filter((a) => !a.startsWith('--'));
 const { sites } = JSON.parse(readFileSync(join(root, opt('list') ?? 'test/scorecard/survey-sites.json'), 'utf8'));
@@ -61,6 +63,56 @@ async function survey(site) {
     row.dialog = s.dialog;
     row.endedAt = s.host;
     await shot('0');
+
+    // An age question first, when asked to (--answer-gate): the highlight is
+    // walked to the button that says the person is an adult, and OK is
+    // pressed, as someone with a remote would. Andrew, an adult and the
+    // owner, asked for these sites to be tested past the question
+    // (2026-11-20). The button's words are read to find it and kept nowhere.
+    if (answerGate) {
+      const YES = `(() => { const t = (document.querySelector('[data-longboard-focus]')?.textContent ?? '').trim().toLowerCase(); return t.length < 60 && /(18|eighteen|adult|older|enter|agree|accept|yes)/.test(t) && !/(leave|exit|under|not |no,|decline|sign|log ?in|join|parent)/.test(t); })()`;
+      row.gate = 'no such button found';
+      for (const key of ['ArrowDown', 'ArrowDown', 'ArrowRight', 'ArrowLeft', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown']) {
+        await page.press(key, 500);
+        if (await page.evaluate(YES)) {
+          await page.press('Enter', 5000);
+          row.gate = 'answered';
+          break;
+        }
+      }
+      // Some sites put the cursor in their search field once the question is
+      // answered, which brings the on-screen keyboard; Back puts it away.
+      if (await page.keyboardShown()) {
+        row.keyboardAfterGate = true;
+        await page.press('Escape', 600);
+      }
+      const after = await state();
+      row.dialogAfterGate = after.dialog;
+      row.elements = after.elements;
+    }
+
+    // One page further in, when asked to (--open-first): the highlight is
+    // walked down to the first large card and OK is pressed, and the page
+    // that opens is what gets surveyed.
+    if (openFirst) {
+      row.opened = 'no large card found';
+      for (let i = 0; i < 14; i++) {
+        await page.press('ArrowDown', 600);
+        const big = await page.evaluate(`(() => { const f = document.querySelector('[data-longboard-focus]'); const r = f?.getBoundingClientRect(); return !!f && f.tagName === 'A' && r.width >= 140 && r.height >= 80; })()`);
+        if (big) {
+          const from = await page.evaluate('location.pathname.length');
+          await page.press('Enter', 7000);
+          const now = await state();
+          row.opened = `a page ${now.path} deep, ${now.elements} elements, ${await page.evaluate('document.getElementsByTagName("video").length')} video element(s), ${now.frames} frame(s)${(await page.evaluate('location.pathname.length')) === from ? ', address unchanged' : ''}`;
+          row.elements = now.elements;
+          row.endedAt = now.host;
+          break;
+        }
+      }
+      // Back to the top of whatever is now in front, with nothing highlighted from the walk above.
+      await page.evaluate('window.scrollTo(0, 0); 0');
+      await sleep(800);
+    }
 
     // The top: one press to land, then Up until Longboard says it has nowhere to go.
     s = await press('ArrowDown');

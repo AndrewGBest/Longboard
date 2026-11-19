@@ -36,6 +36,10 @@
 <main>
   <a id="first" href="#first">First thing</a>
   <a id="second" href="#second">Second thing</a>
+  <!-- A field that says its list is open and one entry marked, and does nothing with the arrow keys. -->
+  <input id="stuck" type="text" role="combobox" aria-expanded="true" aria-controls="list2" style="display: block; margin-top: 30px; width: 300px; height: 30px;">
+  <div id="list2" role="listbox" style="display: none;"><div role="option" aria-selected="true" id="always">x</div></div>
+  <a id="after" href="#after" style="margin-top: 30px;">After</a>
 </main>
 <script>
   const q = document.getElementById('q');

@@ -2,6 +2,11 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.7:
+
+- A search field whose list of suggestions does nothing with the arrow
+  keys no longer holds the highlight.
+
 New in 0.3.6:
 
 - **A question laid over the whole page** (an age check, a consent wall)
