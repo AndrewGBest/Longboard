@@ -3,6 +3,38 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: Andrew answers the nine open decisions
+
+Asked what decisions were open, Andrew answered each (2026-11-19):
+
+| Question | Andrew's answer |
+|---|---|
+| A password store | "yes" |
+| Search suggestions from the search site | "build and ship off" |
+| Typing from a phone, and voice | "build both" |
+| Extension compatibility (uBlock Origin Lite, store signatures) | "spend time on it" |
+| The sentence added to rule 12 about the Widevine download | "sounds fine" |
+| Rules 1 and 5, whose wording lagged | "reword them" |
+| The trademark check on the name | "longboard is fine". The searches are not owed any more; the name stays |
+| Signing releases | "we will come back to this" |
+| The Chrome Web Store's terms | "check it" |
+
+He also reported that **castLabs replied and will make the AC-3 fix in their
+December update**. Nothing in Longboard changes for it; when that release is
+out, Hard rule 14 has it taken promptly and the claim is measured again.
+
+And: "Once youre done all that, get to work on arm support."
+
+**Rules 1 and 5 were reworded by the agent on that instruction.** The wording
+is the agent's; the meaning was not meant to change:
+
+- Rule 1 now covers the packages as well as the repo, says libraries are
+  declared dependencies, and names what is fetched at run time for the
+  person (filter lists, profiles, site icons, extensions).
+- Rule 5 now names the three settings there are (each site's switch, the
+  list, on or off for every site) and says none of them is changed for the
+  person.
+
 ## 2026-11-19: the design gone over against the major browsers
 
 Andrew: "scrutinize the design choices made for Longboard, compare it to all

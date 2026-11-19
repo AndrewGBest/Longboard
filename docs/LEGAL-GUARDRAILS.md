@@ -9,11 +9,11 @@ rules list in [CLAUDE.md](../CLAUDE.md); the numbers match.
 
 | # | Rule | Why, for a browser |
 |---|---|---|
-| 1 | No third-party material in the repo | Copying a site's code, artwork, fonts or text is the plainest copyright problem a project like this can have. Open-source libraries are used as ordinary dependencies, each with its licence recorded in DECISIONS.md; filter lists and the Widevine module are fetched by each copy and never committed or bundled |
+| 1 | No third-party material in the repo or the packages (reworded 2026-11-19 to say what is fetched at run time) | Copying a site's code, artwork, fonts or text is the plainest copyright problem a project like this can have. Open-source libraries are used as ordinary dependencies, each with its licence recorded in DECISIONS.md; filter lists and the Widevine module are fetched by each copy and never committed or bundled |
 | 2 | DRM is left alone | Circumventing access controls is unlawful in many places regardless of intent. Longboard uses the standard interface with the unmodified module and never works around a quality or output limit |
 | 3 | Honest identity | Claiming to be a TV, console or another system to get service not offered to a Linux browser is misrepresentation, and usually the first step of a DRM workaround. The cost is accepted: some sites treat a Linux browser worse. "Desktop site" changes only the width a site is given |
 | 4 | *Removed* | It said streaming services were not altered: no rewriting of responses, headers or scripts on any site, no region workarounds, and no direct control of a site's video. It was written for a streaming client. A browser legitimately does things it forbade (sending Do Not Track, showing a reader view), so Andrew removed it. What still holds is in the note below |
-| 5 | Ad blocking is a per-site switch with careful defaults | See below |
+| 5 | Ad blocking is the person's to control, with careful defaults (reworded 2026-11-19 to name the settings for every site) | See below |
 | 6 | No trademarks in names, icons or artwork | Profile names and settings may name a site in plain text. Tiles and launcher entries use the site's own icon as served to the person's machine, never one stored in the repo |
 | 7 | Profiles are data | A profile that could run code would make the catalogue a way to attack users. Data-only profiles can be reviewed by reading them |
 | 8 | Selectors come from evidence | Keeps profiles honest and reviewable, and keeps guesses out |

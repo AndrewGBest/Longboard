@@ -14,9 +14,13 @@ These are not style preferences. A change that breaks one does not ship, even
 if asked for casually. If a request conflicts with a rule, stop and say so.
 The reasoning for each is in `docs/LEGAL-GUARDRAILS.md`.
 
-1. **No third-party material in the repo.** No code, fonts, logos, artwork,
-   sounds, screenshots or copied text from any website or service. The
-   Widevine library is never committed or bundled.
+1. **No third-party material in the repo or the packages.** No code, fonts,
+   logos, artwork, sounds, screenshots or copied text from any website or
+   service is committed or shipped. Libraries come as declared dependencies
+   with their licences recorded. What Longboard fetches for the person at
+   run time (filter lists, reviewed profiles, a site's icon, an extension
+   the person adds) comes from its source, stays on their machine and is
+   never committed. The Widevine library is never committed or bundled.
 2. **DRM is left alone.** Protected playback goes through the browser's
    standard EME interface with the unmodified CDM. Never extract keys, patch or
    wrap the CDM, inspect or replay licence traffic, record or download streams,
@@ -28,13 +32,15 @@ The reasoning for each is in `docs/LEGAL-GUARDRAILS.md`.
 4. *(Removed by Andrew, 2026-11-18. Longboard is a whole browser, not a
    client for streaming services. The number is kept so the other rules keep
    theirs. Rules 2, 3 and 5 still stand.)*
-5. **Ad blocking is a per-site switch the person controls.** It starts off on
-   verified sites (the reviewed list in the profiles repository), and on
-   everywhere else. Never change the switch
-   for the person, never ship a default that turns it on for a verified site.
-   It works by refusing requests on public filter lists: never in-stream ad
-   skipping, never anti-detection. The starting-state decision is a tested
-   pure function.
+5. **Ad blocking is the person's to control.** As shipped, each site has
+   its own switch, which starts off on verified sites (the reviewed list in
+   the profiles repository) and on everywhere else. The person can change a
+   site's switch, edit the list, or set blocking on or off for every site in
+   Settings. Longboard never changes any of these for the person and never
+   ships a default that turns blocking on for a verified site. It works by
+   refusing requests on public filter lists: never in-stream ad skipping,
+   never anti-detection. The starting-state decision is a tested pure
+   function.
 6. **No trademarks in the name, app ID, icon or artwork.** Plain-text
    descriptions of compatibility are fine, with the non-affiliation notice.
    Site icons shown in the UI come from the site at run time, never the repo.
