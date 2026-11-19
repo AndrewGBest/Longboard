@@ -53,7 +53,7 @@ export interface Layer {
   dispatch: (a: Action) => void;
   /** Show a short message from the shell, for example that a navigation was refused. */
   notice: (text: string) => void;
-  /** A phone has sent text: says back (by the number given) whether there is a text field with the cursor for it. The shell holds the text and types it. */
+  /** Text has come from a phone or from speech: says back (by the number given) whether there is a text field with the cursor for it. The shell holds the text and types it. */
   phoneText: (id: number) => void;
   /** Shows or hides the line that says a page is arriving. */
   loading: (on: boolean) => void;
@@ -703,6 +703,9 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       case 'search':
         openSearch();
         break;
+      case 'voice':
+        send({ kind: 'voice' });
+        break;
       case 'diagnostics':
         // The first line says how much of the adapter still matches this page:
         // a zero where there used to be matches is the site having changed.
@@ -848,7 +851,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     phoneText: (id) => {
       const into = deepActiveElement(doc);
       if (!into || !isTextEntry(into)) {
-        overlay.toast('Choose a text field on the TV first, then send again', 5000);
+        send({ kind: 'phoneNo', id });
         return;
       }
       // A scripted run never types a password or a one-time code, whatever the text came from (Hard rule 10).

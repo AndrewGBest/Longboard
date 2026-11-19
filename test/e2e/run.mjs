@@ -2017,6 +2017,20 @@ await scenario('no suggestions are asked for as Longboard ships', { config: { se
   });
 }
 
+// Recognising speech needs the model and a microphone, neither of which a
+// test machine has; what is checked here is that nothing is fetched unasked.
+await scenario('speaking: the model is asked about, and not fetched unless agreed to', {}, async (app) => {
+  const chrome = await app.chrome();
+  await until(() => chrome.focused(), (id) => id === 'go');
+  await chrome.press('ContextMenu', 500);
+  for (let i = 0; i < 12 && (await chrome.focused()) !== 'menu-voice'; i++) await chrome.press('ArrowDown');
+  check('the menu has "Speak"', await chrome.focused(), 'menu-voice');
+  await chrome.press('Enter', 700);
+  check('the first time, it asks before fetching the speech model, and says how big it is and where from', [await chrome.evaluate('document.querySelector("#panel h1")?.textContent'), /51 MB.*download\.moonshine\.ai/.test(await chrome.evaluate('document.querySelector("#panel p.lead")?.textContent ?? ""')), await chrome.focused()], ['Fetch the speech model?', true, 'prompt-deny']);
+  await chrome.press('Enter', 500);
+  check('"Not now" fetches nothing', [await chrome.evaluate('document.getElementById("panel")'), existsSync(join(app.userData, 'voice-model'))], [null, false]);
+});
+
 // The site cannot be reached at first. The view must say so, keep trying,
 // and load the page once it is there.
 {

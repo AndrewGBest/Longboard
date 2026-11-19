@@ -1,5 +1,8 @@
 // Main process: start-up. The window and its views are in browser.ts.
-import { app, nativeTheme, session } from 'electron';
+import { app, nativeTheme, protocol, session } from 'electron';
+
+// The listening page's own address (main/voice.ts). It has to be declared before the app is ready.
+protocol.registerSchemesAsPrivileged([{ scheme: 'voice', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 import * as electron from 'electron';
 import { join } from 'node:path';
 import { parseConfig, type UserConfig } from '../shared/config';
@@ -234,6 +237,8 @@ async function main(): Promise<void> {
     phoneAt: value('phone-at') === '127.0.0.1' ? '127.0.0.1' : undefined,
     // A scripted run cannot scan the code on the screen, so it brings its own key. Never outside one.
     phoneKey: options.automation ? value('phone-key') : undefined,
+    // A folder that already has the speech model, so a scripted run fetches nothing.
+    voiceModel: value('voice-model'),
     // Windowed while developing, so the desktop stays reachable.
     fullscreen: flag('fullscreen') || !options.dev,
     // Where files are saved: the desktop's Downloads folder, unless told otherwise.

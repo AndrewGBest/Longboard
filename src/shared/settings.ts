@@ -80,6 +80,7 @@ export const BUTTON_ACTIONS: readonly { action: string; words: string }[] = [
   { action: 'seekBack', words: 'Skip back' },
   { action: 'seekForward', words: 'Skip forward' },
   { action: 'search', words: 'Go to search' },
+  { action: 'voice', words: 'Speak' },
   { action: 'select', words: 'OK' },
 ];
 

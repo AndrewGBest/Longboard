@@ -100,6 +100,8 @@ export interface ChromeState {
     /** The extensions installed; `opens` is the page of its own that can be shown, if it has one. */
     extensions: Array<{ id: string; name: string; version: string; opens: string | null }>;
     extensionUpdates: boolean;
+    /** Whether the speech model has been fetched. */
+    voiceModel: boolean;
     /** Saved sign-ins: whether the system has a keyring to keep them with, whether they are offered, and what is saved (never the passwords). */
     passwords: { available: boolean; offer: boolean; logins: Array<{ place: string; site: string; user: string }>; never: string[] };
     /** New versions: where things stand, the setting, and whether this copy can replace itself. */
@@ -150,15 +152,17 @@ export interface ChromeState {
     | { what: 'extension'; name: string; version: string; can: string[] }
     /** Keep the password just typed for this site? */
     | { what: 'password'; site: string; user: string }
+    /** Fetch the speech model, once? `size` in words. */
+    | { what: 'voiceModel'; size: string }
     | null;
 }
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'forward' | 'stop' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'reader' | 'lock' | 'addExtension' | 'settings' | 'history' | 'tabs' | 'find' | 'phone' | 'phoneOff' | 'savePassword' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'reader' | 'lock' | 'addExtension' | 'settings' | 'history' | 'tabs' | 'find' | 'voice' | 'phone' | 'phoneOff' | 'savePassword' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'forward', 'stop', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'phone', 'phoneOff', 'savePassword', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'forward', 'stop', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'voice', 'phone', 'phoneOff', 'savePassword', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -216,8 +220,8 @@ export type ChromeMessage =
   /** From Settings: forget one saved sign-in, offer again at a site, or forget them all. */
   | { kind: 'password'; op: 'remove' | 'offerAgain' | 'removeAll'; place?: string; user?: string };
 
-export type SettingsAction = 'clearSiteData' | 'clearCache' | 'clearHome' | 'clearHistory' | 'clearAll' | 'forgetSites' | 'updateFilters' | 'updateCatalogue' | 'checkUpdate' | 'reset';
-export const SETTINGS_ACTIONS: readonly SettingsAction[] = ['clearSiteData', 'clearCache', 'clearHome', 'clearHistory', 'clearAll', 'forgetSites', 'updateFilters', 'updateCatalogue', 'checkUpdate', 'reset'];
+export type SettingsAction = 'clearSiteData' | 'clearCache' | 'clearHome' | 'clearHistory' | 'clearAll' | 'forgetSites' | 'updateFilters' | 'updateCatalogue' | 'checkUpdate' | 'removeVoiceModel' | 'reset';
+export const SETTINGS_ACTIONS: readonly SettingsAction[] = ['clearSiteData', 'clearCache', 'clearHome', 'clearHistory', 'clearAll', 'forgetSites', 'updateFilters', 'updateCatalogue', 'checkUpdate', 'removeVoiceModel', 'reset'];
 
 export type EditAction = 'include' | 'exclude' | 'row' | 'player' | 'wider' | 'narrower' | 'pickAgain' | 'save' | 'discard';
 export const EDIT_ACTIONS: readonly EditAction[] = ['include', 'exclude', 'row', 'player', 'wider', 'narrower', 'pickAgain', 'save', 'discard'];

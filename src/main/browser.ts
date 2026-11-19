@@ -6,6 +6,8 @@ import { shortcutFor, type Shortcut } from '../shared/shortcuts';
 import { app, BaseWindow, ipcMain, net, powerSaveBlocker, safeStorage, session, WebContentsView, type WebContents } from 'electron';
 import { Passwords } from './passwords';
 import { PhoneTyping } from './phone';
+import { Voice } from './voice';
+import { voiceModelSize } from '../shared/voice';
 import qrcode from 'qrcode-generator';
 import { cleanCredentials, loginPlace, shouldOffer } from '../shared/passwords';
 import { accessSync, constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -69,6 +71,7 @@ export interface BrowserDeps {
   /** Where typing from a phone listens, when it is not the home-network address. */
   phoneAt?: string | undefined;
   phoneKey?: string | undefined;
+  voiceModel?: string | undefined;
   fullscreen: boolean;
   /** The --size=WIDTHxHEIGHT option: the window's size when it is not full screen. */
   size: [number, number] | undefined;
@@ -251,6 +254,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     | { what: 'extension'; extension: DownloadedExtension }
     | { what: 'download'; download: Download }
     | { what: 'password'; place: string; user: string; password: string }
+    | { what: 'voiceModel' }
     | null = null;
   /** A file on its way, or that was. `temp` is where it is held until it is whole and agreed to. */
   interface Download {
@@ -401,7 +405,15 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // Longboard closes. What a phone sends is typed where the cursor is, or
   // pressed as a button of the remote would be.
   let phoneCount = 0;
-  let phoneHeld: { id: number; text: string; to: WebContents; at: number } | null = null;
+  let phoneHeld: { id: number; text: string; to: WebContents; at: number; from: 'phone' | 'voice' } | null = null;
+  /** Holds text from a phone or from speech, and asks the layer in front whether a text field has the cursor for it. */
+  const typeHeld = (text: string, from: 'phone' | 'voice'): void => {
+    const front = active();
+    if (front.isDestroyed()) return;
+    const id = ++phoneCount;
+    phoneHeld = { id, text: text.replace(/[\u0000-\u001f\u007f]+/g, ' '), to: front, at: Date.now(), from };
+    front.send('longboard:phone-text', id);
+  };
   const PHONE_BUTTONS = { up: 'Up', down: 'Down', left: 'Left', right: 'Right', ok: 'Return', enter: 'Return', back: 'Escape', delete: 'Backspace', playPause: 'MediaPlayPause' } as const;
   const phone = new PhoneTyping(
     join(__dirname, 'phone.js'),
@@ -409,12 +421,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (win.isDestroyed()) return;
       const front = active();
       if (front.isDestroyed()) return;
-      if (message.t === 'text') {
-        // The text stays here. The layer is only asked whether a text field has the cursor, and answers by number.
-        const id = ++phoneCount;
-        phoneHeld = { id, text: message.v.replace(/[\u0000-\u001f\u007f]+/g, ' '), to: front, at: Date.now() };
-        front.send('longboard:phone-text', id);
-      }
+      // The text stays here. The layer is only asked whether a text field has the cursor, and answers by number.
+      if (message.t === 'text') typeHeld(message.v, 'phone');
       else if (message.t === 'key' && message.v === 'menu') toggleMenu();
       else if (message.t === 'key') {
         const keyCode = PHONE_BUTTONS[message.v as keyof typeof PHONE_BUTTONS];
@@ -429,6 +437,50 @@ export function createBrowser(deps: BrowserDeps): Browser {
       notify('A phone is connected');
     },
   );
+  // ---- Speaking (main/voice.ts) ------------------------------------------------
+  // Recognised on this machine. The model is fetched once, when the person
+  // agrees. What is heard is typed where the cursor is; with no text field
+  // selected it is opened as an address or searched for.
+  const voice = new Voice({
+    modelDir: deps.voiceModel ?? join(dataDir, 'voice-model'),
+    distDir: __dirname,
+    engineDir: join(__dirname, '..', 'node_modules', '@moonshine-ai', 'moonshine-wasm', 'dist'),
+    fetch: (url) => net.fetch(url, { credentials: 'omit', cache: 'no-store' }),
+    event: (e) => {
+      if (win.isDestroyed()) return;
+      if (e.kind === 'listening') notify('Listening. Speak now');
+      else if (e.kind === 'working') notify('Working out what you said');
+      else if (e.kind === 'heard') {
+        if (e.text) typeHeld(e.text, 'voice');
+        else notify('Nothing could be made out');
+      } else notify(e.why === 'microphone' ? 'No microphone could be used on this machine' : e.why === 'nothing' ? 'Nothing was heard' : 'The speech engine could not start');
+    },
+  });
+  /** Opens what was typed or said: an address, or words to search for. */
+  const openTyped = (input: string): void => {
+    const url = resolveAddress(input, config.search);
+    // A search is not a site the person asked for by name; it is not put on Home.
+    if (url) open(url, resolveAddress(input, 'https://search.invalid/?q=%s') === url);
+  };
+  const speak = (): void => {
+    if (panel === 'prompt' || panel === 'pin') return;
+    if (voice.busy) {
+      voice.stop();
+      return;
+    }
+    if (!voice.modelReady()) {
+      pending = { what: 'voiceModel' };
+      panel = 'prompt';
+      layout();
+      return;
+    }
+    if (panel === 'menu') {
+      panel = null;
+      layout();
+    }
+    voice.listen();
+  };
+
   /** An address as a square code for a phone's camera: rows of 0 and 1. */
   const codeFor = (text: string): string[] => {
     const code = qrcode(0, 'M');
@@ -550,6 +602,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
             httpsOnly: config.httpsOnly === true,
             extensions: extensions.list().map((e) => ({ id: e.id, name: e.name, version: e.version, opens: e.options ?? e.popup })),
             extensionUpdates: config.extensionUpdates !== false,
+            voiceModel: voice.modelReady(),
             passwords: { available: passwords.available(), offer: config.passwords !== false, logins: passwords.list(), never: passwords.never().map((n) => n.replace(/^https?:\/\//, '')) },
             update: deps.settings.update(),
             lock: lock ? { homeOnly: lock.homeOnly } : null,
@@ -612,6 +665,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         ? { what: 'profile', name: pending.profile.name, version: pending.profile.version, hosts: pending.profile.match.hosts.slice(0, 6) }
         : pending.what === 'extension'
           ? { what: 'extension', name: pending.extension.name, version: pending.extension.version, can: pending.extension.can }
+        : pending.what === 'voiceModel'
+          ? { what: 'voiceModel', size: voiceModelSize() }
         : pending.what === 'password'
           ? { what: 'password', site: pending.place.replace(/^https?:\/\//, ''), user: pending.user }
         : pending.what === 'download'
@@ -1382,6 +1437,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
       } else if (action?.type === 'menu') {
         event.preventDefault();
         toggleMenu();
+      } else if (action?.type === 'voice') {
+        event.preventDefault();
+        setImmediate(speak);
       } else if (action?.type === 'pointer') {
         event.preventDefault();
         // After this event, for the reason given in the pointer's own key handling.
@@ -1491,6 +1549,17 @@ export function createBrowser(deps: BrowserDeps): Browser {
           notify(`"${asked.extension.name}" could not be added: this browser cannot run it`);
         },
       );
+      return;
+    }
+    if (asked.what === 'voiceModel') {
+      layout();
+      if (!allow) return;
+      notify(`Fetching the speech model, ${voiceModelSize()}. This is done once`);
+      void voice.fetchModel(() => undefined).then((ok) => {
+        if (win.isDestroyed()) return;
+        if (ok) speak();
+        else notify('The speech model could not be fetched. Is this machine online?');
+      });
       return;
     }
     if (asked.what === 'password') {
@@ -1753,6 +1822,18 @@ export function createBrowser(deps: BrowserDeps): Browser {
           if (info.char) wc.sendInputEvent({ type: 'char', keyCode: info.char });
           wc.sendInputEvent({ type: 'keyUp', keyCode: info.code });
         }
+        break;
+      }
+      case 'voice':
+        speak();
+        break;
+      case 'phoneNo': {
+        const held = phoneHeld;
+        if (!held || held.id !== msg.id || held.to !== wc) break;
+        phoneHeld = null;
+        // Said with no text field selected: it is where to go, or what to search for.
+        if (held.from === 'voice') openTyped(held.text);
+        else notify('Choose a text field on the TV first, then send again');
         break;
       }
       case 'phoneOk': {
@@ -2443,6 +2524,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
         if (surface === 'page') panel = 'find';
         layout();
         break;
+      case 'voice':
+        speak();
+        break;
       case 'phone':
         // `--phone-at=` is for a scripted run on a machine with no network: this machine's own address.
         void phone.start(deps.phoneAt, deps.phoneKey).then((ok) => {
@@ -2550,6 +2634,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
           if (panel === 'settings') layout();
           notify(ok ? 'Reviewed profiles are up to date' : 'Reviewed profiles could not be downloaded');
         });
+        break;
+      case 'removeVoiceModel':
+        voice.removeModel();
+        layout();
+        notify('The speech model is removed');
         break;
       case 'checkUpdate':
         notify('Looking for a new version');
@@ -2662,12 +2751,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
         }
         layout();
         break;
-      case 'open': {
-        const url = typeof msg.input === 'string' ? resolveAddress(msg.input, config.search) : null;
-        // A search is not a site the person asked for by name; it is not put on Home.
-        if (url) open(url, resolveAddress(msg.input, 'https://search.invalid/?q=%s') === url);
+      case 'open':
+        if (typeof msg.input === 'string') openTyped(msg.input);
         break;
-      }
       case 'openRecent':
         if (typeof msg.url === 'string' && recents.some((r) => r.url === msg.url)) open(msg.url, true);
         break;
@@ -2864,6 +2950,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   win.on('closed', () => {
     clearInterval(downloadsTick);
     phone.stop();
+    voice.close();
     // A half-fetched file is of no use to anyone.
     for (const d of downloads) if (d.state === 'going') d.item.cancel();
     rmSync(waitingDir, { recursive: true, force: true });

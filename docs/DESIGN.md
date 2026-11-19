@@ -142,6 +142,13 @@ one. The phone's keyboard can take dictation. It stays on, with the panel
 put away, until it is turned off or Longboard closes. How it is kept private
 is in DECISIONS.md.
 
+**By voice** **[Decision, Andrew, 2026-11-19; the shape is the agent's
+assumption]**. The menu's "Speak", or a button given that job, listens
+until the person stops, and types what was said where the cursor is; with no
+text field selected it goes there or searches for it. The words are worked
+out on this machine. The first use asks to fetch the speech model (51 MB,
+once). English only for now, and it needs a microphone the system can see.
+
 ### 4.5 Profile editor **[Assumption, 2026-11-18]**
 
 A built-in mode for making and adjusting profiles on the TV:

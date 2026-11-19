@@ -28,7 +28,7 @@ const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 
 
 export const ACTION_NAMES = [
   'up', 'down', 'left', 'right', 'select', 'back', 'playPause',
-  'seekBack', 'seekForward', 'search', 'menu', 'pointer', 'quit', 'none',
+  'seekBack', 'seekForward', 'search', 'menu', 'pointer', 'voice', 'quit', 'none',
 ] as const;
 export type ActionName = (typeof ACTION_NAMES)[number];
 
@@ -248,6 +248,8 @@ export function actionFor(name: ActionName): Action | null {
       return { type: 'search' };
     case 'menu':
       return { type: 'menu' };
+    case 'voice':
+      return { type: 'voice' };
     case 'pointer':
       return { type: 'pointer' };
     case 'quit':

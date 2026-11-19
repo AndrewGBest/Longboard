@@ -40,6 +40,7 @@ const ICONS = {
   layers: ['M12 4l8 4-8 4-8-4z', 'M4 12l8 4 8-4', 'M4 16l8 4 8-4'],
   update: [RING, 'M12 16V8', 'M8.5 11.5L12 8l3.5 3.5'],
   folder: ['M3 6h6l2 2h10v11H3z'],
+  mic: ['M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z', 'M6 11a6 6 0 0 0 12 0', 'M12 17v4'],
 } as const;
 export type IconName = keyof typeof ICONS;
 

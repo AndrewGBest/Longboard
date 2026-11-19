@@ -278,6 +278,7 @@ function menuPanel(s: ChromeState): Node[] {
     );
   }
   items.push(el('div', { cls: 'pair' }, [button('menu-tabs', s.tabs.length > 1 ? `Tabs (${s.tabs.length})` : 'Tabs', act('tabs'), false, 'tabs'), button('menu-history', 'History', act('history'), false, 'history')]));
+  items.push(row('menu-voice', 'Speak', act('voice'), { icon: 'mic', sub: 'Say an address or what to search for' }));
   items.push(row('menu-phone', 'Type from a phone', act('phone'), { icon: 'remote', chevron: true, ...(s.phoneOn ? { value: 'On' } : {}) }));
   if (s.downloads.length > 0) {
     const going = s.downloads.filter((d) => d.state === 'going').length;
@@ -666,10 +667,13 @@ function settingsPanel(s: ChromeState): Node[] {
         return items;
       }
       items.push(say('Give a button on your remote a job. The built-in buttons keep working; About and help lists them.'));
+      const speech: Node[] = [el('h2', { text: 'Speaking' }), say(st.voiceModel ? 'The speech model is on this machine. What you say is worked out here and never sent anywhere.' : 'The speech model has not been fetched. "Speak" on the menu offers to fetch it.')];
+      if (st.voiceModel) speech.push(sure('voice-remove', 'Remove the speech model', 'Press again to remove the speech model', () => tell({ kind: 'settingsAction', action: 'removeVoiceModel' })));
       for (const b of st.buttons) {
         items.push(row(`button-${b.action}`, b.words, () => tell({ kind: 'captureButton', action: b.action }), { value: b.keys.length ? b.keys.join(', ') : 'Add a button', say: b.keys.length ? `${b.words}: also ${b.keys.join(', ')}` : `${b.words}: add a button` }));
         if (b.keys.length) items.push(row(`unbutton-${b.action}`, `Take the extra buttons away from "${b.words}"`, () => tell({ kind: 'clearButtons', action: b.action }), { cls: 'quiet', icon: 'close' }));
       }
+      items.push(...speech);
       items.push(back);
       return items;
     }
@@ -915,6 +919,15 @@ function promptPanel(s: ChromeState): Node[] {
       el('p', { text: `An extension is a program written by someone else. ${PRODUCT.name} has not looked at it. Add it only if you trust who made it.` }),
       yes('Add it'),
       no('Do not add it'),
+    ];
+  }
+  if (s.prompt?.what === 'voiceModel') {
+    return [
+      heading('Fetch the speech model?', 'mic'),
+      lead(`To understand speech, ${PRODUCT.name} needs a model of ${s.prompt.size}. It is fetched once, from its makers at download.moonshine.ai.`),
+      el('p', { text: 'After that, what you say is worked out on this machine and is never sent anywhere. English only for now. Settings, under Remote and keyboard buttons, removes the model.' }),
+      yes('Fetch it'),
+      no('Not now'),
     ];
   }
   if (s.prompt?.what === 'password') {

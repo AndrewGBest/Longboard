@@ -15,6 +15,8 @@ export type Action =
   | { type: 'search' }
   /** Open or close Longboard's menu panel. */
   | { type: 'menu' }
+  /** Speak: what is said is typed where the cursor is, or searched for. */
+  | { type: 'voice' }
   /** Switch pointer mode on or off. */
   | { type: 'pointer' }
   | { type: 'diagnostics' }
@@ -44,6 +46,10 @@ export type BridgeMessage =
   | { kind: 'credentials'; user: string; password: string }
   /** There is a text field with the cursor for the text a phone sent, which the shell holds under this number. */
   | { kind: 'phoneOk'; id: number }
+  /** No text field has the cursor for it. */
+  | { kind: 'phoneNo'; id: number }
+  /** The button given the job of "Speak" was pressed (a controller's; a keyboard's or remote's the shell hears itself). */
+  | { kind: 'voice' }
   | { kind: 'back' }
   /** The menu button was pressed. */
   | { kind: 'menu' }

@@ -3,6 +3,50 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: speaking to Longboard (Andrew: "build both")
+
+Built, as well as dictation through the phone's own keyboard. **The shape is
+the agent's assumption.**
+
+- **Recognised on this machine.** The engine is Moonshine, as WebAssembly
+  (`@moonshine-ai/moonshine-wasm` 0.1.6, MIT, pinned exactly; 13.7 MB, no
+  dependencies of its own). The Web Speech API was ruled out: in Electron it
+  fails for the online kind and reports the on-device kind as unavailable
+  [Sourced: the research gathered 2026-11-19; electron/electron issue 46143
+  and pull request 52955]. **This dependency is not small**, which CLAUDE.md
+  asks for; it is the only way found to do this without sending speech to
+  someone's server. It was first published in August 2026.
+- **The model is fetched once, when the person agrees**: seven files, 51 MB,
+  from its makers at download.moonshine.ai, one fixed version, each held to
+  a size and SHA-256 written in `shared/voice.ts`. A sixth request Longboard
+  can make by itself (Hard rule 12): asked about before it happens, said in
+  About and under Privacy, and the model can be removed in Settings. The
+  model's licence is MIT according to the research; not re-read by the agent.
+- **A page of its own.** The engine runs in a hidden page served by Longboard
+  under `voice://longboard/`, in a session of its own whose content policy
+  allows only its own files, with the microphone and no other permission. It
+  needs "unsafe-eval" for the engine's loader; nothing from outside is ever
+  loaded there. It has no API from the shell: plain messages across its
+  window.
+- **What is heard** is typed where the cursor is, by the same held-text path
+  as the phone; with no text field selected it is opened as an address or
+  searched for.
+- **When to stop listening** is decided by loudness against the room's own
+  noise: 1.1 s of quiet after speech, 6 s with nobody speaking, 15 s at most
+  (`shared/voice.ts`, unit-tested).
+- **English only**, the tiny model. Other languages are other models.
+- **Which microphone.** Whatever the system gives as its input. Voice
+  remotes over Bluetooth mostly do not appear as one on Linux [Research;
+  marked there as not confirmed]: a USB microphone or a webcam's does.
+- A button can be given the job ("Speak" under Remote and keyboard buttons).
+
+**Measured here, 2026-11-19**, in the real app under `--automation` with a
+public recording played as the microphone: model loaded in 0.4 s; 11 s of
+speech turned into words in 0.7 s (in the trial outside Longboard); in
+Longboard the first phrase of the recording was heard correctly and
+searched for; the fetch of the model from its makers ran once and passed the
+checksums. Not in the test suite, which has neither model nor recording.
+
 ## 2026-11-19: typing from a phone (Andrew: "build both", of phone and voice)
 
 Built. **The shape is the agent's assumption.**

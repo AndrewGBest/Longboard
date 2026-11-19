@@ -38,5 +38,9 @@ for (const [entry, outfile] of [['src/preload/index.ts', 'dist/preload.js'], ['s
 // The script of the page a phone shows to type on the TV (main/phone.ts serves it).
 await build({ ...common, sourcemap: false, minify: true, entryPoints: ['src/phone/index.ts'], outfile: 'dist/phone.js', platform: 'browser', format: 'iife' });
 
+// The listening page (main/voice.ts serves it): its script, which loads the speech engine from beside it, and its preload.
+await build({ ...common, entryPoints: ['src/voice/page.ts'], outfile: 'dist/voice.js', platform: 'browser', format: 'esm', external: ['/m/*'] });
+await build({ ...common, entryPoints: ['src/voice/preload.ts'], outfile: 'dist/voice-preload.js', platform: 'browser', format: 'iife', external: ['electron'] });
+
 await copyFile('src/layer/ui/tv.css', 'dist/tv.css');
 await copyFile('src/chrome/chrome.html', 'dist/chrome.html');
