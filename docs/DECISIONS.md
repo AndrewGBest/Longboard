@@ -3,6 +3,20 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-20: adult sites are tested like any others
+
+**Andrew, 2026-11-20:** "Its important to also have support for adult
+sites. Adults will use this browser afterall." The agent had left the five
+adult sites in the top 50 out of the survey on its own judgment; that is
+reversed. The rest is **the agent's assumption**.
+
+| Choice | Reason |
+|---|---|
+| The five are in `survey-sites.json`, in their places in the ranking | They are among the 50 most-visited sites, and a browser is for whatever its owner opens |
+| They are surveyed like the rest, and no pictures of any site are kept | The survey records kinds, sizes and counts only. A fault is worked out from structure |
+| The survey does not answer a site's age question | It presses only arrows. What lies past such a question on these sites is therefore not tested |
+| A layer fixed over the whole screen, which takes the pointer everywhere and has something to press, is where the highlight stays, though its markup does not say it is a dialog. Back is not changed for it | One of the five: its age question is such a layer over a page locked from scrolling. The highlight wandered among the links hidden behind it and was off the screen on 20 of 24 presses. A web app whose whole page lives in one fixed box is also such a layer and loses nothing (two were checked). A first version also turned Back into the page's "close" key, as for a real dialog; the end-to-end suite caught it in the full-screen player, and at a gate it would have kept Back from leaving the site |
+
 ## 2026-11-20: what a survey of 63 sites found, and what was changed
 
 Andrew asked for the top 50 websites and the top streaming services to be
@@ -13,7 +27,7 @@ live site named, not signed in, in the real app run headless.
 
 | Choice | Reason |
 |---|---|
-| The list is 45 of Similarweb's 50 most-visited sites (October 2026, as listed on Wikipedia's "List of most-visited websites") and 18 streaming services | The five left out are adult sites; the agent chose not to open them. The streaming list is the agent's own, from memory, with no ranking behind it |
+| The list is 45 of Similarweb's 50 most-visited sites (October 2026, as listed on Wikipedia's "List of most-visited websites") and 18 streaming services | The five left out are adult sites; the agent chose not to open them (**reversed by Andrew the same day, see above**). The streaming list is the agent's own, from memory, with no ranking behind it |
 | A new script, `test/scorecard/survey.mjs`, beside the scorecard | The scorecard is ten sites measured carefully. The survey is many sites looked at for faults: a top that Up never reaches, a highlight that goes round, presses that do nothing though the page goes on, and what Tab reaches that the highlight cannot |
 | No profile was written | Every fault found came from a habit shared by many sites, and a general rule mended it. Rule 8 also wants an outline for each selector, and none was needed |
 | A dialog counts as "in front" only if it is on the screen, and not if it is a small notice in a corner (under 30% of the screen and not over its middle) | A shop builds its side menu off the left edge when its button gets the cursor, already marked as a modal dialog: nothing on the page could then be reached (0 of 115 Tab stops). A mail site marks a 420 by 300 corner notice as modal: the highlight was shut in it |

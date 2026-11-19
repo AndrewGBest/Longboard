@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Longboard fixture: a question laid over the page</title>
+<!-- Invented layout. A layer fixed over the whole screen, with nothing in its markup to say it is a dialog,
+     asks a question; the page behind it is locked from scrolling until it is answered. -->
+<style>
+  body { margin: 0; font: 20px sans-serif; background: #111; color: #eee; }
+  body.locked { position: fixed; overflow: hidden; width: 100%; }
+  main a { display: block; margin: 24px 56px; width: 300px; height: 40px; color: #9cf; }
+  #gate { position: fixed; inset: 0; z-index: 10001; background: rgba(0, 0, 0, .9); }
+  #gate .box { position: absolute; left: 300px; top: 180px; width: 360px; }
+  #gate button { display: block; width: 300px; height: 44px; margin: 12px 0; }
+</style>
+<body class="locked">
+<main>
+  <a id="one" href="#one">One</a>
+  <a id="two" href="#two">Two</a>
+  <a id="three" href="#three">Three</a>
+</main>
+<div id="gate">
+  <div class="box">
+    <p>An invented question.</p>
+    <button id="yes">Go on</button>
+    <button id="no">Leave</button>
+  </div>
+</div>
+<script>
+  document.getElementById('yes').addEventListener('click', () => {
+    document.getElementById('gate').remove();
+    document.body.className = '';
+  });
+</script>

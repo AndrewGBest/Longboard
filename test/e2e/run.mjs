@@ -751,6 +751,24 @@ await scenario('a search field with suggestions, and a top bar', { url: `${site.
   check('a side menu parked off the screen, calling itself a modal dialog, did not take the page away', await page.inLayer('globalThis.longboardReferee.targets().length > 4'), true);
 });
 
+await scenario('a question laid over the whole page, with nothing to say it is a dialog', { url: `${site.origin}/gate.html`, args: ['--zoom=1'] }, async (app) => {
+  const page = await app.page(`${site.origin}/gate.html`);
+  if (!page) return fail('the page did not open');
+  await sleep(700);
+  await page.press('ArrowDown', 300);
+  check('the first press lands in the layer in front, not on the page behind it', await page.focused(), 'yes');
+  await page.press('ArrowDown', 300);
+  await page.press('ArrowDown', 300);
+  await page.press('ArrowLeft', 300);
+  check('and the highlight stays in it', await page.focused(), 'no');
+  await page.press('ArrowUp', 300);
+  await page.press('Enter', 600);
+  check('answering it takes the layer away', await page.evaluate('!document.getElementById("gate")'), true);
+  await page.press('ArrowDown', 400);
+  await page.press('ArrowDown', 400);
+  check('and then the page can be walked', ['one', 'two', 'three'].includes(await page.focused()), true);
+});
+
 await scenario('a form, and things that only look clickable', { url: `${site.origin}/form.html`, args: ['--zoom=1'] }, async (app) => {
   const page = await app.page(site.origin);
   const { evaluate, press, focused } = page;

@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { boxOf } from '../src/layer/spatial/box';
 import { compareWithTabStops } from '../src/layer/diagnostics/referee';
-import { coveredByScreen, edgeControl, FOCUS_ATTR, openDialog, scrollWithinList, SpatialNavigator, ZOOM_ATTR } from '../src/layer/spatial/navigator';
+import { coveredByScreen, coveringLayer, edgeControl, FOCUS_ATTR, openDialog, scrollWithinList, SpatialNavigator, ZOOM_ATTR } from '../src/layer/spatial/navigator';
 
 // jsdom has no layout engine, so each element's rectangle is read from data-rect="left,top,width,height".
 function installLayout(): void {
@@ -898,5 +898,30 @@ describe('something scrolled out of sight in a pane of its own', () => {
     nav.focus(document.getElementById('card'));
     expect(nav.move('down')).toBe(true);
     expect(nav.focused?.id).toBe('hidden');
+  });
+});
+
+describe('a layer fixed over the whole screen with nothing to say it is a dialog', () => {
+  const size = (): void => {
+    Object.defineProperty(window, 'innerWidth', { value: 960, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 540, configurable: true });
+  };
+  afterEach(() => {
+    delete (document as { elementFromPoint?: unknown }).elementFromPoint;
+  });
+  it('is what is in front when the pointer meets it everywhere and it has something to press', () => {
+    size();
+    document.body.innerHTML = '<a href="#p" id="behind" data-rect="20,100,200,30">P</a><div id="gate" style="position: fixed" data-rect="0,0,960,540"><button id="yes" data-rect="300,200,300,44">Yes</button></div>';
+    (document as { elementFromPoint?: unknown }).elementFromPoint = () => document.getElementById('gate');
+    expect(coveringLayer(document)?.id).toBe('gate');
+  });
+  it('is not, when the page shows through somewhere, or it holds nothing to press', () => {
+    size();
+    document.body.innerHTML = '<a href="#p" id="behind" data-rect="20,100,200,30">P</a><div id="gate" style="position: fixed" data-rect="0,0,960,540"><button id="yes" data-rect="300,200,300,44">Yes</button></div>';
+    (document as { elementFromPoint?: unknown }).elementFromPoint = (x: number) => (x < 300 ? document.getElementById('behind') : document.getElementById('gate'));
+    expect(coveringLayer(document)).toBeNull();
+    document.getElementById('yes')!.remove();
+    (document as { elementFromPoint?: unknown }).elementFromPoint = () => document.getElementById('gate');
+    expect(coveringLayer(document)).toBeNull();
   });
 });

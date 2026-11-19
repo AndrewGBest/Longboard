@@ -2,6 +2,27 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-20, later: the five adult sites in the top 50
+
+Andrew: adults will use this browser, so these sites have to work too. The
+five the agent had left out are now in the survey's list (68 sites).
+
+- **Four of the five needed nothing:** on three, every Tab stop is
+  reachable (119 of 119, 80 of 80, 120 of 120) and the page walks down
+  without a fault. The fourth shows its age question, and all ten controls
+  in it are reachable.
+- **One had a fault, mended:** its age question is a layer over the whole
+  screen with nothing in its markup to say it is a dialog. The highlight
+  went among the links behind it, off the screen on 20 of 24 presses. Such
+  a layer is now treated as what is in front. After: the first press lands
+  on the question's button, and the highlight was never off screen.
+- **Verified:** `npm run check` (560 unit tests); `npm run e2e` (494
+  checks, all passing) with a new scenario on an invented page; the mended site and two web apps that live
+  in one fixed box surveyed again on the live sites.
+- **Unverified:** anything past an age question, since the survey does not
+  answer one. Playing video on any of them. No pictures were taken or
+  looked at; faults were worked out from structure.
+
 ## 2026-11-20: a survey of 63 well-known sites, and what it mended
 
 Andrew asked for the top 50 websites and the top streaming services to be

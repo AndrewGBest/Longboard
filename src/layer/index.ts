@@ -16,7 +16,7 @@ import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
 import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo, type PlayerKey, type TextKey } from '../shared/player-keys';
 import { findMainVideo, GENERIC_PLAYER_SHARE, isPlayerActive, isSeekBar, playerIsOwnPage, playerScope } from './player';
-import { coveredByScreen, edgeControl, isVisible, MENU_ENTRY, openDialog, press, SpatialNavigator, type NavigatorOptions } from './spatial/navigator';
+import { coveredByScreen, coveringLayer, edgeControl, isVisible, MENU_ENTRY, openDialog, press, SpatialNavigator, type NavigatorOptions } from './spatial/navigator';
 import { HOST_TAG, Overlay } from './ui/overlay';
 
 export interface LayerDeps {
@@ -100,7 +100,8 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     // reachable until it is closed. A pop-up opened from the menu is in front of both.
     if (hoverHost?.isConnected && !(dialog && !deepContains(hoverHost, dialog))) return hoverHost;
     if (dialog) return dialog;
-    if (!inPlayer()) return null;
+    // A gate or notice laid over the whole screen without saying it is a dialog.
+    if (!inPlayer()) return coveringLayer(doc);
     const v = mainVideo();
     return v ? playerScope(v, playerRoots) : null;
   };

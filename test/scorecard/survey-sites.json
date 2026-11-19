@@ -1,5 +1,5 @@
 {
- "about": "The 45 of the 50 most-visited websites that are not adult sites, in the order of Similarweb's ranking for October 2026 as listed at https://en.wikipedia.org/wiki/List_of_most-visited_websites (read 2026-11-19), followed by streaming services chosen by the agent from memory, with no ranking behind them. Netflix, YouTube and Twitch are in the first list.",
+ "about": "The 50 most-visited websites in the order of Similarweb's ranking for October 2026, as listed at https://en.wikipedia.org/wiki/List_of_most-visited_websites (read 2026-11-19), followed by streaming services chosen by the agent from memory, with no ranking behind them. Netflix, YouTube and Twitch are in the first list. The five adult sites in the 50 were added on 2026-11-20 at Andrew's word; no pictures of any site are kept.",
  "sites": [
   {
    "url": "https://www.google.com/",
@@ -102,6 +102,14 @@
    "kind": "top 50"
   },
   {
+   "url": "https://www.pornhub.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.xhamster.com/",
+   "kind": "top 50"
+  },
+  {
    "url": "https://www.twitch.tv/",
    "kind": "top 50"
   },
@@ -130,11 +138,19 @@
    "kind": "top 50"
   },
   {
+   "url": "https://www.xvideos.com/",
+   "kind": "top 50"
+  },
+  {
    "url": "https://www.weather.com/",
    "kind": "top 50"
   },
   {
    "url": "https://news.yahoo.co.jp/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.stripchat.com/",
    "kind": "top 50"
   },
   {
@@ -159,6 +175,10 @@
   },
   {
    "url": "https://www.brave.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.xhamster46.desi/",
    "kind": "top 50"
   },
   {

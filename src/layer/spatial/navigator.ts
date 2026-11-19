@@ -270,6 +270,35 @@ export function openDialog(doc: Document): Element | null {
 }
 
 /**
+ * A layer fixed over the whole screen that takes the pointer everywhere, with
+ * something in it to press: a gate or a notice the page has put in front of
+ * itself without saying so in its markup. (Seen on a site for adults: its
+ * age question is such a layer over a page that is locked from scrolling,
+ * and the highlight wandered among the links hidden behind it.) A web app
+ * whose whole page lives in one fixed box is also this, and loses nothing.
+ *
+ * It only says where the highlight may go. Back is not turned into the
+ * page's "close" key for it, as it is for a real dialog: Back at a gate has
+ * to leave the site.
+ */
+export function coveringLayer(doc: Document): Element | null {
+  const view = doc.defaultView;
+  if (!view || typeof doc.elementFromPoint !== 'function' || view.innerWidth < 1 || view.innerHeight < 1) return null;
+  let layer: Element | null = null;
+  for (const [x, y] of [[0.5, 0.5], [0.2, 0.2], [0.8, 0.2], [0.2, 0.8], [0.8, 0.8]] as const) {
+    let over: Element | null = null;
+    for (let node = doc.elementFromPoint(view.innerWidth * x, view.innerHeight * y), i = 0; node && node !== doc.body && node !== doc.documentElement && i < 60; node = composedParent(node), i++) {
+      if (view.getComputedStyle(node).position !== 'fixed') continue;
+      const r = node.getBoundingClientRect();
+      if (r.left <= 2 && r.top <= 2 && r.right >= view.innerWidth - 2 && r.bottom >= view.innerHeight - 2) over = node;
+    }
+    if (!over || (layer && over !== layer)) return null;
+    layer = over;
+  }
+  return layer?.querySelector('a[href], button, input, select, textarea, [role="button"], [role="link"], [tabindex]') ? layer : null;
+}
+
+/**
  * True for controls in a bar that stays put while the page scrolls (a fixed
  * or sticky header, a pinned tab strip). `cache` avoids restyling shared ancestors.
  */

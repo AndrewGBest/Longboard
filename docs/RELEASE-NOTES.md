@@ -2,6 +2,13 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.6:
+
+- **A question laid over the whole page** (an age check, a consent wall)
+  keeps the highlight in it until it is answered, also on sites that do
+  not mark it as a dialog. Before, the highlight could wander off among
+  the links hidden behind it.
+
 New in 0.3.5, from trying 63 well-known sites:
 
 - **A shop's whole page could not be reached** once the highlight touched
