@@ -34,7 +34,7 @@ let menuPage: 'main' | 'site' = 'main';
 /** A list to choose one thing from, opened from a Settings page. */
 let choosing: 'search' | 'language' | 'ads' | 'theme' | null = null;
 /** Which page of Settings is showing. */
-type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote' | 'lock' | 'updates' | 'extensions';
+type SettingsPage = 'main' | 'passwords' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote' | 'lock' | 'updates' | 'extensions';
 let settingsPage: SettingsPage = 'main';
 /** A button that clears something has been pressed once and waits for the second press. */
 let confirming: string | null = null;
@@ -238,6 +238,11 @@ function menuPanel(s: ChromeState): Node[] {
     items.push(warn);
   }
   items.push(addressField('menu-address'));
+  // A saved sign-in for the form on this page, or a password just typed that can be kept: first, so one press does it.
+  if (page && onPage) {
+    page.logins.slice(0, 3).forEach((user, i) => items.push(row(`menu-fill-${i}`, user ? `Sign in as ${user}` : 'Fill in the saved password', () => tell({ kind: 'fillLogin', user }), { icon: 'lock', sub: 'Fills in the form; you press the site\'s own button' })));
+    if (page.keepPassword !== null) items.push(row('menu-save-password', page.keepPassword ? `Keep the password for ${page.keepPassword}` : 'Keep the password you typed', act('savePassword'), { icon: 'lock', chevron: true }));
+  }
   if (onPage) items.push(row('menu-home', 'Home', act('home'), { icon: 'home' }));
   else if (page) items.push(row('menu-resume', `Back to ${page.site}`, act('resume'), { icon: 'back' }));
   if (!onPage && menuFor) {
@@ -586,6 +591,30 @@ function settingsPanel(s: ChromeState): Node[] {
       items.push(say(`This keeps a child with the remote out. It does not stop someone with a keyboard and the files: deleting lock.json in ${st.dataFolder} removes the lock, which is also what to do if the PIN is forgotten.`), back);
       return items;
     }
+    case 'passwords': {
+      const pw = st.passwords;
+      const items: Node[] = [heading('Passwords', 'lock')];
+      if (!pw.available) {
+        items.push(
+          el('p', { cls: 'lead', text: 'Passwords cannot be kept on this system.' }),
+          say(`${PRODUCT.name} only keeps a password encrypted by the system's keyring (GNOME Keyring, KWallet or the like), and this system has none running. Nothing is saved, and nothing saved before can be read, until there is one.`),
+          back,
+        );
+        return items;
+      }
+      items.push(
+        flip('set-passwords', 'Offer to keep passwords, and to fill them in', pw.offer, set('passwords', pw.offer ? false : null), 'After you sign in somewhere, the menu offers to keep the password. Nothing is kept unless you say so'),
+        say(`Kept on this machine only, in passwords.json in ${st.dataFolder}, each one encrypted by the system's keyring. Never synced or sent anywhere. Not offered in private tabs.`),
+      );
+      if (pw.logins.length) items.push(el('h2', { text: 'Kept' }));
+      pw.logins.forEach((l, i) => items.push(sure(`pw-remove-${i}`, l.user ? `${l.site}: ${l.user}` : l.site, `Press again to forget the password for ${l.site}`, () => tell({ kind: 'password', op: 'remove', place: l.place, user: l.user }))));
+      if (!pw.logins.length) items.push(say('None are kept.'));
+      if (pw.never.length) items.push(el('h2', { text: 'Never offered for' }));
+      pw.never.forEach((site, i) => items.push(row(`pw-never-${i}`, site, () => tell({ kind: 'password', op: 'offerAgain', place: site }), { value: 'Offer again' })));
+      if (pw.logins.length > 1) items.push(sure('pw-remove-all', 'Forget every password', 'Press again to forget every password', () => tell({ kind: 'password', op: 'removeAll' })));
+      items.push(back);
+      return items;
+    }
     case 'extensions': {
       const items: Node[] = [
         heading('Extensions', 'plug'),
@@ -647,8 +676,9 @@ function settingsPanel(s: ChromeState): Node[] {
         row('settings-display', 'Size and video', go('display'), { icon: 'text', chevron: true, value: `${Math.round(st.pageSize * 100)}%` }),
         row('settings-ads', 'Ad blocking', go('ads'), { icon: 'block', chevron: true, say: 'Ad blocking' }),
         row('settings-privacy', 'Privacy and site data', go('privacy'), { icon: 'shield', chevron: true }),
+        row('settings-passwords', 'Passwords', go('passwords'), { icon: 'lock', chevron: true, value: st.passwords.available ? String(st.passwords.logins.length) : 'No keyring' }),
         row('settings-access', 'What sites may ask for', go('access'), { icon: 'globe', chevron: true }),
-        row('settings-lock', 'Parental lock', go('lock'), { icon: 'lock', chevron: true, value: st.lock ? 'PIN set' : 'Off', say: `Parental lock: ${st.lock ? 'PIN set' : 'no PIN'}` }),
+        row('settings-lock', 'Parental lock', go('lock'), { icon: 'shield', chevron: true, value: st.lock ? 'PIN set' : 'Off', say: `Parental lock: ${st.lock ? 'PIN set' : 'no PIN'}` }),
         row('settings-profiles', 'Profiles and apps', go('profiles'), { icon: 'layers', chevron: true }),
         row('settings-downloads', 'Downloads', go('downloads'), { icon: 'download', chevron: true }),
         row('settings-extensions', 'Extensions', go('extensions'), { icon: 'plug', chevron: true, value: String(st.extensions.length), say: `Extensions (${st.extensions.length})` }),
@@ -881,6 +911,16 @@ function promptPanel(s: ChromeState): Node[] {
       el('p', { text: `An extension is a program written by someone else. ${PRODUCT.name} has not looked at it. Add it only if you trust who made it.` }),
       yes('Add it'),
       no('Do not add it'),
+    ];
+  }
+  if (s.prompt?.what === 'password') {
+    return [
+      heading('Keep this password?', 'lock'),
+      lead(s.prompt.user ? `For ${s.prompt.user} at ${s.prompt.site}.` : `For ${s.prompt.site}.`),
+      el('p', { text: `It is kept on this machine only, encrypted by the system's keyring, and offered back on that site's sign-in page. Settings, under Passwords, removes it.` }),
+      yes('Keep it'),
+      no('Not now'),
+      row('prompt-never', 'Never for this site', () => tell({ kind: 'answer', allow: false, never: true }), { cls: 'quiet' }),
     ];
   }
   if (s.prompt?.what === 'download') {

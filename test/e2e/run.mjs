@@ -1692,6 +1692,12 @@ await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', '
   check('Back from the list goes to ad blocking', await title(), 'Ad blocking');
   await chrome.press('Escape', 400);
 
+  // Saved sign-ins need the system's keyring, and a scripted run never comes near a password (Hard rule 10).
+  await open('settings-passwords');
+  check('Settings has Passwords, which says plainly when the system has no keyring to keep them with', [await chrome.evaluate('document.querySelector("#panel h1")?.textContent'), await chrome.evaluate('document.querySelector("#panel p.lead")?.textContent'), await chrome.evaluate('!!document.getElementById("set-passwords")')], ['Passwords', 'Passwords cannot be kept on this system.', false]);
+  check('and nothing was written for them', existsSync(join(app.userData, 'passwords.json')), false);
+  await chrome.press('Escape', 400);
+
   await open('settings-access');
   await open('ask-camera');
   check('a kind of access can be closed to every site', [await text('ask-camera'), file().neverAsk], ['Sites may ask to use the camera: no', ['camera']]);

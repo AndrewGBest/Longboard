@@ -46,6 +46,9 @@ export interface ChromeState {
     secure: boolean;
     /** True on a Chrome Web Store page about an extension that is not installed. */
     storeExtension: boolean;
+    /** The user names saved for this page's sign-in form, when it has one; and the name of a sign-in just typed that can be kept ("" when it had no name), or null. */
+    logins: string[];
+    keepPassword: string | null;
     /** Whether this page is kept on Home. */
     saved: boolean;
     /** Whether the person asked for this site at the width of a desk screen. */
@@ -94,6 +97,8 @@ export interface ChromeState {
     /** The extensions installed; `opens` is the page of its own that can be shown, if it has one. */
     extensions: Array<{ id: string; name: string; version: string; opens: string | null }>;
     extensionUpdates: boolean;
+    /** Saved sign-ins: whether the system has a keyring to keep them with, whether they are offered, and what is saved (never the passwords). */
+    passwords: { available: boolean; offer: boolean; logins: Array<{ place: string; site: string; user: string }>; never: string[] };
     /** New versions: where things stand, the setting, and whether this copy can replace itself. */
     update: { words: string; mode: 'install' | 'tell' | 'off'; canInstall: boolean };
     /** The parental lock, when a PIN is set. */
@@ -137,15 +142,17 @@ export interface ChromeState {
     | { what: 'profile'; name: string; version: string; hosts: string[] }
     /** An extension fetched from the store: switch it on? `can` is what it will be able to do. */
     | { what: 'extension'; name: string; version: string; can: string[] }
+    /** Keep the password just typed for this site? */
+    | { what: 'password'; site: string; user: string }
     | null;
 }
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'forward' | 'stop' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'reader' | 'lock' | 'addExtension' | 'settings' | 'history' | 'tabs' | 'find' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'reader' | 'lock' | 'addExtension' | 'settings' | 'history' | 'tabs' | 'find' | 'savePassword' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'forward', 'stop', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'forward', 'stop', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'savePassword', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -196,7 +203,12 @@ export type ChromeMessage =
   | { kind: 'addApp'; name: string; ownSession: boolean; launcher: boolean }
   | { kind: 'menu'; action: MenuAction }
   /** `remember` false is "not now": the question comes again another time. */
-  | { kind: 'answer'; allow: boolean; remember?: boolean };
+  /** `never` with a no to keeping a password: do not offer for this site again. */
+  | { kind: 'answer'; allow: boolean; remember?: boolean; never?: boolean }
+  /** Fill the page's sign-in form with a saved sign-in. */
+  | { kind: 'fillLogin'; user: string }
+  /** From Settings: forget one saved sign-in, offer again at a site, or forget them all. */
+  | { kind: 'password'; op: 'remove' | 'offerAgain' | 'removeAll'; place?: string; user?: string };
 
 export type SettingsAction = 'clearSiteData' | 'clearCache' | 'clearHome' | 'clearHistory' | 'clearAll' | 'forgetSites' | 'updateFilters' | 'updateCatalogue' | 'checkUpdate' | 'reset';
 export const SETTINGS_ACTIONS: readonly SettingsAction[] = ['clearSiteData', 'clearCache', 'clearHome', 'clearHistory', 'clearAll', 'forgetSites', 'updateFilters', 'updateCatalogue', 'checkUpdate', 'reset'];

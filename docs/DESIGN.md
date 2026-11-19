@@ -208,9 +208,25 @@ Privacy Control signals; off as shipped), refuse known trackers as well as
 ads, and hide the device's home-network address from sites. Settings has a
 page for the parental lock (4.10).
 
-Buttons that clear something need a second press. Not in Settings: saved
-passwords and autofill. They are not built, because Hard rule 10 says
-Longboard never stores passwords (DECISIONS.md).
+Buttons that clear something need a second press.
+
+**Passwords** **[Decision, Andrew, 2026-11-19: "yes"; the shape is the
+agent's assumption]**. After the person signs in somewhere, a line says the
+menu can keep the password, and for five minutes the menu's first row is
+"Keep the password for (name)". It asks once more, with "Not now" and "Never
+for this site". On a sign-in page with something kept, the menu's first row
+is "Sign in as (name)": it fills the form in, and the person presses the
+site's own button. Nothing is filled in without that press, so a page cannot
+have a password handed to it unseen. Settings, "Passwords", has the switch,
+lists what is kept (never the passwords themselves) and forgets them.
+
+The rules it keeps (Hard rule 10): a password is encrypted by the system's
+keyring before it is written, kept on this machine only, offered back only
+at exactly the address it was saved at, and never in a private tab. **With
+no keyring on the system nothing is kept at all**, and Settings says so:
+Chromium's fallback there is a fixed key, which protects nothing. A scripted
+run never watches a sign-in form and never fills one. Forms inside an
+embedded frame are not seen.
 
 ### 4.9 Tabs and history **[Decision, Andrew, 2026-11-18; the shape is the agent's assumption]**
 

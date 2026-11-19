@@ -39,6 +39,9 @@ export type BridgeMessage =
   /** The article on the page, read for the reader view; null when the page has none. */
   | { kind: 'reader'; article: { title: string; blocks: Array<{ kind: string; text: string }> } | null }
   /** Go back one page; the shell goes Home when there is no page to go back to. */
+  /** The page has a sign-in form (told once), and what was typed into it when it was sent. Never in a scripted run. */
+  | { kind: 'loginSeen' }
+  | { kind: 'credentials'; user: string; password: string }
   | { kind: 'back' }
   /** The menu button was pressed. */
   | { kind: 'menu' }
@@ -74,6 +77,8 @@ export interface LayerOptions {
   surface?: Surface;
   /** Key mappings from the user's config file. */
   keys?: Record<string, ActionName>;
+  /** True when sign-in forms may be watched and filled: saved sign-ins are on, and this is not a scripted run or a private tab. */
+  logins?: boolean;
   /** Gamepad button mappings from the user's config file. */
   buttons?: Record<string, ActionName>;
 }

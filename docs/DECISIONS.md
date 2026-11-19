@@ -3,6 +3,37 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: saved passwords (Andrew: "yes")
+
+Built on Andrew's yes. **The shape is the agent's assumption**; the limits
+are Hard rule 10's.
+
+- **Encrypted by the system's keyring, or not kept.** Electron's
+  `safeStorage` (its asynchronous calls; the others are deprecated in
+  Electron 45) [Sourced: electron.d.ts in the installed package]. On Linux
+  Chromium falls back to a fixed key when there is no keyring ("basic_text");
+  Longboard treats that as no keyring and keeps nothing. It also refuses a
+  result that begins "v10", which is how that fallback's output starts,
+  against "v11" for what a keyring protected [Measured here, 2026-11-19, on a
+  machine with KWallet: "v11"; the meaning of "v10" is from memory of
+  Chromium's os_crypt and is a guess until read in its source].
+- **Nothing is filled in without a press.** The menu's first row on a sign-in
+  page is "Sign in as (name)". A browser that fills a form by itself can be
+  made to hand a password to a field the person never sees.
+- **Offered back only at exactly the address it was saved at** (scheme, name
+  and port), not at any name that ends the same.
+- **Asked for, never automatic.** After a sign-in the menu offers to keep the
+  password for five minutes; it is held in memory for that long and no
+  longer. This was chosen over a question that takes the screen, because
+  signing in is often followed at once by a code to type.
+- **Not in a scripted run, at all.** The layer does not watch forms and the
+  shell does not offer or fill when `--automation` is on. So no automated
+  test has ever saved or filled a password in the real app: the rules, the
+  form finder and the vault are unit-tested with a stand-in keyring, and the
+  real path waits for Andrew to try it by hand.
+- No password is ever shown on screen, and there is no export.
+- No new dependency.
+
 ## 2026-11-19: Andrew answers the nine open decisions
 
 Asked what decisions were open, Andrew answered each (2026-11-19):

@@ -23,7 +23,7 @@ import { BLOCKING_MODES, blockingMode, MAX_LISTS, parseDomains, parseFilterLists
 
 /** The kinds of access the person can say no site may ask for (the names main/permissions.ts asks about). */
 export const NEVER_ASKABLE = ['camera', 'microphone', 'location', 'notifications', 'clipboard', 'midi', 'pointerLock'] as const;
-const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress', 'updates', 'extensionUpdates'] as const;
+const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress', 'updates', 'extensionUpdates', 'passwords'] as const;
 
 export const ACTION_NAMES = [
   'up', 'down', 'left', 'right', 'select', 'back', 'playPause',
@@ -69,6 +69,8 @@ export interface UserConfig {
   hideLocalAddress?: boolean;
   /** Set to false to stop asking the Chrome Web Store daily for newer versions of installed extensions. */
   extensionUpdates?: boolean;
+  /** False stops Longboard offering to keep passwords, and offering saved ones back. */
+  passwords?: boolean;
   /** New versions: "install" them (the usual), only "tell", or "off" to never look. */
   updates?: UpdateMode;
   /** Clear what sites have stored each time the program closes. */
@@ -137,7 +139,7 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     if (typeof r['pageSize'] === 'number' && r['pageSize'] >= 0.5 && r['pageSize'] <= 2) config.pageSize = r['pageSize'];
     else problems.push('"pageSize" must be a number from 0.5 to 2');
   }
-  for (const name of ['httpsOnly', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress', 'extensionUpdates'] as const) {
+  for (const name of ['httpsOnly', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress', 'extensionUpdates', 'passwords'] as const) {
     if (r[name] === undefined) continue;
     if (typeof r[name] === 'boolean') config[name] = r[name] as boolean;
     else problems.push(`"${name}" must be true or false`);

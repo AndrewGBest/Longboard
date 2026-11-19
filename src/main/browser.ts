@@ -3,7 +3,9 @@
 // separate renderers with separate sessions; a website can never reach the
 // chrome view or the shell (Hard rule 13).
 import { shortcutFor, type Shortcut } from '../shared/shortcuts';
-import { app, BaseWindow, ipcMain, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
+import { app, BaseWindow, ipcMain, powerSaveBlocker, safeStorage, session, WebContentsView, type WebContents } from 'electron';
+import { Passwords } from './passwords';
+import { cleanCredentials, loginPlace, shouldOffer } from '../shared/passwords';
 import { accessSync, constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { basename, dirname, join } from 'node:path';
@@ -243,6 +245,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     | { what: 'profile'; profile: Profile }
     | { what: 'extension'; extension: DownloadedExtension }
     | { what: 'download'; download: Download }
+    | { what: 'password'; place: string; user: string; password: string }
     | null = null;
   /** A file on its way, or that was. `temp` is where it is held until it is whole and agreed to. */
   interface Download {
@@ -360,6 +363,34 @@ export function createBrowser(deps: BrowserDeps): Browser {
   /** The same, for changes to what is on Home: asked for only while Home decides which sites open. */
   const withPinForHome = (then: () => void): void => (lock?.homeOnly && !unlocked ? withPin('Enter the PIN to change what is on Home', then) : then());
 
+  // ---- Saved sign-ins (Hard rule 10) ----------------------------------------
+  // Kept only when the person says so, encrypted by the system's keyring;
+  // without a keyring nothing is kept. Never in a scripted run.
+  const passwords = new Passwords(join(dataDir, 'passwords.json'), {
+    // "basic_text" is Chromium's fallback when the system has no keyring: a fixed key, which keeps nothing safe.
+    available: async () => (process.platform !== 'linux' || !['basic_text', 'unknown'].includes(safeStorage.getSelectedStorageBackend())) && (await safeStorage.isAsyncEncryptionAvailable()),
+    encrypt: async (text) => {
+      const secret = await safeStorage.encryptStringAsync(text);
+      // On Linux what the keyring protected starts "v11"; "v10" is the fixed key again, used when the keyring could not be reached after all.
+      if (process.platform === 'linux' && secret.subarray(0, 3).toString('latin1') === 'v10') throw new Error('the keyring did not protect it');
+      return secret;
+    },
+    decrypt: async (secret) => (await safeStorage.decryptStringAsync(secret)).result,
+  });
+  // The screens are drawn again once the keyring has answered.
+  void passwords.ready.then(() => setImmediate(() => !win.isDestroyed() && refreshChrome()));
+  const loginsOn = (): boolean => config.passwords !== false && !options.automation && passwords.available();
+  /** The address of the page whose sign-in form was seen, for each view that has one showing. */
+  const loginForms = new WeakMap<WebContents, string>();
+  /** A sign-in just typed that the person may ask to keep; held in memory for a few minutes and then dropped. */
+  const typed = new WeakMap<WebContents, { place: string; user: string; password: string; at: number }>();
+  const TYPED_KEPT_MS = 5 * 60_000;
+  const typedNow = (wc: WebContents): { place: string; user: string; password: string } | null => {
+    const held = typed.get(wc);
+    if (held && Date.now() - held.at > TYPED_KEPT_MS) typed.delete(wc);
+    return typed.get(wc) ?? null;
+  };
+
   /** The pages that are still arriving: each is told, so it can show that, and the menu offers Stop. */
   const arriving = new WeakSet<WebContents>();
   /** The addresses of the tabs closed lately, newest last, so one can be opened again. Private tabs are never in it. */
@@ -395,6 +426,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
             return parts.length ? parts.join('. ') : null;
           })(sites[pageSite() ?? '']?.answers ?? {}),
           secure: /^https:/i.test(page.getURL()) || /^http:\/\/(localhost|127\.0\.0\.1)[:/]/i.test(page.getURL()),
+          logins: loginsOn() && loginForms.get(page) === page.getURL() ? passwords.users(loginPlace(page.getURL())) : [],
+          keepPassword: loginsOn() ? (typedNow(page)?.user ?? null) : null,
           saved: saved.some((p) => p.url === page.getURL()),
           storeExtension: storeExtensionId(page.getURL()) !== null && !extensions.ids().includes(storeExtensionId(page.getURL()) ?? ''),
           desktop: sites[pageSite() ?? '']?.desktop === true,
@@ -442,6 +475,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
             httpsOnly: config.httpsOnly === true,
             extensions: extensions.list().map((e) => ({ id: e.id, name: e.name, version: e.version, opens: e.options ?? e.popup })),
             extensionUpdates: config.extensionUpdates !== false,
+            passwords: { available: passwords.available(), offer: config.passwords !== false, logins: passwords.list(), never: passwords.never().map((n) => n.replace(/^https?:\/\//, '')) },
             update: deps.settings.update(),
             lock: lock ? { homeOnly: lock.homeOnly } : null,
             doNotTrack: config.doNotTrack === true,
@@ -501,6 +535,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         ? { what: 'profile', name: pending.profile.name, version: pending.profile.version, hosts: pending.profile.match.hosts.slice(0, 6) }
         : pending.what === 'extension'
           ? { what: 'extension', name: pending.extension.name, version: pending.extension.version, can: pending.extension.can }
+        : pending.what === 'password'
+          ? { what: 'password', site: pending.place.replace(/^https?:\/\//, ''), user: pending.user }
         : pending.what === 'download'
           ? { what: 'download', site: pending.download.site, name: pending.download.name, size: sizeText(pending.download.item.getTotalBytes()), folder: downloadsDir() }
           : { what: 'permission', site: pending.site, wants: describeAsk(pending.names) },
@@ -1380,6 +1416,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
       );
       return;
     }
+    if (asked.what === 'password') {
+      // Back is "not now" and leaves it to be asked for again from the menu; an answer settles it.
+      if (remember) typed.delete(page);
+      layout();
+      if (allow) void passwords.save(asked.place, asked.user, asked.password, Date.now()).then((kept) => notify(kept ? 'That password is kept. Settings, under Passwords, lists and removes them' : 'That password could not be kept: the keyring did not take it'));
+      return;
+    }
     if (asked.what === 'profile') {
       deps.profiles.answer(asked.profile, allow, remember);
       layout();
@@ -1597,7 +1640,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
       event.returnValue = null;
       return;
     }
-    const layerOptions: LayerOptions = { ...options, surface: wc === chrome ? 'chrome' : 'page', keys: config.keys, buttons: config.buttons ?? {} };
+    const place = [...views].find(([, v]) => v.webContents === wc)?.[0] ?? '';
+    const layerOptions: LayerOptions = { ...options, surface: wc === chrome ? 'chrome' : 'page', keys: config.keys, buttons: config.buttons ?? {}, logins: wc !== chrome && loginsOn() && !isPrivate(place) };
     const boot: BootData & { state?: ChromeState } = { options: layerOptions, profile: null };
     if (wc === chrome) boot.state = chromeState();
     else {
@@ -1632,6 +1676,29 @@ export function createBrowser(deps: BrowserDeps): Browser {
           if (info.char) wc.sendInputEvent({ type: 'char', keyCode: info.char });
           wc.sendInputEvent({ type: 'keyUp', keyCode: info.code });
         }
+        break;
+      }
+      case 'loginSeen': {
+        const at = event.senderFrame?.url ?? '';
+        if (wc !== page || !loginsOn() || isPrivate(partition) || !loginPlace(at)) break;
+        loginForms.set(wc, at);
+        if (passwords.users(loginPlace(at)).length) notify('A sign-in is saved for this site: open the menu to fill it in');
+        break;
+      }
+      case 'credentials': {
+        // What was typed is looked at for one thing: whether to offer to keep it. It is not logged and goes nowhere else.
+        const place = loginPlace(event.senderFrame?.url ?? '');
+        const login = cleanCredentials(msg);
+        if (wc !== page || !login || !place) break;
+        void passwords.reveal(place, login.user).then((kept) => {
+          const offer = shouldOffer({ automation: options.automation, privateTab: isPrivate(partition), enabled: config.passwords !== false, available: passwords.available(), place, never: passwords.never(), alreadyKept: kept === login.password });
+          if (!offer || wc.isDestroyed()) return;
+          typed.set(wc, { place, ...login, at: Date.now() });
+          // After a moment: the page is usually on its way to the next one.
+          setTimeout(() => {
+            if (!wc.isDestroyed() && wc === page && typedNow(wc)) notify('To keep that password, open the menu');
+          }, 2500);
+        });
         break;
       }
       case 'typeText': {
@@ -2292,6 +2359,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
         if (surface === 'page') panel = 'find';
         layout();
         break;
+      case 'savePassword': {
+        const held = surface === 'page' ? typedNow(page) : null;
+        if (!held || !loginsOn()) break;
+        pending = { what: 'password', ...held };
+        panel = 'prompt';
+        layout();
+        break;
+      }
       case 'savePage':
       case 'unsavePage': {
         const url = surface === 'page' ? page.getURL() : '';
@@ -2635,7 +2710,31 @@ export function createBrowser(deps: BrowserDeps): Browser {
       case 'menu':
         if (MENU_ACTIONS.includes(msg.action)) menu(msg.action);
         break;
+      case 'fillLogin': {
+        const at = surface === 'page' ? page.getURL() : '';
+        const user = msg.user;
+        const to = page;
+        if (!loginsOn() || typeof user !== 'string' || loginForms.get(to) !== at) break;
+        panel = null;
+        layout();
+        void passwords.reveal(loginPlace(at), user).then((password) => {
+          // Only into the page it was asked for, if that page is still the one there.
+          if (password === null || to.isDestroyed() || to.getURL() !== at) return;
+          to.send('longboard:fill', { user, password });
+          notify("Filled in. Press the site's own button to sign in");
+        });
+        break;
+      }
+      case 'password':
+        if (panel !== 'settings') break;
+        if (msg.op === 'removeAll') passwords.removeAll();
+        else if (msg.op === 'remove' && typeof msg.place === 'string' && typeof msg.user === 'string') passwords.remove(msg.place, msg.user);
+        else if (msg.op === 'offerAgain' && typeof msg.place === 'string') passwords.setNever(passwords.never().find((n) => n.replace(/^https?:\/\//, '') === msg.place) ?? msg.place, false);
+        layout();
+        break;
       case 'answer':
+        // "Never for this site", said to keeping a password.
+        if (msg.allow !== true && msg.never === true && pending?.what === 'password') passwords.setNever(pending.place, true);
         // A yes in the first moments of a question is not counted: a page can
         // time its request for when OK is about to be pressed for something else.
         if (msg.allow === true && Date.now() - promptShownAt < PROMPT_SETTLE_MS) break;

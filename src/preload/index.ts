@@ -2,6 +2,7 @@
 // isolated world. Nothing is exposed to the page: there is no contextBridge
 // API, so site scripts cannot call into the app.
 import { ipcRenderer } from 'electron';
+import { fillLogin, watchLogins } from '../layer/logins';
 import type { Action, BootData, BridgeMessage, EditView, PointerSpot } from '../shared/actions';
 import { rulesFromUntrusted } from '../layer/profile/rules';
 import { installPurchaseGuard } from '../layer/guard/purchase-guard';
@@ -76,6 +77,14 @@ const start = (): void => {
   ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
     if (typeof text === 'string') layer.notice(text.slice(0, 200));
   });
+  // Saved sign-ins, only where the shell says they are on (never in a scripted run, Hard rule 10):
+  // the shell is told there is a sign-in form and what was typed into it when it is sent, and may fill it in.
+  if (boot.options.logins === true && !scripted) {
+    watchLogins(document, { seen: () => send({ kind: 'loginSeen' }), sent: (login) => send({ kind: 'credentials', ...login }) });
+    ipcRenderer.on('longboard:fill', (_event, login: { user?: unknown; password?: unknown }) => {
+      if (login && typeof login.user === 'string' && typeof login.password === 'string') fillLogin(document, login.user, login.password);
+    });
+  }
   // A page is arriving: this one until it has all come, or the one that will replace it.
   ipcRenderer.on('longboard:loading', (_event, on: unknown) => layer.loading(on === true));
   if (document.readyState !== 'complete' && /^https?:$/.test(location.protocol)) {
