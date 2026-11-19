@@ -2,6 +2,58 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-20: a survey of 63 well-known sites, and what it mended
+
+Andrew asked for the top 50 websites and the top streaming services to be
+tested as far as they go without signing in, and the faults mended.
+
+- **The list** (`test/scorecard/survey-sites.json`): 45 of Similarweb's 50
+  most-visited sites and 18 streaming services. The five adult sites in
+  the 50 were not opened. The streaming list is the agent's own.
+- **The survey** (`test/scorecard/survey.mjs`) opens each in the real app
+  at the TV's size, presses one Down, Up until Longboard says it is at the
+  top, 24 Downs, four sideways, and then runs the Tab referee.
+- **Seven faults mended, all in generic mode, no profile** (DECISIONS.md
+  has each with the site it was measured on): a shop where nothing could
+  be reached; a notice in a corner that shut the highlight in; a site where
+  no press did anything; Down going round at the foot of a page; Up never
+  reaching the top; Down jumping back up a side column; Down going round
+  between the top bar and the page.
+
+| Measure, of the 62 that opened | Before | After |
+|---|---|---|
+| Up reaches the top (so Up twice gives the menu) | 60 | 62 |
+| No press did anything | 1 | 0 |
+| Every Tab stop reachable | 40 | 37 |
+| Under nine in ten Tab stops reachable | 6 | 5 |
+
+"Every Tab stop reachable" fell although nothing got worse that was
+looked into: sites show different pages from one visit to the next, and
+"skip" links are now passed over on purpose. The site-by-site lines were
+compared; the one real regression seen, a loop on a messenger's site, was
+mended and checked on the live site afterwards.
+
+- **Verified:** `npm run check` (558 unit tests); `npm run e2e` (490 checks, all passing); each
+  mended fault seen gone on its live site, not signed in, headless at
+  1920x1080.
+- **Found and not mended:**
+  - On four news and portal sites the first press lands on an
+    advertisement's frame.
+  - A pin-board site: 6 of 16 Tab stops reached; its sign-up form's
+    password and date fields are among those missed. Not looked into.
+  - A free streaming site: nine large cards (360 by 400) that Tab reaches
+    and the highlight does not. Not looked into.
+  - Three streaming sites showed almost nothing to move between (one or
+    two moves in 24 presses). **Guess:** a notice that the service is not
+    offered where the build machine is. Not looked into.
+  - One video service could not be opened at all in a scripted run: signed
+    out, its front page is an offers page, which the automation guard
+    refuses (Hard rule 11).
+- **Unverified:** everything past each site's front page; anything behind
+  a sign-in; playing video on any of them; any of it with a remote at a
+  TV. The "loop" count is unreliable in web apps that scroll a pane of
+  their own, where places on screen repeat.
+
 ## 2026-11-19, late night: suggestions, a top bar, and "Add as an app"
 
 Andrew, at the TV: put "Add as an app" on the menu's first page; on a video

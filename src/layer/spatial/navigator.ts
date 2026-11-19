@@ -819,6 +819,19 @@ export class SpatialNavigator {
       if (!isPinned(from, view, cache)) {
         const flowing = others.filter((el) => !isPinned(el, view, cache));
         if (pickNext(toRect(from), flowing.map(toRect), dir) !== -1) others = flowing;
+        else {
+          // And then only a bar on the side of the screen the key points to:
+          // the bar across the top is never "down". (Seen on a messenger's
+          // site: with the highlight left behind above the screen, Down went
+          // to a button in the top bar, which was "below" it; the page jumped
+          // back, and Down went round between the two.)
+          others = others.filter((el) => {
+            if (!isPinned(el, view, cache)) return true;
+            const r = el.getBoundingClientRect();
+            const middle = (r.top + r.bottom) / 2;
+            return dir === 'down' ? middle > view.innerHeight / 2 : middle < view.innerHeight / 2;
+          });
+        }
       }
     }
     // Left and right stay in the page too. A pinned strip of tabs lies across

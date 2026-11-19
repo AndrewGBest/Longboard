@@ -473,6 +473,16 @@ describe('pinned bars', () => {
     expect(nav.focused?.id).toBe('rowAbove');
   });
 
+  it('never takes the bar across the top for "down", though it lies below a highlight left above the screen', () => {
+    Object.defineProperty(window, 'innerHeight', { value: 540, configurable: true });
+    document.getElementById('rowBelow')!.remove();
+    document.getElementById('here')!.remove();
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('rowAbove'));
+    expect(nav.move('down')).toBe(false);
+    expect(nav.focused?.id).toBe('rowAbove');
+  });
+
   it('reaches the pinned bar when no page content is left above', () => {
     document.getElementById('rowAbove')!.remove();
     const nav = new SpatialNavigator(document);

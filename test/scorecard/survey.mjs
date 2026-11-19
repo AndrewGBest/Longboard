@@ -127,7 +127,8 @@ async function survey(site) {
   } catch (err) {
     row.note = String(err).slice(0, 160);
   } finally {
-    await app.close();
+    // A site still writing as the app goes must not stop the survey.
+    await app.close().catch(() => undefined);
   }
   return row;
 }

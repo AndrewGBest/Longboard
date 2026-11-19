@@ -155,3 +155,15 @@ Known and not fixed:
   navigation folded into a menu button. That is the site's choice for that
   width; the per-site zoom in the menu changes it.
 - Nothing here was tried signed in, and nothing was played.
+
+## The survey
+
+`test/scorecard/survey.mjs` is a wider and rougher look: 63 well-known
+sites (`test/scorecard/survey-sites.json`), each checked for the faults a
+script can see. It is for finding faults, not for scoring. STATUS.md of
+2026-11-20 has what the first two runs found.
+
+```
+xvfb-run -a -s "-screen 0 1920x1080x24" node test/scorecard/survey.mjs --out=results.jsonl
+```
+
