@@ -1,0 +1,257 @@
+{
+ "about": "The 45 of the 50 most-visited websites that are not adult sites, in the order of Similarweb's ranking for October 2026 as listed at https://en.wikipedia.org/wiki/List_of_most-visited_websites (read 2026-11-19), followed by streaming services chosen by the agent from memory, with no ranking behind them. Netflix, YouTube and Twitch are in the first list.",
+ "sites": [
+  {
+   "url": "https://www.google.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.youtube.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.facebook.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.instagram.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://chatgpt.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://x.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.tiktok.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.whatsapp.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.reddit.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.bing.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.wikipedia.org/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://yahoo.co.jp/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.amazon.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.yandex.ru/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://gemini.google.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.yahoo.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.linkedin.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://cloud.microsoft/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.baidu.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.pinterest.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.naver.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.netflix.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.live.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.bilibili.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://claude.ai/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.twitch.tv/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.microsoft.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.temu.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.dzen.ru/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.vk.ru/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.canva.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.globo.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.weather.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://news.yahoo.co.jp/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.github.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.samsung.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.espn.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.mail.ru/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.fandom.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.brave.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.nytimes.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.duckduckgo.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.zoom.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://t.me/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.apple.com/",
+   "kind": "top 50"
+  },
+  {
+   "url": "https://www.primevideo.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://www.disneyplus.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://www.hbomax.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://www.hulu.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://tv.apple.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://www.paramountplus.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://www.peacocktv.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://www.tubitv.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://pluto.tv/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://www.crunchyroll.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://open.spotify.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://watch.plex.tv/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://therokuchannel.roku.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://www.discoveryplus.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://www.dailymotion.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://www.vimeo.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://music.youtube.com/",
+   "kind": "streaming"
+  },
+  {
+   "url": "https://kick.com/",
+   "kind": "streaming"
+  }
+ ]
+}

@@ -120,6 +120,8 @@ export interface NavigatorOptions {
   /** Elements the layer itself owns; never candidates. */
   ignoreWithin?: string;
   onFocusChange?: (el: Element | null) => void;
+  /** Elements the layer has found it must not land on (one that jumps elsewhere when it gets the cursor). */
+  avoid?: (el: Element) => boolean;
   /** Controls that are never focus targets (carousel arrows the layer presses itself at a row's edge). */
   skip?: string[];
   /** When it returns an element, only candidates inside that element are considered. */
@@ -243,6 +245,20 @@ export function openDialog(doc: Document): Element | null {
   for (const el of doc.querySelectorAll('[role="dialog"][aria-modal="true"], dialog[open]')) {
     const r = el.getBoundingClientRect();
     if (r.width < 4 || r.height < 4) continue;
+    const view = doc.defaultView;
+    if (view && view.innerWidth > 0 && view.innerHeight > 0) {
+      // Parked off the screen: not open, whatever it says. (Seen on a shop:
+      // its side menu is built when its button gets the cursor, sits off the
+      // left edge until asked for, and already calls itself a modal dialog.
+      // Taken at its word, nothing on the page could be reached.)
+      if (r.right <= 0 || r.bottom <= 0 || r.left >= view.innerWidth || r.top >= view.innerHeight) continue;
+      // A small notice in a corner that calls itself modal does not keep the
+      // page from being used, so it does not keep the highlight either.
+      // (Seen on a mail site: a 420 by 300 notice at the bottom right.)
+      const share = ((Math.min(r.right, view.innerWidth) - Math.max(r.left, 0)) * (Math.min(r.bottom, view.innerHeight) - Math.max(r.top, 0))) / (view.innerWidth * view.innerHeight);
+      const overMiddle = r.left <= view.innerWidth / 2 && r.right >= view.innerWidth / 2 && r.top <= view.innerHeight / 2 && r.bottom >= view.innerHeight / 2;
+      if (!overMiddle && share < 0.3) continue;
+    }
     // It must really be in front. Seen on the live site: a station's pop-up
     // stays open underneath the player it started. Where the browser cannot
     // say what is on top (no layout), the dialog is taken at its word.
@@ -292,16 +308,47 @@ export function onScreenish(el: Element, view: Window): boolean {
 }
 
 /**
- * True for something parked above the top of the page, where no scrolling
- * can bring it: a "skip to content" link that shows itself only when Tab
- * reaches it. (Seen on a video site: Up at the top went to one, it came into
- * view beside the search field, and Up never ran out.) Something scrolled
- * out of a list of its own is not this.
+ * True for something that no scrolling can bring into view.
+ *
+ * Parked above the top of the page: a "skip to content" link that shows
+ * itself only when Tab reaches it. (Seen on a video site: Up at the top went
+ * to one, it came into view beside the search field, and Up never ran out.)
+ *
+ * Off the screen inside something fixed to the screen: a banner taller than
+ * the screen, whose lower links are cut off. (Seen on an encyclopedia's front
+ * page: Down at the foot of the page went to one, could not show it, and
+ * started again from the top of the screen, round and round.)
+ *
+ * Something scrolled out of a list of its own is neither.
  */
-function aboveThePage(el: Element, view: Window): boolean {
-  if (el.getBoundingClientRect().bottom + view.scrollY > 0) return false;
-  for (let node = composedParent(el), i = 0; node && i < 40; node = composedParent(node), i++) if (node.scrollTop > 0) return false;
-  return true;
+function outOfReach(el: Element, view: Window): boolean {
+  const r = el.getBoundingClientRect();
+  const above = r.bottom + view.scrollY <= 0;
+  const off = r.bottom <= 0 || r.top >= view.innerHeight || r.right <= 0 || r.left >= view.innerWidth;
+  if (!off) return false;
+  for (let node = composedParent(el), i = 0; node && i < 40; node = composedParent(node), i++) {
+    if (node.scrollTop > 0 || node.scrollLeft > 0) return false;
+    const style = view.getComputedStyle(node);
+    const scrolls = (style.overflowY !== 'visible' && node.scrollHeight > node.clientHeight + 1) || (style.overflowX !== 'visible' && node.scrollWidth > node.clientWidth + 1);
+    if (scrolls && node !== el.ownerDocument.documentElement && node !== el.ownerDocument.body) return false;
+    if (style.position === 'fixed') return true;
+  }
+  return above;
+}
+
+/** True when `el` lies wholly outside the box of something that clips it, along the way pressed, and `from` is not inside that same thing. */
+function clippedAwayFrom(el: Element, from: Element, view: Window, vertical: boolean): boolean {
+  const r = el.getBoundingClientRect();
+  for (let node = composedParent(el), i = 0; node && i < 40; node = composedParent(node), i++) {
+    if (deepContains(node, from)) return false;
+    const style = view.getComputedStyle(node);
+    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+    const box = node.getBoundingClientRect();
+    if (box.width < 1 || box.height < 1) continue;
+    // Along the way pressed only: a row scrolled sideways is still entered from above, at what it shows.
+    if (vertical ? r.bottom <= box.top || r.top >= box.bottom : r.right <= box.left || r.left >= box.right) return true;
+  }
+  return false;
 }
 
 /** True when `outer` wholly contains `inner` and is at least four times its area. */
@@ -419,6 +466,7 @@ export class SpatialNavigator {
     for (const el of found) {
       if (this.opts.ignoreWithin && deepClosest(el, this.opts.ignoreWithin)) continue;
       if (skip && el.matches(skip)) continue;
+      if (this.opts.avoid?.(el)) continue;
       if (exclude && deepClosest(el, exclude)) continue;
       // A frame too small to hold anything worth pointing at is a tracker or a spacer.
       if (el instanceof HTMLIFrameElement) {
@@ -430,7 +478,7 @@ export class SpatialNavigator {
         if (r.bottom < above || r.top > below) continue;
       }
       if (!isVisible(el, view, faded)) continue;
-      if (aboveThePage(el, view)) continue;
+      if (outOfReach(el, view)) continue;
       // Too small to aim at or to see a ring on from a couch (a carousel's
       // row of dots, six to nine pixels high on Steamboat's service).
       const size = el.getBoundingClientRect();
@@ -816,6 +864,17 @@ export class SpatialNavigator {
         if (pickNext(toRect(from), peers.map(toRect), dir) !== -1) others = peers;
         else if (home.group.axis === 'horizontal') return null;
       }
+    }
+    // Something scrolled out of sight in a pane of its own is where its box
+    // says only for someone inside that pane. From outside, it is not there.
+    // (Seen on a music site: below the last link of a side column, Down chose
+    // a card hidden further down a list higher up the column; showing it
+    // scrolled that list, and the highlight ended above where it began.)
+    for (let n = 0; view && n < 12; n++) {
+      const j = pickNext(toRect(from), others.map(toRect), dir);
+      const pick = j === -1 ? null : others[j];
+      if (!pick || !clippedAwayFrom(pick, from, view, dir === 'up' || dir === 'down')) break;
+      others = others.filter((el) => el !== pick);
     }
     const i = pickNext(toRect(from), others.map(toRect), dir);
     if (i === -1) return null;

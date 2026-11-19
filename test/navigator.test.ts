@@ -90,7 +90,7 @@ describe('SpatialNavigator', () => {
 
 describe('row memory', () => {
   // Two sideways-scrolling rows and a plain grid row under them. Row A has been scrolled: its first card is off to the left.
-  const strip = (id: string, cards: string): string => `<div id="${id}" data-rect="0,0,400,60" style="overflow-x: auto">${cards}</div>`;
+  const strip = (id: string, cards: string, top: number): string => `<div id="${id}" data-rect="0,${top},400,60" style="overflow-x: auto">${cards}</div>`;
   const scrollable = (id: string): void => {
     const el = document.getElementById(id)!;
     Object.defineProperty(el, 'scrollWidth', { value: 2000, configurable: true });
@@ -99,8 +99,8 @@ describe('row memory', () => {
 
   beforeEach(() => {
     document.body.innerHTML =
-      strip('rowA', `${card('a0', -130, 100)}${card('a1', 0, 100)}${card('a2', 120, 100)}${card('a3', 240, 100)}`) +
-      strip('rowB', `${card('b0', 0, 200)}${card('b1', 120, 200)}${card('b2', 240, 200)}`) +
+      strip('rowA', `${card('a0', -130, 100)}${card('a1', 0, 100)}${card('a2', 120, 100)}${card('a3', 240, 100)}`, 100) +
+      strip('rowB', `${card('b0', 0, 200)}${card('b1', 120, 200)}${card('b2', 240, 200)}`, 200) +
       `<div id="grid">${card('g0', 0, 300)}${card('g1', 120, 300)}${card('g2', 240, 300)}</div>`;
     scrollable('rowA');
     scrollable('rowB');
@@ -830,5 +830,63 @@ describe('a link parked above the top of the page', () => {
     Object.defineProperty(document.getElementById('list')!, 'scrollTop', { value: 80 });
     const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
     expect(nav.candidates().map((el) => el.id)).toEqual(['gone', 'b']);
+  });
+});
+
+describe('a link cut off at the bottom of a banner fixed to the screen', () => {
+  it('is not somewhere the highlight can go, while one on screen in the same banner is', () => {
+    Object.defineProperty(window, 'innerHeight', { value: 540, configurable: true });
+    Object.defineProperty(window, 'innerWidth', { value: 960, configurable: true });
+    document.body.innerHTML = '<a href="#p" id="page" data-rect="20,100,200,30">P</a><div id="banner" style="position: fixed" data-rect="450,90,500,700"><a href="#a" id="shown" data-rect="460,120,200,30">A</a><a href="#b" id="cut" data-rect="460,700,200,30">B</a></div><a href="#q" id="below" data-rect="20,900,200,30">Q</a>';
+    const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
+    expect(nav.candidates().map((el) => el.id)).toEqual(['page', 'shown', 'below']);
+  });
+});
+
+describe('what counts as a dialog in front of the page', () => {
+  const size = (w: number, h: number): void => {
+    Object.defineProperty(window, 'innerWidth', { value: w, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: h, configurable: true });
+  };
+  it('not a side menu parked off the edge of the screen, though it says it is modal', () => {
+    size(960, 540);
+    document.body.innerHTML = '<div id="side" role="dialog" aria-modal="true" data-rect="-365,0,365,540"><a href="#x" data-rect="-340,20,200,30">X</a></div>';
+    expect(openDialog(document)).toBeNull();
+  });
+  it('not a small notice in a corner', () => {
+    size(960, 540);
+    document.body.innerHTML = '<div id="note" role="dialog" aria-modal="true" data-rect="524,224,420,300"><a href="#x" data-rect="540,300,200,30">X</a></div>';
+    expect(openDialog(document)).toBeNull();
+  });
+  it('but one over the middle of the screen, however small, and one that takes much of it', () => {
+    size(960, 540);
+    document.body.innerHTML = '<div id="mid" role="dialog" aria-modal="true" data-rect="380,200,200,140"></div>';
+    expect(openDialog(document)?.id).toBe('mid');
+    document.body.innerHTML = '<div id="sheet" role="dialog" aria-modal="true" data-rect="0,300,960,240"></div>';
+    expect(openDialog(document)?.id).toBe('sheet');
+  });
+});
+
+describe('something scrolled out of sight in a pane of its own', () => {
+  const html = `
+    <div id="list" style="overflow-y: auto" data-rect="8,139,280,156">
+      <a href="#a" id="card" data-rect="36,240,126,32">A</a>
+      <a href="#b" id="hidden" data-rect="36,439,142,32">B</a>
+    </div>
+    <a href="#l" id="last" data-rect="32,400,60,22">L</a>`;
+  it('is not below a link that lies outside the pane', () => {
+    document.body.innerHTML = html;
+    const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
+    nav.focus(document.getElementById('last'));
+    expect(nav.move('down')).toBe(false);
+    expect(nav.focused?.id).toBe('last');
+  });
+  it('but is below the card above it in the same pane', () => {
+    document.body.innerHTML = html;
+    const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
+    document.getElementById('last')!.remove();
+    nav.focus(document.getElementById('card'));
+    expect(nav.move('down')).toBe(true);
+    expect(nav.focused?.id).toBe('hidden');
   });
 });

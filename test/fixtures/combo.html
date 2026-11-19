@@ -3,12 +3,18 @@
 <title>Longboard fixture: a search field with suggestions</title>
 <!-- Invented layout. A top bar with a "skip" link parked above the page that shows itself when focused,
      a button, and a search field that is an ARIA combobox: the arrow keys mark a suggestion, Enter chooses it,
-     and the list is drawn afresh whenever the field loses the cursor. -->
+     and the list is drawn afresh whenever the field loses the cursor.
+     Also a second skip link that jumps when focused, and a side menu parked off the screen that says it is a modal dialog. -->
 <style>
   body { margin: 0; font: 20px sans-serif; background: #111; color: #eee; }
   #bar { position: fixed; top: 0; left: 0; right: 0; height: 56px; background: #222; }
   #skip { position: absolute; left: 16px; top: -1000px; width: 128px; height: 40px; }
   #skip:focus { left: 185px; top: 12px; }
+  /* A second "skip" link, hidden in the bar, that moves to a place lower down when it gets the cursor. */
+  #jump { position: absolute; left: 60px; top: 4px; width: 40px; height: 54px; opacity: 0.02; }
+  #jump:focus { top: 200px; opacity: 1; }
+  /* A side menu parked off the left edge that already calls itself a modal dialog. */
+  #side { position: fixed; left: -400px; top: 0; width: 365px; height: 540px; }
   #logo { position: absolute; left: 56px; top: 0; width: 123px; height: 56px; }
   #q { position: absolute; left: 278px; top: 16px; width: 300px; height: 24px; box-sizing: border-box; }
   #go { position: absolute; left: 590px; top: 8px; width: 64px; height: 40px; }
@@ -20,11 +26,13 @@
 </style>
 <div id="bar">
   <button id="skip">Skip</button>
+  <a id="jump" href="#main">Skip</a>
   <a id="logo" href="#top">Fixture</a>
   <input id="q" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list">
   <button id="go">Go</button>
   <div id="list" role="listbox"></div>
 </div>
+<div id="side" role="dialog" aria-modal="true"><a id="side-link" href="#side">Side</a></div>
 <main>
   <a id="first" href="#first">First thing</a>
   <a id="second" href="#second">Second thing</a>

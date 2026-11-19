@@ -109,10 +109,13 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   /** A scripted run never types a password or a one-time code (Hard rule 9). A person may. */
   const keyboardBarred = (el: Element): boolean =>
     options.automation && isSecretField(el.getAttribute('type'), el.getAttribute('autocomplete'), `${el.getAttribute('name') ?? ''} ${el.id}`);
+  /** Things that jump elsewhere when they get the cursor (moveInPage finds them). */
+  const jumpers = new WeakSet<Element>();
   // The navigator keeps this object, so setRules can change what it goes by.
   const navOptions: NavigatorOptions = {
     extraFocusable: rules.selectors.extraFocusable,
     ignoreWithin: HOST_TAG,
+    avoid: (el) => jumpers.has(el),
     onFocusChange: (el) => {
       overlay.track(el);
       // The highlight passing over a text field does not bring the keyboard
@@ -205,7 +208,20 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       return;
     }
     if (dir !== 'up') topEdge.reset();
+    const cameFrom = nav.focused;
+    const wasAt = cameFrom ? cameFrom.getBoundingClientRect().top + view.scrollY : 0;
     let moved = nav.move(dir);
+    // Up that does not end higher is not up. (Seen on a meetings site: a
+    // "skip" link hidden in the top bar moves to a place lower down when it
+    // gets the cursor; Up went to it and back without end, and the top was
+    // never reached.) Such a thing is not landed on again, and Up is tried
+    // once more from where it started.
+    for (let tries = 0; tries < 3 && moved && dir === 'up' && cameFrom?.isConnected && nav.focused && nav.focused !== cameFrom; tries++) {
+      if (nav.focused.getBoundingClientRect().top + view.scrollY < wasAt - 1) break;
+      jumpers.add(nav.focused);
+      nav.focus(cameFrom);
+      moved = nav.move(dir);
+    }
     // Sideways out of an open menu: close it and carry on along the bar.
     if (!moved && hoverHost && (dir === 'left' || dir === 'right')) {
       const trigger = hoverTrigger;
@@ -813,6 +829,13 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     }, 0);
   };
   view.addEventListener('blur', reclaim);
+  // The blur is not always heard: a frame can have the keys before this
+  // page's window is the one in front. (Seen on a news site reached by a
+  // redirect: an advertisement's frame had them from the start and no press
+  // of the remote did anything.) So it is also looked for now and then.
+  view.setInterval(() => {
+    if (!pointerOn && doc.visibilityState === 'visible' && doc.activeElement instanceof HTMLIFrameElement) reclaim();
+  }, 1000);
 
   // A text field the page focused by itself (a sign-in page puts the cursor
   // in its first field): take it as the remote's focus too, so the ring is on

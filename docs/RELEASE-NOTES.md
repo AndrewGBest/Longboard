@@ -2,6 +2,18 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.5, from trying 63 well-known sites:
+
+- **A shop's whole page could not be reached** once the highlight touched
+  its menu button. Fixed.
+- **Sites where no button did anything** (an advertisement had taken the
+  keyboard). Fixed.
+- **Down going round in a loop** at the foot of a page with a tall banner,
+  and jumping back up a side column on a music site. Fixed.
+- **Up twice for the menu** now works on more sites with a "skip" link
+  hidden at the top.
+- **A small notice in a corner no longer shuts the highlight in.**
+
 New in 0.3.4:
 
 - **Suggested searches can be chosen.** With suggestions showing under a

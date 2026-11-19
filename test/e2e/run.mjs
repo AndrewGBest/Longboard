@@ -746,6 +746,9 @@ await scenario('a search field with suggestions, and a top bar', { url: `${site.
   check('OK chooses the marked suggestion, and does not bring the keyboard', [await page.evaluate('window.__chosen'), await page.keyboardShown()], ['one', false]);
   await page.press('ArrowDown', 500);
   check('with the list closed, Down moves on down the page', await page.focused(), 'first');
+  await page.press('ArrowUp', 500);
+  check('Up from there passes over the link that jumps lower when it gets the cursor', await page.focused(), 'logo');
+  check('a side menu parked off the screen, calling itself a modal dialog, did not take the page away', await page.inLayer('globalThis.longboardReferee.targets().length > 4'), true);
 });
 
 await scenario('a form, and things that only look clickable', { url: `${site.origin}/form.html`, args: ['--zoom=1'] }, async (app) => {

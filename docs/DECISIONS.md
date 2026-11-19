@@ -3,6 +3,28 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-20: what a survey of 63 sites found, and what was changed
+
+Andrew asked for the top 50 websites and the top streaming services to be
+tested, as far as they go without signing in, and for faults to be mended
+in generic mode where that makes sense and by profiles where it does not.
+Every row is **an assumption by the agent**. Each fault was measured on the
+live site named, not signed in, in the real app run headless.
+
+| Choice | Reason |
+|---|---|
+| The list is 45 of Similarweb's 50 most-visited sites (October 2026, as listed on Wikipedia's "List of most-visited websites") and 18 streaming services | The five left out are adult sites; the agent chose not to open them. The streaming list is the agent's own, from memory, with no ranking behind it |
+| A new script, `test/scorecard/survey.mjs`, beside the scorecard | The scorecard is ten sites measured carefully. The survey is many sites looked at for faults: a top that Up never reaches, a highlight that goes round, presses that do nothing though the page goes on, and what Tab reaches that the highlight cannot |
+| No profile was written | Every fault found came from a habit shared by many sites, and a general rule mended it. Rule 8 also wants an outline for each selector, and none was needed |
+| A dialog counts as "in front" only if it is on the screen, and not if it is a small notice in a corner (under 30% of the screen and not over its middle) | A shop builds its side menu off the left edge when its button gets the cursor, already marked as a modal dialog: nothing on the page could then be reached (0 of 115 Tab stops). A mail site marks a 420 by 300 corner notice as modal: the highlight was shut in it |
+| Something no scrolling can show is not a target: parked above the page, or off the screen inside something fixed to the screen | An encyclopedia's front page has a fixed banner taller than the screen. Down at the foot went to a link cut off below, could not show it, and began again from the top, round and round |
+| A frame that holds the keys is looked for every second, not only when the window loses them | A news site reached by a redirect: an advertisement's frame had the keys from the start, no blur was ever heard, and no press did anything |
+| Up that does not end higher is undone; that element is not landed on again on this page; Up is tried again | A meetings site hides a "skip" link in its top bar that moves lower down when focused. Up went to it and back without end |
+| A pick that lies outside the box of a pane that clips it, along the way pressed, is passed over unless the highlight is in that pane | A music site: below the last link of the side column, Down chose a card hidden further down a list higher up; showing it scrolled that list and the highlight ended above where it began |
+| Left as it is: a whole card that is one link with several controls on it is not a target (three such on a forum's front page) | The controls on it are reachable, and the card's own link is usually the title's link again |
+| Left as it is: the highlight stays behind, off screen, while a stretch with nothing to select scrolls by | Seen on a code-hosting site's front page. It is the reading scroll working as designed; the next target takes the highlight |
+| Not tested: a video service whose signed-out front page is an offers page | The automation guard refuses that address (Hard rule 11). It is not weakened for a test |
+
 ## 2026-11-19: suggestions under a search field, and a top bar that never ran out
 
 Andrew, at the TV, on a video site: a suggested search could not be

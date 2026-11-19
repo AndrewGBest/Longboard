@@ -73,7 +73,12 @@ const start = (): void => {
     // where it stopped. It lives in this isolated world, where the page's
     // own scripts cannot see or call it, and only in a scripted run.
     const referee = new Referee(document, () => layer.candidates(), HOST_TAG);
-    (globalThis as { longboardReferee?: unknown }).longboardReferee = { note: () => referee.note(), report: () => referee.report() };
+    // `targets` says what the highlight can reach now, as kinds and boxes only: for working out why a page goes wrong.
+    const targets = (): string[] => layer.candidates().map((el) => {
+      const r = el.getBoundingClientRect();
+      return `${el.tagName.toLowerCase()}${el.getAttribute('role') ? `[${el.getAttribute('role')}]` : ''} ${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`;
+    });
+    (globalThis as { longboardReferee?: unknown }).longboardReferee = { note: () => referee.note(), report: () => referee.report(), targets };
     // The profile's own list of purchase controls joins the early guard.
     guarded.push(...rulesFromUntrusted(boot.profile, document).selectors.purchaseControls);
     sayBlocked = () => layer.notice('Blocked: automation mode never activates purchase or sign-up controls');
