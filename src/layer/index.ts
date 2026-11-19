@@ -59,6 +59,8 @@ export interface Layer {
   loading: (on: boolean) => void;
   /** The app's window stopped being the one in front: pause what is playing. */
   away: () => void;
+  /** Everything the highlight can go to on this page now. For the referee (diagnostics/referee.ts). */
+  candidates: () => Element[];
   /** Puts the highlight on the first control inside `container`. */
   focusFirstIn: (container: Element) => boolean;
   /** Puts the highlight on `el`. */
@@ -940,6 +942,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       return 'no';
     },
     typeIn,
+    candidates: () => nav.candidates(),
     focusFirstIn: (container) => nav.focusFirstIn(container),
     focus: (el) => nav.focus(el),
     stop: () => {

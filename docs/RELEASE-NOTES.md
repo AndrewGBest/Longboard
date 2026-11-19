@@ -2,6 +2,13 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.2:
+
+- **Links that run over two lines can be selected.** In an article, a link
+  that started on one line and ended on the next could not be reached.
+  Found by a new test that compares what the Tab key can reach with what
+  the remote can, on ten public sites.
+
 New in 0.3.1, from the first evening at a TV:
 
 - **Search results can be selected.** On a page of results the title of

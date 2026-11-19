@@ -55,8 +55,10 @@ function connect(url) {
     const ws = new WebSocket(url);
     let id = 0;
     const pending = new Map();
+    const listeners = [];
     ws.onmessage = (m) => {
       const msg = JSON.parse(m.data);
+      if (!msg.id && msg.method) for (const hear of listeners) hear(msg.method, msg.params);
       if (msg.id && pending.has(msg.id)) {
         const { resolve: ok, reject } = pending.get(msg.id);
         pending.delete(msg.id);
@@ -77,6 +79,8 @@ function connect(url) {
             pending.set(mine, { resolve: (v) => (clearTimeout(timer), resolve2(v)), reject: (e) => (clearTimeout(timer), reject(e)) });
             ws.send(JSON.stringify({ id: mine, method, params }));
           }),
+        /** Calls `hear(method, params)` for everything the app says unasked. */
+        listen: (hear) => listeners.push(hear),
         close: () => ws.close(),
       });
   });
@@ -84,7 +88,7 @@ function connect(url) {
 
 const VK = {
   ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39, Enter: 13, '/': 191, Escape: 27, ' ': 32, Backspace: 8,
-  ContextMenu: 93, F2: 113, F4: 115, F6: 117, F7: 118,
+  ContextMenu: 93, Tab: 9, F2: 113, F4: 115, F6: 117, F7: 118,
 };
 
 /** One view of the app (a DevTools target), with the helpers the tests use. */
@@ -120,9 +124,32 @@ async function attach(target) {
       const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(style);
       return /\bshow\b/.test(cls) && m ? { x: Number(m[1]), y: Number(m[2]) } : null;
     });
+  // The layer's own world, where the page's scripts cannot reach. Found by
+  // name; a page that goes somewhere else gets a new one.
+  let layerWorld;
+  let watching = false;
+  const inLayer = async (expression) => {
+    if (!watching) {
+      watching = true;
+      // Frames inside the page have such a world too; only the page's own counts.
+      const top = (await cdp.send('Page.getFrameTree')).frameTree.frame.id;
+      cdp.listen((method, params) => {
+        if (method === 'Runtime.executionContextCreated' && /isolated/i.test(params.context.name) && params.context.auxData?.isDefault === false && params.context.auxData?.frameId === top) layerWorld = params.context.id;
+        if (method === 'Runtime.executionContextsCleared') layerWorld = undefined;
+      });
+      await cdp.send('Runtime.enable');
+      await sleep(200);
+    }
+    if (layerWorld === undefined) throw new Error("the layer's world was not found");
+    const answer = await cdp.send('Runtime.evaluate', { expression, contextId: layerWorld, returnByValue: true, awaitPromise: true });
+    if (answer.exceptionDetails) throw new Error(`in the layer's world: ${answer.exceptionDetails.exception?.description ?? answer.exceptionDetails.text}`.slice(0, 200));
+    return answer.result.value;
+  };
   return {
     cdp,
     url: target.url,
+    /** Evaluates in the layer's isolated world. For the referee only. */
+    inLayer,
     /** Walks the pointer to a point (page pixels) with taps, reading where it is after each. */
     pointTo: async (x, y) => {
       for (let i = 0; i < 400; i++) {
@@ -155,6 +182,18 @@ async function attach(target) {
         await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ch, text: ch });
         await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch });
       }
+    },
+    /**
+     * The referee: presses Tab through the page and says how the places it
+     * stopped compare with what the highlight can reach (src/layer/diagnostics/referee.ts).
+     */
+    referee: async (most = 150) => {
+      let again = 0;
+      for (let i = 0; i < most && again < 2; i++) {
+        await press('Tab', 40);
+        if ((await inLayer('globalThis.longboardReferee.note()')) !== 'new') again += 1;
+      }
+      return inLayer('globalThis.longboardReferee.report()');
     },
     focused: () => evaluate('document.querySelector("[data-longboard-focus]")?.id ?? null'),
     ringClass: () => overlay(({ cls }) => (/\bring\b/.test(cls) ? cls : undefined)),

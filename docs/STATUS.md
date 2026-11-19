@@ -2,6 +2,31 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-19, later still: the referee, and links over two lines
+
+Andrew asked whether the Tab key, which works well in Chromium, should be
+used or learned from. Agreed with him: as a second measuring tool, not as
+the way to move (DECISIONS.md).
+
+- **The referee** (`src/layer/diagnostics/referee.ts`): a scripted run
+  presses Tab through a page and compares where the engine stopped with
+  what the highlight can reach. It is in the scorecard (three new columns)
+  and in the end-to-end scenario "a page of results". It exists only under
+  `--automation`, in the layer's isolated world, which a page's scripts
+  cannot see; it reports kinds and sizes, never a page's words.
+- **It found a fault on its first run:** a link that runs over two lines of
+  text could not be reached (Wikipedia, OpenStreetMap). Fixed.
+- **Verified:** `npm run check`, 539 unit tests. The scorecard's ten sites
+  and the Google results page: no Tab stop missed after the fix
+  (SCORECARD.md has the table and what each miss was). With the two faults
+  from the entry below put back for one run it reported 14 misses on the
+  Google page, so it does catch that kind. `npm run e2e`: 465 checks, none
+  failing.
+- **Not verified, not looked into:** archive.org and duckduckgo.com did
+  worse on the arrow counts in this run than in earlier ones
+  (SCORECARD.md); nobody has looked at why. The referee says nothing about
+  whether the arrows reach things in a sensible order.
+
 ## 2026-11-19, later: first report from the TV, search results
 
 Andrew, on his first evening with it at a TV, searched Google for "netflix"

@@ -286,7 +286,7 @@ function isLaidOut(el: Element, view: Window): boolean {
 }
 
 /** False for something parked far outside the page, a common way to hide a real input. */
-function onScreenish(el: Element, view: Window): boolean {
+export function onScreenish(el: Element, view: Window): boolean {
   const r = el.getBoundingClientRect();
   return r.right > -2000 && r.left < view.innerWidth + 2000;
 }
@@ -472,7 +472,12 @@ export class SpatialNavigator {
     // reached at all.
     const rects = inner.map(toRect);
     const screen = view.innerWidth * view.innerHeight;
-    const front = inner.filter((_, i) => {
+    const front = inner.filter((el, i) => {
+      // A link that runs on from one line of text to the next is never a
+      // backdrop: the box round both lines takes in the other links on
+      // them, but the link itself does not lie under them. Found by the
+      // referee on an encyclopedia's article: every such link was dropped.
+      if (el.getClientRects().length > 1) return true;
       const mine = rects[i]!;
       const onTop = rects.filter((other, j) => j !== i && covers(mine, other)).length;
       if (onTop === 0) return true;

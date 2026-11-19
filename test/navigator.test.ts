@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { boxOf } from '../src/layer/spatial/box';
+import { compareWithTabStops } from '../src/layer/diagnostics/referee';
 import { coveredByScreen, edgeControl, FOCUS_ATTR, openDialog, scrollWithinList, SpatialNavigator, ZOOM_ATTR } from '../src/layer/spatial/navigator';
 
 // jsdom has no layout engine, so each element's rectangle is read from data-rect="left,top,width,height".
@@ -236,6 +237,16 @@ describe('carousels', () => {
     nav.focus(document.getElementById('story'));
     nav.move('right');
     expect(nav.focused?.id).toBe('more');
+  });
+
+  it('keeps a link that runs over two lines of text, though its box takes in other links', () => {
+    document.body.innerHTML =
+      '<p><a href="#" id="one" data-rect="300,2,60,18">x</a><a href="#" id="two" data-rect="400,2,60,18">x</a>' +
+      '<a href="#" id="runs" data-rect="24,0,905,44">x</a><a href="#" id="three" data-rect="200,24,60,18">x</a></p>';
+    const runs = document.getElementById('runs')!;
+    runs.getClientRects = () => [{}, {}] as unknown as DOMRectList;
+    const nav = new SpatialNavigator(document);
+    expect(ids(nav.candidates())).toEqual(['one', 'runs', 'three', 'two']);
   });
 
   it('still drops a small link with several controls on it', () => {
@@ -788,5 +799,21 @@ describe('visibility with a shared memory of ancestors', () => {
       <div style="opacity: 0"><div>${card('c', 0, 100)}${card('d', 120, 100)}</div></div>`;
     const nav = new SpatialNavigator(document);
     expect(nav.candidates().map((el) => el.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('the referee', () => {
+  it('counts a Tab stop as reached by itself, by what it holds, by what holds it or by what lies on it, and names the rest by kind only', () => {
+    installLayout();
+    document.body.innerHTML =
+      '<a href="#" id="plain" data-rect="0,0,100,40">secret words</a>' +
+      '<div tabindex="0" id="shell" data-rect="0,50,300,80"><a href="#" id="inside" data-rect="10,60,80,40">x</a></div>' +
+      '<a href="#" id="lost" data-rect="0,200,200,40">more secret words</a>' +
+      '<a href="#" id="speck" data-rect="0,300,1,1">skip</a>' +
+      '<span id="hand" data-rect="0,400,100,40">x</span>';
+    const el = (id: string): Element => document.getElementById(id)!;
+    const said = compareWithTabStops([el('plain'), el('shell'), el('lost'), el('speck')], [el('plain'), el('inside'), el('hand')], window);
+    expect(said).toEqual({ stops: 4, seen: 3, reached: 2, missed: [{ what: 'a', size: '200x40' }], beyond: 1 });
+    expect(JSON.stringify(said)).not.toContain('secret');
   });
 });

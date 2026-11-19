@@ -8,6 +8,8 @@ import { rulesFromUntrusted } from '../layer/profile/rules';
 import { installPurchaseGuard } from '../layer/guard/purchase-guard';
 import { startLayer, type Layer } from '../layer/index';
 import { readArticle } from '../layer/reader';
+import { Referee } from '../layer/diagnostics/referee';
+import { HOST_TAG } from '../layer/ui/overlay';
 
 /**
  * Inside an embedded frame there is no layer. The one thing done there, and
@@ -67,6 +69,11 @@ const start = (): void => {
     if (document.readyState !== 'complete') window.addEventListener('load', sayIcons, { once: true });
   }
   if (scripted) {
+    // The referee, for the scorecard: a script presses Tab and asks here
+    // where it stopped. It lives in this isolated world, where the page's
+    // own scripts cannot see or call it, and only in a scripted run.
+    const referee = new Referee(document, () => layer.candidates(), HOST_TAG);
+    (globalThis as { longboardReferee?: unknown }).longboardReferee = { note: () => referee.note(), report: () => referee.report() };
     // The profile's own list of purchase controls joins the early guard.
     guarded.push(...rulesFromUntrusted(boot.profile, document).selectors.purchaseControls);
     sayBlocked = () => layer.notice('Blocked: automation mode never activates purchase or sign-up controls');

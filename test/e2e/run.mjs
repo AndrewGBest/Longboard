@@ -680,6 +680,9 @@ await scenario('a page of results', { url: `${site.origin}/results.html`, args: 
   check('the small button is still reached, sideways', await focused(), 'first-more');
   await press('ArrowDown', 350);
   check('and Down from it goes on down the page', await focused(), 'sub1');
+  // The referee: everywhere Tab stops, the highlight can reach.
+  const said = await page.referee();
+  check('everything the Tab key stops at can be reached with the arrows', [said.stops, said.seen, said.reached, said.missed], [10, 10, 10, []]);
 });
 
 // At a scale of 1: drawn bigger, the browser's own drop-down list opens

@@ -39,7 +39,7 @@ const STATE = `(() => {
 const rows = [];
 for (const site of list) {
   const host = new URL(site.url).hostname;
-  const row = { site: host, kind: site.kind, loaded: false, first: '-', moved: 0, lost: 0, medianMs: 0, worstMs: 0, elements: 0, pointer: false, note: '' };
+  const row = { site: host, kind: site.kind, loaded: false, first: '-', moved: 0, lost: 0, medianMs: 0, worstMs: 0, elements: 0, pointer: false, tab: '-', missed: '-', beyond: 0, note: '' };
   rows.push(row);
   // The real TV scale: a 1920x1080 window drawn at 960x540.
   const app = await launch({ url: site.url, args: ['--zoom=2'], width: 1920, height: 1080 });
@@ -67,6 +67,18 @@ for (const site of list) {
     row.medianMs = Math.round(median(times));
     row.worstMs = Math.round(Math.max(...times));
     if (shots) writeFileSync(join(shots, `${host}.png`), Buffer.from((await page.cdp.send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+    // The referee: where the Tab key stops against what the highlight reaches.
+    try {
+      const said = await page.referee();
+      row.tab = `${said.reached} of ${said.seen}`;
+      const kinds = {};
+      for (const m of said.missed) kinds[m.what] = (kinds[m.what] ?? 0) + 1;
+      row.missed = Object.entries(kinds).map(([what, n]) => `${n} ${what}`).join(', ') || '-';
+      row.beyond = said.beyond;
+    } catch (err) {
+      row.tab = 'not measured';
+      row.missed = String(err).slice(0, 60);
+    }
     await page.press('F2', 500);
     row.pointer = (await page.pointerAt()) !== null;
     if (/blocked navigation|renderer exited/.test(app.log)) row.note = app.log.split('\n').filter((l) => /blocked navigation|renderer exited/.test(l)).slice(0, 2).join('; ').slice(0, 120);
@@ -79,8 +91,8 @@ for (const site of list) {
 }
 
 const table = [
-  '| Site | Kind | Loaded | First press lands on | Presses that moved or scrolled (of 12) | Highlight left off screen | Key press, median / worst (ms) | Elements | Pointer mode |',
-  '|---|---|---|---|---|---|---|---|---|',
-  ...rows.map((r) => `| ${r.site} | ${r.kind} | ${r.loaded ? 'yes' : 'no'} | ${r.first} | ${r.moved} | ${r.lost} | ${r.medianMs} / ${r.worstMs} | ${r.elements} | ${r.pointer ? 'yes' : 'no'} |${r.note ? ` ${r.note}` : ''}`),
+  '| Site | Kind | Loaded | First press lands on | Presses that moved or scrolled (of 12) | Highlight left off screen | Key press, median / worst (ms) | Elements | Pointer mode | Tab stops reached | Tab stops missed | Targets Tab never stops at |',
+  '|---|---|---|---|---|---|---|---|---|---|---|---|',
+  ...rows.map((r) => `| ${r.site} | ${r.kind} | ${r.loaded ? 'yes' : 'no'} | ${r.first} | ${r.moved} | ${r.lost} | ${r.medianMs} / ${r.worstMs} | ${r.elements} | ${r.pointer ? 'yes' : 'no'} | ${r.tab} | ${r.missed} | ${r.beyond} |${r.note ? ` ${r.note}` : ''}`),
 ].join('\n');
 console.log(`\n${table}`);

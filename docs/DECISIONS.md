@@ -3,6 +3,19 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: the Tab order is a referee, not the way to move
+
+Andrew asked whether Longboard should use or learn from Tab selection, and
+agreed to using it as a testing tool ("Sounds smart to me").
+
+| Choice | Reason |
+|---|---|
+| Tab order is not how the remote moves | It is one line through the page: dozens of presses to pass a header, and no "the card to the right". It knows only what a page declares, and many pages build controls from plain boxes |
+| It is used to check what can be selected | The engine's list of declared controls is right by definition. Comparing it with the highlight's targets finds dropped controls without anyone looking at a screen |
+| The hook is an object in the layer's isolated world, only under `--automation` | Nothing is exposed to pages (rule 13): a page's scripts cannot see that world. Reports are kinds and sizes only (rule 12) |
+| A link over two lines is never a backdrop (**assumption by the agent**) | Found by the referee. The box round two lines is not the link's shape |
+| Going to the next control in page order when an arrow has nowhere to go: not built | Suggested by the agent as a second use; it could fight scrolling, and wants a decision after the referee has been in use a while |
+
 ## 2026-11-19: search results in generic mode, and no profile for Google
 
 Andrew reported results on Google that could not be selected and a clipped

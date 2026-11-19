@@ -4,12 +4,71 @@ What happens on a fixed list of public websites with no profile. The list is
 in `test/scorecard/sites.json`; the run is `xvfb-run -a npm run scorecard`.
 
 **What this measures and what it does not.** A script opens each site in the
-real app (always with `--automation`), presses the same twelve arrow keys,
+real app (always with `--automation`), presses the same twelve arrow keys
+(and, since 2026-11-19, Tab: see "The referee"),
 and records what it can see: whether a highlight appears, whether each press
 moved it or scrolled the page, how long the app took to deal with each key,
 and whether pointer mode comes up. It cannot tell whether the highlight went
 somewhere *sensible*, or whether the site is pleasant to use from a couch.
 That still needs a person with a remote, and has not been done.
+
+## The referee (added 2026-11-19)
+
+The run now also presses Tab through each page, up to 150 times, and
+compares where the engine's own Tab order stopped with what the highlight
+can reach (`src/layer/diagnostics/referee.ts`). The engine decides what a
+page declares as a control, so a Tab stop the highlight cannot reach is a
+fault in Longboard. It is a check on *what can be selected*, not on whether
+the arrows get there in a sensible order.
+
+- **Tab stops reached**: of the stops a person could see when the count was
+  made (not smaller than 10 pixels, not hidden, not parked far to one
+  side), how many the highlight reaches: the stop itself, something inside
+  it, something that holds it, or something in the same place.
+- **Tab stops missed**: the rest, by kind of element. The aim is none.
+- **Targets Tab never stops at**: what the highlight reaches beyond the
+  stops counted. On a page with more than 150 stops this is mostly the rest
+  of the page and means little.
+
+**Does it catch what it is for?** With the two faults Andrew found on a
+search engine's results put back for one run, it reported 14 links missed
+on that page; with the fixes, none of 85.
+
+## 2026-11-19, fourth run, with the referee
+
+After the changes to movement made that day (STATUS.md). First the table as
+first measured, then what was done about it.
+
+| Site | Kind | Loaded | First press lands on | Presses that moved or scrolled (of 12) | Highlight left off screen | Key press, median / worst (ms) | Elements | Pointer mode | Tab stops reached | Tab stops missed | Targets Tab never stops at |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| example.com | one link | yes | a | 2 | 2 | 1 / 7 | 23 | yes | 1 of 1 | - | 0 |
+| en.wikipedia.org | long article | yes | a | 11 | 0 | 27 / 182 | 11812 | yes | 146 of 150 | 4 a | 2892 |
+| news.ycombinator.com | dense list of links | yes | a | 11 | 0 | 8 / 20 | 815 | yes | 150 of 150 | - | 79 |
+| www.bbc.com | news front page | yes | a | 11 | 0 | 3 / 22 | 1407 | yes | 75 of 75 | - | 18 |
+| developer.mozilla.org | documentation | yes | nothing | 9 | 0 | 5 / 17 | 1573 | yes | 127 of 127 | - | 0 |
+| github.com | web app | yes | a | 12 | 0 | 7 / 42 | 1833 | yes | 108 of 108 | - | 0 |
+| archive.org | grid of cards | yes | nothing | 2 | 0 | 5 / 16 | 73 | yes | 12 of 12 | - | 76 |
+| duckduckgo.com | search form | yes | button | 11 | 4 | 4 / 27 | 1678 | yes | 127 of 138 | 11 a | 6 |
+| www.youtube.com | video site | yes | button | 7 | 0 | 4 / 20 | 2011 | yes | 12 of 12 | - | 0 |
+| www.openstreetmap.org | map | yes | button | 9 | 0 | 3 / 10 | 503 | yes | 34 of 35 | 1 a | 0 |
+
+What the three sets of misses were:
+
+- **en.wikipedia.org and www.openstreetmap.org: a real fault, fixed.** A
+  link that runs on from one line of text to the next has a box round both
+  lines, which takes in the other links on them; it was taken for a
+  backdrop and dropped. Such a link is now never a backdrop. Run again:
+  194 of 194 (with 200 presses) and 35 of 35.
+- **duckduckgo.com: the referee's mistake, corrected.** The eleven were
+  slides of a carousel several thousand pixels off to one side, which
+  nobody could see when the count was made and which Longboard leaves out
+  on purpose until they come near. The referee now leaves them out too.
+  Run again: 127 of 127.
+
+Not looked into: archive.org moved on only 2 presses of 12 and showed no
+highlight after the first press (it had 7 in earlier runs; the page has 73
+elements at that moment, so it may not have finished building itself), and
+duckduckgo.com left the highlight off screen 4 times.
 
 ## 2026-11-18, third run (commit e52c2af)
 
