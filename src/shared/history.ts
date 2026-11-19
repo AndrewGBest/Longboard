@@ -56,8 +56,23 @@ export function whenText(at: number, now: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** One line of the list on screen. */
-export function visitLine(v: Visit, now: number): { url: string; text: string } {
+/** The day a page was opened, as the heading over that day's pages: "Today", "Yesterday", or the day in words. */
+export function dayHeading(at: number, now: number): string {
+  const when = whenText(at, now);
+  if (when === 'today') return 'Today';
+  if (when === 'yesterday') return 'Yesterday';
+  return new Date(at).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/** One line of the list on screen: in one sentence (`text`), and in the parts the screen lays out. */
+export function visitLine(v: Visit, now: number): { url: string; text: string; title: string; site: string; day: string; time: string } {
   const site = siteName(v.url) || 'a page';
-  return { url: v.url, text: `${v.title ? `${v.title} (${site})` : site}, ${whenText(v.at, now)}` };
+  return {
+    url: v.url,
+    text: `${v.title ? `${v.title} (${site})` : site}, ${whenText(v.at, now)}`,
+    title: v.title,
+    site,
+    day: dayHeading(v.at, now),
+    time: new Date(v.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  };
 }

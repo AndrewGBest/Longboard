@@ -3,6 +3,67 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: the design gone over against the major browsers
+
+Andrew: "scrutinize the design choices made for Longboard, compare it to all
+major browsers out there and make it competitive. Make sure everything
+follows a top quality level of design that you'd expect from a major
+corporation, spend time on the polish and look at it all, with a focus on
+user experience."
+
+How it was done: every screen was photographed in the real app at 1920 by
+1080, looked at, redrawn, and photographed again. The comparison was gathered
+from vendors' own pages into `docs/RESEARCH-BROWSERS.md`; rows there say
+whether the page itself was read. What the screens now follow is DESIGN.md
+section 11, and what the comparison found is section 12.
+
+**All of the following are the agent's assumptions:**
+
+- **One design system**, in `chrome.html` and `chrome/parts.ts`: colours, a
+  type scale and spacing as variables; rows with icons; switches drawn as
+  switches; the highlighted thing turns light as well as getting the ring.
+  The numbers come from Android TV's, tvOS's and Fire TV's guidance and
+  WCAG's contrast ratios (sources in the research file).
+- **Words were changed only where they were in the way.** "Go to address or
+  search" became "Search or enter an address"; switches lost their "yes" and
+  "no"; "This site" on the menu became "This page", since most of what is
+  there is about the page. The plain voice is kept. A row's accessible name
+  is still the full sentence it used to show.
+- **Icons are drawn in code**, about forty line drawings of the project's
+  own on a 24 by 24 grid. No icon set is used (Hard rule 1).
+- **Five tiles to a row on Home**, not four. tvOS's own grid has five at 320
+  points and Android TV's has five-up cards [Sourced].
+- **A clock on Home.** A TV's own screens show the time; Longboard fills the
+  whole screen and had hidden it.
+- **Forward, Stop, and the line that shows a page arriving.** The line is
+  drawn by the layer inside the page, told by the shell when a navigation
+  starts and stops; it appears after 0.25 s so a page that comes at once
+  shows nothing.
+- **Desk-browser keyboard shortcuts**, for a keyboard that is plugged in
+  (`shared/shortcuts.ts`, unit-tested). The person's own button mappings win
+  over them. Ctrl+O (menu), Ctrl+Q and Ctrl+Shift+D keep the jobs they had,
+  so Ctrl+O does not "open a file" as it does elsewhere; Longboard opens no
+  files.
+- **A closed tab can be opened again**, the last ten, for this run only,
+  never a private one.
+- **History** is shown under days, can be searched as words are typed (on
+  this machine; nothing is sent), and one page can be taken out of it.
+- **On-screen "Back" rows stay**, against Android TV's advice, as the quiet
+  last row of a page (DESIGN.md 11).
+- **The on-screen keyboard stays alphabetical** (the earlier decision
+  stands); only its look changed.
+
+**Left for Andrew, because each needs a decision that is his:**
+
+1. **A password store.** Allowed since rule 10 was reworded and the largest
+   gap against every desk browser. It was not started in this pass because
+   it is a feature with security weight, not polish.
+2. **Search suggestions from the search site.** They send what is typed, as
+   it is typed, to the search site: a background request under Hard rule 12
+   that would have to be disclosed and switchable, and a choice between
+   Brave's default (off) and Edge's (on).
+3. **Typing from a phone, and voice.**
+
 ## 2026-11-19: a release to test updates; extensions from the Chrome Web Store
 
 Andrew: "You can make releases, make a release to test the updates. Now that

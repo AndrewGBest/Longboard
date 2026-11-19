@@ -101,6 +101,7 @@ Compared with a mainstream browser, today:
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Order of work |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Choices made, with dates and reasons |
 | [docs/STATUS.md](docs/STATUS.md) | What exists and what has been checked |
+| [docs/RESEARCH-BROWSERS.md](docs/RESEARCH-BROWSERS.md) | What TV design guidance and other browsers do, with sources |
 | [docs/SCORECARD.md](docs/SCORECARD.md) | How generic mode did on a fixed list of public sites |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to help, with code or with profiles |
 | [CLAUDE.md](CLAUDE.md) | Working rules for every contributor, human or AI |

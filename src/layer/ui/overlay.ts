@@ -38,25 +38,39 @@ const CSS = `
 .mark.row { border-color: #5dade2; }
 .mark.player { border-color: #f4d03f; }
 .toast {
-  position: fixed; left: 50%; bottom: 8vh; transform: translateX(-50%);
-  background: rgba(16,16,16,.94); color: #fff; font: 600 3.4vh/1.3 system-ui, sans-serif;
-  padding: 2vh 3.4vh; border-radius: 1.4vh; max-width: 80vw; text-align: center; opacity: 0; transition: opacity .2s;
+  position: fixed; left: 50%; bottom: 7vh; transform: translate(-50%, 1.2vh);
+  background: rgba(20,25,32,.97); color: #f1f3f6; font: 500 3vh/1.3 system-ui, sans-serif;
+  padding: 1.8vh 3.2vh; border-radius: 10vh; max-width: 80vw; text-align: center; opacity: 0;
+  box-shadow: 0 0 0 .2vh #2b3441, 0 1vh 4vh rgba(0,0,0,.6); transition: opacity .18s, transform .18s ease-out;
 }
-.toast.show { opacity: 1; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.loading {
+  position: fixed; left: 0; top: 0; width: 100vw; height: .7vh; overflow: hidden;
+  opacity: 0; transition: opacity .2s; filter: drop-shadow(0 0 .3vh rgba(0,0,0,.7));
+}
+.loading.show { opacity: 1; transition-delay: .25s; }
+.loading i {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 34%; border-radius: 1vh; background: #5fd6c4;
+  animation: loading 1.15s ease-in-out infinite; animation-play-state: paused;
+}
+.loading.show i { animation-play-state: running; }
+@keyframes loading { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
 .osk {
   position: fixed; left: 50%; bottom: 4vh; transform: translateX(-50%);
-  display: none; grid-template-columns: repeat(10, 7.2vh); gap: 1vh;
-  padding: 2.2vh; border-radius: 2vh; background: rgba(12,14,18,.96);
-  box-shadow: 0 1vh 6vh rgba(0,0,0,.7);
+  display: none; grid-template-columns: repeat(10, 7.4vh); gap: .9vh;
+  padding: 2.2vh; border-radius: 2.6vh; background: rgba(20,25,32,.98);
+  box-shadow: 0 0 0 .2vh #2b3441, 0 1vh 6vh rgba(0,0,0,.7);
 }
 .osk.show { display: grid; }
 .osk.top { bottom: auto; top: 4vh; }
 .osk .key {
-  height: 7.2vh; border-radius: 1.2vh; background: #2a2f38; color: #f2f2f2;
-  font: 600 3.6vh/7.2vh system-ui, sans-serif; text-align: center;
+  height: 7.4vh; border-radius: 1.3vh; background: #283140; color: #f1f3f6;
+  font: 500 3.5vh/7.4vh system-ui, sans-serif; text-align: center;
 }
-.osk .key.wide { font-size: 3vh; }
-.osk .key.on { background: #fff; color: #111; box-shadow: 0 0 0 .5vh rgba(255,255,255,.35); }
+.osk .key.wide { font-size: 2.6vh; font-weight: 600; background: #1d242e; color: #b7bfcb; }
+.osk .key.wide.go { background: #5fd6c4; color: #062521; }
+.osk .key.on, .osk .key.wide.on { background: #f1f3f6; color: #0b0e13; box-shadow: 0 0 0 .45vh rgba(255,255,255,.3); transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) { .ring, .toast, .loading i { animation: none !important; transition: none !important; } }
 `;
 
 /** How long the ring is followed frame by frame after it was last seen to move. */
@@ -70,6 +84,7 @@ export class Overlay {
   private readonly oskEl: HTMLElement;
   private readonly pointerEl: SVGSVGElement;
   private readonly marksEl: HTMLElement;
+  private readonly loadingEl: HTMLElement;
   private readonly host: HTMLElement;
   private target: Element | null = null;
   private toastTimer: number | undefined;
@@ -106,7 +121,10 @@ export class Overlay {
     arrow.setAttribute('d', 'M2 1 L2 19 L7 14.5 L10.5 22.5 L13.5 21.2 L10 13.3 L16.5 13.3 Z');
     this.pointerEl.append(arrow);
     this.marksEl = doc.createElement('div');
-    root.append(this.marksEl, this.ring, this.toastEl, this.oskEl, this.pointerEl);
+    this.loadingEl = doc.createElement('div');
+    this.loadingEl.className = 'loading';
+    this.loadingEl.append(doc.createElement('i'));
+    root.append(this.marksEl, this.ring, this.loadingEl, this.toastEl, this.oskEl, this.pointerEl);
     doc.documentElement.append(host);
     this.host = host;
     // Anything that scrolls may be carrying the target (a row, a list); the
@@ -135,6 +153,11 @@ export class Overlay {
 
   track(el: Element | null): void {
     this.target = el;
+    // The ring's corners follow the corners of what it is round, so it sits evenly round a pill or a card.
+    const view = this.doc.defaultView;
+    const corner = el && view ? parseFloat(view.getComputedStyle(el).borderTopLeftRadius) : 0;
+    const most = el ? Math.min(el.getBoundingClientRect().width, el.getBoundingClientRect().height) / 2 : 0;
+    this.ring.style.borderRadius = `${Math.round(Math.max(10, Math.min(Number.isFinite(corner) ? corner : 0, most) + 6))}px`;
     this.wake();
   }
 
@@ -225,7 +248,7 @@ export class Overlay {
     rows.forEach((row, r) =>
       row.forEach((key, i) => {
         const el = this.doc.createElement('div');
-        el.className = `key${key.span > 1 ? ' wide' : ''}${active && active.row === r && active.index === i ? ' on' : ''}`;
+        el.className = `key${key.span > 1 ? ' wide' : ''}${key.kind === 'submit' ? ' go' : ''}${active && active.row === r && active.index === i ? ' on' : ''}`;
         el.style.gridColumn = `span ${key.span}`;
         el.textContent = key.kind === 'submit' && submitLabel ? submitLabel : key.label;
         keys.push(el);
@@ -267,6 +290,11 @@ export class Overlay {
     }
     this.pointerEl.style.transform = `translate(${Math.round(spot.x)}px, ${Math.round(spot.y)}px)`;
     this.pointerEl.setAttribute('class', 'pointer show');
+  }
+
+  /** The line along the top while a page is arriving. Shown after a moment, so a page that comes at once shows nothing. */
+  loading(on: boolean): void {
+    this.loadingEl.classList.toggle('show', on);
   }
 
   toast(message: string, ms = 2500): void {

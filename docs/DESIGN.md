@@ -92,7 +92,7 @@ A grid of tiles, like a TV's app row:
 
 - sites you added as apps;
 - recently opened sites;
-- a "Go to address or search" tile.
+- a "Search or enter an address" bar, with the time and the day above it.
 
 A tile shows whether the site has a reviewed profile, your own profile, or
 none.
@@ -113,9 +113,11 @@ each is a profile plus a launcher entry, with one program underneath.
 ### 4.3 The menu
 
 One button opens a side panel over the page. It is kept short, because every
-entry is a press of the remote: the address field, Home, Back and Reload,
-size, pointer mode, the ad-blocking switch, "This site" (add as an app, the
-profile, what the site may do), Tabs and History, Settings, About and Quit.
+entry is a press of the remote: the address field, Home, Back,
+Forward and Reload (Stop while a page is arriving), size, pointer mode, the
+ad-blocking switch, "This page" (keep on Home, find, reader view, desktop
+site, add as an app, the profile, what the site may do), Tabs and History,
+Settings, About and Quit.
 In Longboard's own panels a list goes round at its ends, and anything chosen
 from several is chosen from a list with the one in use marked.
 
@@ -234,8 +236,14 @@ Longboard never stores passwords (DECISIONS.md).
   site gets the width of a desk screen (1280) and lays itself out in full,
   with smaller text. Who Longboard says it is does not change.
 - **History:** the menu has "History": the pages opened, newest first, each
-  once, at most 300, on this machine only. Pressing one opens it. Settings
-  can stop keeping it and clear it.
+  once, at most 300, on this machine only, under the day they were opened.
+  Pressing one opens it; the cross beside it takes it out. Words typed
+  above the list leave only the pages that have them. Settings can stop
+  keeping it and clear it.
+- **A closed tab** can be opened again from the list of tabs: the last ten,
+  for this run only, and never a private one.
+- **With a keyboard plugged in**, the shortcuts of a desk browser work
+  (Ctrl+L, Ctrl+T, Ctrl+W and the rest; About lists them).
 
 ### 4.10 Parental lock **[Decision, Andrew, 2026-11-18; the shape is the agent's assumption]**
 
@@ -363,6 +371,78 @@ tests once there is something to measure.
 - Whether a launcher entry can be created from inside a Flatpak depends on a
   desktop portal the agent recalls but has not checked **[Guess]**.
 - The name Longboard has not been cleared. See DECISIONS.md.
+
+## 11. How Longboard's own screens look **[Decision, Andrew, 2026-11-19: "a top quality level of design"; the particulars are the agent's assumptions]**
+
+One set of rules for Home, the menu, Settings, questions, the reader view and
+the pages Longboard shows in place of a site. They live in
+`src/chrome/chrome.html` (colours, type and spacing as CSS variables) and
+`src/chrome/parts.ts` (the icon drawings, rows and switches). Sources for the
+numbers are in `docs/RESEARCH-BROWSERS.md`, part 1.
+
+| Rule | What Longboard does | Why |
+|---|---|---|
+| Safe area | 5% of the screen kept clear at every edge of Home; backgrounds run to the edge | Android TV and Fire TV both say 5% [Sourced] |
+| Sizes | Everything in `vh`, so it is the same share of any screen | A TV is always 16:9; the panel must look the same over Home and beside a site |
+| Text | Body 2.9vh (31 px at 1080 lines), second-line text 2.4vh (26 px), labels 2.2vh (24 px); nothing smaller | Fire TV: body at least 28 px at 1080p. tvOS: 29 pt body, 23 pt smallest [Sourced] |
+| Colour | Dark, cool and not saturated: near-black blue-greys, one sea-green accent, amber for warnings, red only for what removes | Android TV: build from dark themes. Fire TV: less saturated, cool colours [Sourced] |
+| Contrast | Body text on a row is 14:1, second-line text 8.4:1, the dimmest label 6:1, the highlighted row's words 17:1 | WCAG 2.2 asks 4.5:1 for text, 3:1 for large text and for the focus indicator [Sourced]. The ratios were worked out from the colour values with WCAG's formula, not measured on a screen |
+| The highlight | One thing at a time. It turns light with dark words, the layer's white ring goes round it with corners that follow its own, and a Home tile grows by 4% | Android TV: scale 1.025 to 1.1, colour change and outline together. tvOS: do not move the highlight without the person [Sourced] |
+| Rows | An icon, a label, a line under it saying what it is for, and at the right what is chosen now, a switch, or an arrow to another page | A switch drawn as a switch is read faster than "yes" and "no" in a sentence [Assumption] |
+| What a row says | Each row's accessible name is the whole sentence ("Ad blocking: on"), for a screen reader | The picture of a switch says nothing to someone who cannot see it |
+| Removing | Rows that clear or remove are red and need a second press | Nothing is undone by a slip of the thumb |
+| Icons | Line drawings of the project's own, drawn in code; a site's icon comes from the site | Hard rules 1 and 6 |
+| Movement | A panel slides in over 0.16 s the first time only; switches and the highlight ease over 0.12 s; all of it stops when the system asks for reduced motion | Enough to show what changed, never something to wait for |
+| A page arriving | A thin line moves along the top of the page after a quarter of a second, until the page has come | Every desk browser shows that something is happening; a TV browser with no address bar had nowhere to show it |
+
+**On-screen "Back" rows are kept** although Android TV's guidance says not to
+draw a back button [Sourced]. They are the last, quiet row of a page, the
+Back button of the remote does the same, and a list that goes round at its
+ends puts them one press up from the top. [Assumption]
+
+Home shows the time and the day, the search bar, "Carry on" for the page
+left behind it, then saved pages, apps and recent sites, five tiles to a
+row. With nothing on it yet, it shows three cards that say how to start.
+
+## 12. Against other browsers **[Agent's review, 2026-11-19]**
+
+The comparison this was made from is `docs/RESEARCH-BROWSERS.md`. It was
+gathered from vendors' own pages on 2026-11-19; each row there is marked as
+read from the page, taken from a search extract, or not confirmed.
+
+**What the review changed** (all 2026-11-19):
+
+| Found | Done |
+|---|---|
+| No Forward. Every browser has it | Forward beside Back in the menu; Alt+Right |
+| Nothing showed that a page was loading, and it could not be stopped | The line along the top; Reload becomes Stop while a page arrives |
+| None of a desk browser's keyboard shortcuts worked with a keyboard plugged in | Ctrl+L, T, W, Shift+T, Shift+N, Tab, R, F, H, J, D, plus, minus, 0, F5, Alt+Left and Right. Chrome and Edge document the same keys [Sourced] |
+| A closed tab was gone | "Open the tab closed last", and Ctrl+Shift+T. Private tabs are never remembered |
+| History was one flat list that could not be searched | Under the day each page was opened, with the time; searched as words are typed; one page can be taken out |
+| Home's search bar collapsed to a sliver once Home had tiles | Fixed |
+| The reader view drew headings in small capitals, repeated the title, and used the interface's type | Fixed; a reading typeface, a line length of about 34 em, and how long it takes to read |
+| Pages shown in place of a site (cannot reach, blocked, not secure) looked like another program | Same colours and type as the rest |
+| The page behind Home could only be got back through the menu | "Carry on" on Home; Back still does it |
+| A new person was told nothing | Three cards on an empty Home; the keys along the bottom |
+
+**Where Longboard is ahead of TV browsers.** Most of them move a mouse
+pointer with the arrows (Silk, Xbox Edge, Steam Big Picture, TV Bro, Vewd)
+[Sourced]; tvOS's own guidance is to avoid a pointer on a TV [Sourced].
+Longboard moves between links and buttons, and has the pointer for when a
+site needs one. It also has per-site ad blocking, a reader view, a parental
+lock, web apps with their own sign-ins and extensions, which no one TV
+browser in the comparison has together.
+
+**Where it is behind the desk browsers, and not done:**
+
+| Missing | Why not yet |
+|---|---|
+| Saved passwords and autofill | Allowed by Hard rule 10 since 2026-11-18 but not built. It is the biggest gap: signing in with a remote is the slowest thing in the product |
+| Typing from a phone, and voice | The input layer was written for them (4.4); neither is built |
+| Search suggestions from the search site | Sends what is typed to the search site as it is typed. Brave ships it off [Search extract]; Edge ships it on [Sourced]. Needs Andrew's decision under Hard rule 12 |
+| Translation | Every engine for it is someone else's service or a large model |
+| Sync between machines | Needs a server, or an account with someone |
+| Opening again with every tab that was open | "Open with the last site" brings back one |
 
 ## Sources
 

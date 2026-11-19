@@ -68,27 +68,32 @@ const escapeHtml = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** A self-contained notice page: no scripts, no remote resources. Every argument is escaped. */
-function noticePage(title: string, heading: string, paragraphs: readonly string[], detail?: { label: string; value: string }): string {
+function noticePage(title: string, heading: string, paragraphs: readonly string[], detail?: { label: string; value: string }, calm = false): string {
   const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Longboard: ${escapeHtml(title)}</title>
 <style>
-  html, body { height: 100%; margin: 0; background: #000; color: #eee; font: 3.6vh/1.5 system-ui, sans-serif; }
-  main { box-sizing: border-box; height: 100%; max-width: 80vw; margin: 0 auto; display: flex; flex-direction: column; justify-content: center; gap: 2vh; }
-  h1 { font-size: 6vh; margin: 0; }
-  p { margin: 0; }
-  code { font: 3.2vh ui-monospace, monospace; color: #9fd8c0; overflow-wrap: anywhere; }
-  .hint { color: #aaa; }
+  html, body { height: 100%; margin: 0; background: #0b0e13; color: #f1f3f6; font: 3.2vh/1.45 system-ui, sans-serif; }
+  main { box-sizing: border-box; height: 100%; max-width: 72vw; margin: 0 auto; padding: 5vh 0; display: flex; flex-direction: column; justify-content: center; gap: 1.8vh; }
+  .sign { width: 9vh; height: 9vh; margin-bottom: 1vh; fill: none; stroke: #f2bd6b; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .sign.calm { stroke: #5fd6c4; }
+  h1 { font-size: 5.6vh; line-height: 1.15; margin: 0; }
+  p { margin: 0; color: #b7bfcb; }
+  p.detail { margin-top: 1vh; padding: 1.6vh 2.4vh; border-radius: 1.6vh; background: #141920; font-size: 2.5vh; }
+  code { font: 2.5vh ui-monospace, monospace; color: #5fd6c4; overflow-wrap: anywhere; }
+  .hint { margin-top: 2vh; color: #8d97a6; font-size: 2.5vh; }
+  kbd { display: inline-block; padding: .3vh 1.2vh; margin: 0 .4vh; border-radius: .8vh; background: #1d242e; color: #b7bfcb; font: 600 2.2vh/1.3 system-ui, sans-serif; }
 </style>
 </head>
 <body>
 <main>
+  ${calm ? '<svg class="sign calm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 1 0 0 16a8 8 0 0 0 0-16z"/><path d="M12 8v4l3 2"/></svg>' : '<svg class="sign" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3z"/><path d="M12 10v4"/><path d="M12 17v.4"/></svg>'}
   <h1>${escapeHtml(heading)}</h1>
 ${paragraphs.map((p) => `  <p>${escapeHtml(p)}</p>`).join('\n')}
-${detail ? `  <p>${escapeHtml(detail.label)}: <code>${escapeHtml(detail.value)}</code></p>` : ''}
-  <p class="hint">Press Back to go back. Press Ctrl+Q to quit.</p>
+${detail ? `  <p class="detail">${escapeHtml(detail.label)}: <code>${escapeHtml(detail.value)}</code></p>` : ''}
+  ${calm ? '' : '<p class="hint"><kbd>Back</kbd> goes back <kbd>Menu</kbd> opens the menu <kbd>Ctrl+Q</kbd> quits</p>'}
 </main>
 </body>
 </html>`;
@@ -120,7 +125,7 @@ export function noticePageUrl(reason: BlockReason, url: string): string {
  * finishes, and a slow or blocked download looks like an app that never started.
  */
 export function startingPageUrl(): string {
-  return noticePage('starting', 'Starting', ['Getting the playback component ready. On the first run this is a download and can take a moment.']);
+  return noticePage('starting', 'Starting', ['Getting the playback component ready. On the first run this is a download and can take a moment.'], undefined, true);
 }
 
 /** Chromium's code for a navigation that was cancelled, which is what a refused navigation looks like. Not a failure. */

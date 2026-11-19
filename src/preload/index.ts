@@ -76,6 +76,13 @@ const start = (): void => {
   ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
     if (typeof text === 'string') layer.notice(text.slice(0, 200));
   });
+  // A page is arriving: this one until it has all come, or the one that will replace it.
+  ipcRenderer.on('longboard:loading', (_event, on: unknown) => layer.loading(on === true));
+  if (document.readyState !== 'complete' && /^https?:$/.test(location.protocol)) {
+    layer.loading(true);
+    // The shell says when everything has come; this is for a page it never hears the end of.
+    window.addEventListener('load', () => window.setTimeout(() => layer.loading(false), 4000), { once: true });
+  }
   // The window is no longer the one in front.
   ipcRenderer.on('longboard:away', () => layer.away());
   // Button mappings changed in Settings: the layer reads this object at every key.

@@ -2,6 +2,7 @@
 // shows Longboard's own screens (Home, the menu panel, questions). They are
 // separate renderers with separate sessions; a website can never reach the
 // chrome view or the shell (Hard rule 13).
+import { shortcutFor, type Shortcut } from '../shared/shortcuts';
 import { app, BaseWindow, ipcMain, powerSaveBlocker, session, WebContentsView, type WebContents } from 'electron';
 import { accessSync, constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -359,6 +360,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
   /** The same, for changes to what is on Home: asked for only while Home decides which sites open. */
   const withPinForHome = (then: () => void): void => (lock?.homeOnly && !unlocked ? withPin('Enter the PIN to change what is on Home', then) : then());
 
+  /** The pages that are still arriving: each is told, so it can show that, and the menu offers Stop. */
+  const arriving = new WeakSet<WebContents>();
+  /** The addresses of the tabs closed lately, newest last, so one can be opened again. Private tabs are never in it. */
+  const closedTabs: string[] = [];
+
   const chromeState = (): ChromeState => ({
     surface,
     panel,
@@ -377,6 +383,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
           site: siteName(page.getURL()) || 'this page',
           title: isNotice(page.getURL()) ? '' : page.getTitle().slice(0, 120),
           canGoBack: backIndex() >= 0,
+          canGoForward: page.navigationHistory.canGoForward(),
+          loading: arriving.has(page),
+          icon: iconOf(siteIconId(page.getURL())),
           zoomPercent: Math.round(siteZoom() * 100),
           pointer: pointerOn,
           profile: ((p) => (p ? `${p.profile.name} (${sourceLabel(p.source)})` : null))(profileFor(page.getURL())),
@@ -454,7 +463,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
       const loaded = !isNotice(url);
       return { id: place, title: loaded && wc ? wc.getTitle().slice(0, 80) : '', site: loaded ? siteName(url) : '', current: place === partition, private: isPrivate(place) };
     }),
-    history: panel === 'history' ? visits.slice(0, 80).map((v) => visitLine(v, Date.now())) : null,
+    history: panel === 'history' ? visits.map((v) => visitLine(v, Date.now())) : null,
+    closedTabs: closedTabs.length,
     downloads: downloads.map((d) => ({
       id: d.id,
       name: d.name,
@@ -639,7 +649,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
   /** Tabs: a new one (which starts on Home), bringing one in front, or closing one. */
   const tabAction = (op: unknown, id: unknown): void => {
     if (edit) endEdit(false);
-    if (op === 'new' || op === 'private') {
+    const again = op === 'reopen' ? closedTabs[closedTabs.length - 1] : undefined;
+    if (op === 'reopen' && !again) return;
+    if (op === 'new' || op === 'private' || op === 'reopen') {
       if (tabPlaces().length >= MAX_TABS) {
         notify(`${MAX_TABS} tabs are open. Close one first`);
         return;
@@ -649,7 +661,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
       surface = 'home';
       panel = null;
       layout();
-      notify(op === 'private' ? 'A private tab. Nothing opened here is kept' : 'A new tab. Open an address or a tile');
+      if (again) {
+        closedTabs.pop();
+        open(again, true);
+      } else notify(op === 'private' ? 'A private tab. Nothing opened here is kept' : 'A new tab. Open an address or a tile');
       return;
     }
     if (typeof id !== 'string' || !isTab(id) || !views.has(id)) return;
@@ -683,6 +698,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (lastTab === id) lastTab = isTab(partition) ? partition : (others[0] ?? '');
     if (gone) {
       const left = gone.webContents.session;
+      const was = gone.webContents.getURL();
+      if (!isPrivate(id) && /^https?:/i.test(was) && !isNotice(was)) {
+        closedTabs.push(was);
+        if (closedTabs.length > 10) closedTabs.shift();
+      }
       win.contentView.removeChildView(gone);
       gone.webContents.close();
       // What a private tab's sites stored goes with the tab.
@@ -1150,7 +1170,67 @@ export function createBrowser(deps: BrowserDeps): Browser {
     });
   }));
 
+  // ---- A page that is arriving ---------------------------------------------
+
+  // The page is told when another is on its way and when it has come, and
+  // draws a line along the top meanwhile (the layer's overlay). The page
+  // being left is the one that hears the start; the new one starts with the
+  // line showing and hears the end.
+  eachPage((wc) => {
+    const said = (on: boolean): void => {
+      if (wc.isDestroyed() || arriving.has(wc) === on) return;
+      if (on) arriving.add(wc);
+      else arriving.delete(wc);
+      wc.send('longboard:loading', on);
+      if (wc === page && panel === 'menu') refreshChrome();
+    };
+    wc.on('did-start-navigation', (details) => {
+      if (details.isMainFrame && !details.isSameDocument && !isNotice(details.url)) said(true);
+    });
+    wc.on('did-stop-loading', () => said(false));
+    wc.on('did-fail-load', (_e, _code, _text, _url, isMainFrame) => {
+      if (isMainFrame) said(false);
+    });
+  });
+
   // ---- Keys the shell answers itself ---------------------------------------
+
+  /** A desk browser's keyboard shortcut (shared/shortcuts.ts), done with what the menu already does. */
+  const runShortcut = (shortcut: Shortcut): void => {
+    if (win.isDestroyed()) return;
+    const onPage = surface === 'page';
+    const step = (by: number): void => {
+      const places = tabPlaces();
+      const at = places.indexOf(partition);
+      if (places.length > 1 && at >= 0) tabAction('switch', places[(at + by + places.length) % places.length]);
+    };
+    switch (shortcut) {
+      case 'address':
+        if (onPage) {
+          panel = 'menu';
+          layout();
+        } else if (panel) {
+          panel = null;
+          layout();
+        }
+        if (!chrome.isDestroyed()) chrome.send('longboard:type-address');
+        break;
+      case 'newTab': tabAction('new', undefined); break;
+      case 'privateTab': tabAction('private', undefined); break;
+      case 'reopenTab': tabAction('reopen', undefined); break;
+      case 'closeTab': if (isTab(partition)) tabAction('close', partition); break;
+      case 'nextTab': step(1); break;
+      case 'previousTab': step(-1); break;
+      case 'history': menu('history'); break;
+      case 'downloads': menu('downloads'); break;
+      case 'reload': case 'back': case 'forward': case 'find': case 'zoomIn': case 'zoomOut': case 'zoomReset':
+        if (onPage) menu(shortcut);
+        break;
+      case 'savePage':
+        if (onPage && !saved.some((p) => p.url === page.getURL())) menu('savePage');
+        break;
+    }
+  };
 
   const toggleMenu = (): void => {
     if (panel === 'prompt') return;
@@ -1193,6 +1273,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
         event.preventDefault();
         // After this event, for the reason given in the pointer's own key handling.
         if (wc === page && active() === page) setImmediate(() => setPointer(!pointerOn));
+      }
+      else if (!action) {
+        const shortcut = shortcutFor(input, config.keys);
+        if (!shortcut || panel === 'prompt' || panel === 'pin' || edit) return;
+        event.preventDefault();
+        // After this event: several of these change which view has the keys.
+        setImmediate(() => runShortcut(shortcut));
       }
     });
   };
@@ -2032,6 +2119,19 @@ export function createBrowser(deps: BrowserDeps): Browser {
         layout();
         if (surface === 'page') goBack();
         break;
+      case 'forward':
+        panel = null;
+        layout();
+        if (surface === 'page' && page.navigationHistory.canGoForward()) {
+          clearTimeout(retryTimer);
+          page.navigationHistory.goForward();
+        }
+        break;
+      case 'stop':
+        if (surface === 'page') page.stop();
+        panel = null;
+        layout();
+        break;
       case 'reload':
         panel = null;
         layout();
@@ -2432,6 +2532,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'openVisit':
         if (panel === 'history' && typeof msg.url === 'string' && visits.some((v) => v.url === msg.url)) open(msg.url, true);
+        break;
+      case 'forgetVisit':
+        if (panel === 'history' && typeof msg.url === 'string' && visits.some((v) => v.url === msg.url)) {
+          visits = visits.filter((v) => v.url !== msg.url);
+          writeJson(historyFile, { visits });
+          layout();
+        }
         break;
       case 'folder':
         if (panel !== 'settings') break;

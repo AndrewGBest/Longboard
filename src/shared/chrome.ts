@@ -28,6 +28,11 @@ export interface ChromeState {
     site: string;
     title: string;
     canGoBack: boolean;
+    canGoForward: boolean;
+    /** True while the page is still arriving: the menu offers Stop in place of Reload. */
+    loading: boolean;
+    /** The site's own icon when Longboard has it (the site is on Home), as a data: address. */
+    icon: string | null;
     /** Zoom relative to the automatic TV scale, in percent. */
     zoomPercent: number;
     pointer: boolean;
@@ -113,7 +118,9 @@ export interface ChromeState {
   /** The tabs that are open, in the order they were opened. A tab with nothing in it yet has no title or site. */
   tabs: Array<{ id: string; title: string; site: string; current: boolean; private: boolean }>;
   /** The pages opened lately, newest first, while the history panel is open. */
-  history: Array<{ url: string; text: string }> | null;
+  history: Array<{ url: string; text: string; title: string; site: string; day: string; time: string }> | null;
+  /** How many closed tabs can be opened again. */
+  closedTabs: number;
   /** The parental lock, when a PIN is set: whether only Home's sites open, and whether the PIN has been given for browsing. */
   lock: { homeOnly: boolean; unlocked: boolean } | null;
   /** The PIN being asked for, while panel is 'pin': what for, and how long until another try is taken. */
@@ -134,11 +141,11 @@ export interface ChromeState {
 }
 
 export type MenuAction =
-  | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
+  | 'home' | 'resume' | 'back' | 'forward' | 'stop' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
   | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'reader' | 'lock' | 'addExtension' | 'settings' | 'history' | 'tabs' | 'find' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'forward', 'stop', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -155,7 +162,7 @@ export type ChromeMessage =
   | { kind: 'startsOff'; op: 'add' | 'toggle'; domain: string }
   | { kind: 'settingsAction'; action: SettingsAction }
   /** Tabs: open a new one, bring one in front, or close one. */
-  | { kind: 'tab'; op: 'new' | 'private' | 'switch' | 'close'; id?: string }
+  | { kind: 'tab'; op: 'new' | 'private' | 'switch' | 'close' | 'reopen'; id?: string }
   /** A page kept on Home: open it, or take it off. */
   | { kind: 'openSaved'; url: string }
   | { kind: 'removeSaved'; url: string }
@@ -166,6 +173,8 @@ export type ChromeMessage =
   | { kind: 'find'; text: string; forward: boolean }
   /** Open a page from the history. */
   | { kind: 'openVisit'; url: string }
+  /** Take one page out of the history. */
+  | { kind: 'forgetVisit'; url: string }
   /** The folder chooser: look in this folder, or null to put the chooser away. */
   | { kind: 'folder'; path: string | null }
   /** Wait for a button to give to this action (null stops waiting), or take its buttons away. */

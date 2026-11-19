@@ -51,6 +51,9 @@ const newPackage = Buffer.from('#!/bin/sh\n# a made-up newer package\n'.repeat(2
 /** What the made-up site was asked for, for the download checks. */
 const asks = { file: 0, made: 0, slow: [], adverts: 0, bigIcon: 0, maskIcon: 0 };
 const site = await serveFixtures({
+  // A page that takes its time, as a far-away site does.
+  '/slow-page': (_req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>slow</title><a href="/home.html" id="there">the words</a><img src="/slow.png" alt="">'),
+  '/slow.png': (_req, res) => setTimeout(() => res.writeHead(200, { 'content-type': 'image/png' }).end(siteIcon), 3500),
   '/favicon.ico': (_req, res) => res.writeHead(200, { 'content-type': 'image/png' }).end(siteIcon),
   '/catalogue/index.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(catalogueIndex),
   '/catalogue/profiles/profile.test/profile.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(fixtureProfile),
@@ -313,7 +316,7 @@ await scenario('a site asks to be allowed something', { url: `${site.origin}/hom
   const page = await app.page(site.origin);
   const chrome = await app.chrome();
   const { evaluate } = page;
-  const question = () => chrome.evaluate('[...document.querySelectorAll("#panel h1, #panel p")].map((n) => n.textContent).join(" | ")');
+  const question = () => chrome.evaluate('[...document.querySelectorAll("#panel h1, #panel p")].map((n) => n.ariaLabel ?? n.textContent).join(" | ")');
   const asked = () => until(() => chrome.evaluate('document.querySelector("#panel h1")?.textContent ?? null'), (t) => t === 'Allow this?', 50);
   const answers = () => JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8'))['127.0.0.1']?.answers;
   const locate = 'window.__geo = new Promise((r) => navigator.geolocation.getCurrentPosition(() => r("allowed"), (e) => r(e.code === 1 ? "refused" : "allowed, but no position"))); 0';
@@ -356,7 +359,7 @@ await scenario('a site asks to be allowed something', { url: `${site.origin}/hom
   // The menu shows the answers and can forget them.
   await page.press('ContextMenu', 500);
   await siteMenu(chrome);
-  const menu = await chrome.evaluate('document.getElementById("panel").textContent');
+  const menu = await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)');
   check('the menu says what the site may and may not do', [menu.includes('Allowed to: use the camera, use the microphone, show notifications'), menu.includes('Not allowed to: know where this device is')], [true, true]);
   for (let i = 0; i < 16 && (await chrome.focused()) !== 'menu-forget'; i++) await chrome.press('ArrowDown');
   check('the entry that forgets them can be reached', await chrome.focused(), 'menu-forget');
@@ -377,7 +380,7 @@ await scenario('downloads', { url: `${site.origin}/home.html` }, async (app) => 
   await sleep(800);
   await page.evaluate('location.href = "/file.bin"; 0');
   check('a download is asked about first', await asked(), 'Download this file?');
-  const text = await chrome.evaluate('document.getElementById("panel").textContent');
+  const text = await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)');
   check('the question names the file, its size, where it is from and where it will go', [text.includes('x.bin4 bytes, from 127.0.0.1.'), text.includes(`It will be saved in ${folder}.`)], [true, true]);
   check('nothing is saved before the answer', existsSync(join(folder, 'x.bin')), false);
   await sayYes(chrome, 300);
@@ -386,7 +389,7 @@ await scenario('downloads', { url: `${site.origin}/home.html` }, async (app) => 
 
   await page.evaluate('location.href = "/file.bin"; 0');
   await asked();
-  check('the same file again gets a new name, and writes over nothing', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('x (2).bin'), true);
+  check('the same file again gets a new name, and writes over nothing', (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('x (2).bin'), true);
   await chrome.press('Enter', 600);
   check('"Cancel" saves nothing', [existsSync(join(folder, 'x (2).bin')), readFileSync(join(folder, 'x.bin'), 'utf8')], [false, 'data']);
 
@@ -409,10 +412,10 @@ await scenario('downloads', { url: `${site.origin}/home.html` }, async (app) => 
   await sayYes(chrome, 300);
   check('a slow download says it has started', await until(() => page.toastText(), (t) => /^Downloading/.test(t ?? ''), 60), 'Downloading slow.bin');
   await page.press('ContextMenu', 500);
-  check('the menu has a Downloads entry saying one is under way', await chrome.evaluate('document.getElementById("menu-downloads")?.textContent'), 'Downloads (1 under way)');
+  check('the menu has a Downloads entry saying one is under way', await chrome.evaluate('(document.getElementById("menu-downloads")?.ariaLabel ?? document.getElementById("menu-downloads")?.textContent)'), 'Downloads (1 under way)');
   for (let i = 0; i < 16 && (await chrome.focused()) !== 'menu-downloads'; i++) await chrome.press('ArrowDown');
   await chrome.press('Enter', 500);
-  const lines = () => chrome.evaluate('[...document.querySelectorAll("#panel .where")].map((p) => p.textContent)');
+  const lines = () => chrome.evaluate('[...document.querySelectorAll("#panel .where")].map((p) => p.ariaLabel ?? p.textContent)');
   check('the list shows how far it has got, and the earlier ones', ((l) => [/^slow\.bin: \d+% of 195 KB$/.test(l[0]), ...l.slice(1)])(await until(lines, (l) => /^slow\.bin: [1-9]\d?% of/.test(l[0] ?? ''), 40)), [true, 'made.bin: Saved', 'x.bin: Saved']);
   check('nothing is in the downloads folder until it is whole', existsSync(join(folder, 'slow.bin')), false);
   asks.slow.pop().end('r'.repeat(100000));
@@ -470,11 +473,11 @@ await scenario('Home, the address field, the menu and Back', {}, async (app) => 
   check('the zoom buttons can be reached', await chrome.focused(), 'menu-zoom-in');
   const widthBefore = await page.evaluate('innerWidth');
   await chrome.press('Enter', 500);
-  check('Bigger makes the page bigger and the menu stays open', [(await page.evaluate('innerWidth')) < widthBefore, await chrome.evaluate('document.getElementById("menu-zoom-reset").textContent'), await chrome.focused()], [true, '110%', 'menu-zoom-in']);
+  check('Bigger makes the page bigger and the menu stays open', [(await page.evaluate('innerWidth')) < widthBefore, await chrome.evaluate('(document.getElementById("menu-zoom-reset")?.ariaLabel ?? document.getElementById("menu-zoom-reset")?.textContent)'), await chrome.focused()], [true, '110%', 'menu-zoom-in']);
   check('the choice is saved for the site', JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8')), { '127.0.0.1': { zoom: 1.1 } });
   await chrome.press('ArrowLeft');
   await chrome.press('Enter', 500);
-  check('pressing the percentage puts it back', [await page.evaluate('innerWidth'), await chrome.evaluate('document.getElementById("menu-zoom-reset").textContent')], [widthBefore, '100%']);
+  check('pressing the percentage puts it back', [await page.evaluate('innerWidth'), await chrome.evaluate('(document.getElementById("menu-zoom-reset")?.ariaLabel ?? document.getElementById("menu-zoom-reset")?.textContent)')], [widthBefore, '100%']);
   await chrome.press('Escape', 400);
   check('Back closes the menu and the keys return to the page', [await chrome.evaluate('document.visibilityState'), await page.evaluate('document.hasFocus()')], ['hidden', true]);
   await page.press('ArrowDown');
@@ -512,7 +515,7 @@ await scenario('Home, the address field, the menu and Back', {}, async (app) => 
   await page.press('Escape', 600);
   await until(() => chrome.focused(), (id) => id === 'tile-0');
   await chrome.press('ContextMenu', 500);
-  check('the menu opened on a tile offers to remove it', await chrome.evaluate('document.getElementById("menu-remove-tile")?.textContent'), 'Remove 127.0.0.1 from Home');
+  check('the menu opened on a tile offers to remove it', await chrome.evaluate('(document.getElementById("menu-remove-tile")?.ariaLabel ?? document.getElementById("menu-remove-tile")?.textContent)'), 'Remove 127.0.0.1 from Home');
   for (let i = 0; i < 6 && (await chrome.focused()) !== 'menu-remove-tile'; i++) await chrome.press('ArrowDown');
   await chrome.press('Enter', 500);
   check('removing it takes the tile, the saved entry and the icon away', [await chrome.evaluate('document.querySelectorAll("#tiles .tile").length'), await chrome.evaluate('document.getElementById("panel")'), JSON.parse(readFileSync(join(app.userData, 'home.json'), 'utf8')).recents, iconsNow()], [0, null, [], []]);
@@ -792,7 +795,7 @@ await scenario('pointer mode: edges, the menu and the guard', { url: `${site.ori
   // The menu knows about it.
   const chrome = await app.chrome();
   await press('ContextMenu', 500);
-  check('the menu says pointer mode is on', await chrome.evaluate('document.getElementById("menu-pointer").textContent'), 'Pointer mode: on');
+  check('the menu says pointer mode is on', await chrome.evaluate('(document.getElementById("menu-pointer")?.ariaLabel ?? document.getElementById("menu-pointer")?.textContent)'), 'Pointer mode: on');
   for (let i = 0; i < 8 && (await chrome.focused()) !== 'menu-pointer'; i++) await chrome.press('ArrowDown');
   await chrome.press('Enter', 500);
   check('and switches it off', await page.pointerAt(), null);
@@ -830,9 +833,9 @@ await scenario('a site with no profile, then with one', { url: profiled, args: [
   check('down goes past the tiles to the first real control', ['stray', 'footer-link', 'panel-close'].includes(await focused()), true);
   const chrome = await app.chrome();
   await press('ContextMenu', 500);
-  check('the menu warns that a page sent over plain http is not secure', (await chrome.evaluate('document.getElementById("not-secure")?.textContent ?? ""')).startsWith('Not secure:'), true);
+  check('the menu warns that a page sent over plain http is not secure', (await chrome.evaluate('(document.getElementById("not-secure")?.ariaLabel ?? document.getElementById("not-secure")?.textContent) ?? ""')).startsWith('Not secure:'), true);
   await siteMenu(chrome);
-  check('the menu says there is no profile', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('No profile for this site: generic mode'), true);
+  check('the menu says there is no profile', (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('No profile for this site: generic mode'), true);
   check('and offers nothing to export', await chrome.evaluate('!!document.getElementById("menu-export")'), false);
 });
 
@@ -891,7 +894,7 @@ await scenario(
     const chrome = await app.chrome();
     await press('ContextMenu', 500);
     await siteMenu(chrome);
-    check('the menu names the profile and where it came from', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Profile: Fixture Site (your own)'), true);
+    check('the menu names the profile and where it came from', (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('Profile: Fixture Site (your own)'), true);
     for (let i = 0; i < 12 && (await chrome.focused()) !== 'menu-export'; i++) await chrome.press('ArrowDown');
     await chrome.press('Enter', 600);
     const exported = join(app.userData, 'exports/fixture-site.longboard-profile.json');
@@ -926,7 +929,7 @@ await scenario(
     check('a reviewed profile is used without asking', await page.focused(), 'a3');
     await page.press('ContextMenu', 500);
     await siteMenu(chrome);
-    check('and the menu says it is reviewed', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Profile: Fixture Site (reviewed)'), true);
+    check('and the menu says it is reviewed', (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('Profile: Fixture Site (reviewed)'), true);
 
     // Importing.
     await chrome.press('Escape', 400);
@@ -938,12 +941,12 @@ await scenario(
     await page.evaluate('location.reload(); 0');
     const asked = await until(() => chrome.evaluate('document.querySelector("#panel h1")?.textContent'), (t) => t === 'Use this profile?', 60);
     check('an imported profile is not used silently: the next visit asks', asked, 'Use this profile?');
-    check('the question says what it is and which sites it applies to', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('"Given Profile" (version 2.0.0)') && (await chrome.evaluate('document.getElementById("panel").textContent')).includes('profile.test'), true);
+    check('the question says what it is and which sites it applies to', (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('"Given Profile" (version 2.0.0)') && (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('profile.test'), true);
     check('with the highlight on the answer that changes nothing', await chrome.focused(), 'prompt-deny');
     await sayYes(chrome, 1500);
     await page.press('ContextMenu', 600);
     await siteMenu(chrome);
-    check('after "Use it" the site is driven by the imported profile, and the menu says nobody reviewed it', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Profile: Given Profile (imported, not reviewed)'), true);
+    check('after "Use it" the site is driven by the imported profile, and the menu says nobody reviewed it', (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('Profile: Given Profile (imported, not reviewed)'), true);
     check('and the answer is remembered, for that file and no other', Object.entries(JSON.parse(readFileSync(join(app.userData, 'imported-answers.json'), 'utf8'))).map(([k, v]) => [/^given-profile@2\.0\.0#[0-9a-f]{32}$/.test(k), v]), [[true, 'yes']]);
 
     // Home shows what Longboard has for a site.
@@ -970,7 +973,7 @@ await scenario('the profile editor', { url: profiled, args: [mapHost] }, async (
     });
     return n;
   };
-  const text = (id) => chrome.evaluate(`document.getElementById("${id}")?.textContent ?? null`);
+  const text = (id) => chrome.evaluate(`(document.getElementById("${id}")?.ariaLabel ?? document.getElementById("${id}")?.textContent) ?? null`);
   await sleep(800);
   await press('ContextMenu', 500);
   await siteMenu(chrome);
@@ -1028,7 +1031,7 @@ await scenario('the profile editor', { url: profiled, args: [mapHost] }, async (
   check('the same after loading the page again', /^[ab][123]$/.test(await page.focused()), true);
   await press('ContextMenu', 500);
   await siteMenu(chrome);
-  check('the menu names it as your own, and offers to edit it', [(await chrome.evaluate('document.getElementById("panel").textContent')).includes('Profile: profile.test (your own)'), await text('menu-edit')], [true, 'Edit the profile for this site']);
+  check('the menu names it as your own, and offers to edit it', [(await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('Profile: profile.test (your own)'), await text('menu-edit')], [true, 'Edit the profile for this site']);
 });
 
 await scenario('the profile editor, changing your mind', { url: profiled, args: [mapHost] }, async (app) => {
@@ -1063,7 +1066,7 @@ await scenario('ad blocking', { url: `${site.origin}/ads.html`, args: [`--filter
     for (let i = 0; i < 20 && (await chrome.focused()) !== id; i++) await chrome.press('ArrowDown');
     return chrome.focused();
   };
-  const line = () => chrome.evaluate('document.getElementById("menu-adblock")?.nextElementSibling?.textContent ?? null');
+  const line = () => chrome.evaluate('document.querySelector("#menu-adblock .sub")?.textContent ?? null');
   const loaded = () => until(() => evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v !== null, 60);
   // The list arrives in the background; the first page may have been loaded before it.
   await until(() => app.log, (log) => /ad blocking: 1 filter list\(s\) fetched/.test(log), 80);
@@ -1074,12 +1077,12 @@ await scenario('ad blocking', { url: `${site.origin}/ads.html`, args: [`--filter
   check('on an ordinary site, what the list names is never asked for, and the rest of the page loads', [await loaded(), asks.adverts, await evaluate('document.getElementById("banner").naturalWidth')], ['site', 0, 0]);
   check('nothing on the page is hidden or changed: the link a hiding filter names is still there', await evaluate('[getComputedStyle(document.getElementById("one")).display !== "none", document.querySelectorAll("script, style").length]'), [true, 4]);
   await page.press('ContextMenu', 500);
-  check('the menu shows the switch, on, and how many requests were refused', [await chrome.evaluate('document.getElementById("menu-adblock")?.textContent'), await line()], ['Ad blocking: on', '2 requests refused on this page.']);
+  check('the menu shows the switch, on, and how many requests were refused', [await chrome.evaluate('(document.getElementById("menu-adblock")?.ariaLabel ?? document.getElementById("menu-adblock")?.textContent)'), await line()], ['Ad blocking: on', '2 requests refused on this page.']);
   check('nothing was saved about the site: the switch has not been touched', existsSync(join(app.userData, 'sites.json')), false);
   check('the switch can be reached', await reach('menu-adblock'), 'menu-adblock');
   await chrome.press('Enter', 900);
   check('turning it off is kept for the site and loads the page again with everything on it', [JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8')), await loaded(), asks.adverts], [{ '127.0.0.1': { adBlocking: false } }, 'advert,site', 2]);
-  check('the menu stays open and says it is off by choice', [await chrome.evaluate('document.getElementById("menu-adblock")?.textContent'), await line(), await chrome.focused()], ['Ad blocking: off', 'Off for this site: your choice.', 'menu-adblock']);
+  check('the menu stays open and says it is off by choice', [await chrome.evaluate('(document.getElementById("menu-adblock")?.ariaLabel ?? document.getElementById("menu-adblock")?.textContent)'), await line(), await chrome.focused()], ['Ad blocking: off', 'Off for this site: your choice.', 'menu-adblock']);
   await chrome.press('Enter', 900);
   check('and on again', [JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8')), await loaded(), asks.adverts], [{ '127.0.0.1': { adBlocking: true } }, 'site', 2]);
   await chrome.press('Escape', 400);
@@ -1094,10 +1097,10 @@ await scenario('ad blocking', { url: `${site.origin}/ads.html`, args: [`--filter
   await sleep(600);
   check('on a verified site nothing is refused to begin with', [await until(() => verifiedPage.evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v !== null, 60), asks.adverts], ['advert,site', 2]);
   await verifiedPage.press('ContextMenu', 500);
-  check('the menu says the switch starts off there, and why', [await chrome.evaluate('document.getElementById("menu-adblock")?.textContent'), await line()], ['Ad blocking: off', 'Off to start with: this site is on the list of sites where it starts off.']);
+  check('the menu says the switch starts off there, and why', [await chrome.evaluate('(document.getElementById("menu-adblock")?.ariaLabel ?? document.getElementById("menu-adblock")?.textContent)'), await line()], ['Ad blocking: off', 'Off to start with: this site is on the list of sites where it starts off.']);
   await reach('menu-adblock');
   await chrome.press('Enter', 900);
-  check('the person can still turn it on there', [JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8'))['profile.test'], await until(() => verifiedPage.evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v === 'site', 60), await chrome.evaluate('document.getElementById("menu-adblock")?.textContent')], [{ adBlocking: true }, 'site', 'Ad blocking: on']);
+  check('the person can still turn it on there', [JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8'))['profile.test'], await until(() => verifiedPage.evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v === 'site', 60), await chrome.evaluate('(document.getElementById("menu-adblock")?.ariaLabel ?? document.getElementById("menu-adblock")?.textContent)')], [{ adBlocking: true }, 'site', 'Ad blocking: on']);
 });
 
 await scenario('ad blocking off for every site, and a kind of access nobody may ask for', { url: `${site.origin}/ads.html`, config: { adBlocking: 'off', neverAsk: ['location'] }, args: [`--filters=${site.origin}/filters.txt`] }, async (app) => {
@@ -1109,7 +1112,7 @@ await scenario('ad blocking off for every site, and a kind of access nobody may 
   await sleep(600);
   check('a kind of access Settings says no site may ask for is refused without a question', [await page.evaluate('__geo'), await chrome.evaluate('document.visibilityState')], ['refused', 'hidden']);
   await page.press('ContextMenu', 500);
-  check("the menu's switch says so and cannot be pressed", [await chrome.evaluate('document.getElementById("menu-adblock")?.disabled'), await chrome.evaluate('document.getElementById("menu-adblock")?.nextElementSibling?.textContent')], [true, 'Ad blocking is off everywhere. Settings can turn it on.']);
+  check("the menu's switch says so and cannot be pressed", [await chrome.evaluate('document.getElementById("menu-adblock")?.disabled'), await chrome.evaluate('document.querySelector("#menu-adblock .sub")?.textContent')], [true, 'Ad blocking is off everywhere. Settings can turn it on.']);
 });
 
 for (const [name, config] of [
@@ -1124,7 +1127,7 @@ for (const [name, config] of [
     await sleep(600);
     check('on a site from the reviewed list, what the filter list names is refused all the same', await until(() => page.evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v !== null, 60), 'site');
     await page.press('ContextMenu', 500);
-    check('and the menu shows the switch on, and still the person\'s to turn off', [await chrome.evaluate('document.getElementById("menu-adblock")?.textContent'), await chrome.evaluate('document.getElementById("menu-adblock")?.disabled')], ['Ad blocking: on', false]);
+    check('and the menu shows the switch on, and still the person\'s to turn off', [await chrome.evaluate('(document.getElementById("menu-adblock")?.ariaLabel ?? document.getElementById("menu-adblock")?.textContent)'), await chrome.evaluate('document.getElementById("menu-adblock")?.disabled')], ['Ad blocking: on', false]);
   });
 }
 
@@ -1183,7 +1186,7 @@ await scenario('saved pages, suggestions, finding words, and a private tab', { u
   await reach('menu-save');
   await chrome.press('Enter', 500);
   check('"Keep this page on Home" keeps it, and says so', [home().saved, await chrome.toastText()], [[{ url: `${site.origin}/article.html`, title: 'Longboard fixture: long article' }], 'This page is kept on Home']);
-  check('and the menu then offers to take it off', await chrome.evaluate('document.getElementById("menu-unsave")?.textContent'), 'Take this page off Home');
+  check('and the menu then offers to take it off', await chrome.evaluate('(document.getElementById("menu-unsave")?.ariaLabel ?? document.getElementById("menu-unsave")?.textContent)'), 'Take this page off Home');
 
   // Finding words.
   await reach('menu-find');
@@ -1209,7 +1212,7 @@ await scenario('saved pages, suggestions, finding words, and a private tab', { u
   await chrome.press('Enter', 400);
   await chrome.press('Escape', 200);
   await chrome.type('long art');
-  const offered = await until(() => chrome.evaluate('[...document.querySelectorAll("#suggestions button")].map((b) => b.textContent)'), (l) => l.length > 0, 40);
+  const offered = await until(() => chrome.evaluate('[...document.querySelectorAll("#suggestions button")].map((b) => b.ariaLabel ?? b.textContent)'), (l) => l.length > 0, 40);
   check('typing in the address field offers places already known that match', offered, ['Longboard fixture: long article (127.0.0.1)']);
   await chrome.press('ArrowDown');
   check('down from the field goes to the suggestion, and the field stays', [await chrome.focused(), await chrome.evaluate('document.getElementById("address")?.value')], ['suggest-0', 'long art']);
@@ -1225,7 +1228,7 @@ await scenario('saved pages, suggestions, finding words, and a private tab', { u
   await chrome.press('ArrowRight');
   check('Tabs offers a private tab beside a new one', await chrome.focused(), 'tab-private');
   await chrome.press('Enter', 600);
-  check('a private tab starts on Home and says what it is', [await chrome.evaluate('document.querySelector("#home h1")?.textContent'), (await chrome.evaluate('document.getElementById("private")?.textContent ?? ""')).startsWith('Nothing opened in this tab is kept')], ['Longboard: private tab', true]);
+  check('a private tab starts on Home and says what it is', [await chrome.evaluate('document.getElementById("private-badge")?.textContent'), (await chrome.evaluate('(document.getElementById("private")?.ariaLabel ?? document.getElementById("private")?.textContent) ?? ""')).startsWith('Nothing opened in this tab is kept')], ['Private tab', true]);
   const before = { visits: JSON.parse(readFileSync(join(app.userData, 'history.json'), 'utf8')).visits.length, recents: home().recents.length };
   await reach('go', 'ArrowUp');
   await chrome.press('Enter', 400);
@@ -1243,9 +1246,10 @@ await scenario('saved pages, suggestions, finding words, and a private tab', { u
   await priv.press('ContextMenu', 500);
   await reach('menu-tabs');
   await chrome.press('Enter', 500);
-  const tabs = await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=tab-]")].map((b) => b.textContent)');
+  const tabs = await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=tab-]")].map((b) => b.ariaLabel ?? b.textContent)');
   check('the list of tabs marks it as private', tabs.filter((t) => t.includes('Private: ')).length, 2);
-  await reach('tab-close-1');
+  await reach('tab-1');
+  await chrome.press('ArrowRight');
   await chrome.press('Enter', 700);
   check('closing it leaves the other tab with what it had, and nothing from the private one', [await page.evaluate('document.cookie'), await page.evaluate('document.visibilityState')], ['who=shared', 'visible']);
 });
@@ -1302,10 +1306,10 @@ await scenario('a desktop site, the reader view, and asking not to be tracked', 
   // Desktop site.
   await page.press('ContextMenu', 500);
   await siteMenu(chrome);
-  check('the site menu offers a desktop site', [await reach('menu-desktop'), await chrome.evaluate('document.getElementById("menu-desktop").textContent')], ['menu-desktop', 'Desktop site: off']);
+  check('the site menu offers a desktop site', [await reach('menu-desktop'), await chrome.evaluate('(document.getElementById("menu-desktop")?.ariaLabel ?? document.getElementById("menu-desktop")?.textContent)')], ['menu-desktop', 'Desktop site: off']);
   await chrome.press('Enter', 600);
   const wide = await until(() => page.evaluate('innerWidth'), (w) => w !== usual.width, 30);
-  check('turned on, the site gets the width of a desk screen', [wide > usual.width, wide >= 1270, await chrome.evaluate('document.getElementById("menu-desktop").textContent')], [true, true, 'Desktop site: on']);
+  check('turned on, the site gets the width of a desk screen', [wide > usual.width, wide >= 1270, await chrome.evaluate('(document.getElementById("menu-desktop")?.ariaLabel ?? document.getElementById("menu-desktop")?.textContent)')], [true, true, 'Desktop site: on']);
   check('and Longboard says it is who it said it was', [await page.evaluate('navigator.userAgent'), JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8'))['127.0.0.1']], [usual.agent, { desktop: true }]);
   await chrome.press('Enter', 600);
   check('turned off, the site is as it was', await until(() => page.evaluate('innerWidth'), (w) => w === usual.width, 30), usual.width);
@@ -1316,7 +1320,7 @@ await scenario('a desktop site, the reader view, and asking not to be tracked', 
   await chrome.press('Enter', 900);
   const shown = await until(() => chrome.evaluate('document.querySelector("#reader-text h1")?.textContent ?? null'), (t) => t !== null, 30);
   check('reader view shows the article under its headline', shown, 'A long page with little to press');
-  const read = await chrome.evaluate('[...document.querySelectorAll("#reader-text > p:not(.where)")].map((p) => p.textContent)');
+  const read = await chrome.evaluate('[...document.querySelectorAll("#reader-text > p:not(.where)")].map((p) => p.ariaLabel ?? p.textContent)');
   check('with its paragraphs, and without the links around it', [read[0]?.startsWith('This paragraph is filler.'), read.length > 3, read.join(' ').includes('Front page')], [true, true, false]);
   check('it fills the screen, starting on Close', [await chrome.evaluate('innerWidth > 1000 || innerWidth === screen.width'), await chrome.focused()], [true, 'reader-close']);
   const size = () => chrome.evaluate('getComputedStyle(document.getElementById("reader-text")).fontSize');
@@ -1345,7 +1349,7 @@ await scenario('a desktop site, the reader view, and asking not to be tracked', 
   await chrome.press('Enter', 400);
   await reach('set-dnt');
   await chrome.press('Enter', 500);
-  check('Settings has "ask sites not to track", and turning it on says so', [await chrome.evaluate('document.getElementById("set-dnt").textContent'), JSON.parse(readFileSync(join(app.userData, 'config.json'), 'utf8')).doNotTrack], ['Ask sites not to track you or sell your data: yes', true]);
+  check('Settings has "ask sites not to track", and turning it on says so', [await chrome.evaluate('(document.getElementById("set-dnt")?.ariaLabel ?? document.getElementById("set-dnt")?.textContent)'), JSON.parse(readFileSync(join(app.userData, 'config.json'), 'utf8')).doNotTrack], ['Ask sites not to track you or sell your data: yes', true]);
   const signalled = await sent();
   check('then every request carries the two signals, and Longboard still says who it is', signalled, ['1', '1', usual.agent]);
   await chrome.press('Enter', 500);
@@ -1378,7 +1382,7 @@ await scenario('the parental lock', { url: `${site.origin}/home.html` }, async (
   await chrome.press('Enter', 500);
   check('"Set a PIN" asks for four digits, starting on 1', [await title(), await asked(), await chrome.focused()], ['PIN', 'Choose a PIN: four digits', 'pin-1']);
   await four();
-  check('then for the same again', [await asked(), await chrome.evaluate('document.getElementById("pin-dots").textContent')], ['Enter the same PIN again', '○○○○']);
+  check('then for the same again', [await asked(), await chrome.evaluate('(document.getElementById("pin-dots")?.ariaLabel ?? document.getElementById("pin-dots")?.textContent)')], ['Enter the same PIN again', '0 of 4 digits entered']);
   await chrome.press('ArrowRight');
   await four();
   check('a different second entry starts over', [await asked(), await chrome.toastText(), lockFile()], ['Choose a PIN: four digits', 'Those two were not the same. Choose again', null]);
@@ -1389,7 +1393,7 @@ await scenario('the parental lock', { url: `${site.origin}/home.html` }, async (
   check('the same twice sets it, and the PIN itself is not what is kept', [await chrome.toastText(), await title(), kept !== null && !kept.includes('1111'), Object.keys(JSON.parse(kept ?? '{}')).sort()], ['The PIN is set', 'Parental lock', true, ['hash', 'homeOnly', 'salt']]);
   await reach('lock-home-only');
   await chrome.press('Enter', 400);
-  check('"only the sites on Home" can be turned on', [await chrome.evaluate('document.getElementById("lock-home-only").textContent'), JSON.parse(lockFile()).homeOnly], ['Only the sites on Home open without the PIN: yes', true]);
+  check('"only the sites on Home" can be turned on', [await chrome.evaluate('(document.getElementById("lock-home-only")?.ariaLabel ?? document.getElementById("lock-home-only")?.textContent)'), JSON.parse(lockFile()).homeOnly], ['Only the sites on Home open without the PIN: yes', true]);
   await chrome.press('Escape', 300);
   await chrome.press('Escape', 500);
 
@@ -1419,7 +1423,7 @@ await scenario('the parental lock', { url: `${site.origin}/home.html` }, async (
 
   // Unlocking.
   await page.press('ContextMenu', 500);
-  check('the menu offers to unlock every site', [await reach('menu-lock'), await chrome.evaluate('document.getElementById("menu-lock").textContent')], ['menu-lock', 'Unlock every site (PIN)']);
+  check('the menu offers to unlock every site', [await reach('menu-lock'), await chrome.evaluate('(document.getElementById("menu-lock")?.ariaLabel ?? document.getElementById("menu-lock")?.textContent)')], ['menu-lock', 'Unlock every site (PIN)']);
   await chrome.press('Enter', 500);
   await four();
   check('the right PIN unlocks', (await page.toastText() ?? '').startsWith('Unlocked until you lock again'), true);
@@ -1428,7 +1432,7 @@ await scenario('the parental lock', { url: `${site.origin}/home.html` }, async (
   await sleep(600);
   await page.press('ContextMenu', 500);
   await reach('menu-lock');
-  check('until "Lock again" is pressed', await chrome.evaluate('document.getElementById("menu-lock").textContent'), 'Lock again: only the sites on Home');
+  check('until "Lock again" is pressed', await chrome.evaluate('(document.getElementById("menu-lock")?.ariaLabel ?? document.getElementById("menu-lock")?.textContent)'), 'Lock again: only the sites on Home');
   await chrome.press('Enter', 700);
   check('after which the page gives way again, and Back leads nowhere', [await until(locked, (t) => t.startsWith('Longboard: page blocked'), 30), await page.evaluate('history.length')], ['Longboard: page blocked|This page was blocked', 1]);
   await page.press('ContextMenu', 500);
@@ -1455,12 +1459,12 @@ await scenario('a new version is fetched, checked and put in place', { args: [`-
   await chrome.press('Enter', 400);
   await reach('settings-updates');
   await chrome.press('Enter', 400);
-  const said = await chrome.evaluate('document.getElementById("panel").textContent');
-  check('Settings says so, and says what is asked of whom', [said.includes('Version 99.0.0 is in place: close and open Longboard to use it.'), said.includes('asks GitHub whether there is a newer release'), await chrome.evaluate('document.getElementById("set-updates").textContent')], [true, true, 'New versions are: installed by themselves']);
+  const said = await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)');
+  check('Settings says so, and says what is asked of whom', [said.includes('Version 99.0.0 is in place: close and open Longboard to use it.'), said.includes('asks GitHub whether there is a newer release'), await chrome.evaluate('(document.getElementById("set-updates")?.ariaLabel ?? document.getElementById("set-updates")?.textContent)')], [true, true, 'New versions are: installed by themselves']);
   await reach('set-updates');
   await chrome.press('Enter', 400);
   await chrome.press('Enter', 400);
-  check('and can turn looking off', [await chrome.evaluate('document.getElementById("set-updates").textContent'), JSON.parse(readFileSync(join(app.userData, 'config.json'), 'utf8')).updates], ['New versions are: not looked for', 'off']);
+  check('and can turn looking off', [await chrome.evaluate('(document.getElementById("set-updates")?.ariaLabel ?? document.getElementById("set-updates")?.textContent)'), JSON.parse(readFileSync(join(app.userData, 'config.json'), 'utf8')).updates], ['New versions are: not looked for', 'off']);
 });
 await scenario('a new version that is not what the release says is left alone', { args: [`--updates=${site.origin}/releases/tampered`], env: oldPackage }, async (app) => {
   await app.chrome();
@@ -1495,10 +1499,10 @@ await scenario('an extension', {
   await chrome.press('Escape', 300);
   await reach('menu-settings');
   await chrome.press('Enter', 400);
-  check('Settings counts the extensions', await chrome.evaluate('document.getElementById("settings-extensions")?.textContent'), 'Extensions (1)');
+  check('Settings counts the extensions', await chrome.evaluate('(document.getElementById("settings-extensions")?.ariaLabel ?? document.getElementById("settings-extensions")?.textContent)'), 'Extensions (1)');
   await reach('settings-extensions');
   await chrome.press('Enter', 400);
-  const listed = await chrome.evaluate('[...document.querySelectorAll("#panel button")].map((b) => b.textContent)');
+  const listed = await chrome.evaluate('[...document.querySelectorAll("#panel button")].map((b) => b.ariaLabel ?? b.textContent)');
   check('and lists each with a way to open it and to remove it', listed.slice(0, 3), ['Open the Chrome Web Store', 'Open "Longboard fixture extension"', 'Remove "Longboard fixture extension"']);
   await reach('ext-open-0');
   await chrome.press('Enter', 1200);
@@ -1516,7 +1520,7 @@ await scenario('an extension', {
   await chrome.press('Enter', 400);
   await reach('ext-remove-0');
   await chrome.press('Enter', 300);
-  check('removing asks for a second press', await chrome.evaluate('document.getElementById("ext-remove-0").textContent'), 'Press again to remove "Longboard fixture extension"');
+  check('removing asks for a second press', await chrome.evaluate('(document.getElementById("ext-remove-0")?.ariaLabel ?? document.getElementById("ext-remove-0")?.textContent)'), 'Press again to remove "Longboard fixture extension"');
   await chrome.press('Enter', 900);
   check('and then it is gone, from Settings and from disk', [await until(() => chrome.evaluate('document.querySelector("#panel")?.textContent.includes("None are installed.")'), (v) => v === true, 30), existsSync(join(app.userData, 'Extensions', fixtureExtensionId))], [true, false]);
 });
@@ -1534,7 +1538,7 @@ await scenario('settings that change how sites are shown', { url: `${site.origin
 await scenario('tabs', { url: `${site.origin}/home.html` }, async (app) => {
   const first = await app.page(`${site.origin}/home.html`);
   const chrome = await app.chrome();
-  const names = () => chrome.evaluate('[...document.querySelectorAll("#panel button[id^=tab-]")].map((b) => b.id + "=" + b.textContent)');
+  const names = () => chrome.evaluate('[...document.querySelectorAll("#panel button[id^=tab-]")].map((b) => b.id + "=" + (b.ariaLabel ?? b.textContent))');
   const openTabs = async (from) => {
     await from.press('ContextMenu', 500);
     for (let i = 0; i < 24 && (await chrome.focused()) !== 'menu-tabs'; i++) await chrome.press('ArrowDown');
@@ -1567,9 +1571,10 @@ await scenario('tabs', { url: `${site.origin}/home.html` }, async (app) => {
   check('and it is driven as before', (await first.focused()) !== null, true);
 
   await openTabs(first);
-  for (let i = 0; i < 8 && (await chrome.focused()) !== 'tab-close-1'; i++) await chrome.press('ArrowDown');
+  for (let i = 0; i < 8 && (await chrome.focused()) !== 'tab-1'; i++) await chrome.press('ArrowDown');
+  await chrome.press('ArrowRight');
   await chrome.press('Enter', 600);
-  check('a tab can be closed from the list, which leaves the other where it was', [await names(), await first.evaluate('location.pathname')], [['tab-new=New tab', 'tab-private=New private tab', 'tab-0=Longboard fixture: generic streaming home (127.0.0.1): in front now'], '/home.html']);
+  check('a tab can be closed from the list, which leaves the other where it was', [await names(), await first.evaluate('location.pathname')], [['tab-new=New tab', 'tab-private=New private tab', 'tab-0=Longboard fixture: generic streaming home (127.0.0.1): in front now', 'tab-reopen=Open the tab closed last'], '/home.html']);
   check('the closed tab is gone, not hidden', await second.evaluate('1').then(() => 'still there', () => 'gone'), 'gone');
 });
 
@@ -1586,7 +1591,7 @@ await scenario('history', { url: `${site.origin}/home.html` }, async (app) => {
   for (let i = 0; i < 24 && (await chrome.focused()) !== 'menu-tabs'; i++) await chrome.press('ArrowDown');
   await chrome.press('ArrowRight');
   await chrome.press('Enter', 500);
-  const lines = await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=visit-]")].map((b) => b.textContent)');
+  const lines = await chrome.evaluate('[...document.querySelectorAll("#panel button.row[id^=visit-]")].map((b) => b.ariaLabel ?? b.textContent)');
   check('the menu has History, which lists them with their titles and when', [lines.length, /\(127\.0\.0\.1\), today$/.test(lines[0] ?? ''), lines[1]], [2, true, 'Longboard fixture: generic streaming home (127.0.0.1), today']);
   await chrome.press('ArrowDown');
   await chrome.press('Enter', 600);
@@ -1604,7 +1609,7 @@ await scenario('no history when it is turned off, and a language for sites', { u
 await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', 'films'), { recursive: true }) }, async (app) => {
   const chrome = await app.chrome();
   const file = () => JSON.parse(readFileSync(join(app.userData, 'config.json'), 'utf8'));
-  const text = (id) => chrome.evaluate(`document.getElementById(${JSON.stringify(id)})?.textContent ?? null`);
+  const text = (id) => chrome.evaluate(`document.getElementById(${JSON.stringify(id)})?.ariaLabel ?? document.getElementById(${JSON.stringify(id)})?.textContent ?? null`);
   const title = () => chrome.evaluate('document.querySelector("#panel h1")?.textContent ?? null');
   const reach = async (id) => {
     for (let i = 0; i < 24 && (await chrome.focused()) !== id; i++) await chrome.press('ArrowDown');
@@ -1622,7 +1627,7 @@ await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', '
   await chrome.press('Enter', 400);
   check('a page of Settings opens', [await title(), await chrome.focused()], ['Search and starting', 'set-search']);
   await chrome.press('Enter', 400);
-  check('the search setting opens a list of search sites to choose from', [await title(), await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=pick-]")].map((b) => b.textContent)')], ['Search with', ['Google', 'DuckDuckGo', 'Bing', 'Brave Search', 'Cancel']]);
+  check('the search setting opens a list of search sites to choose from', [await title(), await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=pick-]")].map((b) => b.ariaLabel ?? b.textContent)')], ['Search with', ['Google', 'DuckDuckGo', 'Bing', 'Brave Search', 'Cancel']]);
   await open('pick-1');
   check('choosing one goes back, shows it, and keeps it in config.json', [await title(), await text('set-search'), file().search], ['Search and starting', 'Search with: DuckDuckGo', 'https://duckduckgo.com/?q=%s']);
   await chrome.press('ArrowUp');
@@ -1647,7 +1652,7 @@ await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', '
   await open('settings-ads');
   check('ad blocking starts as a switch for each site', await text('set-ads'), 'Ad blocking: each site has its own switch');
   await chrome.press('Enter', 400);
-  check('pressing it lists the three ways, each with what it means, and marks the one in use', [await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=pick-]")].map((b) => b.textContent)'), (await chrome.evaluate('document.getElementById("panel").textContent')).includes('A site you switch off yourself from the menu stays off.')], [['Each site has its own switch (in use)', 'On for every site', 'Off for every site', 'Cancel'], true]);
+  check('pressing it lists the three ways, each with what it means, and marks the one in use', [await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=pick-]")].map((b) => b.ariaLabel ?? b.textContent)'), (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('A site you switch off yourself from the menu stays off.')], [['Each site has its own switch (in use)', 'On for every site', 'Off for every site', 'Cancel'], true]);
   await open('pick-1');
   check('it can be turned on for every site', [await text('set-ads'), file().adBlocking], ['Ad blocking: on for every site', 'everywhere']);
   await chrome.press('Enter', 400);
@@ -1659,10 +1664,10 @@ await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', '
   await chrome.press('Enter', 400);
   await open('pick-0');
   check('or back to each site\'s own switch, which is not written down as a choice', [await text('set-ads'), 'adBlocking' in file()], ['Ad blocking: each site has its own switch', false]);
-  check('the filter list is said to be what it is and where it comes from', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Filter list: EasyList, not downloaded yet. Downloaded from easylist.to every four days.'), true);
+  check('the filter list is said to be what it is and where it comes from', (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('Filter list: EasyList, not downloaded yet. Downloaded from easylist.to every four days.'), true);
 
   await open('set-ads-list');
-  const entries = () => chrome.evaluate('[...document.querySelectorAll("#panel button[id^=starts-off-]")].map((b) => b.textContent)');
+  const entries = () => chrome.evaluate('[...document.querySelectorAll("#panel button[id^=starts-off-]")].map((b) => b.ariaLabel ?? b.textContent)');
   check('the list of sites where it starts off shows the reviewed sites', await entries(), ['primevideo.com (reviewed list: press to take off)', 'tv.apple.com (reviewed list: press to take off)', 'youtube.com (reviewed list: press to take off)']);
   await open('starts-off-2');
   check('pressing a reviewed site takes it off, and says whose doing that was', [await entries(), file().adBlockingStartsOn], [['primevideo.com (reviewed list: press to take off)', 'tv.apple.com (reviewed list: press to take off)', 'youtube.com (taken off by you: press to put back)'], ['youtube.com']]);
@@ -1693,8 +1698,8 @@ await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', '
   await chrome.press('Escape', 400);
 
   await open('settings-privacy');
-  check('Settings says what Longboard downloads by itself', ((t) => ['no usage data', 'Longboard-Profiles repository', 'easylist.to'].map((w) => t.includes(w)))(await chrome.evaluate('document.getElementById("panel").textContent')), [true, true, true]);
-  await chrome.press('Enter', 400);
+  check('Settings says what Longboard downloads by itself', ((t) => ['no usage data', 'Longboard-Profiles repository', 'easylist.to'].map((w) => t.includes(w)))(await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')), [true, true, true]);
+  await open('clear-data');
   check('a scripted run is not let near the button that signs out of every site', [await text('clear-data'), await chrome.toastText()], ['Sign out of every site and clear what sites have stored', 'Blocked: automation mode never activates purchase or sign-up controls']);
   await open('clear-sites');
   check("forgetting every site's settings asks first", await text('clear-sites'), "Press again to forget every site's settings");
@@ -1714,9 +1719,9 @@ await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', '
   await chrome.press('Escape', 400);
 
   await open('settings-downloads');
-  check('Downloads says where files go', (await chrome.evaluate('document.getElementById("panel").textContent')).includes(`Files are saved in ${join(app.userData, 'downloads')}.`), true);
+  check('Downloads says where files go', (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes(`Files are saved in ${join(app.userData, 'downloads')}.`), true);
   await chrome.press('Enter', 500);
-  check('the folder chooser opens on the folder in use and lists the folders in it', [await title(), await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=folder-]")].map((b) => b.textContent)')], ['Choose a folder', ['Save downloads in this folder', 'Up to the folder above', 'Open: films', 'Cancel']]);
+  check('the folder chooser opens on the folder in use and lists the folders in it', [await title(), await chrome.evaluate('[...document.querySelectorAll("#panel button[id^=folder-]")].map((b) => b.ariaLabel ?? b.textContent)')], ['Choose a folder', ['Save downloads in this folder', 'Up to the folder above', 'Open: films', 'Cancel']]);
   await open('folder-0');
   check('a folder can be gone into', (await chrome.evaluate('document.querySelector("#panel .where")?.textContent')), join(app.userData, 'downloads', 'films'));
   for (let i = 0; i < 6 && (await chrome.focused()) !== 'folder-use'; i++) await chrome.press('ArrowUp');
@@ -1726,7 +1731,7 @@ await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', '
 
   await open('settings-remote');
   await open('button-back');
-  check('giving a button a job asks for the button', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Press the button to use for "Back". Back cancels.'), true);
+  check('giving a button a job asks for the button', (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('Press the button to use for "Back". Back cancels.'), true);
   await chrome.press('ArrowDown', 400);
   check('an arrow cannot be given another job, and says so', [await chrome.toastText(), 'keys' in file()], ['That button cannot be used for this', false]);
   await open('button-back');
@@ -1749,7 +1754,7 @@ await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', '
 await scenario('a site added as an app', { url: `${site.origin}/home.html` }, async (app) => {
   const page = await app.page(site.origin);
   const chrome = await app.chrome();
-  const panelText = () => chrome.evaluate('document.getElementById("panel")?.textContent ?? ""');
+  const panelText = () => chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent) ?? ""');
   const reach = async (id, key = 'ArrowDown') => {
     for (let i = 0; i < 16 && (await chrome.focused()) !== id; i++) await chrome.press(key);
     return chrome.focused();
@@ -1761,11 +1766,11 @@ await scenario('a site added as an app', { url: `${site.origin}/home.html` }, as
   check('the menu offers to add the site as an app', await reach('menu-add-app'), 'menu-add-app');
   await chrome.press('Enter', 500);
   check('which asks for a name, starting from the page\'s own', [await chrome.evaluate('document.querySelector("#panel h1")?.textContent'), await chrome.evaluate('document.getElementById("app-name").value')], ['Add as an app', 'Longboard fixture: generic streaming home']);
-  check('with the highlight on the first choice, sign-ins shared', [await chrome.focused(), await chrome.evaluate('document.getElementById("app-session").textContent')], ['app-session', 'Sign-ins: shared with the rest of Longboard']);
+  check('with the highlight on the first choice, sign-ins shared', [await chrome.focused(), await chrome.evaluate('(document.getElementById("app-session")?.ariaLabel ?? document.getElementById("app-session")?.textContent)')], ['app-session', 'Sign-ins: shared with the rest of Longboard']);
   await chrome.press('Enter', 300);
-  check('OK changes it to its own sign-ins and stays there', [await chrome.focused(), await chrome.evaluate('document.getElementById("app-session").textContent')], ['app-session', 'Sign-ins: its own, apart from the rest']);
+  check('OK changes it to its own sign-ins and stays there', [await chrome.focused(), await chrome.evaluate('(document.getElementById("app-session")?.ariaLabel ?? document.getElementById("app-session")?.textContent)')], ['app-session', 'Sign-ins: its own, apart from the rest']);
   await chrome.press('ArrowDown');
-  check("the TV's app list is offered, and wanted unless said otherwise", await chrome.evaluate('document.getElementById("app-launcher").textContent'), "Also in the TV's app list: yes");
+  check("the TV's app list is offered, and wanted unless said otherwise", await chrome.evaluate('(document.getElementById("app-launcher")?.ariaLabel ?? document.getElementById("app-launcher")?.textContent)'), "Also in the TV's app list: yes");
   await reach('app-add');
   await chrome.press('Enter', 1200);
   check('Add says what it did', await page.toastText(), 'Added "Longboard fixture: generic streaming home" to Home and to the TV\'s app list. Open it from Home to use its own sign-ins');
@@ -1826,6 +1831,104 @@ await scenario('an app that does not exist', { args: ['--app=no-such-app'] }, as
   const chrome = await app.chrome();
   await until(() => chrome.focused(), (id) => id === 'go');
   check('--app with an unknown name shows Home and says so in the terminal', [await chrome.focused(), /there is no app called "no-such-app"/.test(app.log)], ['go', true]);
+});
+
+await scenario('Forward, a page that is slow to come, "Carry on", a keyboard\'s shortcuts, and the history searched', { url: `${site.origin}/home.html` }, async (app) => {
+  const page = await app.page(`${site.origin}/home.html`);
+  const chrome = await app.chrome();
+  const path = () => page.evaluate('location.pathname');
+  const loadingShown = (view) => view.overlay(({ cls }) => (/(^| )loading( |$)/.test(cls) ? /\bshow\b/.test(cls) : undefined));
+  /** A key with Ctrl held, as a plugged-in keyboard sends it. */
+  const ctrl = async (view, key, code, vk, shift = false) => {
+    // Not waited on for ever: Ctrl+W closes the very view the key was sent to, and then nothing answers.
+    const sent = (async () => {
+      await view.keyDown(key, { code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers: shift ? 10 : 2 });
+      await view.keyUp(key);
+    })().catch(() => undefined);
+    await Promise.race([sent, sleep(1500)]);
+    await sleep(700);
+  };
+  await sleep(900);
+  page.evaluate('location.href = "/article.html"').catch(() => undefined);
+  await until(path, (p) => p === '/article.html');
+  await sleep(600);
+
+  // Back, then Forward.
+  await page.press('ContextMenu', 500);
+  check('on the newest page Forward is greyed out and Back is not', [await chrome.evaluate('document.getElementById("menu-forward").disabled'), await chrome.evaluate('document.getElementById("menu-back").disabled')], [true, false]);
+  await chrome.press('ArrowDown');
+  check('down from Home is Back', await chrome.focused(), 'menu-back');
+  await chrome.press('Enter', 600);
+  check('Back goes back', await until(path, (p) => p === '/home.html'), '/home.html');
+  await sleep(600);
+  await page.press('ContextMenu', 500);
+  check('and then Forward can be pressed', await chrome.evaluate('document.getElementById("menu-forward").disabled'), false);
+  await chrome.press('ArrowDown');
+  for (let i = 0; i < 3 && (await chrome.focused()) !== 'menu-forward'; i++) await chrome.press('ArrowLeft');
+  await chrome.press('Enter', 600);
+  check('Forward goes forward again', await until(path, (p) => p === '/article.html'), '/article.html');
+  await sleep(600);
+
+  // A page that is slow to come.
+  check('a page that has come shows no line along the top', await loadingShown(page), false);
+  page.evaluate('location.href = "/slow-page"').catch(() => undefined);
+  await until(path, (p) => p === '/slow-page', 80);
+  check('while a page is still coming, a line along the top says so', await until(() => loadingShown(page), (v) => v === true, 20), true);
+  await page.press('ContextMenu', 500);
+  check('and the menu offers Stop in place of Reload', await chrome.evaluate('document.getElementById("menu-reload")?.textContent'), 'Stop');
+  await chrome.press('Escape', 300);
+  check('once it has all come the line goes', await until(() => loadingShown(page), (v) => v === false, 80), false);
+  await page.press('ContextMenu', 500);
+  check('and the menu offers Reload again', await chrome.evaluate('document.getElementById("menu-reload")?.textContent'), 'Reload');
+  await chrome.press('Escape', 300);
+
+  // Home keeps the page one press away.
+  await page.press('ContextMenu', 500);
+  await chrome.press('Enter', 600);
+  check('Home has "Carry on" for the page left behind it', await chrome.evaluate('document.getElementById("resume")?.ariaLabel'), 'Carry on at 127.0.0.1');
+  for (let i = 0; i < 6 && (await chrome.focused()) !== 'resume'; i++) await chrome.press('ArrowDown');
+  await chrome.press('Enter', 600);
+  check('pressing it brings the page back', await until(() => page.evaluate('document.visibilityState'), (v) => v === 'visible'), 'visible');
+
+  // A keyboard's shortcuts.
+  await ctrl(page, 't', 'KeyT', 84);
+  check('Ctrl+T opens a new tab, which starts on Home', [await chrome.evaluate('!!document.getElementById("home")'), await chrome.evaluate('document.querySelector("#top .badge")?.textContent'), await page.evaluate('document.visibilityState')], [true, '2 tabs', 'hidden']);
+  await ctrl(chrome, 'l', 'KeyL', 76);
+  check('Ctrl+L goes straight into the address field', await chrome.evaluate('document.activeElement?.id'), 'address');
+  await chrome.press('Escape', 200);
+  await chrome.type(`${site.origin.replace('http://', '')}/app.html`);
+  await chrome.press('Enter', 500);
+  const second = await app.page(`${site.origin}/app.html`);
+  check('an address typed there opens in the new tab', !!second, true);
+  if (!second) return;
+  await until(() => second.evaluate('document.visibilityState'), (v) => v === 'visible');
+  await sleep(600);
+  await ctrl(second, 'w', 'KeyW', 87);
+  check('Ctrl+W closes the tab and the other comes in front', [await second.evaluate('1').then(() => 'still there', () => 'gone'), await until(() => page.evaluate('document.visibilityState'), (v) => v === 'visible')], ['gone', 'visible']);
+  await ctrl(page, 'T', 'KeyT', 84, true);
+  const again = await app.frontPage(`${site.origin}/app.html`);
+  check('Ctrl+Shift+T opens the tab closed last', !!again, true);
+  if (!again) return;
+  await sleep(600);
+
+  // The history, searched, and one page taken out of it.
+  await ctrl(again, 'h', 'KeyH', 72);
+  check('Ctrl+H opens the history, under the day', [await chrome.evaluate('document.querySelector("#panel h1")?.textContent'), await chrome.evaluate('document.querySelector("#visits h2")?.textContent')], ['History', 'Today']);
+  const rows = () => chrome.evaluate('[...document.querySelectorAll("#visits button.row")].map((b) => b.ariaLabel)');
+  const all = await rows();
+  for (let i = 0; i < 6 && (await chrome.focused()) !== 'history-find'; i++) await chrome.press('ArrowUp');
+  await chrome.press('Enter', 400);
+  await chrome.press('Escape', 200);
+  await chrome.type('long article');
+  await sleep(300);
+  const found = await rows();
+  check('words typed above the list leave only the pages that have them', [all.length > found.length, found.length, /long article/.test(found[0] ?? '')], [true, 1, true]);
+  await chrome.press('ArrowDown');
+  await chrome.press('ArrowRight');
+  check('each page has a cross beside it', /^visit-forget-\d+$/.test((await chrome.focused()) ?? ''), true);
+  await chrome.press('Enter', 500);
+  const kept = JSON.parse(readFileSync(join(app.userData, 'history.json'), 'utf8')).visits.map((v) => new URL(v.url).pathname);
+  check('which takes that page out of the history, and no other', [kept.includes('/article.html'), kept.includes('/home.html')], [false, true]);
 });
 
 // The site cannot be reached at first. The view must say so, keep trying,

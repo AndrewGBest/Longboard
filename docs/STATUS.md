@@ -2,6 +2,67 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-19, later: the design gone over against the major browsers
+
+Andrew asked for the design to be scrutinised against the major browsers and
+brought to the standard of a large company's product. The reasoning is in
+DECISIONS.md; the rules the screens now follow are DESIGN.md section 11, and
+what the comparison found is section 12.
+
+### What changed
+
+- **Every screen of Longboard's own was redrawn** on one design system:
+  Home, the menu, "This page", Settings and all its pages, tabs, history,
+  downloads, questions, the PIN, the reader view, About, the on-screen
+  keyboard, the line of text over a page, and the pages shown in place of a
+  site.
+- **Added:** Forward; Stop while a page arrives; a line along the top while a
+  page is arriving; "Carry on" on Home; a clock on Home; a welcome on an
+  empty Home; a desk browser's keyboard shortcuts; opening the tab closed
+  last; history under days, searched as you type, with one page removable.
+- **Fixed, found by looking:** Home's search bar collapsed once Home had
+  tiles; the reader view's headings were small capitals and the title came
+  twice; some text was under the 24-pixel floor.
+
+### Verified, and how
+
+- `npm run check`: typecheck, unit tests (476, six new for the shortcut
+  table and the day headings), build, rule checks.
+- `npm run e2e`: the whole suite against the redrawn screens, plus one new
+  scenario (Forward, a slow page and Stop, "Carry on", Ctrl+T, L, W,
+  Shift+T, H, the history searched and one page taken out). The result of
+  the last full run is in the commit message.
+- **By eye:** every screen photographed in the real app at 1920 by 1080
+  under Xvfb before and after, and the after pictures gone over. The loading
+  line was confirmed in a photograph, since the test tool cannot look at a
+  page while it is being replaced.
+
+### Not verified
+
+- **Nobody has seen any of this on a TV.** Sizes and contrast were chosen
+  from published guidance and arithmetic, and looked at on a 1080-line
+  picture, not from a sofa. Colours on a real panel, and whether 26-pixel
+  second-line text reads at three metres, are unknown.
+- The fonts are whatever `system-ui` is on the machine. The photographs were
+  taken with this machine's; a TV box may have another and the layout may
+  wrap differently.
+- The shortcuts were pressed through the DevTools protocol, not a keyboard.
+  Ctrl+Tab, Ctrl+J, Ctrl+D, Ctrl+R, F5, the zoom keys and Alt+arrows are
+  covered by the unit test of the table only.
+- The line for a page arriving is not shown between a new page's first bytes
+  and the moment its structure is ready, because the layer starts then.
+- A screen reader has not been tried against the new accessible names.
+- The research file marks many rows as taken from search extracts or not
+  confirmed; DESIGN.md cites only what it marks as read.
+
+### Open for Andrew
+
+Three gaps against the desk browsers need his decision before work starts:
+a password store, search suggestions from the search site (a background
+request under Hard rule 12), and typing from a phone or by voice
+(DECISIONS.md, same date). The published release, v0.1.0, has none of this
+or of extensions; a v0.2.0 would.
+
 ## 2026-11-19: the first release, updates tested for real, extensions
 
 Andrew allowed releases and asked for one to test updates, and for

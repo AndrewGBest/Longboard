@@ -30,6 +30,8 @@ export const HELP: readonly (readonly [string, string])[] = [
   ['Ctrl+Q', 'Quit'],
 ];
 
+export { SHORTCUT_HELP } from './shortcuts';
+
 export function aboutTitle(version: string | undefined): string {
   return version ? `${PRODUCT.name} ${version}` : PRODUCT.name;
 }
