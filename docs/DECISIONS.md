@@ -3,6 +3,78 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: extensions gone over (Andrew: "spend time on it"), and the store's terms ("check it")
+
+**Why uBlock Origin Lite did not start, and the fix.** It asks for its
+interfaces under the name `browser`; the library that supplies what Electron
+leaves out adds its parts to `chrome` only. Any extension written that way
+stopped as it started. Longboard now runs a small preload of its own in
+extensions' workers and pages that gives `browser` what `chrome` has
+[Measured here: the worker failed before, at install and after a restart,
+and starts cleanly after]. This helps every extension that prefers
+`browser`, not that one alone.
+
+**It still blocks nothing, and Longboard cannot mend that.** uBlock Origin
+Lite blocks by handing the browser a list of rules (declarativeNetRequest).
+castLabs Electron 45.2.1 keeps such rules and never acts on them [Measured
+here, 2026-11-19, with a made-up extension: a rule added while running was
+stored and a request it should have refused went out; a rule set shipped in
+the extension was not switched on]. So Longboard now says so when such an
+extension is about to be added. Longboard's own ad blocking does not depend
+on any of this.
+
+**Without the browser's sandbox, extensions' workers get none of the
+library's interfaces** [Measured here: `--no-sandbox`, as the tests and CI
+run]. A copy of Longboard on a system that makes it run that way has
+extensions half working. Not mended; recorded.
+
+**What comes from the store is now checked before it is unpacked.** The
+library checked only that the file named the extension asked for. Longboard
+now fetches the file itself and accepts it only when the signature made with
+that extension's key is good for the whole archive (`main/crx.ts`; the file
+layout is from memory of Chromium's `components/crx_file` and was confirmed
+by a real store file passing and a one-bit-altered copy failing). It also
+refuses an archive with a file that points outside its own folder.
+**Not covered:** newer versions fetched later by the library's own updater,
+which checks the name and not the signature; and Chrome's further demand
+that the store's own key has signed too.
+
+`adm-zip` 0.5.18 (MIT, no dependencies) becomes a dependency in its own
+right; it was already installed as the library's.
+
+**The store's terms** [Sourced: the pages below, read 2026-11-19 by a
+research agent; the two quotations marked * came through a summarising
+reader and should be re-read before being relied on]:
+
+- The Chrome Web Store Terms of Service, 1.2: "You may use the Web Store to
+  browse, locate, and download Products ... for use in connection with
+  Google Chrome." No clause names other browsers.
+- 3.3: the person agrees "not to access ... the Web Store by any means other
+  than through the interface that is provided by Google", nor "through any
+  automated means (including use of scripts, crawlers, or similar
+  technologies)".
+- The Developer Agreement describes the store as "for direct distribution
+  to users of Google Chrome". *
+- Edge, Vivaldi and Brave each publicly document installing from the Chrome
+  Web Store; none claims an agreement with Google. No enforcement against a
+  browser for doing so was found.
+
+**The agent's reading, not legal advice:** read strictly, a browser that is
+not Chrome is outside what 1.2 grants, and fetching the file directly is in
+tension with 3.3. In practice other Chromium browsers do exactly this in
+the open. The realistic risk is Google closing the door (the download
+address refusing other browsers), not a claim against the project or its
+users. What keeps the risk low is already how Longboard works: the person
+asks for each extension, nothing is mirrored or passed on, and Longboard
+says who it is. **For Andrew to decide:** whether that is acceptable, and
+whether the README should say plainly that the store's terms speak of
+Chrome. Nothing was changed on this account.
+
+Sources:
+- https://ssl.gstatic.com/chrome/webstore/intl/en/gallery_tos.html
+- https://developer.chrome.com/docs/webstore/program-policies/terms
+- https://github.com/samuelmaddock/electron-browser-shell (the two libraries)
+
 ## 2026-11-19: speaking to Longboard (Andrew: "build both")
 
 Built, as well as dictation through the phone's own keyboard. **The shape is

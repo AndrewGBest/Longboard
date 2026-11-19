@@ -1516,6 +1516,8 @@ await scenario('an extension', {
   check('"Open" shows the extension\'s own page in the tab', own && (await own.evaluate('document.title')), 'Fixture extension settings');
   if (!own) return;
   await sleep(600);
+  // Extensions written for `browser` rather than `chrome` must find the same interfaces under both names.
+  check('its page finds under "browser" what it finds under "chrome"', await own.evaluate('typeof browser === "object" && typeof chrome.windows === "object" ? browser.windows === chrome.windows && browser.tabs === chrome.tabs : "one of the two is missing"'), true);
   await own.press('ArrowRight', 300);
   await own.press('ArrowRight', 300);
   check('and the arrows move on it as on any page', await own.evaluate('document.querySelector("[data-longboard-focus]")?.id ?? null'), 'two');

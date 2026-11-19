@@ -297,6 +297,12 @@ arrows and pointer mode work as on any page), and removes one on a second
 press. Not every extension works, and extensions do not run in private tabs
 or in apps that keep their own sign-ins.
 
+What comes from the store is checked against the extension's own signature
+before it is unpacked. An extension that blocks by handing the browser a
+list of rules (uBlock Origin Lite is one) starts and blocks nothing, because
+the engine does not act on such rules; the question says so before it is
+added (DECISIONS.md, 2026-11-19).
+
 ## 5. Ad blocking **[Decision, 2026-11-18]**
 
 Every site has an ad-blocking switch. Only the starting position differs.

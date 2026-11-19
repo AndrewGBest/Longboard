@@ -9,10 +9,12 @@
 //
 // Extensions run in the session everything shares. A private tab, and an app
 // that keeps its own sign-ins, have none.
-import { existsSync, readFileSync, rmSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve, sep } from 'node:path';
+import AdmZip from 'adm-zip';
+import { openCrx } from './crx';
 import { ElectronChromeExtensions } from 'electron-chrome-extensions';
-import { downloadExtension, loadAllExtensions, uninstallExtension, updateExtensions } from 'electron-chrome-web-store';
+import { loadAllExtensions, uninstallExtension, updateExtensions } from 'electron-chrome-web-store';
 import { extensionFacts, extensionName, isExtensionId, type ExtensionFacts } from '../shared/extensions';
 
 export interface InstalledExtension extends ExtensionFacts {
@@ -32,6 +34,9 @@ export interface ExtensionHooks {
   note: (line: string) => void;
 }
 
+/** The most an extension may weigh as it comes from the store. */
+const MAX_EXTENSION_BYTES = 120_000_000;
+
 export class Extensions {
   private readonly api: ElectronChromeExtensions;
 
@@ -46,6 +51,10 @@ export class Extensions {
       selectTab: () => undefined,
       removeTab: () => undefined,
     });
+    // After the library's own preload: gives `browser` what it gave `chrome` (src/extension/preload.ts).
+    const fill = join(__dirname, 'extension-preload.js');
+    session.registerPreloadScript({ id: 'longboard-extension-worker', type: 'service-worker', filePath: fill });
+    session.registerPreloadScript({ id: 'longboard-extension-page', type: 'frame', filePath: fill });
   }
 
   private describe(extension: { id: string; name: string; version: string; manifest: unknown }): InstalledExtension {
@@ -82,7 +91,7 @@ export class Extensions {
   /** Fetches an extension from the store and unpacks it, without switching it on. Throws when it cannot be had. */
   async download(id: string): Promise<DownloadedExtension> {
     if (!isExtensionId(id)) throw new Error('not an extension');
-    const path = await downloadExtension(id, this.folder);
+    const path = await this.fetchAndUnpack(id);
     const manifest = JSON.parse(readFileSync(join(path, 'manifest.json'), 'utf8')) as Record<string, unknown>;
     let name = extensionName(manifest);
     if (!name) {
@@ -97,6 +106,58 @@ export class Extensions {
       }
     }
     return { id, path, name: name || id, version: String(manifest['version'] ?? '').slice(0, 40), ...extensionFacts(manifest) };
+  }
+
+  /**
+   * Fetches an extension from the store's own download address, checks that
+   * it is signed by that extension's key (main/crx.ts), and unpacks it where
+   * the library keeps extensions. Nothing is unpacked from a file that fails
+   * the check. Throws, saying why, when anything is wrong.
+   */
+  private async fetchAndUnpack(id: string): Promise<string> {
+    const url = new URL('https://clients2.google.com/service/update2/crx');
+    url.searchParams.set('response', 'redirect');
+    url.searchParams.set('acceptformat', 'crx3');
+    url.searchParams.set('x', new URLSearchParams({ id, uc: '' }).toString());
+    url.searchParams.set('prodversion', process.versions.chrome ?? '');
+    const response = await this.session.fetch(url.toString(), { credentials: 'omit', cache: 'no-store' });
+    if (!response.ok) throw new Error(`the store answered ${response.status}`);
+    const file = Buffer.from(await response.arrayBuffer());
+    if (file.length > MAX_EXTENSION_BYTES) throw new Error('the extension is too big');
+    const crx = openCrx(file, id);
+
+    const zip = new AdmZip(crx.archive);
+    const entries = zip.getEntries();
+    if (entries.length > 20_000 || entries.reduce((n, e) => n + e.header.size, 0) > MAX_EXTENSION_BYTES * 4) throw new Error('the extension is too big');
+    const home = join(this.folder, id);
+    const fresh = join(home, `.new-${Date.now().toString(36)}`);
+    rmSync(fresh, { recursive: true, force: true });
+    try {
+      for (const entry of entries) {
+        // A name that would land outside the extension's own folder is refused, and the whole extension with it.
+        const to = resolve(fresh, entry.entryName);
+        if (!to.startsWith(fresh + sep)) throw new Error('the extension has a file that points outside itself');
+        if (entry.isDirectory) mkdirSync(to, { recursive: true });
+        else {
+          mkdirSync(dirname(to), { recursive: true });
+          writeFileSync(to, entry.getData());
+        }
+      }
+      const manifestFile = join(fresh, 'manifest.json');
+      const manifest = JSON.parse(readFileSync(manifestFile, 'utf8')) as Record<string, unknown>;
+      // The key is what gives the extension its id when it is loaded from a folder.
+      manifest['key'] = crx.key;
+      writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
+      const version = String(manifest['version'] ?? '');
+      if (!/^[0-9.]{1,40}$/.test(version)) throw new Error('the extension has no version');
+      const path = join(home, `${version}_0`);
+      rmSync(path, { recursive: true, force: true });
+      renameSync(fresh, path);
+      return path;
+    } catch (err) {
+      rmSync(fresh, { recursive: true, force: true });
+      throw err;
+    }
   }
 
   /** Switches on an extension that was downloaded, after the person agreed. */

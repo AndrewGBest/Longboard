@@ -36,6 +36,12 @@ describe('what an extension is said to be able to do', () => {
     expect(extensionFacts({ permissions: ['declarativeNetRequest', 'cookies', 'tabs', 'storage'] }).can).toEqual(['See or block what pages ask the network for', 'Read and change what sites have stored about you', 'See which pages you open']);
     expect(extensionFacts({ permissions: ['storage', 'alarms'] }).can).toEqual(['Nothing on the pages you open']);
   });
+  it('says when an extension is built on something this browser does not act on', () => {
+    expect(extensionFacts({ permissions: ['storage'] }).cannot).toEqual([]);
+    expect(extensionFacts({ permissions: ['declarativeNetRequest'] }).cannot[0]).toContain('block nothing');
+    expect(extensionFacts({ declarative_net_request: { rule_resources: [] } }).cannot).toHaveLength(1);
+    expect(extensionFacts(null).cannot).toEqual([]);
+  });
   it('finds its pages, and only inside its own folder', () => {
     expect(extensionFacts({ action: { default_popup: 'popup.html' }, options_ui: { page: '/options/index.html' } })).toMatchObject({ popup: 'popup.html', options: 'options/index.html' });
     expect(extensionFacts({ browser_action: { default_popup: 'p.html' }, options_page: 'o.html' })).toMatchObject({ popup: 'p.html', options: 'o.html' });

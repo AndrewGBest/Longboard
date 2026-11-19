@@ -149,7 +149,7 @@ export interface ChromeState {
     /** A profile someone gave the person, which nobody has reviewed: use it? */
     | { what: 'profile'; name: string; version: string; hosts: string[] }
     /** An extension fetched from the store: switch it on? `can` is what it will be able to do. */
-    | { what: 'extension'; name: string; version: string; can: string[] }
+    | { what: 'extension'; name: string; version: string; can: string[]; cannot: string[] }
     /** Keep the password just typed for this site? */
     | { what: 'password'; site: string; user: string }
     /** Fetch the speech model, once? `size` in words. */

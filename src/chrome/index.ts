@@ -916,6 +916,7 @@ function promptPanel(s: ChromeState): Node[] {
       note(`${s.prompt.name} (version ${s.prompt.version})`),
       lead('It will be able to:'),
       ...s.prompt.can.map((c) => el('p', { text: `• ${c}` })),
+      ...s.prompt.cannot.map((c) => el('p', { cls: 'warn', text: c })),
       el('p', { text: `An extension is a program written by someone else. ${PRODUCT.name} has not looked at it. Add it only if you trust who made it.` }),
       yes('Add it'),
       no('Do not add it'),

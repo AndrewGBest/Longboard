@@ -86,6 +86,7 @@
   "dependencies": {
     "@ghostery/adblocker": "^2.20.3",
     "@moonshine-ai/moonshine-wasm": "0.1.6",
+    "adm-zip": "0.5.18",
     "electron-chrome-extensions": "^4.10.0",
     "electron-chrome-web-store": "^0.13.0",
     "qrcode-generator": "^2.0.4",

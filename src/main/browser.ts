@@ -664,7 +664,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       : pending.what === 'profile'
         ? { what: 'profile', name: pending.profile.name, version: pending.profile.version, hosts: pending.profile.match.hosts.slice(0, 6) }
         : pending.what === 'extension'
-          ? { what: 'extension', name: pending.extension.name, version: pending.extension.version, can: pending.extension.can }
+          ? { what: 'extension', name: pending.extension.name, version: pending.extension.version, can: pending.extension.can, cannot: pending.extension.cannot }
         : pending.what === 'voiceModel'
           ? { what: 'voiceModel', size: voiceModelSize() }
         : pending.what === 'password'

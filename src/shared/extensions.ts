@@ -49,6 +49,8 @@ export interface ExtensionFacts {
   options: string | null;
   /** What it will be able to do, in plain words, most serious first. */
   can: string[];
+  /** What it is made to do and will not manage in this browser, in plain words. Usually empty. */
+  cannot: string[];
 }
 
 /** Reads a manifest. Never throws; an unreadable one can do nothing and has no pages. */
@@ -72,7 +74,10 @@ export function extensionFacts(manifest: unknown): ExtensionFacts {
   if (has('clipboardRead')) can.push('Read what you copy');
   if (has('nativeMessaging')) can.push('Talk to programs on this machine');
   if (!can.length) can.push('Nothing on the pages you open');
-  return { popup: ownPage(action?.['default_popup']), options: ownPage(optionsUi?.['page'] ?? m['options_page']), can };
+  const cannot: string[] = [];
+  // Measured 2026-11-19 on castLabs Electron 45.2.1: the engine keeps such rules and never acts on them (DECISIONS.md).
+  if (has('declarativeNetRequest', 'declarativeNetRequestWithHostAccess') || m['declarative_net_request']) cannot.push('It blocks by handing the browser a list of rules, and this browser does not act on such rules. It will start, and block nothing');
+  return { popup: ownPage(action?.['default_popup']), options: ownPage(optionsUi?.['page'] ?? m['options_page']), can, cannot };
 }
 
 /** An extension's name as its manifest gives it. A name that is a placeholder for a translation ("__MSG_name__") is given as empty. */
