@@ -2,6 +2,7 @@
 import type { Direction } from '../../shared/actions';
 import { composedParent, deepClosest, deepContains, deepQueryAll } from './deep';
 import { scrollBy } from '../generic/scroll';
+import { boxOf } from './box';
 import { pickInitial, pickNext, type Rect } from './geometry';
 import type { ProfileGroup } from '../../shared/profile';
 
@@ -63,10 +64,27 @@ export const FOCUS_ATTR = 'data-longboard-focus';
 /** Set on a focused element small enough to grow, as focused cards do on a TV. */
 export const ZOOM_ATTR = 'data-longboard-zoom';
 
-/** A focused card grows; a banner, a text field or a slider does not. */
-export function shouldZoom(el: Element, view: Window): boolean {
+/** What makes a link a card: a picture in it. */
+const PICTURE = 'img, picture, video, canvas, svg';
+
+/**
+ * A focused card grows; a banner, a text field or a slider does not. Nor
+ * does a link in running text: an inline box cannot be scaled at all, and
+ * marking it moved what was placed inside it (seen on a search engine's
+ * results: each sub-link's arrow jumped under its words). With
+ * `picturesOnly`, for sites with no profile, only something holding a
+ * picture counts as a card: grown text lies over its neighbours.
+ */
+export function shouldZoom(el: Element, view: Window, picturesOnly = false): boolean {
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) return false;
+  if (view.getComputedStyle(el).display === 'inline') return false;
   const r = el.getBoundingClientRect();
+  if (picturesOnly) {
+    const picture = el.matches(PICTURE) ? el : el.querySelector(PICTURE);
+    const p = picture?.getBoundingClientRect();
+    // A picture that is most of the control, not an icon beside its words.
+    if (!p || p.width * p.height < r.width * r.height * 0.4) return false;
+  }
   const viewport = view.innerWidth * view.innerHeight;
   return viewport > 0 && (r.width * r.height) / viewport <= 0.2;
 }
@@ -125,6 +143,8 @@ export interface NavigatorOptions {
    * profile; a held key does this everywhere.
    */
   readingScroll?: boolean;
+  /** Only a control holding a picture grows when focused. For sites with no profile. */
+  growPicturesOnly?: boolean;
 }
 
 /**
@@ -278,9 +298,15 @@ function covers(outer: Rect, inner: Rect): boolean {
   return area(outer) >= 4 * area(inner);
 }
 
+/**
+ * A link over this share of the screen, with a control on top of it, is a
+ * backdrop. A large card is not: seen on a search engine, a news card a
+ * fifth of the screen with one small menu button on it.
+ */
+const BACKDROP_SHARE = 0.4;
+
 function toRect(el: Element): Rect {
-  const r = el.getBoundingClientRect();
-  return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+  return boxOf(el);
 }
 
 /**
@@ -422,18 +448,36 @@ export class SpatialNavigator {
     // inside it do not both receive focus.
     // (Found by walking up from each candidate, not by comparing every pair:
     // a long article has thousands of links.)
+    // A real link stays when what it holds is only a small control in a
+    // corner of it. Seen on a search engine's news cards: the card is one
+    // link with a small menu button inside, and only the button could be
+    // reached.
     const wrappers = new Set<Element>();
     for (const el of seen) {
+      let box: Rect | null = null;
       for (let up = composedParent(el); up; up = composedParent(up)) {
-        if (seen.has(up)) wrappers.add(up);
+        if (!seen.has(up) || wrappers.has(up)) continue;
+        box ??= toRect(el);
+        if (!up.matches('a[href]') || !covers(toRect(up), box)) wrappers.add(up);
       }
     }
     const inner = [...seen].filter((el) => !wrappers.has(el));
     // Drop backdrops too: a link stretched over a whole banner, with the
     // banner's real buttons lying on top of it. Seen on the live site, where
     // such a link swallowed sideways movement.
+    // A backdrop is a large part of the screen, or has several controls on
+    // it. One small control inside a link's box does not make the link a
+    // backdrop. Seen on a search engine's results: each result's title link
+    // has a small menu button inside its box, and the title could not be
+    // reached at all.
     const rects = inner.map(toRect);
-    const front = inner.filter((_, i) => !rects.some((other, j) => j !== i && covers(rects[i]!, other)));
+    const screen = view.innerWidth * view.innerHeight;
+    const front = inner.filter((_, i) => {
+      const mine = rects[i]!;
+      const onTop = rects.filter((other, j) => j !== i && covers(mine, other)).length;
+      if (onTop === 0) return true;
+      return onTop < 2 && (mine.right - mine.left) * (mine.bottom - mine.top) < screen * BACKDROP_SHARE;
+    });
     // One target per spot: when several controls occupy the same box (a card's
     // link and a transparent button over it), keep the one that can be seen,
     // and a link before anything else.
@@ -721,6 +765,18 @@ export class SpatialNavigator {
         if (rowOf(from, view) || pickNext(toRect(from), flowing.map(toRect), dir) !== -1) others = flowing;
       }
     }
+    // Up and down go to the larger thing first. A small control lying inside
+    // another's box (the menu button inside a search result's link) is at
+    // the same height as what holds it, and was landed on in its place;
+    // left and right still reach it.
+    if (dir === 'up' || dir === 'down') {
+      const rects = others.map(toRect);
+      const mine = toRect(from);
+      // From such a small control, what holds it is not above or below it either.
+      // Nor is a small control inside the focused one's own box below it.
+      const whole = others.filter((_, i) => !covers(rects[i]!, mine) && !covers(mine, rects[i]!) && !rects.some((outer, j) => j !== i && covers(outer, rects[i]!)));
+      if (whole.length < others.length && pickNext(mine, whole.map(toRect), dir) !== -1) others = whole;
+    }
     // Up and down inside a menu stay in the menu while it has an entry that
     // way. Seen on Steamboat's service: the player's menus lie over its control
     // row, and the row's buttons were nearer than the next entry.
@@ -860,7 +916,7 @@ export class SpatialNavigator {
     const group = this.groupOf(el);
     if (group) this.groupMemory.set(group.el, el);
     el.setAttribute(FOCUS_ATTR, '');
-    if (view && shouldZoom(el, view)) {
+    if (view && shouldZoom(el, view, this.opts.growPicturesOnly)) {
       this.zoomed = zoomTarget(el);
       this.zoomed.setAttribute(ZOOM_ATTR, '');
     }

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { boxOf } from '../src/layer/spatial/box';
 import { coveredByScreen, edgeControl, FOCUS_ATTR, openDialog, scrollWithinList, SpatialNavigator, ZOOM_ATTR } from '../src/layer/spatial/navigator';
 
 // jsdom has no layout engine, so each element's rectangle is read from data-rect="left,top,width,height".
@@ -190,6 +191,62 @@ describe('carousels', () => {
     expect(ids(nav.candidates())).toContain('s2');
   });
 
+  it('keeps a link that has one small control inside its box', () => {
+    document.body.insertAdjacentHTML('beforeend', '<a href="#" id="title" data-rect="84,600,534,44">x</a><button id="dots" data-rect="254,605,34,20">.</button>');
+    const nav = new SpatialNavigator(document);
+    expect(ids(nav.candidates())).toEqual(expect.arrayContaining(['title', 'dots']));
+  });
+
+  it('measures a link in running text by the blocks it holds, but not by what is pinned elsewhere', () => {
+    document.body.innerHTML =
+      '<a href="#" id="title" style="display:inline" data-rect="84,181,534,44">' +
+      '<div style="display:inline-block" data-rect="84,168,162,38">site</div>' +
+      '<h3 style="display:inline-block" data-rect="84,206,534,33">title</h3>' +
+      '<span style="position:absolute" data-rect="695,180,36,36">&gt;</span></a>';
+    expect(boxOf(document.getElementById('title')!)).toEqual({ left: 84, top: 168, right: 618, bottom: 239 });
+  });
+
+  it('going down lands on a result, not on the small button inside its box', () => {
+    document.body.innerHTML =
+      '<a href="#" id="above" style="display:block" data-rect="84,100,300,30">x</a>' +
+      '<a href="#" id="title" style="display:block" data-rect="84,170,534,70">x</a><button id="dots" data-rect="254,186,34,20">.</button>' +
+      '<a href="#" id="below" style="display:block" data-rect="84,300,300,30">x</a>';
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('above'));
+    nav.move('down');
+    expect(nav.focused?.id).toBe('title');
+    nav.move('left');
+    expect(nav.focused?.id).toBe('dots');
+    nav.move('down');
+    expect(nav.focused?.id).toBe('below');
+    nav.move('up');
+    expect(nav.focused?.id).toBe('title');
+  });
+
+  it('keeps a card that is one link with a small button inside it, and still drops a wrapper filled by its link', () => {
+    document.body.innerHTML =
+      '<a href="#" id="story" style="display:block" data-rect="84,63,316,332">x<span role="button" id="more" data-rect="379,260,19,19">.</span></a>' +
+      '<div role="button" id="shell" data-rect="500,63,300,200"><a href="#" id="link" style="display:block" data-rect="500,63,300,200">x</a></div>';
+    const nav = new SpatialNavigator(document);
+    expect(ids(nav.candidates())).toEqual(['link', 'more', 'story']);
+    document.body.insertAdjacentHTML('beforeend', '<a href="#" id="next" style="display:block" data-rect="84,420,316,100">x</a>');
+    nav.focus(document.getElementById('story'));
+    nav.move('down');
+    expect(nav.focused?.id).toBe('next');
+    nav.focus(document.getElementById('story'));
+    nav.move('right');
+    expect(nav.focused?.id).toBe('more');
+  });
+
+  it('still drops a small link with several controls on it', () => {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<a href="#" id="under" data-rect="84,600,534,44">x</a><button id="one" data-rect="254,605,34,20">.</button><button id="two" data-rect="354,605,34,20">.</button>',
+    );
+    const nav = new SpatialNavigator(document);
+    expect(ids(nav.candidates())).not.toContain('under');
+  });
+
   it('never focuses the arrows when the adapter names them', () => {
     const nav = new SpatialNavigator(document, { skip: ['.arrow', ':::bad'] });
     expect(ids(nav.candidates())).toEqual(['home', 'lonely', 's2', 's2more']);
@@ -250,6 +307,26 @@ describe('focus zoom', () => {
     expect(document.querySelectorAll(`[${ZOOM_ATTR}]`)).toHaveLength(1);
     nav.clear();
     expect(document.querySelectorAll(`[${ZOOM_ATTR}]`)).toHaveLength(0);
+  });
+
+  it('does not grow a link in running text', () => {
+    document.body.innerHTML = '<p data-rect="0,0,900,30"><a href="#" id="word" style="display:inline" data-rect="40,4,80,22">word</a></p>';
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('word'));
+    expect(document.querySelectorAll(`[${ZOOM_ATTR}]`)).toHaveLength(0);
+  });
+
+  it('on a site with no profile grows only what holds a picture', () => {
+    document.body.innerHTML =
+      '<a href="#" id="words" style="display:block" data-rect="0,0,300,40">words</a>' +
+      '<a href="#" id="iconed" style="display:block" data-rect="0,50,300,40"><img data-rect="0,50,24,24">words</a>' +
+      '<a href="#" id="pictured" style="display:block" data-rect="0,100,200,140"><img data-rect="0,100,200,113">words</a>';
+    const nav = new SpatialNavigator(document, { growPicturesOnly: true });
+    const grown = (id: string): boolean => {
+      nav.focus(document.getElementById(id));
+      return document.getElementById(id)!.hasAttribute(ZOOM_ATTR);
+    };
+    expect([grown('words'), grown('iconed'), grown('pictured')]).toEqual([false, false, true]);
   });
 
   it('does not grow banners or text fields', () => {

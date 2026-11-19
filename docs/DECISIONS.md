@@ -3,6 +3,24 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: search results in generic mode, and no profile for Google
+
+Andrew reported results on Google that could not be selected and a clipped
+box, and asked whether Google needs a profile. **Assumptions by the agent**,
+each from what the live page showed under `--automation` (STATUS.md has the
+table):
+
+| Choice | Reason |
+|---|---|
+| No profile for Google | Every fault was in generic mode and is fixed there, for every site. A profile would also be fragile: the page's class names are generated and its layout differs from one load to the next, so there is little an outline could pin down (rule 8) |
+| A link is a backdrop only with two or more controls on it, or when it is over 0.4 of the screen | The old rule (any smaller control inside it) dropped every result's title. The backdrop it was written for covered most of the screen |
+| A real link that holds a small control stays a target | A card that is one link with a menu button in its corner; the old rule kept only the button |
+| An inline link's box takes in the blocks it holds, not things placed absolutely | What the browser reports for it is a line of text. Things placed absolutely are left out because they can be anywhere on the page |
+| Inline links never grow; with no profile only what is mostly a picture grows | Grown text lies over its neighbours, and marking an inline link moved what was pinned inside it. Profiles keep the old behaviour, where it was tuned on a live site |
+| Up and down measure to the near edge, left-most among things that start level | By the middle, a short thing beside a tall one always won. Left and right are unchanged |
+| An unaligned row wholly between here and the aligned target is stopped at, if within 300 pixels sideways | Otherwise short links were unreachable from a narrow control. The limit keeps the highlight from flying across the screen; 300 is a guess |
+| A small control inside another's box is not an up or down target | It is at the same height as what holds it. It is still reached with left and right |
+
 ## 2026-11-19: 64-bit ARM (Andrew: "get to work on arm support")
 
 **What was done** (the agent's choices): the packages are now built for

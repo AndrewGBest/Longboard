@@ -655,6 +655,33 @@ await scenario('a web app whose window does not scroll', { url: `${site.origin}/
   check('and scrolls the pane to its end when there is nothing more to move to', await evaluate('(() => { const p = document.getElementById("pane"); return Math.ceil(p.scrollTop + p.clientHeight) >= p.scrollHeight - 2; })()'), true);
 });
 
+// The shapes of a page of results. Found by Andrew on the first evening at
+// a TV: on a search engine's results the title of each result could not be
+// reached, and the box round what could be was cut through its words.
+await scenario('a page of results', { url: `${site.origin}/results.html`, args: ['--zoom=1'] }, async (app) => {
+  const page = await app.page(site.origin);
+  const { evaluate, press, focused } = page;
+  await sleep(800);
+  const walk = [];
+  for (let i = 0; i < 7; i++) {
+    await press('ArrowDown', 350);
+    walk.push(await focused());
+  }
+  check('each press of Down lands on the next result, never on the small button beside one', walk, ['top', 'first', 'sub1', 'sub2', 'second', 'story', 'last']);
+  for (let i = 0; i < 5; i++) await press('ArrowUp', 350);
+  check('and Up comes back the same way', await focused(), 'first');
+  await sleep(500);
+  const ring = await page.overlay(({ cls, style }) => (/(^| )ring( |$)/.test(cls) ? style : undefined));
+  const px = (name) => Number(new RegExp(`(?:^|[; ])${name}: (-?[\\d.]+)px`).exec(ring ?? '')?.[1]);
+  const held = await evaluate(`(() => { const y = scrollY; return ['.site', '.name'].map((s) => { const r = document.querySelector('#first ' + s).getBoundingClientRect(); return [r.top + y, r.bottom + y]; }); })()`);
+  check('the box goes round the whole of a result, not through its words', [px('top') <= held[0][0], px('top') + px('height') >= held[1][1]], [true, true]);
+  check('a link in a line of text does not grow, and what is pinned in it stays where it was', await evaluate(`(() => { document.querySelector('[data-longboard-focus]'); return document.querySelectorAll('[data-longboard-zoom]').length; })()`), 0);
+  await press('ArrowLeft', 350);
+  check('the small button is still reached, sideways', await focused(), 'first-more');
+  await press('ArrowDown', 350);
+  check('and Down from it goes on down the page', await focused(), 'sub1');
+});
+
 // At a scale of 1: drawn bigger, the browser's own drop-down list opens
 // under where the virtual screen's mouse pointer happens to start, and the
 // entry under the pointer is the one the arrows move from. Measured: with

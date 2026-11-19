@@ -49,9 +49,40 @@ describe('pickNext', () => {
 
   it('does not treat a sliver of overlap as alignment', () => {
     const from = box(248, 0, 200, 60);
-    const sliver = box(150, 100, 100, 40); // overlaps the origin by 2px
-    const under = box(260, 200, 100, 40); // directly underneath, farther away
+    const sliver = box(150, 180, 100, 40); // overlaps the origin by 2px, and starts a little higher
+    const under = box(260, 200, 100, 40); // directly underneath
     expect(pickNext(from, [sliver, under], 'down')).toBe(1);
+  });
+
+  it('going down takes what starts first, not a small thing beside its top', () => {
+    const from = box(84, 0, 520, 24);
+    const title = box(84, 100, 237, 71);
+    const dots = box(329, 118, 34, 20);
+    expect(pickNext(from, [dots, title], 'down')).toBe(1);
+    expect(pickNext(box(84, 300, 520, 24), [dots, title], 'up')).toBe(1);
+  });
+
+  it('of two cards that start level, going down takes the left one whatever their heights', () => {
+    const from = box(84, 0, 520, 24);
+    const tall = box(84, 63, 316, 332);
+    const short = box(421, 63, 316, 148);
+    expect(pickNext(from, [short, tall], 'down')).toBe(1);
+  });
+
+  it('stops at a row in between that is not in line, when it is near sideways', () => {
+    const from = box(200, 0, 30, 18);
+    const shortLink = box(40, 60, 40, 22);
+    const wide = box(40, 200, 520, 70);
+    expect(pickNext(from, [wide, shortLink], 'down')).toBe(1);
+    expect(pickNext(box(200, 300, 30, 18), [box(40, -100, 520, 70), shortLink], 'up')).toBe(1);
+    // Of two things in between, the one that starts first, not the smaller.
+    const title = box(84, 100, 237, 71);
+    const dots = box(329, 118, 34, 20);
+    expect(pickNext(box(452, 0, 69, 16), [box(452, 400, 69, 16), dots, title], 'down')).toBe(2);
+    // Far across the screen it is passed over, as before.
+    expect(pickNext(box(900, 0, 30, 18), [box(600, 200, 520, 70), shortLink], 'down')).toBe(0);
+    // And something beside the aligned one, not before it, changes nothing.
+    expect(pickNext(from, [wide, box(600, 190, 40, 22)], 'down')).toBe(0);
   });
 
   it('falls back to an off-axis row when nothing is directly below', () => {

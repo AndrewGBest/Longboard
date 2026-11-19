@@ -2,6 +2,7 @@
 // closed shadow root so the site's styles cannot affect them and ours cannot
 // leak out. Styles use a constructed stylesheet, which page CSP does not block.
 import type { OskKey } from '../../shared/osk';
+import { boxOf } from '../spatial/box';
 
 export const HOST_TAG = 'longboard-overlay';
 
@@ -173,9 +174,17 @@ export class Overlay {
     const t = this.target;
     let box = 'none';
     if (view && t && t.isConnected) {
-      const r = t.getBoundingClientRect();
+      const r = boxOf(t, view);
       const pad = 6;
-      box = `${r.left + view.scrollX - pad},${r.top + view.scrollY - pad},${r.width + pad * 2},${r.height + pad * 2}`;
+      // Kept on the screen sideways and below the page's top: round a control
+      // at the very edge the ring was cut off by the edge.
+      const edge = 3;
+      const wide = this.doc.documentElement.clientWidth || view.innerWidth;
+      const left = Math.max(r.left - pad, edge);
+      const right = Math.max(Math.min(r.right + pad, wide - edge), left + 1);
+      const top = Math.max(r.top - pad + view.scrollY, edge);
+      const bottom = Math.max(r.bottom + pad + view.scrollY, top + 1);
+      box = `${left + view.scrollX},${top},${right - left},${bottom - top}`;
     }
     if (box === this.placed) return false;
     this.placed = box;

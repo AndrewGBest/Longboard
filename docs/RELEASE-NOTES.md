@@ -2,6 +2,19 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.1, from the first evening at a TV:
+
+- **Search results can be selected.** On a page of results the title of
+  each result could not be reached; the highlight went to a small menu
+  button beside it. Each press of Down now lands on the next result.
+- **The box goes round the whole of what is selected**, where it used to cut
+  through a result's words, and it no longer runs off the edge of the screen.
+- **Text links no longer grow when selected.** Only pictures do, on sites
+  with no profile.
+
+These are changes to how every site with no profile is driven, checked on
+one search engine's results and on invented pages.
+
 New in 0.3.0:
 
 - **64-bit ARM.** Packages for ARM boxes (a Raspberry Pi 4 or 5 with a 64-bit

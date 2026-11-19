@@ -42,6 +42,10 @@ function crossGap(from: Rect, to: Rect, dir: Direction): number {
 
 /** Bias added to every off-axis candidate so that any aligned one always wins. */
 const OFF_AXIS = 1e7;
+/** How far sideways a row in between may be and still be stopped at. */
+const NEAR_SIDE = 300;
+/** Candidates whose near edges are within this many pixels start level. */
+const LEVEL = 8;
 /** Share of the smaller element that must overlap before two rects count as aligned. */
 const MIN_OVERLAP = 0.25;
 
@@ -69,8 +73,13 @@ export function aligned(from: Rect, to: Rect, dir: Direction): boolean {
 export function score(from: Rect, to: Rect, dir: Direction): number | null {
   const along = advance(from, to, dir);
   if (along <= 1) return null;
-  if (aligned(from, to, dir)) return along;
-  if (dir === 'left' || dir === 'right') return null;
+  if (dir === 'left' || dir === 'right') return aligned(from, to, dir) ? along : null;
+  // Up and down are measured to the near edge of the candidate, not to its
+  // middle: what starts first is next. By the middle, a small control lying
+  // beside the top of a larger one was "nearer" than the larger one (seen on
+  // a search engine: a result's small menu button, and a short news card
+  // beside a tall one).
+  if (aligned(from, to, dir)) return Math.max(dir === 'down' ? to.top - from.top : from.bottom - to.bottom, 0);
   // Off-axis fallback for up/down. The candidate must sit wholly beyond the
   // origin's edge, so something merely further along the same row is not "below".
   const beyond = dir === 'down' ? to.top >= from.bottom - 2 : to.bottom <= from.top + 2;
@@ -83,13 +92,42 @@ export function score(from: Rect, to: Rect, dir: Direction): number | null {
 export function pickNext(from: Rect, candidates: readonly Rect[], dir: Direction): number {
   let best = -1;
   let bestScore = Infinity;
-  candidates.forEach((c, i) => {
-    const s = score(from, c, dir);
+  const scores = candidates.map((c) => score(from, c, dir));
+  scores.forEach((s, i) => {
     if (s !== null && s < bestScore) {
       bestScore = s;
       best = i;
     }
   });
+  // Up and down: of the aligned candidates that start level with the best
+  // one, the left-most, as in reading.
+  if (best !== -1 && bestScore < OFF_AXIS && (dir === 'up' || dir === 'down')) {
+    scores.forEach((s, i) => {
+      if (s !== null && s <= bestScore + LEVEL && candidates[i]!.left < candidates[best]!.left - 1) best = i;
+    });
+  }
+  // A row lying wholly between here and the aligned candidate is not passed
+  // over because nothing in it is in line: from a narrow control, short
+  // links at the start of the rows below were skipped for a wide one further
+  // down. Only when it is near sideways, so the highlight does not fly
+  // across the screen.
+  if (best !== -1 && bestScore < OFF_AXIS && (dir === 'up' || dir === 'down')) {
+    const far = candidates[best]!;
+    // Of what lies in between, the one that starts first; of those that
+    // start level, the left-most. (By the middle, a result's small menu
+    // button was taken before the result.)
+    const lead = (c: Rect): number => (dir === 'down' ? c.top - from.bottom : from.top - c.bottom);
+    let nearer = -1;
+    scores.forEach((s, i) => {
+      if (s === null || s < OFF_AXIS) return;
+      const c = candidates[i]!;
+      const between = dir === 'down' ? c.bottom <= far.top + 2 : c.top >= far.bottom - 2;
+      if (!between || crossGap(from, c, dir) > NEAR_SIDE) return;
+      const held = nearer === -1 ? null : candidates[nearer]!;
+      if (!held || lead(c) < lead(held) - LEVEL || (Math.abs(lead(c) - lead(held)) <= LEVEL && c.left < held.left - 1)) nearer = i;
+    });
+    if (nearer !== -1) best = nearer;
+  }
   return best;
 }
 

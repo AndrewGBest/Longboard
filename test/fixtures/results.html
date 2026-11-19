@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: a list of results</title>
+<!-- A made-up page for testing: the shapes a page of results is built from.
+     A link laid out as running text that holds two blocks, with a small menu
+     button lying inside its box; short links whose arrow is pinned to the
+     far end of the row; a card that is one link with a small button inside.
+     It imitates no real site and all its words are invented. -->
+<style>
+  body { margin: 0; padding: 20px 40px; background: #fff; color: #222; font: 16px/1.4 sans-serif; }
+  .result { position: relative; width: 600px; margin-bottom: 28px; }
+  .result a.title { text-decoration: none; color: #114; }
+  .site { display: inline-block; height: 34px; width: 180px; font-size: 13px; }
+  .name { display: inline-block; font-size: 22px; margin: 0; height: 30px; width: 520px; }
+  .more { position: absolute; left: 200px; top: 8px; width: 30px; height: 18px; background: #ccd; }
+  .sub { position: relative; width: 600px; height: 48px; border-top: 1px solid #ccc; }
+  .sub a { color: #222; text-decoration: none; font-size: 20px; }
+  .arrow { position: absolute; right: 8px; top: 12px; width: 24px; height: 24px; display: block; background: #999; }
+  .card { display: flex; flex-direction: column; position: relative; width: 300px; height: 260px; color: #114; text-decoration: none; }
+  .card img { width: 300px; height: 160px; background: #dde; display: block; }
+  .card .dot { position: absolute; right: 6px; top: 170px; width: 18px; height: 18px; background: #99a; }
+</style>
+</head>
+<body>
+<a href="#top" id="top" style="display:inline-block;margin-bottom:24px">A tab</a>
+<div class="result">
+  <a class="title" id="first" href="#first"><span class="site">An invented site<br>example.invalid</span><br><h3 class="name">The first made-up result</h3></a>
+  <div class="more" id="first-more" role="button" tabindex="0"></div>
+</div>
+<div class="sub"><a id="sub1" href="#sub1">One<span class="arrow"></span></a></div>
+<div class="sub"><a id="sub2" href="#sub2">Another place<span class="arrow"></span></a></div>
+<div class="result" style="margin-top:28px">
+  <a class="title" id="second" href="#second"><span class="site">Another invented site<br>example.invalid</span><br><h3 class="name">Second</h3></a>
+  <div class="more" id="second-more" role="button" tabindex="0"></div>
+</div>
+<a class="card" id="story" href="#story"><img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><span>A made-up story</span><span class="dot" id="story-more" role="button" tabindex="0"></span></a>
+<p style="margin-top:28px"><a id="last" href="#last">The last link</a></p>
+</body>
+</html>

@@ -123,6 +123,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     looksClickable: rules.generic,
     cursorHiddenClass: 'longboard-no-pointer',
     readingScroll: rules.generic,
+    growPicturesOnly: rules.generic,
   };
   const nav = new SpatialNavigator(doc, navOptions);
 
@@ -924,7 +925,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       rules.generic = next.generic;
       navOptions.skip = [...next.selectors.rowPrev, ...next.selectors.rowNext];
       navOptions.initial = next.initial ?? undefined;
-      navOptions.looksClickable = navOptions.readingScroll = next.generic;
+      navOptions.looksClickable = navOptions.readingScroll = navOptions.growPicturesOnly = next.generic;
       rules.playerKeys = next.playerKeys;
       rules.id = next.id;
       rules.name = next.name;

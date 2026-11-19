@@ -2,6 +2,59 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-19, later: first report from the TV, search results
+
+Andrew, on his first evening with it at a TV, searched Google for "netflix"
+and reported that results could not be selected reliably and that the box
+round them was clipped. He asked whether Google needs a profile. It does
+not: all of it was generic mode, and would have shown on any site built the
+same way.
+
+### What was wrong, each seen on the live page under `--automation`
+
+| Seen | Cause | Now |
+|---|---|---|
+| A result's title could not be reached at all; the highlight went to the result's small menu button | A link with any smaller control inside its box was taken for a backdrop and dropped | Dropped only when it has two or more controls on it, or is over 0.4 of the screen |
+| A news card could not be reached; only its menu button | A link holding another control was taken for a wrapper and dropped | A real link stays when what it holds is small beside it |
+| The box cut through a result's site name and title | A link laid out as running text reports the line of text, not the blocks set in it | The box takes in what the link holds (`src/layer/spatial/box.ts`), for the ring and for movement |
+| A focused text link grew, lay over its neighbours, and the arrow at the end of a sub-link's row jumped under its words | Everything focused was grown as a card is | An inline link never grows; on a site with no profile only something that is mostly a picture grows |
+| Down landed on a small button beside a result before the result | Nearness was measured to the middle | Up and down are measured to the near edge; of things that start level, the left-most. A small control inside another's box is reached sideways, not by up and down |
+| From a narrow control, Down passed over short links in the rows below for a wide one further down | Anything in line won over anything not in line, however near | A row lying wholly in between, within 300 pixels sideways, is stopped at |
+| The ring was cut off by the screen's edge round a control at the edge | Six pixels of padding past the edge | Kept on the screen |
+
+### Verified, and how
+
+- `npm run check`: 537 unit tests (10 new: geometry, the box, candidates).
+  One older geometry test was changed: it placed its "sliver" a row above
+  the aligned candidate, which is now a row to stop at; it now places it level.
+- The live page, by script under `--automation` at the TV's size, several
+  loads (its layout varies from load to load): 26 presses of Down from the
+  top land on the search field, the tabs, then one result, sub-link or card
+  per press to the foot of the page. Pictures looked at for the box. Nothing
+  was typed, pressed or signed in to.
+- `npm run e2e`: 464 checks, none failing; 6 are a new scenario, "a page
+  of results", on an invented page with the same shapes.
+
+### Not verified
+
+- Other search engines and other pages of Google (Images, News).
+- With a remote at the TV: Andrew to say.
+- The scorecard sites were not run again. Movement up and down changed for
+  every site; the end-to-end suite passing is the evidence that fixtures
+  did not get worse, not that live sites did not.
+
+### Left as it was
+
+- Under a picture result on the live page, its small menu button sits
+  outside the picture's link and is a stop of its own on the way down.
+
+- A sub-link's box goes round its words only. On the live page the whole
+  row may be pressable; nothing in the markup says so and the words are
+  enough to aim at.
+- When the next thing down is more than a screen away the page scrolls
+  toward it and the highlight stays where it was, out of sight, until the
+  next press (DECISIONS.md, reading scroll). Seen once on the live page.
+
 ## 2026-11-19, last: Andrew's nine answers built, and ARM
 
 Andrew answered every open decision (DECISIONS.md, "Andrew answers the nine
