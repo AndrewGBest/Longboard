@@ -6,6 +6,7 @@ import type { Action, BootData, BridgeMessage, EditView, PointerSpot } from '../
 import { rulesFromUntrusted } from '../layer/profile/rules';
 import { installPurchaseGuard } from '../layer/guard/purchase-guard';
 import { startLayer, type Layer } from '../layer/index';
+import { readArticle } from '../layer/reader';
 
 /**
  * Inside an embedded frame there is no layer. The one thing done there, and
@@ -47,6 +48,23 @@ const start = (): void => {
     rules: rulesFromUntrusted(boot.profile, document),
     send,
   });
+  // What the page says its icons are, for its tile on Home. Read, never changed;
+  // said again once everything has loaded, since many pages add them late.
+  let saidIcons = '';
+  const sayIcons = (): void => {
+    const list = [...document.querySelectorAll<HTMLLinkElement>('link[rel][href]')]
+      .filter((l) => /(^|\s)(icon|apple-touch-icon|apple-touch-icon-precomposed|manifest)(\s|$)/i.test(l.rel) && /^https?:/i.test(l.href))
+      .slice(0, 24)
+      .map((l) => ({ href: l.href, rel: l.rel.toLowerCase(), sizes: l.getAttribute('sizes') ?? '' }));
+    const key = JSON.stringify(list);
+    if (key === saidIcons) return;
+    saidIcons = key;
+    send({ kind: 'icons', list });
+  };
+  if (/^https?:$/.test(location.protocol)) {
+    sayIcons();
+    if (document.readyState !== 'complete') window.addEventListener('load', sayIcons, { once: true });
+  }
   if (scripted) {
     // The profile's own list of purchase controls joins the early guard.
     guarded.push(...rulesFromUntrusted(boot.profile, document).selectors.purchaseControls);
@@ -90,6 +108,17 @@ const start = (): void => {
   ipcRenderer.on('longboard:rules', (_event, profile: unknown) => layer.setRules(rulesFromUntrusted(profile, document)));
   // A menu entry that stands for a key.
   ipcRenderer.on('longboard:action', (_event, name: unknown) => {
+    // Reader view: the article's words are read here and shown on a screen of Longboard's own.
+    if (name === 'reader') {
+      let article: ReturnType<typeof readArticle> = null;
+      try {
+        article = readArticle(document);
+      } catch {
+        // a page that cannot be read has no article
+      }
+      send({ kind: 'reader', article });
+      return;
+    }
     const actions: Record<string, Action> = { diagnostics: { type: 'diagnostics' } };
     if (typeof name === 'string' && Object.hasOwn(actions, name)) layer.dispatch(actions[name]!);
   });

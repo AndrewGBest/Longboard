@@ -3,8 +3,9 @@
 // here is unit-tested.
 import { looksLikeSpendUrl } from '../layer/guard/purchase-guard';
 import { PRODUCT } from '../shared/product';
+import { onHomeSite } from '../shared/lock';
 
-export type BlockReason = 'not-web' | 'credentials' | 'automation-spend' | 'not-secure';
+export type BlockReason = 'not-web' | 'credentials' | 'automation-spend' | 'not-secure' | 'locked';
 
 /**
  * Longboard opens web addresses: http and https. Files on this machine,
@@ -13,7 +14,7 @@ export type BlockReason = 'not-web' | 'credentials' | 'automation-spend' | 'not-
  * user name or password is refused too: it is a common disguise for a
  * look-alike site.
  */
-export function blockReason(url: string, opts: { automation: boolean; httpsOnly?: boolean }): BlockReason | null {
+export function blockReason(url: string, opts: { automation: boolean; httpsOnly?: boolean; onlySites?: readonly string[] | null }): BlockReason | null {
   let u: URL;
   try {
     u = new URL(url);
@@ -29,6 +30,8 @@ export function blockReason(url: string, opts: { automation: boolean; httpsOnly?
   if (opts.automation && looksLikeSpendUrl(url)) return 'automation-spend';
   // "Open only pages sent privately": plain http is refused, except on this machine, where nobody is on the way.
   if (opts.httpsOnly && u.protocol === 'http:' && u.hostname !== 'localhost' && u.hostname !== '127.0.0.1' && u.hostname !== '[::1]') return 'not-secure';
+  // The parental lock: only the sites on Home open until the PIN is given.
+  if (opts.onlySites && !onHomeSite(url, opts.onlySites)) return 'locked';
   return null;
 }
 
@@ -52,6 +55,7 @@ export function describeBlockedUrl(url: string): string {
 export function blockedMessage(reason: BlockReason): string {
   if (reason === 'automation-spend') return 'Blocked: automation mode never opens purchase or sign-up pages';
   if (reason === 'credentials') return 'Blocked: that address carries a user name or password';
+  if (reason === 'locked') return 'Locked: only the sites on Home can be opened. The menu can unlock with the PIN';
   if (reason === 'not-secure') return 'Not opened: that page is not sent privately (http). Settings can allow such pages';
   return `Blocked: ${PRODUCT.name} only opens web addresses`;
 }
@@ -98,6 +102,8 @@ export function noticePageUrl(reason: BlockReason, url: string): string {
         `To use such a page, quit and start ${PRODUCT.name} without --automation.`
       : reason === 'credentials'
         ? `The address carries a user name or password in front of the site name. ${PRODUCT.name} does not open such addresses.`
+        : reason === 'locked'
+          ? `${PRODUCT.name} is locked: only the sites on Home can be opened. Open the menu and choose "Unlock every site" to give the PIN.`
         : reason === 'not-secure'
           ? 'This page is sent over plain http, where anyone on the way can read or change it. Settings, under Privacy, has "Open only pages sent privately" turned on; turn it off to open pages like this one.'
           : `${PRODUCT.name} only opens web addresses (http and https). Files on this machine and internal pages are not opened.`;

@@ -5,7 +5,7 @@
 import type { RecentSite } from './home';
 import type { BlockingMode, StartsOffEntry } from './adblock';
 
-export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings' | 'history' | 'tabs' | 'find';
+export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings' | 'history' | 'tabs' | 'find' | 'reader' | 'pin';
 
 export interface ChromeState {
   /** What fills the window behind any panel. */
@@ -41,6 +41,8 @@ export interface ChromeState {
     secure: boolean;
     /** Whether this page is kept on Home. */
     saved: boolean;
+    /** Whether the person asked for this site at the width of a desk screen. */
+    desktop: boolean;
     /** The app this site was added as, if it was. */
     app: { id: string; name: string } | null;
     /** Whether the TV's app list can be written to on this system. */
@@ -82,6 +84,11 @@ export interface ChromeState {
     downloads: string;
     dataFolder: string;
     httpsOnly: boolean;
+    /** The parental lock, when a PIN is set. */
+    lock: { homeOnly: boolean } | null;
+    doNotTrack: boolean;
+    blockTrackers: boolean;
+    hideLocalAddress: boolean;
     theme: 'dark' | 'light' | null;
     autoplay: boolean;
     clearOnExit: boolean;
@@ -100,6 +107,12 @@ export interface ChromeState {
   tabs: Array<{ id: string; title: string; site: string; current: boolean; private: boolean }>;
   /** The pages opened lately, newest first, while the history panel is open. */
   history: Array<{ url: string; text: string }> | null;
+  /** The parental lock, when a PIN is set: whether only Home's sites open, and whether the PIN has been given for browsing. */
+  lock: { homeOnly: boolean; unlocked: boolean } | null;
+  /** The PIN being asked for, while panel is 'pin': what for, and how long until another try is taken. */
+  pin: { title: string; note: string; waitSeconds: number } | null;
+  /** The article being read, while the reader view is open. */
+  reader: { title: string; site: string; blocks: Array<{ kind: 'heading' | 'text' | 'item' | 'quote' | 'code'; text: string }> } | null;
   /** The question being asked, while panel is 'prompt'. */
   prompt:
     /** A site wants something it has to be allowed: `wants` says what, in plain words. */
@@ -113,10 +126,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'settings' | 'history' | 'tabs' | 'find' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'reader' | 'lock' | 'settings' | 'history' | 'tabs' | 'find' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'settings', 'history', 'tabs', 'find', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'settings', 'history', 'tabs', 'find', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -151,6 +164,10 @@ export type ChromeMessage =
   | { kind: 'clearButtons'; action: string }
   /** A site's icon, drawn here and handed back as a PNG data: address; null when it could not be drawn. */
   | { kind: 'icon'; id: number; png: string | null }
+  /** Four digits entered on the PIN screen. */
+  | { kind: 'pin'; digits: string }
+  /** The parental lock's own settings: set or change the PIN, remove it, or switch "only sites on Home". */
+  | { kind: 'lock'; op: 'set' | 'remove' | 'homeOnly' }
   | { kind: 'removeRecent'; url: string }
   | { kind: 'removeApp'; id: string }
   /** The profile editor's buttons. */

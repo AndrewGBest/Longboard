@@ -59,6 +59,20 @@
     overflow-y: auto;
   }
   body.strip #panel { width: 100%; box-shadow: none; }
+  #panel .pinpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4vh; flex: none; }
+  #panel .pinpad button { width: auto; min-width: 0; padding: 0; text-align: center; }
+  #panel #pin-dots { font-size: 5vh; letter-spacing: 1.5vh; text-align: center; margin: 1vh 0; }
+  /* Reader view: the whole screen, a column of words kept clear of the edges. */
+  #panel.reader { width: 100%; padding: 4vh 16vw 8vh; background: #0d1014; box-shadow: none; display: block; }
+  #panel.reader #reader-bar { position: sticky; top: 0; margin: 0 0 3vh; padding: 1vh 0; background: #0d1014; }
+  #reader-text { line-height: 1.5; color: #e6e9ee; overflow-wrap: anywhere; }
+  #reader-text h1 { font-size: 1.5em; line-height: 1.2; margin: 0 0 .3em; }
+  #reader-text h2 { font-size: 1.2em; margin: 1.2em 0 .4em; }
+  #reader-text p, #reader-text li, #reader-text blockquote, #reader-text pre { font-size: 1em; margin: 0 0 .9em; color: #e6e9ee; }
+  #reader-text .where { font-size: .7em; color: #9aa3af; }
+  #reader-text li { display: list-item; margin-left: 1.2em; }
+  #reader-text blockquote { border-left: .2em solid #3b4656; padding-left: .8em; color: #c3c9d2; }
+  #reader-text pre { font: .8em/1.4 ui-monospace, monospace; white-space: pre-wrap; background: #141920; padding: .6em; }
   #panel h1 { margin: 0; font-size: 3.6vh; }
   #panel .where { margin: 0 0 1.6vh; color: #9aa3af; font-size: 2.4vh; overflow-wrap: anywhere; }
   #panel button, #panel input {

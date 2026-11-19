@@ -22,7 +22,7 @@ import { BLOCKING_MODES, blockingMode, MAX_LISTS, parseDomains, parseFilterLists
 
 /** The kinds of access the person can say no site may ask for (the names main/permissions.ts asks about). */
 export const NEVER_ASKABLE = ['camera', 'microphone', 'location', 'notifications', 'clipboard', 'midi', 'pointerLock'] as const;
-const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit'] as const;
+const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress'] as const;
 
 export const ACTION_NAMES = [
   'up', 'down', 'left', 'right', 'select', 'back', 'playPause',
@@ -60,6 +60,12 @@ export interface UserConfig {
   theme?: 'dark' | 'light';
   /** Set to false to stop videos starting by themselves. Read at start. */
   autoplay?: boolean;
+  /** Send "Do Not Track" and "Global Privacy Control" with every request (shared/privacy.ts). */
+  doNotTrack?: boolean;
+  /** Refuse requests on the public list of trackers as well as ads, by each site's ad-blocking switch. */
+  blockTrackers?: boolean;
+  /** Keep this device's address on the home network from sites that set up calls (WebRTC). */
+  hideLocalAddress?: boolean;
   /** Clear what sites have stored each time the program closes. */
   clearOnExit?: boolean;
   /** Set to false to keep no history of the pages opened. */
@@ -126,7 +132,7 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     if (typeof r['pageSize'] === 'number' && r['pageSize'] >= 0.5 && r['pageSize'] <= 2) config.pageSize = r['pageSize'];
     else problems.push('"pageSize" must be a number from 0.5 to 2');
   }
-  for (const name of ['httpsOnly', 'autoplay', 'clearOnExit'] as const) {
+  for (const name of ['httpsOnly', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress'] as const) {
     if (r[name] === undefined) continue;
     if (typeof r[name] === 'boolean') config[name] = r[name] as boolean;
     else problems.push(`"${name}" must be true or false`);

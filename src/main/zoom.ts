@@ -11,6 +11,13 @@
  * menu, so the width is a floor as well as the height.
  */
 export const TARGET_VIEWPORT = { width: 960, height: 540 } as const;
+/**
+ * The viewport for "desktop site": the width of an ordinary desk screen, so a
+ * site that folds itself up for narrow windows lays itself out in full.
+ * Nothing about who Longboard says it is changes (Hard rule 3); the site is
+ * only given more room, as it would be in a wider window.
+ */
+export const DESKTOP_VIEWPORT = { width: 1280, height: 720 } as const;
 export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 4;
 
@@ -31,6 +38,11 @@ export function tvZoom(content: { width: number; height: number }, override?: st
   // Rounded down to two decimals: never zooms past the target, and avoids
   // relayout churn from tiny changes while a window is resized.
   return Math.floor(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, raw)) * 100 + 1e-6) / 100;
+}
+
+/** The zoom for a site shown as a desktop site: the desk-width one, and never bigger than the zoom it would have anyway. */
+export function desktopZoom(content: { width: number; height: number }, usual: number): number {
+  return Math.min(usual, tvZoom(content, undefined, DESKTOP_VIEWPORT));
 }
 
 /**

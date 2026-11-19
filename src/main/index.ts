@@ -7,6 +7,7 @@ import { resolveAddress } from '../shared/address';
 import { DEFAULT_INDEX_URL } from '../shared/catalogue';
 import { blockingMode, DEFAULT_FILTER_LISTS, effectiveVerified, parseVerified } from '../shared/adblock';
 import { changeSetting, resetSettings } from '../shared/settings';
+import { listsInUse } from '../shared/privacy';
 import { FilterStore } from './adblock';
 import { createBrowser } from './browser';
 import { refreshCatalogue } from './catalogue';
@@ -138,7 +139,10 @@ async function main(): Promise<void> {
   // A scripted run uses the lists it is pointed at with --filters=, and fetches none otherwise.
   const filterStore = new FilterStore({
     folder: join(data, 'filters'),
-    lists: value('filters') ? [value('filters') as string] : (config.filterLists ?? DEFAULT_FILTER_LISTS),
+    // Read each time: the person can ask in Settings for trackers to be refused too.
+    get lists() {
+      return value('filters') ? [value('filters') as string] : listsInUse(DEFAULT_FILTER_LISTS, config.filterLists, config.blockTrackers === true);
+    },
     fetchBytes,
     now: () => Date.now(),
     note,

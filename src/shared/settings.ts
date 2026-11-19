@@ -27,7 +27,7 @@ export function searchName(template: string | undefined): string {
 export const PAGE_SIZES = [0.8, 0.9, 1, 1.1, 1.25, 1.5] as const;
 
 /** The settings the screen may change, and nothing else in the file. */
-export const SETTING_NAMES = ['search', 'startWith', 'pageSize', 'adBlocking', 'adBlockingStartsOff', 'adBlockingStartsOn', 'catalogue', 'hardwareDecode', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit', 'keys'] as const;
+export const SETTING_NAMES = ['search', 'startWith', 'pageSize', 'adBlocking', 'adBlockingStartsOff', 'adBlockingStartsOn', 'catalogue', 'hardwareDecode', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress', 'keys'] as const;
 export type SettingName = (typeof SETTING_NAMES)[number];
 
 /**

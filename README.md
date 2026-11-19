@@ -54,8 +54,11 @@ Add an address to open it straight away: `npm start -- https://example.com`.
 | F2, right stick click | Pointer mode on and off |
 | Ctrl+Q | Quit |
 
-Settings (in the menu) has the search site, sizes, ad blocking, privacy, what
-sites may ask for, and profiles. Keys and controller buttons can be remapped
+Settings (in the menu) has the search site, sizes, ad blocking, privacy
+(including "ask sites not to track" and refusing trackers), what sites may
+ask for, a parental lock with a PIN, and profiles. The menu's page about the
+site in front has reader view, "Desktop site", find on the page, and keeping
+the page on Home. Keys and controller buttons can be remapped
 in `~/.config/Longboard/config.json`, which is also where Settings keeps its
 choices (see `src/shared/config.ts`).
 

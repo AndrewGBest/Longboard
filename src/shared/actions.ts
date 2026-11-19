@@ -34,6 +34,10 @@ export type BridgeMessage =
   /** Ask the shell to rest the pointer on a point of the page (CSS pixels), for menus that open on hover. */
   | { kind: 'hover'; x: number; y: number }
   | { kind: 'diagnostics'; outline: string; url: string }
+  /** The icons the page's own `link` elements name, and its web-app manifest: for the site's tile on Home. */
+  | { kind: 'icons'; list: Array<{ href: string; rel: string; sizes: string }> }
+  /** The article on the page, read for the reader view; null when the page has none. */
+  | { kind: 'reader'; article: { title: string; blocks: Array<{ kind: string; text: string }> } | null }
   /** Go back one page; the shell goes Home when there is no page to go back to. */
   | { kind: 'back' }
   /** The menu button was pressed. */

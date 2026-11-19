@@ -201,6 +201,11 @@ and whether videos may start by themselves. Under Privacy: keep a history
 or not, and clear it; open only pages sent privately; clear what sites
 stored when Longboard closes; clear everything at once.
 
+Also under Privacy: ask sites not to track (the Do Not Track and Global
+Privacy Control signals; off as shipped), refuse known trackers as well as
+ads, and hide the device's home-network address from sites. Settings has a
+page for the parental lock (4.10).
+
 Buttons that clear something need a second press. Not in Settings: saved
 passwords and autofill. They are not built, because Hard rule 10 says
 Longboard never stores passwords (DECISIONS.md).
@@ -221,9 +226,27 @@ Longboard never stores passwords (DECISIONS.md).
   (saved pages, apps, recent sites, history) are offered under the field.
   Nothing typed is sent anywhere for them.
 - **Find on this page**, from the menu's site page.
+- **Reader view**, from the menu's site page: the article's words, big, on a
+  screen of Longboard's own. Up and Down move through them; two buttons make
+  the words bigger or smaller. The page is not changed. A page with no
+  article says so.
+- **Desktop site**, a switch on the menu's site page, kept per site: the
+  site gets the width of a desk screen (1280) and lays itself out in full,
+  with smaller text. Who Longboard says it is does not change.
 - **History:** the menu has "History": the pages opened, newest first, each
   once, at most 300, on this machine only. Pressing one opens it. Settings
   can stop keeping it and clear it.
+
+### 4.10 Parental lock **[Decision, Andrew, 2026-11-18; the shape is the agent's assumption]**
+
+Settings, "Parental lock", sets a four-digit PIN. From then on Settings asks
+for it. A second switch, "Only the sites on Home open without the PIN",
+limits browsing to the person's apps and saved pages; anything else asks for
+the PIN, and so do adding to Home and taking off it. The menu then has
+"Unlock every site (PIN)" and, once unlocked, "Lock again". The PIN screen
+is a pad of digits for OK, and takes a remote's number buttons. Wrong tries
+are slowed. It keeps a child with the remote out; deleting `lock.json`
+removes it, and Settings says so.
 
 ## 5. Ad blocking **[Decision, 2026-11-18]**
 

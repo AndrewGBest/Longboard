@@ -3,6 +3,99 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: Andrew asks for Do Not Track, privacy features, a PIN, reader view, desktop site, and icons
+
+Andrew, in chat, after reading the "not built" table in the entry below:
+"Add do not track features and other privacy/security features like it you'd
+expect in brave for example. Parental pin is a good idea, do that too. Reader
+mode sounds good, lets allow requesting a desktop site. Also add in
+functionality that when you save a web app or save a website to the browsers
+homepage it pulls the icon in both scenarios."
+
+**Decisions (Andrew's):** Do Not Track is wanted, although it adds to what a
+site is sent; a parental PIN; reader view; a desktop site; icons for both
+kinds of Home tile. **Everything about their shape below is the agent's
+assumption.**
+
+**Do Not Track and Hard rule 4.** Rule 4 says "no rewriting of ... headers
+... on any site". Sending `DNT: 1` and `Sec-GPC: 1` adds two headers to every
+request. The agent had said so and listed it as Andrew's call; he made it.
+It is built as narrowly as it can be:
+
+- One module (`src/main/signals.ts`) adds exactly those two headers, with
+  fixed values, to every site alike, and only when the person turns the
+  setting on. **Off as shipped (assumption):** Brave ships Global Privacy
+  Control on, but Longboard's first job is streaming sites working as their
+  owners intend, so adding anything is the person's choice.
+- It changes and removes no other header and never sees a reply. The rule
+  check allows request headers to be touched in that module only, fails if
+  the module names any other header, and fails if the signals are anything
+  but those two.
+- **Not done:** the page-side half of Global Privacy Control
+  (`navigator.globalPrivacyControl`). Setting it would mean putting script
+  into pages, which Longboard does not do. Sites that read the signal on
+  their servers get it; a script that reads only the page-side property does not.
+- **The wording of rule 4 in CLAUDE.md has not been changed.** The agent does
+  not reword Hard rules. As written the rule and this feature disagree;
+  Andrew should amend it. Suggested: after "on any site" add "except the two
+  standard do-not-track signals (DNT, Sec-GPC), added only when the person
+  asks".
+
+**"Request a desktop site" and Hard rule 3.** Longboard already tells every
+site it is a desk browser: its user agent is the engine's own, on Linux, and
+that is not changed (rule 3 forbids a switcher, and there is nothing to
+switch to). What makes a site show its phone or tablet layout in Longboard is
+width: the TV scale gives a site about 960 CSS pixels. So "Desktop site" is a
+per-site switch that gives the site 1280 instead, with smaller text. It is
+ordinary page zoom. **Assumption: this is what Andrew meant; if he meant
+changing the user agent, that conflicts with rule 3 and was not done.**
+
+**Reader view and Hard rule 4.** The page is not altered: its article text is
+read by the layer and drawn on a screen of Longboard's own. Nothing is hidden,
+removed or injected, nothing leaves the machine, nothing is kept. The article
+is found by where the page's paragraphs are; no site is known by name (rule
+8 does not come into it). Pictures are not shown. Written here rather than
+taking a library: the well-known one is much bigger than what a TV needs.
+
+**Parental lock.**
+
+| Choice | As built | Why |
+|---|---|---|
+| The PIN | Four digits, entered with OK on a pad or a remote's number buttons, shown as dots | What TVs and set-top boxes use |
+| Kept as | A salted scrypt hash in `lock.json`; never the PIN, never logged | Rule 10 is about sites' passwords, but the same care costs nothing |
+| What it guards | Always: Settings. Optionally: any site that is not on Home (an app or a saved page), and then also changes to Home | "Only these sites" is what a parent wants on a TV, and Home already is the list |
+| Unlocking | "Unlock every site" in the menu, or opening a site by name: until "Lock again" or Longboard closes | A parent unlocks for themselves, not per page |
+| Wrong tries | Two free, then waits of 30 seconds, 5 minutes, 30 minutes | Ten thousand PINs must not be guessable in an evening |
+| Forgotten | Deleting `lock.json` removes the lock; Settings says so | It guards against a child with a remote, not someone with a keyboard and the files, and says so |
+| Limit | A Home site that sends the person to another site to sign in needs unlocking for that | Longboard cannot know which other sites a site depends on |
+
+**Privacy features, "like Brave".** Built: the two signals above; refusing
+trackers as well as ads (the public EasyPrivacy list, by the same per-site
+switch, so rule 5 holds: off on verified sites until the person says
+otherwise; **off as shipped**, since the list is larger and breaks more);
+hiding the device's home-network address from sites that set up calls.
+Already there: ad blocking, https-only, private tabs, clear on closing,
+default-deny access.
+
+Not built, with the reason:
+
+| Brave feature | Why not |
+|---|---|
+| Fingerprinting protection | Works by changing what pages' scripts see: altering sites (rule 4), and close to anti-detection |
+| Blocking other sites' cookies | Still untestable here without https test pages, and likely to break streaming sites' sign-in frames |
+| Removing tracking words from addresses | Means redirecting requests, which Longboard never does |
+| Blocking scripts per site | Possible, but breaks most sites; not asked for |
+| Hiding cookie banners, social buttons | Cosmetic filtering: changes pages (rule 4) |
+| Tor windows, a VPN | Rule 4: no region or VPN workarounds |
+
+**Icons.** A tile's icon was already fetched from the site, but only from
+what the browser reported, often a 16-pixel picture, and an app added before
+the page said what its icon was got none. Now the page's own `link` elements
+and its web-app manifest are read too, the smallest picture of at least 128
+pixels is preferred, `/favicon.ico` is the last resort, and an app or saved
+page with no icon gets one the next time its site is open. Rule 6 holds:
+every icon comes from the site at run time.
+
 ## 2026-11-18: Andrew on Apple and manual switches; features to stand beside the major browsers
 
 Andrew, in chat:
@@ -47,15 +140,15 @@ Looked at and **not built**, with the reason:
 
 | Feature | Why not |
 |---|---|
-| User-agent switching, "request desktop site" | Hard rule 3 forbids it |
+| User-agent switching | Hard rule 3 forbids it. ("Desktop site" was later built as width only; see the entry above) |
 | Saved passwords, autofill, sync | Hard rule 10, and no account system (and no telemetry, rule 12) |
 | Search suggestions from a search engine | Sends each keystroke to a third party in the background (rule 12) |
-| Do Not Track / Global Privacy Control | Adds a header to every request; rule 4 says no rewriting of headers. Andrew's call if he wants it |
-| Reader mode | Shows a site's text without the site's page around it; too close to altering a site (rule 4) to do without asking |
+| Do Not Track / Global Privacy Control | Adds a header to every request; rule 4 says no rewriting of headers. Andrew's call if he wants it. **He did: built, see the entry above** |
+| Reader mode | Shows a site's text without the site's page around it; too close to altering a site (rule 4) to do without asking. **Asked for and built, see the entry above** |
 | Blocking other sites' cookies | The browser has a switch for it, but it could not be tested here (it needs https test pages), and it is likely to break the sign-in frames streaming sites use. Not shipped untested |
 | Voice search, translation | Each needs a speech or translation service, which means sending what is said or read to a third party |
 | Typing from a phone | Worth having on a TV and on the roadmap, but it is a small server on the home network and would carry passwords typed on the phone through Longboard (rule 10). Needs a design and Andrew's decision |
-| Parental controls, a PIN | Not started; a real one needs more than a hidden setting |
+| Parental controls, a PIN | Not started; a real one needs more than a hidden setting. **Asked for and built, see the entry above** |
 | Safe Browsing | Needs a service and a key from its provider; listed in the README as missing |
 | Restoring tabs after a restart | Not started; "open with the last site" covers one page |
 

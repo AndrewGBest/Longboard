@@ -136,6 +136,25 @@ module that redirects, rewrites or injects.
   feature out. A scripted run fetches no list unless given one with
   `--filters=`.
 
+### 6.1 The one thing added to requests
+
+`src/main/signals.ts` adds the `DNT` and `Sec-GPC` headers when the person
+turns "ask sites not to track" on (shared/privacy.ts, DECISIONS.md
+2026-11-18). It is the only module that may touch request headers; the rule
+check holds it to those two and to naming no other header. Nothing reads or
+changes a reply anywhere.
+
+### 6.2 Reader view, the parental lock
+
+Reader view: the page's layer reads the article's text (`src/layer/reader.ts`)
+and sends it to the shell, which checks it (`src/shared/reader.ts`) and has
+Longboard's own screen draw it. The page is only read.
+
+The parental lock: `lock.json` holds a salted hash of the PIN
+(`src/main/lock.ts`). The rules are pure (`src/shared/lock.ts`); "only the
+sites on Home" is one more reason in `blockReason` (`src/main/navigation.ts`),
+so it is applied wherever a page view is about to go anywhere.
+
 ## 7. Web apps
 
 An app entry is a small record: address, name, icon taken from the site,

@@ -30,7 +30,7 @@ let menuPage: 'main' | 'site' = 'main';
 /** A list to choose one thing from, opened from a Settings page. */
 let choosing: 'search' | 'language' | 'ads' | 'theme' | null = null;
 /** Which page of Settings is showing. */
-type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote';
+type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote' | 'lock';
 let settingsPage: SettingsPage = 'main';
 /** A button that clears something has been pressed once and waits for the second press. */
 let confirming: string | null = null;
@@ -189,6 +189,9 @@ function menuPanel(s: ChromeState): Node[] {
       el('p', { cls: 'where', text: page.title ? `${page.title} (${page.site})` : page.site }),
       page.saved ? button('menu-unsave', 'Take this page off Home', act('unsavePage')) : button('menu-save', 'Keep this page on Home', act('savePage')),
       button('menu-find', 'Find words on this page', act('find')),
+      button('menu-reader', 'Reader view: only the words of this page, big', act('reader')),
+      button('menu-desktop', `Desktop site: ${page.desktop ? 'on' : 'off'}`, act('desktop')),
+      el('p', { cls: 'where', text: 'On, the site gets the width of a desk screen and lays itself out in full, with smaller text. Sites are already told this is a desk browser; only the room they get changes.' }),
       page.app ? button('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp')) : button('menu-add-app', 'Add this site as an app', act('addApp')),
       el('p', { cls: 'where', text: page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode' }),
       button('menu-edit', page.profile ? 'Edit the profile for this site' : 'Make a profile for this site', act('editProfile')),
@@ -245,6 +248,7 @@ function menuPanel(s: ChromeState): Node[] {
     const going = s.downloads.filter((d) => d.state === 'going').length;
     items.push(button('menu-downloads', going ? `Downloads (${going} under way)` : 'Downloads', act('downloads')));
   }
+  if (s.lock?.homeOnly) items.push(button('menu-lock', s.lock.unlocked ? 'Lock again: only the sites on Home' : 'Unlock every site (PIN)', act('lock')));
   items.push(button('menu-settings', 'Settings', act('settings')), el('div', { cls: 'pair' }, [button('menu-about', 'About and help', act('about')), button('menu-quit', `Quit ${PRODUCT.name}`, act('quit'))]));
   return items;
 }
@@ -424,7 +428,7 @@ function settingsPanel(s: ChromeState): Node[] {
         el('h1', { text: 'Ad blocking' }),
         button('set-ads', `Ad blocking: ${words[mode]}`, pick('ads')),
         button('set-ads-list', `Sites where it starts off (${off})`, go('adsList')),
-        say(`Filter list: EasyList, ${st.adBlocking.listUpdated}. It is downloaded from easylist.to every four days.`),
+        say(`Filter list: EasyList${st.blockTrackers ? ' and EasyPrivacy' : ''}, ${st.adBlocking.listUpdated}. Downloaded from easylist.to every four days.`),
         once('set-ads-update', 'Download the filter list now', 'updateFilters'),
         back,
       ];
@@ -466,6 +470,11 @@ function settingsPanel(s: ChromeState): Node[] {
         once('clear-cache', 'Clear saved copies of pages and pictures', 'clearCache'),
         once('clear-home', 'Clear the recently opened sites on Home', 'clearHome'),
         twice('clear-all', 'Clear everything: history, recent sites, and what sites stored', 'Press again to clear everything', 'clearAll'),
+        button('set-dnt', `Ask sites not to track you or sell your data: ${yesNo(st.doNotTrack)}`, set('doNotTrack', st.doNotTrack ? null : true)),
+        say('Sends the "Do Not Track" and "Global Privacy Control" signals with every request. Each site decides whether to honour them.'),
+        button('set-trackers', `Refuse known trackers as well as ads: ${yesNo(st.blockTrackers)}`, set('blockTrackers', st.blockTrackers ? null : true)),
+        say("Uses the public EasyPrivacy list, downloaded from easylist.to, and each site's own ad-blocking switch."),
+        button('set-local-address', `Hide this device's home-network address from sites: ${yesNo(st.hideLocalAddress)}`, set('hideLocalAddress', st.hideLocalAddress ? null : true)),
         button('set-https', `Open only pages sent privately (https): ${yesNo(st.httpsOnly)}`, set('httpsOnly', st.httpsOnly ? null : true)),
         button('set-clear-exit', `Clear what sites stored when ${PRODUCT.name} closes: ${yesNo(st.clearOnExit)}`, set('clearOnExit', st.clearOnExit ? null : true)),
         button('set-history', `Keep a history of pages opened: ${yesNo(st.history)}`, set('history', st.history ? false : null)),
@@ -529,6 +538,34 @@ function settingsPanel(s: ChromeState): Node[] {
       items.push(button('folder-cancel', 'Cancel', () => tell({ kind: 'folder', path: null })));
       return items;
     }
+    case 'lock': {
+      const items: Node[] = [el('h1', { text: 'Parental lock' })];
+      if (!st.lock) {
+        items.push(
+          say('Set a PIN and it is asked for before Settings opens. You can also have it asked for before any site that is not on Home.'),
+          button('lock-set', 'Set a PIN', () => tell({ kind: 'lock', op: 'set' })),
+        );
+      } else {
+        const id = 'lock-remove';
+        items.push(
+          say('A PIN is set: it is asked for before Settings opens.'),
+          button('lock-home-only', `Only the sites on Home open without the PIN: ${yesNo(st.lock.homeOnly)}`, () => tell({ kind: 'lock', op: 'homeOnly' })),
+          say('The sites on Home are your apps and saved pages. With this on, adding to Home or taking off it asks for the PIN too, and the menu has "Unlock every site". A site that sends you elsewhere to sign in needs unlocking for that.'),
+          button('lock-change', 'Change the PIN', () => tell({ kind: 'lock', op: 'set' })),
+          button(id, confirming === id ? 'Press again to remove the PIN' : 'Remove the PIN', () => {
+            if (confirming === id) {
+              confirming = null;
+              tell({ kind: 'lock', op: 'remove' });
+            } else {
+              confirming = id;
+              render();
+            }
+          }),
+        );
+      }
+      items.push(say(`This keeps a child with the remote out. It does not stop someone with a keyboard and the files: deleting lock.json in ${st.dataFolder} removes the lock, which is also what to do if the PIN is forgotten.`), back);
+      return items;
+    }
     case 'remote': {
       const items: Node[] = [el('h1', { text: 'Remote and keyboard buttons' })];
       if (st.capturing) {
@@ -552,6 +589,7 @@ function settingsPanel(s: ChromeState): Node[] {
         button('settings-ads', 'Ad blocking', go('ads')),
         button('settings-privacy', 'Privacy and site data', go('privacy')),
         button('settings-access', 'What sites may ask for', go('access')),
+        button('settings-lock', `Parental lock: ${st.lock ? 'PIN set' : 'no PIN'}`, go('lock')),
         button('settings-profiles', 'Profiles and apps', go('profiles')),
         button('settings-downloads', 'Downloads', go('downloads')),
         button('settings-remote', 'Remote and keyboard buttons', go('remote')),
@@ -592,6 +630,56 @@ function findPanel(): Node[] {
     el('div', { cls: 'pair' }, [button('find-previous', 'Previous', look(false)), button('find-next', 'Next', look(true))]),
     el('p', { cls: 'where', text: 'Each place the words are found is marked on the page. The part of the page under this panel cannot be seen until it is closed.' }),
     button('find-close', 'Close', () => tell({ kind: 'menu', action: 'close' })),
+  ];
+}
+
+/** The digits entered so far on the PIN screen. Never shown, never kept after the fourth. */
+let pinDigits = '';
+function pinKey(key: string): void {
+  if (state?.panel !== 'pin') return;
+  if (key === 'delete') pinDigits = pinDigits.slice(0, -1);
+  else if (/^\d$/.test(key) && pinDigits.length < 4) pinDigits += key;
+  if (pinDigits.length === 4) {
+    const digits = pinDigits;
+    pinDigits = '';
+    tell({ kind: 'pin', digits });
+  }
+  const dots = document.getElementById('pin-dots');
+  if (dots) dots.textContent = '●'.repeat(pinDigits.length) + '○'.repeat(4 - pinDigits.length);
+}
+/** The PIN screen: ten digits to press with OK (or the number buttons of a remote), shown only as dots. */
+function pinPanel(s: ChromeState): Node[] {
+  const p = s.pin;
+  const pad = el('div', { cls: 'pinpad' }, ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => button(`pin-${d}`, d, () => pinKey(d))));
+  const last = el('div', { cls: 'pinpad' }, [button('pin-delete', 'Delete', () => pinKey('delete')), button('pin-0', '0', () => pinKey('0')), button('pin-cancel', 'Cancel', () => tell({ kind: 'menu', action: 'close' }))]);
+  const items: Node[] = [el('h1', { text: 'PIN' }), el('p', { text: p?.title ?? '' }), el('p', { id: 'pin-dots', text: '●'.repeat(pinDigits.length) + '○'.repeat(4 - pinDigits.length) })];
+  if (p && p.waitSeconds > 0) items.push(el('p', { id: 'pin-wait', cls: 'where warn', text: `Too many wrong tries. Another is taken in ${p.waitSeconds} seconds.` }));
+  items.push(pad, last);
+  if (p?.note) items.push(el('p', { cls: 'where', text: p.note }));
+  return items;
+}
+
+/** How big the reader view's words are; kept while Longboard is open. */
+const READER_SIZES = [3, 3.6, 4.4, 5.4, 6.6] as const;
+let readerSize = 2;
+/** Reader view: the words of the article, big, on a screen of their own. Up and Down move through it. */
+function readerPanel(s: ChromeState): Node[] {
+  const r = s.reader;
+  if (!r) return [el('h1', { text: 'Reader view' })];
+  const size = (step: number) => (): void => {
+    readerSize = Math.min(READER_SIZES.length - 1, Math.max(0, readerSize + step));
+    render();
+  };
+  const tags = { heading: 'h2', text: 'p', item: 'li', quote: 'blockquote', code: 'pre' } as const;
+  const article = el('article', { id: 'reader-text' }, [el('h1', { text: r.title || r.site }), el('p', { cls: 'where', text: r.site }), ...r.blocks.map((b) => el(tags[b.kind] ?? 'p', { text: b.text }))]);
+  article.style.fontSize = `${READER_SIZES[readerSize]}vh`;
+  return [
+    el('div', { cls: 'pair', id: 'reader-bar' }, [
+      button('reader-close', 'Close reader view', () => tell({ kind: 'menu', action: 'close' })),
+      button('reader-smaller', 'Smaller words', size(-1), readerSize === 0),
+      button('reader-bigger', 'Bigger words', size(1), readerSize === READER_SIZES.length - 1),
+    ]),
+    article,
   ];
 }
 
@@ -683,14 +771,16 @@ function render(): void {
   const s = state;
   if (!s) return;
   const keep = document.querySelector('[data-longboard-focus]')?.id;
-  const strip = s.surface === 'page';
+  const reader = s.panel === 'reader';
+  const strip = s.surface === 'page' && !reader;
   document.body.classList.toggle('strip', strip);
   const parts: Node[] = [];
   // Behind a website the view is only as wide as the panel; Home is not drawn.
-  if (!strip) parts.push(home(s));
+  if (!strip && !reader) parts.push(home(s));
   let panel: HTMLElement | null = null;
   if (s.panel) {
-    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : s.panel === 'history' ? historyPanel(s) : s.panel === 'tabs' ? tabsPanel(s) : s.panel === 'find' ? findPanel() : promptPanel(s));
+    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : s.panel === 'history' ? historyPanel(s) : s.panel === 'tabs' ? tabsPanel(s) : s.panel === 'find' ? findPanel() : s.panel === 'reader' ? readerPanel(s) : s.panel === 'pin' ? pinPanel(s) : promptPanel(s));
+    if (reader) panel.classList.add('reader');
     // The layer keeps the highlight inside an open modal dialog.
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
@@ -720,8 +810,9 @@ ipcRenderer.on('longboard:chrome-state', (_event, next: ChromeState) => {
   if (next.panel !== 'menu' || state?.panel !== 'menu') menuPage = 'main';
   if (next.panel !== 'settings') choosing = null;
   if (next.panel !== 'find') finding = '';
-  // Settings opens on its first page each time.
-  if (next.panel === 'settings' && state?.panel !== 'settings') settingsPage = 'main';
+  // Settings opens on its first page each time; coming back from choosing a PIN it is where it was.
+  if (next.panel !== 'settings' && next.panel !== 'pin') settingsPage = 'main';
+  if (next.panel !== 'pin' || state?.panel !== 'pin') pinDigits = '';
   if (next.panel !== 'settings') confirming = null;
   // The "add as an app" panel starts from the page's own name each time it opens.
   if (next.panel === 'addApp' && state?.panel !== 'addApp') draft = { name: next.page?.title || next.page?.site || '', ownSession: false, launcher: true };
@@ -777,6 +868,14 @@ ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
 
 const start = (): void => {
   document.title = PRODUCT.name;
+  // A remote's number buttons, or a keyboard's, enter the PIN directly.
+  document.addEventListener('keydown', (e) => {
+    if (state?.panel !== 'pin' || !e.isTrusted) return;
+    if (/^\d$/.test(e.key)) pinKey(e.key);
+    else if (e.key === 'Backspace') pinKey('delete');
+    else return;
+    e.preventDefault();
+  }, true);
   layer = startLayer({
     doc: document,
     options: boot.options,
@@ -789,6 +888,11 @@ const start = (): void => {
       edge: (dir) => {
         const panel = document.getElementById('panel');
         if (!panel || (dir !== 'up' && dir !== 'down')) return false;
+        // The reader view has nothing to move to above or below its buttons: the arrows move the words.
+        if (state?.panel === 'reader') {
+          panel.scrollBy({ top: (dir === 'down' ? 1 : -1) * panel.clientHeight * 0.6, behavior: 'smooth' });
+          return true;
+        }
         const all = [...panel.querySelectorAll<HTMLElement>('button:not(:disabled), input')];
         const to = dir === 'up' ? all[all.length - 1] : all[0];
         if (!to || all.length < 2) return false;

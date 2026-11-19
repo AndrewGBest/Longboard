@@ -47,7 +47,7 @@ function pngSquare(size, [r, g, b]) {
 const siteIcon = pngSquare(32, [40, 120, 200]);
 
 /** What the made-up site was asked for, for the download checks. */
-const asks = { file: 0, made: 0, slow: [], adverts: 0 };
+const asks = { file: 0, made: 0, slow: [], adverts: 0, bigIcon: 0, maskIcon: 0 };
 const site = await serveFixtures({
   '/favicon.ico': (_req, res) => res.writeHead(200, { 'content-type': 'image/png' }).end(siteIcon),
   '/catalogue/index.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(catalogueIndex),
@@ -79,6 +79,19 @@ const site = await serveFixtures({
     asks.adverts += 1;
     res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' }).end(siteIcon);
   },
+  // A web-app manifest and the big icon it lists, for a Home tile.
+  '/pwa/app.webmanifest': (_req, res) =>
+    res.writeHead(200, { 'content-type': 'application/manifest+json' }).end(JSON.stringify({ name: 'Made up', icons: [{ src: 'mask.png', sizes: '512x512', purpose: 'maskable' }, { src: 'icon-192.png', sizes: '192x192' }] })),
+  '/pwa/icon-192.png': (_req, res) => {
+    asks.bigIcon += 1;
+    res.writeHead(200, { 'content-type': 'image/png' }).end(pngSquare(192, [200, 60, 40]));
+  },
+  '/pwa/mask.png': (_req, res) => {
+    asks.maskIcon += 1;
+    res.writeHead(200, { 'content-type': 'image/png' }).end(siteIcon);
+  },
+  // What a request arrived with, by header name.
+  '/headers': (req, res) => res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify(req.headers)),
   '/site.js': (_req, res) => res.writeHead(200, { 'content-type': 'text/javascript', 'cache-control': 'no-store' }).end('window.__seen.push("site");'),
   // A file made in answer to a form: it cannot be asked for a second time.
   '/made.bin': (req, res) => {
@@ -1225,6 +1238,194 @@ await scenario('saved pages, suggestions, finding words, and a private tab', { u
   check('closing it leaves the other tab with what it had, and nothing from the private one', [await page.evaluate('document.cookie'), await page.evaluate('document.visibilityState')], ['who=shared', 'visible']);
 });
 
+await scenario('a site\'s own icon for its tile: the big one its manifest lists', { url: `${site.origin}/pwa.html` }, async (app) => {
+  const page = await app.page(`${site.origin}/pwa.html`);
+  const chrome = await app.chrome();
+  const reach = async (id, key = 'ArrowDown') => {
+    for (let i = 0; i < 24 && (await chrome.focused()) !== id; i++) await chrome.press(key);
+    return chrome.focused();
+  };
+  const icons = () => (existsSync(join(app.userData, 'icons')) ? readdirSync(join(app.userData, 'icons')).sort() : []);
+  const width = (file) => readFileSync(join(app.userData, 'icons', file)).readUInt32BE(16);
+  await sleep(1000);
+  await page.press('ContextMenu', 500);
+  await siteMenu(chrome);
+  await reach('menu-save');
+  await chrome.press('Enter', 500);
+  const first = await until(icons, (l) => l.length === 1, 60);
+  check('a page kept on Home gets its icon from the site', [first.length, first[0]?.startsWith('site-')], [1, true]);
+  await chrome.press('Escape', 300);
+  await chrome.press('Escape', 500);
+  check('the icon fetched is the big one the manifest lists, not the small one in the page or the one made for cutting to a shape', [asks.bigIcon > 0, asks.maskIcon, width(first[0])], [true, 0, 128]);
+  // Added as an app, the app's tile gets the same.
+  await page.press('ContextMenu', 500);
+  await siteMenu(chrome);
+  await reach('menu-add-app');
+  await chrome.press('Enter', 500);
+  await reach('app-add');
+  await chrome.press('Enter', 500);
+  const both = await until(icons, (l) => l.length === 2, 60);
+  check('a site added as an app gets its icon too', both.some((f) => !f.startsWith('site-')), true);
+  await sleep(600);
+  await page.press('Escape', 700);
+  await until(() => chrome.evaluate('document.visibilityState'), (v) => v === 'visible');
+  check('and Home draws the tile with it', await until(() => chrome.evaluate('!!document.querySelector("#apps img.icon")'), (v) => v === true, 30), true);
+});
+
+await scenario('a desktop site, the reader view, and asking not to be tracked', { url: `${site.origin}/article.html` }, async (app) => {
+  const page = await app.page(`${site.origin}/article.html`);
+  const chrome = await app.chrome();
+  const reach = async (id, key = 'ArrowDown') => {
+    for (let i = 0; i < 30 && (await chrome.focused()) !== id; i++) await chrome.press(key);
+    return chrome.focused();
+  };
+  const sent = async () => {
+    const h = await page.evaluate('fetch("/headers").then((r) => r.json()).then((h) => JSON.stringify([h.dnt ?? null, h["sec-gpc"] ?? null, h["user-agent"]]))');
+    return JSON.parse(h);
+  };
+  await sleep(900);
+  const usual = { width: await page.evaluate('innerWidth'), agent: await page.evaluate('navigator.userAgent') };
+  check('nothing is added to what a site is sent, as Longboard ships', (await sent()).slice(0, 2), [null, null]);
+
+  // Desktop site.
+  await page.press('ContextMenu', 500);
+  await siteMenu(chrome);
+  check('the site menu offers a desktop site', [await reach('menu-desktop'), await chrome.evaluate('document.getElementById("menu-desktop").textContent')], ['menu-desktop', 'Desktop site: off']);
+  await chrome.press('Enter', 600);
+  const wide = await until(() => page.evaluate('innerWidth'), (w) => w !== usual.width, 30);
+  check('turned on, the site gets the width of a desk screen', [wide > usual.width, wide >= 1270, await chrome.evaluate('document.getElementById("menu-desktop").textContent')], [true, true, 'Desktop site: on']);
+  check('and Longboard says it is who it said it was', [await page.evaluate('navigator.userAgent'), JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8'))['127.0.0.1']], [usual.agent, { desktop: true }]);
+  await chrome.press('Enter', 600);
+  check('turned off, the site is as it was', await until(() => page.evaluate('innerWidth'), (w) => w === usual.width, 30), usual.width);
+
+  // Reader view.
+  const before = await page.evaluate('document.body.innerHTML.length');
+  await reach('menu-reader');
+  await chrome.press('Enter', 900);
+  const shown = await until(() => chrome.evaluate('document.querySelector("#reader-text h1")?.textContent ?? null'), (t) => t !== null, 30);
+  check('reader view shows the article under its headline', shown, 'A long page with little to press');
+  const read = await chrome.evaluate('[...document.querySelectorAll("#reader-text > p:not(.where)")].map((p) => p.textContent)');
+  check('with its paragraphs, and without the links around it', [read[0]?.startsWith('This paragraph is filler.'), read.length > 3, read.join(' ').includes('Front page')], [true, true, false]);
+  check('it fills the screen, starting on Close', [await chrome.evaluate('innerWidth > 1000 || innerWidth === screen.width'), await chrome.focused()], [true, 'reader-close']);
+  const size = () => chrome.evaluate('getComputedStyle(document.getElementById("reader-text")).fontSize');
+  const small = await size();
+  await chrome.press('ArrowRight');
+  await chrome.press('ArrowRight');
+  await chrome.press('Enter', 300);
+  check('"Bigger words" makes the words bigger', [await chrome.focused(), parseFloat(await size()) > parseFloat(small)], ['reader-bigger', true]);
+  await chrome.press('ArrowDown', 700);
+  check('Down moves through the words', await until(() => chrome.evaluate('document.getElementById("panel").scrollTop > 0'), (v) => v === true, 20), true);
+  await chrome.press('Escape', 600);
+  check('Back closes it, and the page was not changed', [await chrome.evaluate('document.getElementById("reader-text")'), await page.evaluate('document.body.innerHTML.length')], [null, before]);
+  await page.evaluate('location.href = "/home.html"; 0');
+  await sleep(900);
+  await page.press('ContextMenu', 500);
+  await siteMenu(chrome);
+  await reach('menu-reader');
+  await chrome.press('Enter', 900);
+  check('a page with no article says so', await page.toastText(), 'No article to read was found on this page');
+
+  // Ask sites not to track.
+  await page.press('ContextMenu', 500);
+  await reach('menu-settings');
+  await chrome.press('Enter', 400);
+  await reach('settings-privacy');
+  await chrome.press('Enter', 400);
+  await reach('set-dnt');
+  await chrome.press('Enter', 500);
+  check('Settings has "ask sites not to track", and turning it on says so', [await chrome.evaluate('document.getElementById("set-dnt").textContent'), JSON.parse(readFileSync(join(app.userData, 'config.json'), 'utf8')).doNotTrack], ['Ask sites not to track you or sell your data: yes', true]);
+  const signalled = await sent();
+  check('then every request carries the two signals, and Longboard still says who it is', signalled, ['1', '1', usual.agent]);
+  await chrome.press('Enter', 500);
+  check('turned off, they are no longer sent', (await sent()).slice(0, 2), [null, null]);
+});
+
+await scenario('the parental lock', { url: `${site.origin}/home.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const chrome = await app.chrome();
+  const title = () => chrome.evaluate('document.querySelector("#panel h1")?.textContent ?? null');
+  const asked = () => chrome.evaluate('document.querySelector("#panel h1 + p")?.textContent ?? null');
+  const reach = async (id, key = 'ArrowDown') => {
+    for (let i = 0; i < 30 && (await chrome.focused()) !== id; i++) await chrome.press(key);
+    return chrome.focused();
+  };
+  /** Presses the digit the highlight is on four times. */
+  const four = async () => {
+    for (let i = 0; i < 4; i++) await chrome.press('Enter', 250);
+    await sleep(500);
+  };
+  const lockFile = () => (existsSync(join(app.userData, 'lock.json')) ? readFileSync(join(app.userData, 'lock.json'), 'utf8') : null);
+  await sleep(900);
+  await page.press('ContextMenu', 500);
+  await reach('menu-settings');
+  await chrome.press('Enter', 500);
+  check('with no PIN, Settings opens without one', await title(), 'Settings');
+  await reach('settings-lock');
+  await chrome.press('Enter', 400);
+  await reach('lock-set');
+  await chrome.press('Enter', 500);
+  check('"Set a PIN" asks for four digits, starting on 1', [await title(), await asked(), await chrome.focused()], ['PIN', 'Choose a PIN: four digits', 'pin-1']);
+  await four();
+  check('then for the same again', [await asked(), await chrome.evaluate('document.getElementById("pin-dots").textContent')], ['Enter the same PIN again', '○○○○']);
+  await chrome.press('ArrowRight');
+  await four();
+  check('a different second entry starts over', [await asked(), await chrome.toastText(), lockFile()], ['Choose a PIN: four digits', 'Those two were not the same. Choose again', null]);
+  await reach('pin-1', 'ArrowLeft');
+  await four();
+  await four();
+  const kept = lockFile();
+  check('the same twice sets it, and the PIN itself is not what is kept', [await chrome.toastText(), await title(), kept !== null && !kept.includes('1111'), Object.keys(JSON.parse(kept ?? '{}')).sort()], ['The PIN is set', 'Parental lock', true, ['hash', 'homeOnly', 'salt']]);
+  await reach('lock-home-only');
+  await chrome.press('Enter', 400);
+  check('"only the sites on Home" can be turned on', [await chrome.evaluate('document.getElementById("lock-home-only").textContent'), JSON.parse(lockFile()).homeOnly], ['Only the sites on Home open without the PIN: yes', true]);
+  await chrome.press('Escape', 300);
+  await chrome.press('Escape', 500);
+
+  // Nothing is on Home, so the page that was open gives way, and no other opens.
+  const locked = () => page.evaluate('document.title + "|" + document.querySelector("h1")?.textContent');
+  check('then a page that is not on Home gives way to a notice saying so', await until(locked, (t) => t.startsWith('Longboard: page blocked'), 30), 'Longboard: page blocked|This page was blocked');
+  await page.press('ContextMenu', 500);
+  await reach('menu-address', 'ArrowUp');
+  await chrome.press('Enter', 400);
+  await chrome.press('Escape', 200);
+  await chrome.type(`${site.origin.replace('http://', '')}/article.html`);
+  await chrome.press('Enter', 600);
+  check('opening a site that is not on Home asks for the PIN', [await title(), (await asked() ?? '').endsWith('is not on Home. Enter the PIN to unlock every site')], ['PIN', true]);
+  await chrome.press('Escape', 500);
+  check('and without it the site is not opened', (await locked()).startsWith('Longboard: page blocked'), true);
+
+  // Settings now asks.
+  await page.press('ContextMenu', 500);
+  await reach('menu-settings');
+  await chrome.press('Enter', 500);
+  check('Settings asks for the PIN', [await title(), await asked()], ['PIN', 'Enter the PIN to open Settings']);
+  await chrome.press('ArrowRight');
+  await four();
+  check('a wrong PIN is refused, and says so', [await title(), await chrome.toastText()], ['PIN', 'Wrong PIN']);
+  await chrome.press('Escape', 500);
+  check('Back leaves without opening Settings', await chrome.evaluate('document.getElementById("panel")'), null);
+
+  // Unlocking.
+  await page.press('ContextMenu', 500);
+  check('the menu offers to unlock every site', [await reach('menu-lock'), await chrome.evaluate('document.getElementById("menu-lock").textContent')], ['menu-lock', 'Unlock every site (PIN)']);
+  await chrome.press('Enter', 500);
+  await four();
+  check('the right PIN unlocks', (await page.toastText() ?? '').startsWith('Unlocked until you lock again'), true);
+  await page.evaluate(`location.href = "${site.origin}/article.html"; 0`);
+  check('and then any site opens', await until(() => page.evaluate('location.pathname'), (v) => v === '/article.html', 30), '/article.html');
+  await sleep(600);
+  await page.press('ContextMenu', 500);
+  await reach('menu-lock');
+  check('until "Lock again" is pressed', await chrome.evaluate('document.getElementById("menu-lock").textContent'), 'Lock again: only the sites on Home');
+  await chrome.press('Enter', 700);
+  check('after which the page gives way again, and Back leads nowhere', [await until(locked, (t) => t.startsWith('Longboard: page blocked'), 30), await page.evaluate('history.length')], ['Longboard: page blocked|This page was blocked', 1]);
+  await page.press('ContextMenu', 500);
+  await reach('menu-settings');
+  await chrome.press('Enter', 500);
+  await four();
+  check('the right PIN opens Settings', await title(), 'Settings');
+});
+
 await scenario('settings that change how sites are shown', { url: `${site.origin}/video.html`, config: { theme: 'dark', httpsOnly: true, autoplay: false }, args: [mapHost] }, async (app) => {
   const page = await app.page(site.origin);
   await sleep(1200);
@@ -1363,7 +1564,7 @@ await scenario('Settings', { seed: (data) => mkdirSync(join(data, 'downloads', '
   await chrome.press('Enter', 400);
   await open('pick-0');
   check('or back to each site\'s own switch, which is not written down as a choice', [await text('set-ads'), 'adBlocking' in file()], ['Ad blocking: each site has its own switch', false]);
-  check('the filter list is said to be what it is and where it comes from', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Filter list: EasyList, not downloaded yet. It is downloaded from easylist.to every four days.'), true);
+  check('the filter list is said to be what it is and where it comes from', (await chrome.evaluate('document.getElementById("panel").textContent')).includes('Filter list: EasyList, not downloaded yet. Downloaded from easylist.to every four days.'), true);
 
   await open('set-ads-list');
   const entries = () => chrome.evaluate('[...document.querySelectorAll("#panel button[id^=starts-off-]")].map((b) => b.textContent)');

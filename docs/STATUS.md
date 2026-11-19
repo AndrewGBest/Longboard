@@ -2,6 +2,64 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-18, after that: Do Not Track, privacy settings, a PIN, reader view, desktop site, better icons
+
+Andrew asked for all six (DECISIONS.md has his words and every choice made).
+
+**Built:**
+
+- Privacy, in Settings: ask sites not to track (sends `DNT` and `Sec-GPC`;
+  off as shipped), refuse known trackers as well as ads (EasyPrivacy; off as
+  shipped), hide the device's home-network address from sites.
+- Parental lock: a four-digit PIN for Settings, and optionally for every
+  site that is not on Home.
+- Reader view and "Desktop site", on the menu's site page.
+- Icons: a Home tile's icon now comes from the page's own links and its
+  web-app manifest, big enough for a TV, for apps and saved pages alike.
+
+**Verified, and how:**
+
+- Unit tests: 448 in all. New: the two signals and that no other header is
+  touched, the lists in use, the desktop width, the article finder (on
+  made-up pages), the PIN's hash, waits and file, which sites are "on
+  Home", which icon is tried first.
+- End to end, three new scenarios (37 in all). A request arrives with no
+  signal as shipped, with `DNT: 1` and `Sec-GPC: 1` once the setting is on,
+  with the same user agent, and without them when it is off again. Desktop
+  site widens the page to 1280 and back. Reader view shows the fixture
+  article's headline and paragraphs without the links around it, bigger
+  words, Down scrolls, Back closes, the page is unchanged, and a page with
+  no article says so. A PIN is set from Settings (a mismatched second entry
+  starts over), the file holds no PIN, a site not on Home is refused with
+  the reason, Settings asks, a wrong PIN is refused, the right one unlocks
+  and opens Settings, "Lock again" locks: the page that was open gives
+  way to a notice and Back leads nowhere. The whole suite was run once before
+  that last change (399 of 400 checks; the one failure was a sentence this
+  work reworded) and the lock and Settings scenarios again after it. A saved page and an app each get
+  the 192-pixel icon the fixture's manifest lists, not the 32-pixel one or
+  the one marked for cutting to a shape.
+
+**Not verified:**
+
+- Whether any real site honours the signals; only that they are sent.
+- Tracker blocking with the real EasyPrivacy list (the mechanism is the ad
+  blocker's, tested with a made-up list; the real list was not downloaded
+  or tried on a site). "Hide the home-network address" was not measured: the
+  browser's own setting is switched, and no test looks at what a call reveals.
+- Reader view on real articles. The finder was written against made-up
+  pages; expect it to pick badly on some sites.
+- Desktop site on a real site that folds up at 960 pixels.
+- The PIN: the waits after wrong tries (unit-tested, not driven end to end),
+  number buttons on a real remote, the PIN asked for at start-up for a start
+  page that is not on Home, a sign-in that goes off to another site.
+- Icons from real sites' manifests; an SVG icon.
+- Any of it by a person on a TV.
+
+**Open for Andrew:** Hard rule 4 as written forbids adding headers, and the
+two signals are added by his decision. The rule's wording was left alone;
+DECISIONS.md suggests an amendment. If "desktop site" was meant to change
+the user agent, that conflicts with rule 3 and was not done.
+
 ## 2026-11-18, last of the day: features to stand beside the major browsers
 
 Andrew: put Apple on the verified list (done, published); a manual "off"

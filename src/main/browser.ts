@@ -36,8 +36,12 @@ import { readJson, writeJson } from './store';
 import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeLauncher } from '../platform';
 import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
 import { canvasOf, type Profile, type ProfileSource } from '../shared/profile';
-import { hoverPoint, pageBounds, tvZoom } from './zoom';
+import { desktopZoom, hoverPoint, pageBounds, tvZoom } from './zoom';
 import { filterSession, type FilterSet } from './adblock';
+import { privacySignals } from './signals';
+import { parseArticle, type Article } from '../shared/reader';
+import { homeSites, isPin, onHomeSite, parseLock, waitAfter, type Lock } from '../shared/lock';
+import { checkPin, makeLock } from './lock';
 import { blockingOn, cleanDomain, editStartsOff, isVerified, startsOffEntries, type BlockingMode } from '../shared/adblock';
 import { BUTTON_ACTIONS, mapButton, searchName, unmapButtons } from '../shared/settings';
 import { suggest, type Known } from '../shared/suggest';
@@ -45,7 +49,7 @@ import { addVisit, parseHistory, titleVisit, visitLine, type Visit } from '../sh
 import { PRODUCT } from '../shared/product';
 import { DEFAULT_SEARCH } from '../shared/address';
 import { NEVER_ASKABLE } from '../shared/config';
-import { ICON_SIZE, iconDataUrl, MAX_ICON_BYTES, pngFromDataUrl } from '../shared/icons';
+import { ICON_SIZE, iconCandidates, iconDataUrl, manifestIcons, manifestLink, MAX_ICON_BYTES, parseIconLinks, pngFromDataUrl, type IconLink } from '../shared/icons';
 
 export interface BrowserDeps {
   options: { dev: boolean; automation: boolean };
@@ -275,12 +279,64 @@ export function createBrowser(deps: BrowserDeps): Browser {
     const { width, height } = pageArea();
     // A profile may say what size the site should be drawn at.
     const canvas = canvasOf(profileFor(page.getURL())?.profile ?? null);
-    return tvZoom({ width, height }, deps.zoomOverride ?? (config.zoom === undefined ? undefined : String(config.zoom)), canvas ?? undefined) * (config.pageSize ?? 1);
+    const usual = tvZoom({ width, height }, deps.zoomOverride ?? (config.zoom === undefined ? undefined : String(config.zoom)), canvas ?? undefined);
+    // "Desktop site": the person asked for this site at the width of a desk screen.
+    return (sites[pageSite() ?? '']?.desktop ? desktopZoom({ width, height }, usual) : usual) * (config.pageSize ?? 1);
   };
   const siteZoom = (): number => {
     const key = pageSite();
     return (key ? sites[key]?.zoom : undefined) ?? 1;
   };
+
+  // ---- The parental lock (shared/lock.ts) --------------------------------------
+  const lockFile = join(dataDir, 'lock.json');
+  let lock: Lock | null = parseLock(readJson(lockFile, complain('lock.json')));
+  /** True once the PIN has been given for browsing; until "Lock again" or the end of this run. */
+  let unlocked = false;
+  let pinFailures = 0;
+  let pinNotBefore = 0;
+  /** What the PIN on screen is being asked for. `set` is the two entries of a new PIN. */
+  let pinFor: { title: string; note: string; then: () => void; back?: 'settings' } | { set: true; first: string | null } | null = null;
+  const saveLock = (): void => {
+    if (lock) writeJson(lockFile, lock);
+    else rmSync(lockFile, { force: true });
+  };
+  /** The sites that open without the PIN, or null when every site does. */
+  const onlySites = (): string[] | null => (lock?.homeOnly && !unlocked ? homeSites([...apps, ...saved]) : null);
+  const navRules = (): { automation: boolean; httpsOnly: boolean; onlySites: string[] | null } => ({ automation: options.automation, httpsOnly: config.httpsOnly === true, onlySites: onlySites() });
+  /**
+   * Locking: a page that is not on one of Home's sites gives way to the
+   * notice saying so, in every tab, and Back leads to nothing opened while
+   * it was unlocked.
+   */
+  const lockViews = (): void => {
+    const sites = onlySites();
+    if (!sites) return;
+    for (const view of views.values()) {
+      const wc = view.webContents;
+      if (wc.isDestroyed()) continue;
+      const url = wc.getURL();
+      if (isNotice(url) || onHomeSite(url, sites)) {
+        wc.navigationHistory.clear();
+        continue;
+      }
+      void wc
+        .loadURL(noticePageUrl('locked', url))
+        .catch(() => undefined)
+        .then(() => {
+          if (!wc.isDestroyed()) wc.navigationHistory.clear();
+        });
+    }
+  };
+  /** Does `then` at once when there is no PIN, and after the PIN has been given when there is. */
+  const withPin = (title: string, then: () => void): void => {
+    if (!lock) return then();
+    pinFor = { title, note: '', then };
+    panel = 'pin';
+    layout();
+  };
+  /** The same, for changes to what is on Home: asked for only while Home decides which sites open. */
+  const withPinForHome = (then: () => void): void => (lock?.homeOnly && !unlocked ? withPin('Enter the PIN to change what is on Home', then) : then());
 
   const chromeState = (): ChromeState => ({
     surface,
@@ -310,6 +366,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
           })(sites[pageSite() ?? '']?.answers ?? {}),
           secure: /^https:/i.test(page.getURL()) || /^http:\/\/(localhost|127\.0\.0\.1)[:/]/i.test(page.getURL()),
           saved: saved.some((p) => p.url === page.getURL()),
+          desktop: sites[pageSite() ?? '']?.desktop === true,
           adBlocking: ((key) => {
             if (!key) return null;
             const mode = deps.adBlock.mode();
@@ -352,6 +409,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
             downloads: downloadsDir(),
             dataFolder: dataDir,
             httpsOnly: config.httpsOnly === true,
+            lock: lock ? { homeOnly: lock.homeOnly } : null,
+            doNotTrack: config.doNotTrack === true,
+            blockTrackers: config.blockTrackers === true,
+            hideLocalAddress: config.hideLocalAddress === true,
             theme: config.theme ?? null,
             autoplay: config.autoplay !== false,
             clearOnExit: config.clearOnExit === true,
@@ -391,6 +452,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
               : null)(edit.chain[edit.level], edit),
           marked: ((m) => EDIT_MARKS.reduce((n, mark) => n + m[mark].length, 0))(marksOf(edit.draft)),
         },
+    reader: panel === 'reader' ? reading : null,
+    lock: lock ? { homeOnly: lock.homeOnly, unlocked } : null,
+    pin:
+      panel !== 'pin' || !pinFor
+        ? null
+        : 'set' in pinFor
+          ? { title: pinFor.first === null ? 'Choose a PIN: four digits' : 'Enter the same PIN again', note: `If the PIN is forgotten, deleting lock.json in ${dataDir} removes the lock.`, waitSeconds: 0 }
+          : { title: pinFor.title, note: pinFor.note, waitSeconds: Math.max(0, Math.ceil((pinNotBefore - Date.now()) / 1000)) },
     prompt: !pending
       ? null
       : pending.what === 'profile'
@@ -427,6 +496,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   const active = (): WebContents => (surface === 'home' || panel ? chrome : page);
 
+  /** The article shown in the reader view, while it is open. */
+  let reading: (Article & { site: string }) | null = null;
   /** When the question now on screen was put there. */
   let promptShownAt = 0;
   let shownPanel: Panel | null = null;
@@ -454,13 +525,17 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (panel === 'prompt' && shownPanel !== 'prompt') promptShownAt = Date.now();
     // Leaving "find on this page" takes its marks off the page.
     if (shownPanel === 'find' && panel !== 'find' && !page.isDestroyed()) page.stopFindInPage('clearSelection');
+    // The article is held only while it is being read.
+    if (panel !== 'reader') reading = null;
+    if (panel !== 'pin') pinFor = null;
     shownPanel = panel;
     const [width = 0, height = 0] = win.getContentSize();
     for (const view of views.values()) {
       view.setBounds(view === pageView ? pageArea() : { x: 0, y: 0, width, height });
       if (view !== pageView) view.setVisible(false);
     }
-    if (surface === 'home') chromeView.setBounds({ x: 0, y: 0, width, height });
+    // Home and the reader view fill the window; every other panel is a strip beside the website.
+    if (surface === 'home' || panel === 'reader') chromeView.setBounds({ x: 0, y: 0, width, height });
     else {
       const strip = Math.round(width * PANEL_WIDTH);
       chromeView.setBounds({ x: width - strip, y: 0, width: strip, height });
@@ -652,7 +727,15 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   /** Opens an address the person asked for. `remember` puts it on Home. `inSession` is an app's own session, or "" for the shared one. */
   const open = (url: string, remember: boolean, inSession = lastTab): void => {
-    const reason = blockReason(url, { ...options, httpsOnly: config.httpsOnly === true });
+    const reason = blockReason(url, navRules());
+    if (reason === 'locked') {
+      // Asked for by the person: the PIN opens it, and every other site until Longboard is locked again.
+      withPin(`${siteName(url)} is not on Home. Enter the PIN to unlock every site`, () => {
+        unlocked = true;
+        open(url, remember, inSession);
+      });
+      return;
+    }
     if (reason) {
       console.error(`[longboard] blocked navigation (${reason}): ${describeBlockedUrl(url)}`);
       if (pageShown || surface === 'home') {
@@ -707,7 +790,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   eachPage((wc) => wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
     if (wc !== page || !isMainFrame || !isLoadFailure(code, url)) return;
     console.error(`[longboard] page failed to load (${code} ${description}): ${describeBlockedUrl(url)}`);
-    if (blockReason(url, { ...options, httpsOnly: config.httpsOnly === true })) return;
+    if (blockReason(url, navRules())) return;
     clearTimeout(retryTimer);
     if (isCertificateError(code)) {
       void page.loadURL(certificatePageUrl(description));
@@ -762,7 +845,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const NOTICE_GAP_MS = 5000;
   /** Returns true when `url` may load. A refusal is always logged and shown, never silent. */
   const allowed = (url: string): boolean => {
-    const reason = blockReason(url, { ...options, httpsOnly: config.httpsOnly === true });
+    const reason = blockReason(url, navRules());
     if (!reason) return true;
     console.error(`[longboard] blocked navigation (${reason}): ${describeBlockedUrl(url)}`);
     if (pageShown) {
@@ -1224,6 +1307,20 @@ export function createBrowser(deps: BrowserDeps): Browser {
     refused.set(wc, (refused.get(wc) ?? 0) + 1);
     return true;
   }));
+  // The privacy settings that act on every website view: the two "do not
+  // track" signals (main/signals.ts), and keeping the device's address on the
+  // home network from sites that set up calls.
+  const signalSession = (web: Electron.Session): void => privacySignals(web, config.doNotTrack === true);
+  const guardAddress = (wc: WebContents): void => {
+    if (!wc.isDestroyed()) wc.setWebRTCIPHandlingPolicy(config.hideLocalAddress === true ? 'default_public_interface_only' : 'default');
+  };
+  eachSession(signalSession);
+  eachPage(guardAddress);
+  /** Puts those settings into effect again after one was changed. */
+  const applyPrivacy = (): void => {
+    for (const web of wiredSessions) signalSession(web);
+    for (const view of views.values()) guardAddress(view.webContents);
+  };
   // Counted from the moment a new page is asked for: its first requests can
   // be on their way before the shell hears that the page has arrived.
   eachPage((wc) => wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
@@ -1454,6 +1551,24 @@ export function createBrowser(deps: BrowserDeps): Browser {
         writeFileSync(join(dir, name), `# ${String(msg.url).slice(0, 300)}\n${String(msg.outline).slice(0, 2_000_000)}\n`);
         break;
       }
+      case 'reader': {
+        if (wc !== page || surface !== 'page') break;
+        const article = parseArticle(msg.article);
+        if (!article) {
+          notify('No article to read was found on this page');
+          break;
+        }
+        reading = { ...article, site: siteName(page.getURL()) };
+        panel = 'reader';
+        layout();
+        break;
+      }
+      case 'icons':
+        // What the page's own links say its icons are; a web-app manifest may list bigger ones.
+        if (wc !== page) break;
+        iconLinks.set(wc, parseIconLinks(msg.list));
+        refreshIcons(wc);
+        break;
       case 'back':
         // Only from the view in front: a page left behind must not move anything.
         if (wc === page && surface === 'page' && !panel) goBack();
@@ -1625,31 +1740,81 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   // ---- Web apps ----------------------------------------------------------------
 
-  /** The icons the page in front says are its own, newest list last. */
-  let favicons: string[] = [];
-  eachPage((wc) => wc.on('page-favicon-updated', (_e, urls) => {
-    if (wc !== page) return;
-    favicons = urls.filter((u) => /^https?:/i.test(u)).slice(0, 8);
-    // A site on Home gets its own icon on its tile, fetched once from the site while it is open.
-    const key = pageSite();
-    const id = siteIconId(page.getURL());
-    if (!key || !favicons.length || ![...recents, ...saved].some((r) => siteKey(r.url) === key)) return;
-    // Fetched again after a week, in case the site has changed it.
-    let age = Infinity;
-    try {
-      age = Date.now() - statSync(join(iconsDir, `${id}.png`)).mtimeMs;
-    } catch {
-      // not fetched yet
+  /** The icons each page says are its own: what the browser found, and what the page's own links name. */
+  const favicons = new WeakMap<WebContents, string[]>();
+  const iconLinks = new WeakMap<WebContents, IconLink[]>();
+  /** Icons being fetched now, by the name they are kept under. */
+  const fetchingIcons = new Set<string>();
+  /**
+   * The addresses to try for the icon of the page in `wc`, best first. When
+   * the page names a web-app manifest that is read too: it is where a site
+   * lists the big icons it made for being put on a home screen.
+   */
+  const iconsFor = async (wc: WebContents): Promise<string[]> => {
+    const url = wc.getURL();
+    const links = iconLinks.get(wc) ?? [];
+    const manifestUrl = manifestLink(links);
+    let listed: Array<{ url: string; size: number }> = [];
+    if (manifestUrl) {
+      const got = await fetchIcon(manifestUrl, wc.session);
+      try {
+        if (got) listed = manifestIcons(JSON.parse(got.body.toString('utf8')), manifestUrl);
+      } catch {
+        // not a manifest
+      }
     }
-    if (age < ICON_KEPT_MS) return;
-    void saveIcon(id, favicons, page.session).then((done) => {
-      // The site may have been taken off Home while its icon was on the way.
-      if (done && ![...recents, ...saved].some((r) => siteKey(r.url) === key)) saveRecents();
-      else if (done && surface === 'home' && !win.isDestroyed()) layout();
-    });
+    return iconCandidates(links, listed, favicons.get(wc) ?? [], url);
+  };
+  /**
+   * Fetches the icon for whatever on Home the page in front belongs to (an
+   * app, a saved page, a recent site) when there is none yet or it is old.
+   * Called when the page says what its icons are, and when something is put on Home.
+   */
+  const refreshIcons = (wc: WebContents): void => {
+    if (wc !== page || wc.isDestroyed() || isNotice(wc.getURL())) return;
+    const url = wc.getURL();
+    const key = siteKey(url);
+    if (!key) return;
+    const onHome = (): boolean => [...recents, ...saved].some((r) => siteKey(r.url) === key);
+    const ids: string[] = [];
+    const item = appFor(apps, url);
+    if (item) ids.push(item.id);
+    if (onHome()) ids.push(siteIconId(url));
+    for (const id of ids) {
+      // Fetched again after a week, in case the site has changed it.
+      let age = Infinity;
+      try {
+        age = Date.now() - statSync(join(iconsDir, `${id}.png`)).mtimeMs;
+      } catch {
+        // not fetched yet
+      }
+      if (age < ICON_KEPT_MS || fetchingIcons.has(id)) continue;
+      fetchingIcons.add(id);
+      void iconsFor(wc)
+        .then((candidates) => saveIcon(id, candidates, wc.session))
+        .catch(() => false)
+        .then((done) => {
+          fetchingIcons.delete(id);
+          if (!done) return;
+          const added = apps.find((a) => a.id === id);
+          if (id.startsWith('site-')) {
+            // The site may have been taken off Home while its icon was on the way.
+            if (!onHome()) saveRecents();
+          } else if (!added) {
+            rmSync(join(iconsDir, `${id}.png`), { force: true });
+            iconData.delete(id);
+          } else if (added.launcher) writeAppLauncher(added);
+          if (surface === 'home' && !win.isDestroyed()) layout();
+        });
+    }
+  };
+  eachPage((wc) => wc.on('page-favicon-updated', (_e, urls) => {
+    favicons.set(wc, urls.filter((u) => /^https?:/i.test(u)).slice(0, 8));
+    refreshIcons(wc);
   }));
   eachPage((wc) => wc.on('did-navigate', () => {
-    if (wc === page) favicons = [];
+    favicons.delete(wc);
+    iconLinks.delete(wc);
   }));
   /**
    * Saves a site's own icon for an app, fetched from the site by the session
@@ -1743,7 +1908,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     const item = added.app;
     // The panel goes at once; the icon may take a moment to come.
     layout();
-    await saveIcon(item.id, favicons, page.session);
+    const from = page;
+    await saveIcon(item.id, await iconsFor(from), from.session);
     if (!apps.some((a) => a.id === item.id)) {
       // Removed again while its icon was on the way.
       rmSync(join(iconsDir, `${item.id}.png`), { force: true });
@@ -1786,10 +1952,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   // ---- Messages from Longboard's own screens ---------------------------------
 
-  const menu = (action: MenuAction): void => {
+  /** Menu entries that change what is on Home, which the parental lock asks the PIN for while Home decides which sites open. */
+  const HOME_CHANGES: readonly MenuAction[] = ['addApp', 'removeApp', 'savePage', 'unsavePage'];
+  const menu = (action: MenuAction): void => (HOME_CHANGES.includes(action) ? withPinForHome(() => menuNow(action)) : menuNow(action));
+  const menuNow = (action: MenuAction): void => {
     switch (action) {
       case 'close':
-        panel = null;
+        // Leaving the choosing of a new PIN goes back to Settings, where it was started.
+        panel = panel === 'pin' && pinFor && ('set' in pinFor || pinFor.back === 'settings') ? 'settings' : null;
         layout();
         break;
       case 'home':
@@ -1864,6 +2034,24 @@ export function createBrowser(deps: BrowserDeps): Browser {
         layout();
         break;
       }
+      case 'desktop': {
+        const key = surface === 'page' ? pageSite() : null;
+        if (!key) break;
+        const site = { ...sites[key] };
+        if (site.desktop) delete site.desktop;
+        else site.desktop = true;
+        if (Object.keys(site).length) sites[key] = site;
+        else delete sites[key];
+        saveSites();
+        applyZoom();
+        layout();
+        break;
+      }
+      case 'reader':
+        panel = null;
+        layout();
+        if (surface === 'page' && !isNotice(page.getURL())) page.send('longboard:action', 'reader');
+        break;
       case 'forgetAnswers': {
         panel = null;
         const key = surface === 'page' ? pageSite() : null;
@@ -1886,10 +2074,29 @@ export function createBrowser(deps: BrowserDeps): Browser {
         layout();
         break;
       case 'settings':
-        panel = 'settings';
-        pickAt = null;
-        capturing = null;
-        layout();
+        withPin('Enter the PIN to open Settings', () => {
+          panel = 'settings';
+          pickAt = null;
+          capturing = null;
+          layout();
+        });
+        break;
+      case 'lock':
+        // "Lock again", or "Unlock every site" with the PIN.
+        if (!lock?.homeOnly) break;
+        if (unlocked) {
+          unlocked = false;
+          lockViews();
+          panel = null;
+          layout();
+          notify('Locked: only the sites on Home open now');
+        } else {
+          withPin('Enter the PIN to unlock every site', () => {
+            unlocked = true;
+            layout();
+            notify(`Unlocked until you lock again or ${PRODUCT.name} closes`);
+          });
+        }
         break;
       case 'history':
         panel = 'history';
@@ -1909,8 +2116,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         if (isNotice(url)) break;
         saved = action === 'savePage' ? addSaved(saved, url, page.getTitle()) : removeSaved(saved, url);
         saveRecents();
-        // Its site's icon is fetched when the site next says what its icon is; often it already has.
-        if (action === 'savePage' && favicons.length && !iconOf(siteIconId(url))) void saveIcon(siteIconId(url), favicons, page.session);
+        // Its site's own icon is fetched for the tile.
+        if (action === 'savePage') refreshIcons(page);
         layout();
         notify(action === 'savePage' ? 'This page is kept on Home' : 'This page is no longer on Home');
         break;
@@ -1988,6 +2195,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
       case 'reset':
         deps.settings.reset();
         applyZoom();
+        applyPrivacy();
         layout();
         notify('Settings are back to the usual');
         break;
@@ -2001,11 +2209,81 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (wc !== page || panel !== 'find' || !result.finalUpdate) return;
     notify(result.matches > 0 ? `${result.activeMatchOrdinal} of ${result.matches}` : 'Not found on this page');
   }));
+  /** True while a change to Home that the PIN was just given for is being made. */
+  let pinGiven = false;
   const onChrome = (event: Electron.IpcMainEvent, msg: ChromeMessage): void => {
     // Only Longboard's own screen, and only its top frame.
     if (event.sender !== chrome || event.senderFrame !== chrome.mainFrame) return;
     if (!msg || typeof msg !== 'object') return;
+    // Taking a tile off Home is a change to Home; from Settings the PIN has been given already.
+    if ((msg.kind === 'removeRecent' || msg.kind === 'removeSaved' || (msg.kind === 'removeApp' && panel !== 'settings')) && lock?.homeOnly && !unlocked && !pinGiven) {
+      withPin('Enter the PIN to change what is on Home', () => {
+        pinGiven = true;
+        try {
+          onChrome(event, msg);
+        } finally {
+          pinGiven = false;
+        }
+      });
+      return;
+    }
     switch (msg.kind) {
+      case 'pin': {
+        if (panel !== 'pin' || !pinFor || !isPin(msg.digits)) break;
+        if ('set' in pinFor) {
+          if (pinFor.first === null) {
+            pinFor = { set: true, first: msg.digits };
+            layout();
+          } else if (pinFor.first !== msg.digits) {
+            pinFor = { set: true, first: null };
+            layout();
+            notify('Those two were not the same. Choose again');
+          } else {
+            lock = makeLock(msg.digits, lock?.homeOnly ?? false);
+            saveLock();
+            panel = 'settings';
+            layout();
+            notify('The PIN is set');
+          }
+          break;
+        }
+        if (Date.now() < pinNotBefore) {
+          layout();
+          notify(`Wait ${Math.ceil((pinNotBefore - Date.now()) / 1000)} seconds before trying again`);
+          break;
+        }
+        if (!lock || !checkPin(lock, msg.digits)) {
+          pinFailures += 1;
+          pinNotBefore = Date.now() + waitAfter(pinFailures);
+          layout();
+          notify(pinNotBefore > Date.now() ? `Wrong PIN. Wait ${Math.ceil(waitAfter(pinFailures) / 1000)} seconds before trying again` : 'Wrong PIN');
+          break;
+        }
+        pinFailures = 0;
+        const then = pinFor.then;
+        panel = null;
+        pinFor = null;
+        then();
+        break;
+      }
+      case 'lock':
+        // The lock's own settings, on the Settings screen: the PIN was given to get there.
+        if (panel !== 'settings') break;
+        if (msg.op === 'set') {
+          pinFor = { set: true, first: null };
+          panel = 'pin';
+        } else if (msg.op === 'remove') {
+          lock = null;
+          unlocked = false;
+          saveLock();
+        } else if (msg.op === 'homeOnly' && lock) {
+          lock = { ...lock, homeOnly: !lock.homeOnly };
+          unlocked = false;
+          saveLock();
+          lockViews();
+        }
+        layout();
+        break;
       case 'open': {
         const url = typeof msg.input === 'string' ? resolveAddress(msg.input, config.search) : null;
         // A search is not a site the person asked for by name; it is not put on Home.
@@ -2096,6 +2374,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
           break;
         }
         if (msg.name === 'pageSize') applyZoom();
+        applyPrivacy();
         layout();
         break;
       case 'startsOff': {
