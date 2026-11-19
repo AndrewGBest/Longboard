@@ -5,6 +5,8 @@
 import { shortcutFor, type Shortcut } from '../shared/shortcuts';
 import { app, BaseWindow, ipcMain, net, powerSaveBlocker, safeStorage, session, WebContentsView, type WebContents } from 'electron';
 import { Passwords } from './passwords';
+import { PhoneTyping } from './phone';
+import qrcode from 'qrcode-generator';
 import { cleanCredentials, loginPlace, shouldOffer } from '../shared/passwords';
 import { accessSync, constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -64,6 +66,9 @@ export interface BrowserDeps {
   startUrl: string | null;
   /** An app named on the command line with --app=, to open instead. */
   startApp: string | null;
+  /** Where typing from a phone listens, when it is not the home-network address. */
+  phoneAt?: string | undefined;
+  phoneKey?: string | undefined;
   fullscreen: boolean;
   /** The --size=WIDTHxHEIGHT option: the window's size when it is not full screen. */
   size: [number, number] | undefined;
@@ -391,6 +396,48 @@ export function createBrowser(deps: BrowserDeps): Browser {
     return typed.get(wc) ?? null;
   };
 
+  // ---- Typing from a phone (main/phone.ts) ------------------------------------
+  // Off until the person turns it on from the menu, and off again when
+  // Longboard closes. What a phone sends is typed where the cursor is, or
+  // pressed as a button of the remote would be.
+  let phoneCount = 0;
+  let phoneHeld: { id: number; text: string; to: WebContents; at: number } | null = null;
+  const PHONE_BUTTONS = { up: 'Up', down: 'Down', left: 'Left', right: 'Right', ok: 'Return', enter: 'Return', back: 'Escape', delete: 'Backspace', playPause: 'MediaPlayPause' } as const;
+  const phone = new PhoneTyping(
+    join(__dirname, 'phone.js'),
+    (message) => {
+      if (win.isDestroyed()) return;
+      const front = active();
+      if (front.isDestroyed()) return;
+      if (message.t === 'text') {
+        // The text stays here. The layer is only asked whether a text field has the cursor, and answers by number.
+        const id = ++phoneCount;
+        phoneHeld = { id, text: message.v.replace(/[\u0000-\u001f\u007f]+/g, ' '), to: front, at: Date.now() };
+        front.send('longboard:phone-text', id);
+      }
+      else if (message.t === 'key' && message.v === 'menu') toggleMenu();
+      else if (message.t === 'key') {
+        const keyCode = PHONE_BUTTONS[message.v as keyof typeof PHONE_BUTTONS];
+        front.sendInputEvent({ type: 'keyDown', keyCode });
+        if (keyCode === 'Return') front.sendInputEvent({ type: 'char', keyCode: '\r' });
+        front.sendInputEvent({ type: 'keyUp', keyCode });
+      }
+    },
+    () => {
+      if (win.isDestroyed()) return;
+      refreshChrome();
+      notify('A phone is connected');
+    },
+  );
+  /** An address as a square code for a phone's camera: rows of 0 and 1. */
+  const codeFor = (text: string): string[] => {
+    const code = qrcode(0, 'M');
+    code.addData(text);
+    code.make();
+    const size = code.getModuleCount();
+    return Array.from({ length: size }, (_r, row) => Array.from({ length: size }, (_c, col) => (code.isDark(row, col) ? '1' : '0')).join(''));
+  };
+
   // ---- Suggestions from the search site (off as shipped; Hard rule 12) -----
   // On, the words typed in the address field go to the search site as they
   // are typed. Never an address, never from a private tab, with no cookies,
@@ -527,6 +574,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     }),
     history: panel === 'history' ? visits.map((v) => visitLine(v, Date.now())) : null,
     closedTabs: closedTabs.length,
+    phoneOn: phone.on,
+    phone: ((url) => (panel === 'phone' && url ? { url: url.replace(/#.*$/, ''), code: codeFor(url), connected: phone.connected } : null))(phone.url),
     downloads: downloads.map((d) => ({
       id: d.id,
       name: d.name,
@@ -1706,6 +1755,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
         }
         break;
       }
+      case 'phoneOk': {
+        const held = phoneHeld;
+        if (!held || held.id !== msg.id || held.to !== wc || Date.now() - held.at > 3000) break;
+        phoneHeld = null;
+        void wc.insertText(held.text);
+        break;
+      }
       case 'loginSeen': {
         const at = event.senderFrame?.url ?? '';
         if (wc !== page || !loginsOn() || isPrivate(partition) || !loginPlace(at)) break;
@@ -2387,6 +2443,24 @@ export function createBrowser(deps: BrowserDeps): Browser {
         if (surface === 'page') panel = 'find';
         layout();
         break;
+      case 'phone':
+        // `--phone-at=` is for a scripted run on a machine with no network: this machine's own address.
+        void phone.start(deps.phoneAt, deps.phoneKey).then((ok) => {
+          if (win.isDestroyed()) return;
+          if (!ok) {
+            notify('Typing from a phone needs this machine to be on your home network');
+            return;
+          }
+          panel = 'phone';
+          layout();
+        });
+        break;
+      case 'phoneOff':
+        phone.stop();
+        panel = null;
+        layout();
+        notify('Typing from a phone is off');
+        break;
       case 'savePassword': {
         const held = surface === 'page' ? typedNow(page) : null;
         if (!held || !loginsOn()) break;
@@ -2789,6 +2863,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   win.on('closed', () => {
     clearInterval(downloadsTick);
+    phone.stop();
     // A half-fetched file is of no use to anyone.
     for (const d of downloads) if (d.state === 'going') d.item.cancel();
     rmSync(waitingDir, { recursive: true, force: true });

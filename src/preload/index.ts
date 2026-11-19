@@ -74,6 +74,10 @@ const start = (): void => {
 
   // From the shell to the layer. These arrive in the isolated world; the
   // page's own scripts never see them.
+  // A phone has sent text: the layer says whether a text field has the cursor for it.
+  ipcRenderer.on('longboard:phone-text', (_event, id: unknown) => {
+    if (typeof id === 'number') layer.phoneText(id);
+  });
   ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
     if (typeof text === 'string') layer.notice(text.slice(0, 200));
   });

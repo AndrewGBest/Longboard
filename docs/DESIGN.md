@@ -131,9 +131,16 @@ timer on it stops. Nothing starts again by itself when the page returns.
 ### 4.4 Typing
 
 An on-screen keyboard, plus any real keyboard that is plugged in **[Decision,
-2026-11-18]**. The input layer is written so that typing from a phone and
-voice search can be added later as extra sources of text without changing the
-rest.
+2026-11-18]**.
+
+**From a phone** **[Decision, Andrew, 2026-11-19; the shape is the agent's
+assumption]**. The menu's "Type from a phone" shows a code. A phone on the
+same home network that scans it gets a page with a text box, Send, Delete
+and Enter, and the arrows, OK, Back, Menu and Play. What is sent goes into
+the text field selected on the TV; with none selected the TV says to choose
+one. The phone's keyboard can take dictation. It stays on, with the panel
+put away, until it is turned off or Longboard closes. How it is kept private
+is in DECISIONS.md.
 
 ### 4.5 Profile editor **[Assumption, 2026-11-18]**
 

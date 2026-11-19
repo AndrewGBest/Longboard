@@ -278,6 +278,7 @@ function menuPanel(s: ChromeState): Node[] {
     );
   }
   items.push(el('div', { cls: 'pair' }, [button('menu-tabs', s.tabs.length > 1 ? `Tabs (${s.tabs.length})` : 'Tabs', act('tabs'), false, 'tabs'), button('menu-history', 'History', act('history'), false, 'history')]));
+  items.push(row('menu-phone', 'Type from a phone', act('phone'), { icon: 'remote', chevron: true, ...(s.phoneOn ? { value: 'On' } : {}) }));
   if (s.downloads.length > 0) {
     const going = s.downloads.filter((d) => d.state === 'going').length;
     items.push(row('menu-downloads', 'Downloads', act('downloads'), { icon: 'download', chevron: true, ...(going ? { value: `${going} under way` } : {}), say: going ? `Downloads (${going} under way)` : 'Downloads' }));
@@ -948,6 +949,44 @@ function promptPanel(s: ChromeState): Node[] {
   ];
 }
 
+/** A square code for a phone's camera, drawn as one path of little squares, dark on white with a clear border. */
+function scanCode(rows: string[]): SVGSVGElement {
+  const SVG = 'http://www.w3.org/2000/svg';
+  const size = rows.length;
+  const svg = document.createElementNS(SVG, 'svg') as SVGSVGElement;
+  svg.setAttribute('id', 'scan-code');
+  svg.setAttribute('viewBox', `-4 -4 ${size + 8} ${size + 8}`);
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'A code for a phone camera to scan');
+  const back = document.createElementNS(SVG, 'rect');
+  for (const [k, v] of Object.entries({ x: '-4', y: '-4', width: String(size + 8), height: String(size + 8), fill: '#fff' })) back.setAttribute(k, v);
+  const dots = document.createElementNS(SVG, 'path');
+  let d = '';
+  rows.forEach((line, y) => [...line].forEach((bit, x) => (d += bit === '1' ? `M${x} ${y}h1v1h-1z` : '')));
+  dots.setAttribute('d', d);
+  dots.setAttribute('fill', '#000');
+  svg.append(back, dots);
+  return svg;
+}
+
+/** Typing from a phone: the code to scan, the address, and how to turn it off. */
+function phonePanel(s: ChromeState): Node[] {
+  const p = s.phone;
+  const items: Node[] = [heading('Type from a phone', 'remote')];
+  if (!p) return items;
+  items.push(
+    el('p', { cls: 'lead', id: 'phone-state', text: p.connected ? 'A phone is connected.' : 'Point your phone\'s camera at this code.' }),
+    scanCode(p.code),
+    note(`The phone must be on the same home network as this TV. The code opens a page at ${p.url} with a key that is only in the code.`),
+    note('On the phone: type or dictate and press Send, and the words go into the text field selected here. It also has arrows, OK, Back and Menu.'),
+    row('phone-close', 'Done', () => tell({ kind: 'menu', action: 'close' }), { icon: 'check' }),
+    row('phone-off', 'Turn typing from a phone off', () => tell({ kind: 'menu', action: 'phoneOff' }), { icon: 'close', cls: 'quiet' }),
+    note(`While it is on, ${PRODUCT.name} answers on your home network at that address. What a phone sends is sealed, so others on the network cannot read it; someone able to change traffic on your network could still interfere. It goes off when ${PRODUCT.name} closes.`),
+  );
+  return items;
+}
+
 /** The panel last drawn: one that is already open does not slide in again each time something on it changes. */
 let drawnPanel: string | null = null;
 
@@ -963,7 +1002,7 @@ function render(): void {
   if (!strip && !reader) parts.push(home(s));
   let panel: HTMLElement | null = null;
   if (s.panel) {
-    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : s.panel === 'history' ? historyPanel(s) : s.panel === 'tabs' ? tabsPanel(s) : s.panel === 'find' ? findPanel() : s.panel === 'reader' ? readerPanel(s) : s.panel === 'pin' ? pinPanel(s) : promptPanel(s));
+    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : s.panel === 'history' ? historyPanel(s) : s.panel === 'tabs' ? tabsPanel(s) : s.panel === 'find' ? findPanel() : s.panel === 'reader' ? readerPanel(s) : s.panel === 'pin' ? pinPanel(s) : s.panel === 'phone' ? phonePanel(s) : promptPanel(s));
     if (reader) panel.classList.add('reader');
     if (drawnPanel === s.panel) panel.classList.add('still');
     // The layer keeps the highlight inside an open modal dialog.
@@ -1060,6 +1099,10 @@ ipcRenderer.on('longboard:type-address', () => {
   const inMenu = document.getElementById('menu-address');
   if (inMenu) layer?.typeIn(inMenu);
   else if (!state?.panel) document.getElementById('go')?.click();
+});
+// A phone has sent text: the layer says whether a text field has the cursor for it.
+ipcRenderer.on('longboard:phone-text', (_event, id: unknown) => {
+  if (typeof id === 'number') layer?.phoneText(id);
 });
 ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
   if (typeof text === 'string') layer?.notice(text.slice(0, 200));

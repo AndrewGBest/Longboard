@@ -3,6 +3,39 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: typing from a phone (Andrew: "build both", of phone and voice)
+
+Built. **The shape is the agent's assumption.**
+
+- **What it is.** The menu's "Type from a phone" starts a small web server
+  on this machine's home-network address and shows a code to scan. The phone
+  gets a page with a text box and the buttons of a remote. What is sent is
+  typed into the text field selected on the TV. The phone's own keyboard can
+  take dictation, so this is also the first way to speak to Longboard.
+- **Off until asked for, and off again when Longboard closes.** It is a
+  listening port, not a request Longboard makes, so Hard rule 12's list does
+  not grow; the panel says what is open while it is on.
+- **Plain http, with everything sealed.** A TV has no certificate a phone
+  would trust. So each message is sealed (tweetnacl's secretbox) with a key
+  made for that run, which is in the part of the address after "#": a
+  browser never sends that part, so the key reaches the phone only through
+  its camera. Each message carries a number that must go up, so one heard on
+  the network cannot be sent again. **What this does not stop:** someone who
+  can change traffic on the home network could alter the page's script as
+  it is served and take the key. The panel says so.
+- **The text never passes through the page.** The shell holds it, asks the
+  layer only whether a text field has the cursor, and types it itself. A
+  page can already ask the shell to type, but four characters at a time; a
+  phone's text is not handed to it to ask with.
+- **Under `--automation`** the layer refuses password and one-time-code
+  fields for phone text as it does for the on-screen keyboard (Hard rule
+  10), and a scripted run may bring its own key (`--phone-key`), since it
+  cannot scan the screen. That flag is ignored without `--automation`.
+- **Dependencies** (CLAUDE.md asks for a line each): `tweetnacl` 1.0.3,
+  Unlicense, for the sealing, in the shell and in the phone's page;
+  `qrcode-generator` 2.0.4, MIT, to draw the code. Neither has dependencies
+  of its own.
+
 ## 2026-11-19: search suggestions (Andrew: "build and ship off")
 
 Built, and off as shipped. A fifth request Longboard can make by itself, so

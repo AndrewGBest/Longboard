@@ -230,6 +230,10 @@ async function main(): Promise<void> {
     config,
     startUrl: startUrl(config),
     startApp: value('app') ?? null,
+    // For a scripted run on a machine with no network: the phone page is served on this machine's own address.
+    phoneAt: value('phone-at') === '127.0.0.1' ? '127.0.0.1' : undefined,
+    // A scripted run cannot scan the code on the screen, so it brings its own key. Never outside one.
+    phoneKey: options.automation ? value('phone-key') : undefined,
     // Windowed while developing, so the desktop stays reachable.
     fullscreen: flag('fullscreen') || !options.dev,
     // Where files are saved: the desktop's Downloads folder, unless told otherwise.

@@ -1974,6 +1974,49 @@ await scenario('no suggestions are asked for as Longboard ships', { config: { se
   check('with the setting off nothing typed goes anywhere', [asks.suggest, await chrome.evaluate('document.querySelectorAll("#suggestions button").length')], [[], 0]);
 });
 
+{
+  // The key a phone would get from the code on the screen; a scripted run brings its own.
+  const nacl = (await import('tweetnacl')).default;
+  const url64 = (bytes) => Buffer.from(bytes).toString('base64url');
+  const phoneKey = nacl.randomBytes(32);
+  let n = 0;
+  const sealed = (message, key = phoneKey) => {
+    const nonce = nacl.randomBytes(24);
+    return url64(Buffer.concat([nonce, nacl.secretbox(new TextEncoder().encode(JSON.stringify({ n: ++n, ...message })), nonce, key)]));
+  };
+  await scenario('typing from a phone', { args: ['--phone-at=127.0.0.1', `--phone-key=${url64(phoneKey)}`] }, async (app) => {
+    const chrome = await app.chrome();
+    await until(() => chrome.focused(), (id) => id === 'go');
+    await chrome.press('ContextMenu', 500);
+    check('the menu has "Type from a phone", which is off until asked for', await chrome.evaluate('document.getElementById("menu-phone")?.ariaLabel'), 'Type from a phone');
+    for (let i = 0; i < 12 && (await chrome.focused()) !== 'menu-phone'; i++) await chrome.press('ArrowDown');
+    await chrome.press('Enter', 800);
+    const words = await chrome.evaluate('document.getElementById("panel")?.textContent ?? ""');
+    const at = /http:\/\/127\.0\.0\.1:\d+/.exec(words)?.[0];
+    check('it shows a code to scan and the address, without the key', [await chrome.evaluate('document.querySelector("#scan-code path")?.getAttribute("d")?.length > 500'), !!at, words.includes(url64(phoneKey)), await chrome.evaluate('document.getElementById("phone-state")?.textContent')], [true, true, false, "Point your phone's camera at this code."]);
+    if (!at) return;
+    const post = (body) => fetch(`${at}/send`, { method: 'POST', body }).then((r) => r.status);
+    check('the phone is given a page and its script', [(await (await fetch(`${at}/`)).text()).includes('Longboard remote'), (await (await fetch(`${at}/app.js`)).text()).length > 5000], [true, true]);
+    check('what is not sealed with the key from the code is refused', [await post('hello'), await post(sealed({ t: 'text', v: 'intruder' }, nacl.randomBytes(32)))], [403, 403]);
+    check('a phone that has the key gets through, and the TV says so', [await post(sealed({ t: 'hello' })), await until(() => chrome.evaluate('document.getElementById("phone-state")?.textContent'), (t) => t === 'A phone is connected.')], [204, 'A phone is connected.']);
+    await chrome.press('Enter', 500);
+    check('"Done" puts the panel away and leaves it on', [await chrome.evaluate('document.getElementById("panel")'), await chrome.focused()], [null, 'go']);
+
+    await post(sealed({ t: 'text', v: 'nothing selected' }));
+    check('text sent with no text field selected goes nowhere, and the TV says to choose one', await until(() => chrome.toastText(), (t) => /Choose a text field/.test(t ?? '')), 'Choose a text field on the TV first, then send again');
+    await chrome.press('Enter', 400);
+    await chrome.press('Escape', 200);
+    await post(sealed({ t: 'text', v: 'films tonight' }));
+    check('with the address field selected, what the phone sends is typed into it', await until(() => chrome.evaluate('document.getElementById("address")?.value'), (v) => v === 'films tonight'), 'films tonight');
+    await post(sealed({ t: 'key', v: 'delete' }));
+    check('the phone\'s Delete takes a letter off', await until(() => chrome.evaluate('document.getElementById("address")?.value'), (v) => v === 'films tonigh'), 'films tonigh');
+    await post(sealed({ t: 'key', v: 'enter' }));
+    check('and its Enter opens what was typed', !!(await app.view((u) => u.startsWith('data:') || u.includes('search.invalid'), 40)), true);
+
+    await chrome.press('ContextMenu', 500).catch(() => undefined);
+  });
+}
+
 // The site cannot be reached at first. The view must say so, keep trying,
 // and load the page once it is there.
 {

@@ -53,6 +53,8 @@ export interface Layer {
   dispatch: (a: Action) => void;
   /** Show a short message from the shell, for example that a navigation was refused. */
   notice: (text: string) => void;
+  /** A phone has sent text: says back (by the number given) whether there is a text field with the cursor for it. The shell holds the text and types it. */
+  phoneText: (id: number) => void;
   /** Shows or hides the line that says a page is arriving. */
   loading: (on: boolean) => void;
   /** The app's window stopped being the one in front: pause what is playing. */
@@ -843,6 +845,19 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     dispatch,
     notice: (text) => overlay.toast(text, 6000),
     loading: (on) => overlay.loading(on),
+    phoneText: (id) => {
+      const into = deepActiveElement(doc);
+      if (!into || !isTextEntry(into)) {
+        overlay.toast('Choose a text field on the TV first, then send again', 5000);
+        return;
+      }
+      // A scripted run never types a password or a one-time code, whatever the text came from (Hard rule 10).
+      if (keyboardBarred(into)) return;
+      // The phone is the keyboard now: the field has the keys, as with a real one, and the on-screen one goes away.
+      typedInto = into;
+      closeOsk();
+      send({ kind: 'phoneOk', id });
+    },
     away: () => {
       // The window is no longer in front. Pause through the site's own key,
       // and only if something is playing: the key is a toggle.

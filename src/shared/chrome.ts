@@ -5,7 +5,7 @@
 import type { RecentSite } from './home';
 import type { BlockingMode, StartsOffEntry } from './adblock';
 
-export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings' | 'history' | 'tabs' | 'find' | 'reader' | 'pin';
+export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings' | 'history' | 'tabs' | 'find' | 'reader' | 'pin' | 'phone';
 
 export interface ChromeState {
   /** What fills the window behind any panel. */
@@ -127,6 +127,9 @@ export interface ChromeState {
   tabs: Array<{ id: string; title: string; site: string; current: boolean; private: boolean }>;
   /** The pages opened lately, newest first, while the history panel is open. */
   history: Array<{ url: string; text: string; title: string; site: string; day: string; time: string }> | null;
+  /** Typing from a phone: whether it is on; and, while its panel is open, the address for the phone, that address as a code to scan (rows of 0 and 1), and whether a phone has got through. */
+  phoneOn: boolean;
+  phone: { url: string; code: string[]; connected: boolean } | null;
   /** How many closed tabs can be opened again. */
   closedTabs: number;
   /** The parental lock, when a PIN is set: whether only Home's sites open, and whether the PIN has been given for browsing. */
@@ -152,10 +155,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'forward' | 'stop' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'reader' | 'lock' | 'addExtension' | 'settings' | 'history' | 'tabs' | 'find' | 'savePassword' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'reader' | 'lock' | 'addExtension' | 'settings' | 'history' | 'tabs' | 'find' | 'phone' | 'phoneOff' | 'savePassword' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'forward', 'stop', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'savePassword', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'forward', 'stop', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'phone', 'phoneOff', 'savePassword', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =

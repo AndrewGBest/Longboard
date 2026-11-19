@@ -42,6 +42,8 @@ export type BridgeMessage =
   /** The page has a sign-in form (told once), and what was typed into it when it was sent. Never in a scripted run. */
   | { kind: 'loginSeen' }
   | { kind: 'credentials'; user: string; password: string }
+  /** There is a text field with the cursor for the text a phone sent, which the shell holds under this number. */
+  | { kind: 'phoneOk'; id: number }
   | { kind: 'back' }
   /** The menu button was pressed. */
   | { kind: 'menu' }
