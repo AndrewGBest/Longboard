@@ -75,6 +75,9 @@ export interface ChromeState {
     search: string;
     searchTemplate: string;
     startWith: 'home' | 'last';
+    /** Whether what is typed is sent to the search site for suggestions, and whether the search site in use can be asked. */
+    searchSuggestions: boolean;
+    canSuggest: boolean;
     pageSize: number;
     adBlocking: {
       mode: BlockingMode;

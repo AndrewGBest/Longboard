@@ -18,12 +18,13 @@
 // wins over the built-in one for that key.
 import type { Action } from './actions';
 import { isSearchTemplate } from './address';
+import { isSuggestTemplate } from './suggest';
 import { UPDATE_MODES, type UpdateMode } from './update';
 import { BLOCKING_MODES, blockingMode, MAX_LISTS, parseDomains, parseFilterLists, type BlockingMode } from './adblock';
 
 /** The kinds of access the person can say no site may ask for (the names main/permissions.ts asks about). */
 export const NEVER_ASKABLE = ['camera', 'microphone', 'location', 'notifications', 'clipboard', 'midi', 'pointerLock'] as const;
-const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress', 'updates', 'extensionUpdates', 'passwords'] as const;
+const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress', 'updates', 'extensionUpdates', 'passwords', 'searchSuggestions'] as const;
 
 export const ACTION_NAMES = [
   'up', 'down', 'left', 'right', 'select', 'back', 'playPause',
@@ -71,6 +72,8 @@ export interface UserConfig {
   extensionUpdates?: boolean;
   /** False stops Longboard offering to keep passwords, and offering saved ones back. */
   passwords?: boolean;
+  /** True sends what is typed in the address field to the search site for suggestions; an address with %s asks there instead. Off as shipped. */
+  searchSuggestions?: boolean | string;
   /** New versions: "install" them (the usual), only "tell", or "off" to never look. */
   updates?: UpdateMode;
   /** Clear what sites have stored each time the program closes. */
@@ -178,6 +181,10 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     else problems.push('"catalogue" must be true or false');
   }
 
+  if (r['searchSuggestions'] !== undefined) {
+    if (typeof r['searchSuggestions'] === 'boolean' || isSuggestTemplate(r['searchSuggestions'])) config.searchSuggestions = r['searchSuggestions'];
+    else problems.push('"searchSuggestions" must be true, false, or an https address containing %s once');
+  }
   if (r['search'] !== undefined) {
     if (isSearchTemplate(r['search'])) config.search = r['search'];
     else problems.push('"search" must be an https address containing %s once');

@@ -3,6 +3,31 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: search suggestions (Andrew: "build and ship off")
+
+Built, and off as shipped. A fifth request Longboard can make by itself, so
+under Hard rule 12 it is disclosed (Settings, under Privacy, and About) and
+switched in Settings, "Search and starting". **The particulars are the
+agent's assumptions:**
+
+- Only words that would be searched for are sent. Anything that would open
+  as an address is not, so a private address typed in the field never
+  reaches the search site.
+- Nothing is sent from a private tab. The request carries no cookies.
+- It is asked 0.18 s after the last letter, and only the newest question is
+  waited for (2.5 s at most).
+- At most four suggestions, under at most three places already known.
+- The four search sites offered by name have an address to ask at.
+  DuckDuckGo's and Brave's are the ones those sites publish in their
+  OpenSearch descriptions; Google's needs `client=firefox`, and Bing's is
+  known only from Chromium's and Firefox's own lists of search engines
+  [Sourced: the research gathered 2026-11-19, kept in the session, not the
+  repo]. None states a rate limit. Brave's robots.txt disallows `/api` for
+  crawlers and Brave sells a keyed suggestions service: a person's own
+  typing is not crawling, but Brave could object; flagged for Andrew.
+- `"searchSuggestions"` in config.json may also be an address with `%s`,
+  for a search site of the person's own.
+
 ## 2026-11-19: saved passwords (Andrew: "yes")
 
 Built on Andrew's yes. **The shape is the agent's assumption**; the limits

@@ -49,11 +49,17 @@ const siteIcon = pngSquare(32, [40, 120, 200]);
 /** What stands for a newer package in the update checks. */
 const newPackage = Buffer.from('#!/bin/sh\n# a made-up newer package\n'.repeat(200));
 /** What the made-up site was asked for, for the download checks. */
-const asks = { file: 0, made: 0, slow: [], adverts: 0, bigIcon: 0, maskIcon: 0 };
+const asks = { suggest: [], file: 0, made: 0, slow: [], adverts: 0, bigIcon: 0, maskIcon: 0 };
 const site = await serveFixtures({
   // A page that takes its time, as a far-away site does.
   '/slow-page': (_req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>slow</title><a href="/home.html" id="there">the words</a><img src="/slow.png" alt="">'),
   '/slow.png': (_req, res) => setTimeout(() => res.writeHead(200, { 'content-type': 'image/png' }).end(siteIcon), 3500),
+  // A made-up search site's suggestions, in the shape the real ones answer in.
+  '/suggest': (req, res) => {
+    const q = new URL(req.url, 'http://x').searchParams.get('q') ?? '';
+    asks.suggest.push(q);
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify([q, [`${q} today`, `${q} tomorrow`]]));
+  },
   '/favicon.ico': (_req, res) => res.writeHead(200, { 'content-type': 'image/png' }).end(siteIcon),
   '/catalogue/index.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(catalogueIndex),
   '/catalogue/profiles/profile.test/profile.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(fixtureProfile),
@@ -1935,6 +1941,37 @@ await scenario('Forward, a page that is slow to come, "Carry on", a keyboard\'s 
   await chrome.press('Enter', 500);
   const kept = JSON.parse(readFileSync(join(app.userData, 'history.json'), 'utf8')).visits.map((v) => new URL(v.url).pathname);
   check('which takes that page out of the history, and no other', [kept.includes('/article.html'), kept.includes('/home.html')], [false, true]);
+});
+
+await scenario('suggestions from the search site, when they are turned on', { config: { search: 'https://search.invalid/find?q=%s', searchSuggestions: `${site.origin}/suggest?q=%s` } }, async (app) => {
+  const chrome = await app.chrome();
+  await until(() => chrome.focused(), (id) => id === 'go');
+  const shown = () => chrome.evaluate('[...document.querySelectorAll("#suggestions button")].map((b) => b.textContent)');
+  await chrome.press('Enter', 400);
+  await chrome.press('Escape', 200);
+  asks.suggest.length = 0;
+  await chrome.type('127.0.0.1/private');
+  await sleep(900);
+  check('an address being typed is not sent to the search site', asks.suggest, []);
+  for (let i = 0; i < 17; i++) await chrome.press('Backspace', 20);
+  await chrome.type('rain');
+  check('words being typed are, and what it suggests is offered under the field', await until(shown, (l) => l.length === 2, 40), ['rain today', 'rain tomorrow']);
+  check('it was asked about the words, not about each letter', asks.suggest.at(-1) === 'rain' && asks.suggest.length <= 3, true);
+  await chrome.press('ArrowDown');
+  await chrome.press('Enter', 600);
+  const went = await app.view((u) => u.startsWith('data:') || u.includes('search.invalid'), 40);
+  check('pressing one searches for it', !!went, true);
+});
+
+await scenario('no suggestions are asked for as Longboard ships', { config: { search: 'https://search.invalid/find?q=%s' } }, async (app) => {
+  const chrome = await app.chrome();
+  await until(() => chrome.focused(), (id) => id === 'go');
+  await chrome.press('Enter', 400);
+  await chrome.press('Escape', 200);
+  asks.suggest.length = 0;
+  await chrome.type('rain');
+  await sleep(900);
+  check('with the setting off nothing typed goes anywhere', [asks.suggest, await chrome.evaluate('document.querySelectorAll("#suggestions button").length')], [[], 0]);
 });
 
 // The site cannot be reached at first. The view must say so, keep trying,

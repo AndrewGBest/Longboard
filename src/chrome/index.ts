@@ -84,7 +84,7 @@ function addressField(id: string): HTMLInputElement {
 }
 
 /** The suggestions for what is typed in an address field: a few buttons under it, replaced as the typing goes on. */
-function showSuggestions(list: Array<{ url: string; text: string }>): void {
+function showSuggestions(list: Array<{ url: string; text: string; search?: boolean }>): void {
   const field = document.getElementById('address')?.parentElement ?? document.getElementById('menu-address');
   if (!field) return;
   let box = document.getElementById('suggestions');
@@ -97,7 +97,7 @@ function showSuggestions(list: Array<{ url: string; text: string }>): void {
       button(`suggest-${i}`, sug.text, () => {
         typing = false;
         tell({ kind: 'openSuggestion', url: sug.url });
-      }, false, 'history'),
+      }, false, sug.search ? 'search' : 'history'),
     ),
   );
 }
@@ -439,6 +439,9 @@ function settingsPanel(s: ChromeState): Node[] {
         row('set-search', 'Search with', pick('search'), { value: st.search, chevron: true, sub: 'Where words typed into the address field are looked up' }),
         row('set-start', 'Open with', set('startWith', st.startWith === 'last' ? 'home' : 'last'), { value: st.startWith === 'last' ? 'The last site' : 'Home', say: st.startWith === 'last' ? 'Open with: the last site' : 'Open with: Home' }),
         row('set-language', 'Language sites are asked for', pick('language'), { value: language, chevron: true, sub: 'Takes effect the next time it starts' }),
+        ...(st.canSuggest
+          ? [flip('set-suggest', 'Suggest searches as you type', st.searchSuggestions, set('searchSuggestions', st.searchSuggestions ? null : true), `Sends the words you type in the address field to ${st.search} as you type them. Addresses are not sent, and nothing is in a private tab`)]
+          : [say('Search suggestions are for the four search sites offered by name.')]),
         say('Another search site can be put in config.json.'),
         back,
       ];
@@ -1046,11 +1049,11 @@ ipcRenderer.on('longboard:keys', (_event, keys: unknown) => {
   for (const key of Object.keys(held)) delete held[key];
   for (const [key, action] of Object.entries(keys as Record<string, unknown>).slice(0, 200)) if (typeof action === 'string') held[key] = action;
 });
-ipcRenderer.on('longboard:suggestions', (_event, reply: { text: string; list: Array<{ url: string; text: string }> }) => {
+ipcRenderer.on('longboard:suggestions', (_event, reply: { text: string; list: Array<{ url: string; text: string; search?: boolean }> }) => {
   const field = (document.getElementById('address') ?? document.getElementById('menu-address')) as HTMLInputElement | null;
   // Only for what is in the field now: an answer to something typed earlier is out of date.
   if (!reply || !field || field.value !== reply.text || !Array.isArray(reply.list)) return;
-  showSuggestions(reply.list.slice(0, 5).filter((x) => x && typeof x.url === 'string' && typeof x.text === 'string'));
+  showSuggestions(reply.list.slice(0, 7).filter((x) => x && typeof x.url === 'string' && typeof x.text === 'string'));
 });
 // Ctrl+L on a keyboard: straight into the address field, on Home or in the menu.
 ipcRenderer.on('longboard:type-address', () => {

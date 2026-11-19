@@ -3,14 +3,14 @@
 // separate renderers with separate sessions; a website can never reach the
 // chrome view or the shell (Hard rule 13).
 import { shortcutFor, type Shortcut } from '../shared/shortcuts';
-import { app, BaseWindow, ipcMain, powerSaveBlocker, safeStorage, session, WebContentsView, type WebContents } from 'electron';
+import { app, BaseWindow, ipcMain, net, powerSaveBlocker, safeStorage, session, WebContentsView, type WebContents } from 'electron';
 import { Passwords } from './passwords';
 import { cleanCredentials, loginPlace, shouldOffer } from '../shared/passwords';
 import { accessSync, constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { basename, dirname, join } from 'node:path';
 import type { BootData, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
-import { resolveAddress, siteKey, siteName } from '../shared/address';
+import { resolveAddress, searchUrl, siteKey, siteName } from '../shared/address';
 import { EDIT_ACTIONS, MENU_ACTIONS, SETTINGS_ACTIONS, type ChromeMessage, type ChromeState, type EditAction, type MenuAction, type Panel, type SettingsAction } from '../shared/chrome';
 import { EDIT_MARKS, hasMark, marksOf, parsePicked, startDraft, toggleMark, type PickedStep } from '../shared/editor';
 import type { UserConfig } from '../shared/config';
@@ -50,7 +50,7 @@ import { homeSites, isPin, onHomeSite, parseLock, waitAfter, type Lock } from '.
 import { checkPin, makeLock } from './lock';
 import { blockingOn, cleanDomain, editStartsOff, isVerified, startsOffEntries, type BlockingMode } from '../shared/adblock';
 import { BUTTON_ACTIONS, mapButton, searchName, unmapButtons } from '../shared/settings';
-import { suggest, type Known } from '../shared/suggest';
+import { canSuggest, parseSearchSuggestions, suggest, suggestAddress, type Known } from '../shared/suggest';
 import { addVisit, parseHistory, titleVisit, visitLine, type Visit } from '../shared/history';
 import { PRODUCT } from '../shared/product';
 import { DEFAULT_SEARCH } from '../shared/address';
@@ -391,6 +391,32 @@ export function createBrowser(deps: BrowserDeps): Browser {
     return typed.get(wc) ?? null;
   };
 
+  // ---- Suggestions from the search site (off as shipped; Hard rule 12) -----
+  // On, the words typed in the address field go to the search site as they
+  // are typed. Never an address, never from a private tab, with no cookies,
+  // and only the newest question is waited for.
+  let offeredSearches = new Set<string>();
+  let suggestAsk: AbortController | null = null;
+  let suggestTimer: NodeJS.Timeout | undefined;
+  const searchSuggestions = (typed: string): Promise<string[]> => {
+    clearTimeout(suggestTimer);
+    suggestAsk?.abort();
+    suggestAsk = null;
+    const at = isPrivate(partition) ? null : suggestAddress(typed, config.searchSuggestions, config.search ?? DEFAULT_SEARCH);
+    if (!at) return Promise.resolve([]);
+    const ask = (suggestAsk = new AbortController());
+    return new Promise((resolve) => {
+      // A short wait, so a word typed quickly is asked about once.
+      suggestTimer = setTimeout(() => {
+        const giveUp = setTimeout(() => ask.abort(), 2500);
+        net.fetch(at, { credentials: 'omit', cache: 'no-store', redirect: 'error', signal: ask.signal })
+          .then(async (response) => (response.ok ? parseSearchSuggestions(JSON.parse((await response.text()).slice(0, 20_000)), typed) : []))
+          .then(resolve, () => resolve([]))
+          .finally(() => clearTimeout(giveUp));
+      }, 180);
+    });
+  };
+
   /** The pages that are still arriving: each is told, so it can show that, and the menu offers Stop. */
   const arriving = new WeakSet<WebContents>();
   /** The addresses of the tabs closed lately, newest last, so one can be opened again. Private tabs are never in it. */
@@ -458,6 +484,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
             search: searchName(config.search),
             searchTemplate: config.search ?? DEFAULT_SEARCH,
             startWith: config.startWith ?? 'home',
+            searchSuggestions: config.searchSuggestions === true || typeof config.searchSuggestions === 'string',
+            canSuggest: canSuggest(config.searchSuggestions, config.search ?? DEFAULT_SEARCH),
             pageSize: config.pageSize ?? 1,
             adBlocking: {
               mode: deps.adBlock.mode(),
@@ -2593,10 +2621,22 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'suggest':
         // Looked for in what is kept here, and nowhere else.
-        if (typeof msg.text === 'string') chrome.send('longboard:suggestions', { text: msg.text.slice(0, 200), list: suggest(msg.text.slice(0, 200), knownPlaces()) });
+        if (typeof msg.text === 'string') {
+          const text = msg.text.slice(0, 200);
+          const local = suggest(text, knownPlaces());
+          chrome.send('longboard:suggestions', { text, list: local });
+          void searchSuggestions(text).then((words) => {
+            if (!words.length || chrome.isDestroyed()) return;
+            const template = config.search ?? DEFAULT_SEARCH;
+            const more = words.map((w) => ({ url: searchUrl(w, template), text: w, search: true }));
+            offeredSearches = new Set(more.map((m) => m.url));
+            // Fewer of the places already known, so the list stays short enough to walk with a remote.
+            chrome.send('longboard:suggestions', { text, list: [...local.slice(0, 3), ...more] });
+          });
+        }
         break;
       case 'openSuggestion':
-        if (typeof msg.url === 'string' && knownPlaces().some((k) => k.url === msg.url)) open(msg.url, true);
+        if (typeof msg.url === 'string' && (knownPlaces().some((k) => k.url === msg.url) || offeredSearches.has(msg.url))) open(msg.url, true);
         break;
       case 'find':
         if (panel === 'find' && surface === 'page' && typeof msg.text === 'string' && msg.text.trim()) {
