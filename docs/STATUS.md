@@ -24,6 +24,10 @@ the menu.
   and re-run alone and pass, as does the new one, "a search field with
   suggestions, and a top bar". The full suite was not run again after
   those test-only corrections.
+- **A test that failed once:** the release's arm64 build failed in the
+  "downloads" scenario (the "Saved x.bin" notice never came) and passed
+  when run again with nothing changed. Not looked into; it may be timing
+  on that builder, and that is a guess.
 - **Unverified:** with a remote at the TV. Other sites' suggestion lists.
   The scorecard was not re-run, so the effect of the two new rules on the
   ten sites, and whether the referee now counts skip links as missed, is
