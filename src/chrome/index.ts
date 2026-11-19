@@ -212,10 +212,8 @@ function menuPanel(s: ChromeState): Node[] {
       row('menu-find', 'Find on this page', act('find'), { icon: 'search' }),
       row('menu-reader', 'Reader view', act('reader'), { icon: 'book', sub: 'Only the article, in large words' }),
       row('menu-desktop', 'Desktop site', act('desktop'), { icon: 'monitor', on: page.desktop, sub: 'The full-width layout, with smaller words' }),
-      el('h2', { text: 'This site' }),
-      page.app ? row('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp'), { icon: 'trash' }) : row('menu-add-app', 'Add this site as an app', act('addApp'), { icon: 'apps', chevron: true }),
     ];
-    if (page.answers) items.push(note(page.answers), row('menu-forget', 'Forget what this site may do', act('forgetAnswers'), { icon: 'shield' }));
+    if (page.answers) items.push(el('h2', { text: 'This site' }), note(page.answers), row('menu-forget', 'Forget what this site may do', act('forgetAnswers'), { icon: 'shield' }));
     items.push(
       el('h2', { text: 'Profile' }),
       note(page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode'),
@@ -271,11 +269,13 @@ function menuPanel(s: ChromeState): Node[] {
       row('menu-pointer', 'Pointer mode', act('pointer'), { icon: 'pointer', on: page.pointer }),
     );
     if (page.adBlocking) items.push(row('menu-adblock', 'Ad blocking', act('adBlocking'), { icon: 'block', on: page.adBlocking.on, sub: page.adBlocking.note, disabled: page.adBlocking.locked }));
+    // On the first page (Andrew, 2026-11-19): making an app of a site is one of the main things the menu is for.
     items.push(
+      page.app ? row('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp'), { icon: 'trash' }) : row('menu-add-app', 'Add this site as an app', act('addApp'), { icon: 'apps', chevron: true, sub: 'A tile on Home that opens it directly' }),
       row('menu-site', 'This page', () => {
         menuPage = 'site';
         render();
-      }, { icon: 'globe', chevron: true, sub: 'Keep, find, reader view, app, profile' }),
+      }, { icon: 'globe', chevron: true, sub: 'Keep, find, reader view, profile' }),
     );
   }
   items.push(el('div', { cls: 'pair' }, [button('menu-tabs', s.tabs.length > 1 ? `Tabs (${s.tabs.length})` : 'Tabs', act('tabs'), false, 'tabs'), button('menu-history', 'History', act('history'), false, 'history')]));

@@ -712,6 +712,42 @@ await scenario('a page of results', { url: `${site.origin}/results.html`, args: 
 // entry under the pointer is the one the arrows move from. Measured: with
 // the pointer moved anywhere else first, the scaled run chooses the same
 // entry as this one. STATUS.md lists what that means on a TV.
+await scenario('a search field with suggestions, and a top bar', { url: `${site.origin}/combo.html`, args: ['--zoom=1'] }, async (app) => {
+  const page = await app.page(`${site.origin}/combo.html`);
+  if (!page) return fail('the page did not open');
+  const chrome = await app.chrome();
+  await sleep(700);
+  await page.press('ArrowDown', 300);
+  await page.press('ArrowUp', 400);
+  check('Up goes to the top bar, not to the link parked above the page', await page.focused(), 'logo');
+  await page.press('ArrowUp', 500);
+  check('Up at the top has nowhere to go: the parked link is not a target, and what is beside is not above', [await page.focused(), await page.toastText()], ['logo', 'Press Up again for the menu']);
+  await page.press('ArrowUp', 600);
+  check('so Up again opens the menu', await chrome.evaluate('document.querySelector("#panel h1")?.textContent'), 'Menu');
+  await chrome.press('Escape', 500);
+  await page.press('ArrowRight', 300);
+  check('Right goes along the bar to the search field', await page.focused(), 'q');
+  await page.press('Enter', 600);
+  check('OK on it brings the keyboard', await page.keyboardShown(), true);
+  await page.press('Enter', 400);
+  await page.press('Escape', 600);
+  check('a letter typed opens the suggestions, and they stay when the keyboard is put away', [await page.keyboardShown(), await page.evaluate('document.getElementById("q").getAttribute("aria-expanded") + " " + document.getElementById("q").value.length')], [false, 'true 1']);
+  const marked = () => page.evaluate('[document.activeElement?.id, document.getElementById("q").getAttribute("aria-activedescendant")]');
+  await page.press('ArrowDown', 500);
+  check('Down marks the first suggestion, with the cursor still in the field', await marked(), ['q', 'opt-0']);
+  await page.press('ArrowDown', 500);
+  check('Down again marks the second', await marked(), ['q', 'opt-1']);
+  const ring = await page.overlay(({ cls, style }) => (/\bring\b/.test(cls) ? style : undefined));
+  const optTop = await page.evaluate('Math.round(document.getElementById("opt-1").getBoundingClientRect().top)');
+  check('the ring is on the marked suggestion', Math.abs(Number(/top: ([\d.]+)px/.exec(ring ?? '')?.[1]) - optTop) <= 12, true);
+  await page.press('ArrowUp', 500);
+  check('Up goes back to the first', await marked(), ['q', 'opt-0']);
+  await page.press('Enter', 500);
+  check('OK chooses the marked suggestion, and does not bring the keyboard', [await page.evaluate('window.__chosen'), await page.keyboardShown()], ['one', false]);
+  await page.press('ArrowDown', 500);
+  check('with the list closed, Down moves on down the page', await page.focused(), 'first');
+});
+
 await scenario('a form, and things that only look clickable', { url: `${site.origin}/form.html`, args: ['--zoom=1'] }, async (app) => {
   const page = await app.page(site.origin);
   const { evaluate, press, focused } = page;
@@ -1335,7 +1371,6 @@ await scenario('a site\'s own icon for its tile: the big one its manifest lists'
   check('the icon fetched is the big one the manifest lists, not the small one in the page or the one made for cutting to a shape', [asks.bigIcon > 0, asks.maskIcon, width(first[0])], [true, 0, 128]);
   // Added as an app, the app's tile gets the same.
   await page.press('ContextMenu', 500);
-  await siteMenu(chrome);
   await reach('menu-add-app');
   await chrome.press('Enter', 500);
   await reach('app-add');
@@ -1830,8 +1865,7 @@ await scenario('a site added as an app', { url: `${site.origin}/home.html` }, as
   await sleep(1000);
   await page.evaluate('document.cookie = "who=shared; path=/"; 0');
   await page.press('ContextMenu', 500);
-  await siteMenu(chrome);
-  check('the menu offers to add the site as an app', await reach('menu-add-app'), 'menu-add-app');
+  check('the menu offers, on its first page, to add the site as an app', await reach('menu-add-app'), 'menu-add-app');
   await chrome.press('Enter', 500);
   check('which asks for a name, starting from the page\'s own', [await chrome.evaluate('document.querySelector("#panel h1")?.textContent'), await chrome.evaluate('document.getElementById("app-name").value')], ['Add as an app', 'Longboard fixture: generic streaming home']);
   check('with the highlight on the first choice, sign-ins shared', [await chrome.focused(), await chrome.evaluate('(document.getElementById("app-session")?.ariaLabel ?? document.getElementById("app-session")?.textContent)')], ['app-session', 'Sign-ins: shared with the rest of Longboard']);
@@ -1851,9 +1885,7 @@ await scenario('a site added as an app', { url: `${site.origin}/home.html` }, as
   check("the site's own icon was fetched from the site and is what the entry shows", [existsSync(iconFile), entry.includes(`Icon=${iconFile}`)], [true, true]);
 
   await page.press('ContextMenu', 500);
-  await siteMenu(chrome);
   check('the menu now offers to remove it instead', [(await panelText()).includes('Remove the app'), (await panelText()).includes('Add this site as an app')], [true, false]);
-  await chrome.press('Escape', 400);
   await reach('menu-home', 'ArrowUp');
   await chrome.press('Enter', 600);
   check('Home has an Apps section with the tile first, showing the site\'s icon', [await chrome.evaluate('document.querySelector("#home h2")?.textContent'), await chrome.focused(), await chrome.evaluate('document.querySelector("#apps img.icon")?.src.startsWith("data:image/png;base64,")'), await chrome.evaluate('document.querySelector("#apps .mark")?.textContent')], ['Apps', 'app-0', true, 'Own sign-ins']);
@@ -1869,7 +1901,6 @@ await scenario('a site added as an app', { url: `${site.origin}/home.html` }, as
 
   // Removing it.
   await own.press('ContextMenu', 500);
-  await siteMenu(chrome);
   await reach('menu-remove-app');
   await chrome.press('Enter', 900);
   check('removing the app takes away the tile, the entry and the icon', [JSON.parse(readFileSync(join(app.userData, 'apps.json'), 'utf8')).apps, existsSync(entryFile), existsSync(iconFile)], [[], false, false]);

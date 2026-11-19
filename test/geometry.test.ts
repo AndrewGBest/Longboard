@@ -99,3 +99,22 @@ describe('pickInitial', () => {
     expect(pickInitial([])).toBe(-1);
   });
 });
+
+describe('things in one row are beside each other, not above or below', () => {
+  const box = (left: number, top: number, width: number, height: number): Rect => ({ left, top, right: left + width, bottom: top + height });
+  // Measured on a video site's top bar: a button 40 high and the search field 24 high inside the same band.
+  const button = box(185, 12, 128, 40);
+  const field = box(278, 16, 308, 24);
+
+  it('the field inside the button\'s height is not up from the button, nor the button from the field', () => {
+    expect(score(button, field, 'up')).toBeNull();
+    expect(score(field, button, 'up')).toBeNull();
+    expect(score(button, field, 'down')).toBeNull();
+    expect(score(field, button, 'down')).toBeNull();
+  });
+
+  it('something that reaches further down still counts as below', () => {
+    expect(score(box(0, 0, 100, 40), box(0, 30, 100, 40), 'down')).not.toBeNull();
+    expect(score(box(0, 30, 100, 40), box(0, 0, 100, 40), 'up')).not.toBeNull();
+  });
+});

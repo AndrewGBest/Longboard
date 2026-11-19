@@ -2,6 +2,15 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.4:
+
+- **Suggested searches can be chosen.** With suggestions showing under a
+  search field, Down steps through them and OK takes the one highlighted.
+  Put the on-screen keyboard away with Back first.
+- **Up twice for the menu works on sites with a bar across the top.** On
+  some sites the highlight went round in the bar and never reached the top.
+- **"Add this site as an app" is on the menu's first page.**
+
 New in 0.3.3:
 
 - **The menu without a menu key.** On a website, press Up at the top of

@@ -291,6 +291,19 @@ export function onScreenish(el: Element, view: Window): boolean {
   return r.right > -2000 && r.left < view.innerWidth + 2000;
 }
 
+/**
+ * True for something parked above the top of the page, where no scrolling
+ * can bring it: a "skip to content" link that shows itself only when Tab
+ * reaches it. (Seen on a video site: Up at the top went to one, it came into
+ * view beside the search field, and Up never ran out.) Something scrolled
+ * out of a list of its own is not this.
+ */
+function aboveThePage(el: Element, view: Window): boolean {
+  if (el.getBoundingClientRect().bottom + view.scrollY > 0) return false;
+  for (let node = composedParent(el), i = 0; node && i < 40; node = composedParent(node), i++) if (node.scrollTop > 0) return false;
+  return true;
+}
+
 /** True when `outer` wholly contains `inner` and is at least four times its area. */
 function covers(outer: Rect, inner: Rect): boolean {
   if (inner.left < outer.left || inner.right > outer.right || inner.top < outer.top || inner.bottom > outer.bottom) return false;
@@ -417,6 +430,7 @@ export class SpatialNavigator {
         if (r.bottom < above || r.top > below) continue;
       }
       if (!isVisible(el, view, faded)) continue;
+      if (aboveThePage(el, view)) continue;
       // Too small to aim at or to see a ring on from a couch (a carousel's
       // row of dots, six to nine pixels high on Steamboat's service).
       const size = el.getBoundingClientRect();

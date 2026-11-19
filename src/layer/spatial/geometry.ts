@@ -79,6 +79,12 @@ export function score(from: Rect, to: Rect, dir: Direction): number | null {
   // beside the top of a larger one was "nearer" than the larger one (seen on
   // a search engine: a result's small menu button, and a short news card
   // beside a tall one).
+  // What lies within the origin's own height is beside it, not above or
+  // below it. (Seen on a video site: a button and the search field next to
+  // it in the top bar were each "up" from the other, without end.)
+  // "Below" starts lower and ends lower; "above" starts higher and ends higher.
+  const beside = dir === 'down' ? to.top <= from.top + 1 || to.bottom <= from.bottom + 1 : to.bottom >= from.bottom - 1 || to.top >= from.top - 1;
+  if (aligned(from, to, dir) && beside) return null;
   if (aligned(from, to, dir)) return Math.max(dir === 'down' ? to.top - from.top : from.bottom - to.bottom, 0);
   // Off-axis fallback for up/down. The candidate must sit wholly beyond the
   // origin's edge, so something merely further along the same row is not "below".

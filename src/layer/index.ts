@@ -10,6 +10,7 @@ import { scrollBy } from './generic/scroll';
 import { installPurchaseGuard, isSpendControl } from './guard/purchase-guard';
 import { startPolling } from './input/gamepad';
 import { TopEdge } from './input/top-edge';
+import { activeOption, openCombo } from './combobox';
 import { keyToAction, type Mode } from './input/keys';
 import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
@@ -625,6 +626,31 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
         return;
       }
       closeOsk();
+    }
+    // A field with its list of suggestions open: Up and Down go to the
+    // field as the keys they are, the page marks a suggestion, and OK
+    // chooses the marked one. The cursor stays in the field throughout.
+    const combo = inPlayer() ? null : openCombo(doc);
+    if (combo) {
+      const before = activeOption(combo);
+      if (a.type === 'move' && (a.dir === 'down' || (a.dir === 'up' && before))) {
+        const dir = a.dir;
+        pressKey(dir);
+        view.setTimeout(() => {
+          if (deepActiveElement(doc) !== combo) return;
+          const now = activeOption(combo);
+          overlay.track(now ?? nav.focused);
+          // A page that does nothing with the key: move as on any page.
+          if (!now && !before && dir === 'down') moveInPage('down');
+        }, 150);
+        return;
+      }
+      if (a.type === 'select' && before) {
+        pressKey('enter');
+        overlay.track(nav.focused);
+        return;
+      }
+      if (before) overlay.track(nav.focused);
     }
     switch (a.type) {
       case 'move':

@@ -3,6 +3,21 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: suggestions under a search field, and a top bar that never ran out
+
+Andrew, at the TV, on a video site: a suggested search could not be
+selected, and Up twice did not bring the menu. He also asked for "Add as an
+app" on the menu's first page. What was wrong was read from the live page
+by the agent (no sign-in); how to mend it is **the agent's assumption**. No
+profile was made: all of it is generic mode.
+
+| Choice | Reason |
+|---|---|
+| "Add this site as an app" is on the menu's first page | **Andrew, 2026-11-19** |
+| A text field that says it is a combobox with its list open (`role="combobox"`, `aria-expanded="true"`) gets Up and Down as real keys; the highlight is drawn on the suggestion the page marks (`aria-activedescendant`, or the selected option in the list it controls); OK presses Enter when one is marked | Measured on the live page: each suggestion holds a small button the highlight could land on, but landing there takes the cursor out of the field and the page draws its list afresh, so what had the highlight was gone. The keys are how the ARIA combobox pattern says such a list is driven, so the site's own handling does the work. If the page marks nothing after Down, the highlight moves as on any page |
+| Something parked above the top of the page is not a target | Measured: a "skip" button sits 1,000 px above the page and shows itself only when focused. Up at the top went to it, so Up never ran out and the menu never came. Something scrolled out of a list of its own still counts. **Cost:** Tab reaches such a link and the highlight now does not, so the referee may count it as missed |
+| Two things in one row are beside each other, never above or below | Measured: once shown, that button and the search field were each "up" from the other, without end. "Below" now has to start lower and end lower |
+
 ## 2026-11-19: Android TV is a second shell, on GeckoView
 
 Andrew: "Make a android tv release." Every row is **an assumption by the

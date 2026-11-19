@@ -817,3 +817,18 @@ describe('the referee', () => {
     expect(JSON.stringify(said)).not.toContain('secret');
   });
 });
+
+describe('a link parked above the top of the page', () => {
+  it('is not somewhere the highlight can go', () => {
+    document.body.innerHTML = '<a href="#main" id="skip" data-rect="16,-1000,128,40">Skip</a><input id="q" data-rect="278,16,308,24"><a href="#a" id="a" data-rect="278,100,100,30">A</a>';
+    const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
+    expect(nav.candidates().map((el) => el.id)).toEqual(['q', 'a']);
+  });
+
+  it('but something scrolled out of a list of its own still is', () => {
+    document.body.innerHTML = '<div id="list" data-rect="0,0,300,200"><a href="#a" id="gone" data-rect="0,-60,100,30">A</a><a href="#b" id="b" data-rect="0,20,100,30">B</a></div>';
+    Object.defineProperty(document.getElementById('list')!, 'scrollTop', { value: 80 });
+    const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
+    expect(nav.candidates().map((el) => el.id)).toEqual(['gone', 'b']);
+  });
+});

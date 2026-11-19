@@ -2,6 +2,33 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-19, late night: suggestions, a top bar, and "Add as an app"
+
+Andrew, at the TV: put "Add as an app" on the menu's first page; on a video
+site a suggested search could not be selected and Up twice did not bring
+the menu.
+
+- **"Add this site as an app" is on the menu's first page.**
+- **Suggestions under a search field can be chosen:** Down and Up go to
+  the field as keys, the highlight is drawn on the suggestion the page
+  marks, OK takes it (`src/layer/combobox.ts`).
+- **Up twice works where a site has a bar across the top:** a link parked
+  above the page is not a target, and two things in one row are not above
+  or below each other (DECISIONS.md has what was measured).
+- **Verified:** `npm run check` (551 unit tests). On the live video site,
+  not signed in, headless at 1920x1080: Up, Up opened the menu; Down
+  stepped through three suggestions with the ring on each, Up went back
+  one, OK opened the results for it. `npm run e2e`: the full run had 475
+  passing and one failing, which was a test still walking to the old place
+  of "Add as an app"; that scenario and two others touched were corrected
+  and re-run alone and pass, as does the new one, "a search field with
+  suggestions, and a top bar". The full suite was not run again after
+  those test-only corrections.
+- **Unverified:** with a remote at the TV. Other sites' suggestion lists.
+  The scorecard was not re-run, so the effect of the two new rules on the
+  ten sites, and whether the referee now counts skip links as missed, is
+  not known.
+
 ## 2026-11-19, night: Android TV asked for; researched, not started
 
 Andrew: "Make a android tv release."
