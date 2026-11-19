@@ -57,8 +57,7 @@ Andrew asked for all six (DECISIONS.md has his words and every choice made).
 
 **Open for Andrew:** Hard rule 4 as written forbids adding headers, and the
 two signals are added by his decision. The rule's wording was left alone;
-DECISIONS.md suggests an amendment. If "desktop site" was meant to change
-the user agent, that conflicts with rule 3 and was not done.
+DECISIONS.md suggests an amendment.
 
 ## 2026-11-18, last of the day: features to stand beside the major browsers
 

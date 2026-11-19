@@ -47,8 +47,9 @@ that is not changed (rule 3 forbids a switcher, and there is nothing to
 switch to). What makes a site show its phone or tablet layout in Longboard is
 width: the TV scale gives a site about 960 CSS pixels. So "Desktop site" is a
 per-site switch that gives the site 1280 instead, with smaller text. It is
-ordinary page zoom. **Assumption: this is what Andrew meant; if he meant
-changing the user agent, that conflicts with rule 3 and was not done.**
+ordinary page zoom. **Confirmed by Andrew the same day** ("Desktop site
+presenting as it normally would"), as the agent read it: the site is shown
+as a desk browser would show it, and the user agent stays the real one.
 
 **Reader view and Hard rule 4.** The page is not altered: its article text is
 read by the layer and drawn on a screen of Longboard's own. Nothing is hidden,
