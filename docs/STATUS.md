@@ -2,6 +2,71 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-19, last: Andrew's nine answers built, and ARM
+
+Andrew answered every open decision (DECISIONS.md, "Andrew answers the nine
+open decisions") and asked for ARM after. Each piece has its own entry in
+DECISIONS.md.
+
+### What changed
+
+| What | Where it is |
+|---|---|
+| Rules 1 and 5 reworded | CLAUDE.md |
+| Saved passwords | Menu on a sign-in page; Settings, "Passwords" |
+| Search suggestions, off as shipped | Settings, "Search and starting" |
+| Typing from a phone | Menu, "Type from a phone" |
+| Speaking, recognised on the machine | Menu, "Speak"; a button can be given the job |
+| Extensions: `browser` filled, signatures checked, a warning for rule-list blockers | Asked when an extension is added |
+| The Chrome Web Store's terms read | DECISIONS.md, for Andrew |
+| 64-bit ARM packages, and checks on ARM | The three workflows |
+
+### Verified, and how
+
+- `npm run check`: 527 unit tests.
+- `npm run e2e` on x64: 458 checks, none failing, before the ARM commit.
+  New scenarios: search suggestions on and off, typing from a phone,
+  speaking (that nothing is fetched unasked), Passwords in Settings without
+  a keyring, `browser` on an extension's page.
+- **By hand, under `--automation`, outside the suite:**
+  - Speech: a public recording played as the microphone was heard and
+    searched for; the model was fetched from its makers and passed its
+    checksums.
+  - uBlock Origin Lite from the real store: its worker failed before the fix
+    and starts after, at install and after a restart. It blocks nothing.
+  - A real store file passes the signature check; a one-bit-altered copy
+    and a wrong extension are refused.
+- **ARM:** the checks and the whole end-to-end suite pass on GitHub's ARM machines (CI on 667de42). Whether the packages build there
+  is in the commit and release notes
+  that follow this entry; it was not known when this was written.
+
+### Not verified
+
+- **Saving and filling a password in the real app.** No scripted run may
+  (Hard rule 10). Only the rules, the form finder and the vault are tested.
+  Whether real sites' sign-in forms are found is unknown.
+- **A real phone on a real network** for phone typing; a QR code read by a
+  real camera.
+- **A real microphone.** Whether a TV box has one the system can see.
+- **Anything on an ARM TV box:** video, protected playback, speed.
+- Search suggestions against the four real search sites: the test uses a
+  made-up one. Their addresses were answered when a research agent fetched
+  them on 2026-11-19.
+- The speech engine in a packaged build (it is read from inside the
+  package's archive there).
+
+### Open for Andrew
+
+1. **The Chrome Web Store's terms** speak of Chrome only. Other browsers do
+   what Longboard does; the risk is Google closing the door. His to accept
+   or not (DECISIONS.md).
+2. **Brave's suggestions address** is one Brave's robots file keeps crawlers
+   from, and Brave sells a keyed service for the same thing.
+3. **Signing releases** ("we will come back to this").
+4. **Which ARM box.** What is worth doing about video depends on it.
+5. Newer versions of extensions are fetched by the library's updater, which
+   does not check signatures.
+
 ## 2026-11-19, later: the design gone over against the major browsers
 
 Andrew asked for the design to be scrutinised against the major browsers and
