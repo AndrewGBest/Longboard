@@ -3,6 +3,72 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-19: a release to test updates; extensions from the Chrome Web Store
+
+Andrew: "You can make releases, make a release to test the updates. Now that
+rule 4 is gone they aren't forbidden. Also this is a chromium based browser
+right? We should add plugin support with the chrome store."
+
+**Releases are now the agent's to make** (Andrew, 2026-11-19). A release is
+made by pushing a version tag; `.github/workflows/release.yml` runs the
+checks, builds the packages and publishes them. The name check in
+LEGAL-GUARDRAILS.md ("before a public release: look both up on the USPTO
+register") **was not done before v0.1.0**; the repository was already public
+under the name. It still should be done.
+
+**"They aren't forbidden"** confirms the agent's reading of what removing
+rule 4 allows (LEGAL-GUARDRAILS.md, "With rule 4 gone").
+
+**Extensions.** Longboard is built on Chromium by way of Electron, and
+Electron by itself loads only unpacked extensions and has a small part of
+the extension interfaces: no toolbar buttons, no store. Two libraries fill
+the gap, both by Samuel Maddock, both **MIT licensed**, both new runtime
+dependencies:
+
+- `electron-chrome-web-store` 0.13.0: downloads an extension from the
+  store's own download address and unpacks it. Its own dependencies:
+  `adm-zip` (MIT), `pbf` (BSD-3-Clause), `debug` (MIT).
+- `electron-chrome-extensions` 4.10.0: the extension interfaces (tabs,
+  windows, toolbar action, context menus, and so on). Depends on `debug`.
+
+Choices, each **the agent's assumption**:
+
+| Choice | As built | Why |
+|---|---|---|
+| How one is added | The person opens the store in Longboard and goes to an extension's page; the menu's site page then has "Add this extension" | The store's own "Add to Chrome" button needs an interface put into the store's page. Hard rule 13 says nothing is exposed to web pages, so the library's store-page script is not used |
+| Asked first | The extension is fetched and unpacked, then a question says its name, version and what it will be able to do, read from its manifest. Refused, it is deleted | It is someone else's program. The question starts on "Do not add it", like every question |
+| Parental lock | With a PIN set, adding an extension asks for it | An extension can see everything that is browsed |
+| Its pages | "Open" in Settings shows the extension's settings page, or else its toolbar panel, as a page in the tab. The arrows work on it as on any page | A toolbar and pop-up windows are a desk idea. **A panel opened this way is not attached to another tab**, so "this site" switches in a panel act on nothing |
+| Where they run | The session everything shares. Not private tabs, not apps with their own sign-ins | The library cannot run them in sessions kept in memory; and it is what private means |
+| Updates | The store is asked daily for newer versions of what is installed; a setting turns that off; disclosed in About | Rule 12. An extension left old is a risk |
+| Bundling | The two libraries are left in `node_modules`, not bundled into `dist/main.js` | Bundled, the library could not find its own preload file (seen) |
+| Identity | The download request gives the engine's real version, as the library does. The user agent is not changed | Rule 3 |
+
+**What was found by trying it (2026-11-19, on the headless VM):**
+
+- Through Longboard's own screens, with the sandbox on: Dark Reader was
+  added from its store page, the question listed "Read and change every page
+  you open", and its panel opened as a page with its 48 controls and worked
+  with the extension interfaces present.
+- uBlock Origin Lite was added and its dashboard opened, but **its
+  background worker does not start** (`chrome.commands` is missing in it;
+  the worker is a module, which is the agent's guess at why), so it would
+  block nothing. Not every extension works, and Settings says so.
+- With the sandbox off (`--no-sandbox`, which the test harness and CI use),
+  the library's interfaces do not reach extension workers at all. A person's
+  copy runs with the sandbox on. The end-to-end test therefore uses a
+  made-up extension that needs only a content script.
+- **The library does not verify a package's signature.** It checks that the
+  package's own key matches the extension asked for, over https from the
+  store's address. Chrome verifies the signature; this does not.
+
+**Also to know:** an extension that blocks ads does so by its own rules, on
+every site including the verified ones. Hard rule 5 is about Longboard's own
+switch; an extension is the person's choice. And Google's terms for the
+store are written for Chrome; other Chromium browsers use it in the same
+way, but nobody has asked Google about this one **[the agent has not read
+the store's terms closely; a guess that this is tolerated, not a finding]**.
+
 ## 2026-11-18: the Hard rules gone over for a whole browser; automatic updates
 
 Andrew asked for every rule to be scrutinised now that Longboard is a browser

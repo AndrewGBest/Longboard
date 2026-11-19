@@ -248,6 +248,17 @@ is a pad of digits for OK, and takes a remote's number buttons. Wrong tries
 are slowed. It keeps a child with the remote out; deleting `lock.json`
 removes it, and Settings says so.
 
+### 4.11 Extensions **[Decision, Andrew, 2026-11-19; the shape is the agent's assumption]**
+
+Extensions come from the Chrome Web Store. Settings, "Extensions", opens the
+store; on an extension's page there, the menu's page about the site has "Add
+this extension". Longboard fetches it and asks, naming it and saying what it
+will be able to do; the question starts on "Do not add it". Settings lists
+the extensions installed, opens each one's own page in the tab (where the
+arrows and pointer mode work as on any page), and removes one on a second
+press. Not every extension works, and extensions do not run in private tabs
+or in apps that keep their own sign-ins.
+
 ## 5. Ad blocking **[Decision, 2026-11-18]**
 
 Every site has an ad-blocking switch. Only the starting position differs.

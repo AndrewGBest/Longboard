@@ -39,6 +39,8 @@ export interface ChromeState {
     adBlocking: { on: boolean; note: string; locked: boolean } | null;
     /** False for a page sent over plain http, where anyone on the way can read or change it. */
     secure: boolean;
+    /** True on a Chrome Web Store page about an extension that is not installed. */
+    storeExtension: boolean;
     /** Whether this page is kept on Home. */
     saved: boolean;
     /** Whether the person asked for this site at the width of a desk screen. */
@@ -84,6 +86,9 @@ export interface ChromeState {
     downloads: string;
     dataFolder: string;
     httpsOnly: boolean;
+    /** The extensions installed; `opens` is the page of its own that can be shown, if it has one. */
+    extensions: Array<{ id: string; name: string; version: string; opens: string | null }>;
+    extensionUpdates: boolean;
     /** New versions: where things stand, the setting, and whether this copy can replace itself. */
     update: { words: string; mode: 'install' | 'tell' | 'off'; canInstall: boolean };
     /** The parental lock, when a PIN is set. */
@@ -123,15 +128,17 @@ export interface ChromeState {
     | { what: 'download'; site: string; name: string; size: string; folder: string }
     /** A profile someone gave the person, which nobody has reviewed: use it? */
     | { what: 'profile'; name: string; version: string; hosts: string[] }
+    /** An extension fetched from the store: switch it on? `can` is what it will be able to do. */
+    | { what: 'extension'; name: string; version: string; can: string[] }
     | null;
 }
 
 export type MenuAction =
   | 'home' | 'resume' | 'back' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'reader' | 'lock' | 'settings' | 'history' | 'tabs' | 'find' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'reader' | 'lock' | 'addExtension' | 'settings' | 'history' | 'tabs' | 'find' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'settings', 'history', 'tabs', 'find', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
+  'home', 'resume', 'back', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =
@@ -170,6 +177,8 @@ export type ChromeMessage =
   | { kind: 'pin'; digits: string }
   /** The parental lock's own settings: set or change the PIN, remove it, or switch "only sites on Home". */
   | { kind: 'lock'; op: 'set' | 'remove' | 'homeOnly' }
+  /** An installed extension: open its own page, or remove it. */
+  | { kind: 'extension'; op: 'open' | 'remove'; id: string }
   | { kind: 'removeRecent'; url: string }
   | { kind: 'removeApp'; id: string }
   /** The profile editor's buttons. */

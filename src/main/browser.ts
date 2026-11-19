@@ -41,6 +41,8 @@ import { filterSession, type FilterSet } from './adblock';
 import { privacySignals } from './signals';
 import { parseArticle, type Article } from '../shared/reader';
 import type { UpdateMode } from '../shared/update';
+import { storeExtensionId } from '../shared/extensions';
+import { Extensions, type DownloadedExtension } from './extensions';
 import { homeSites, isPin, onHomeSite, parseLock, waitAfter, type Lock } from '../shared/lock';
 import { checkPin, makeLock } from './lock';
 import { blockingOn, cleanDomain, editStartsOff, isVerified, startsOffEntries, type BlockingMode } from '../shared/adblock';
@@ -152,6 +154,16 @@ export function createBrowser(deps: BrowserDeps): Browser {
   });
   win.removeMenu();
 
+  // Extensions from the Chrome Web Store (main/extensions.ts), in the session everything shares.
+  const extensions = new Extensions(session.defaultSession, join(dataDir, 'Extensions'), {
+    open: (url) => {
+      openInSharedTab(url);
+      return page;
+    },
+    window: () => win,
+    note: (line) => console.log(`[longboard] ${line}`),
+  });
+
   const hardened = { contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true } as const;
   // Its own session, kept in memory only: nothing a website stores is visible to it.
   const chromeView = new WebContentsView({ webPreferences: { ...hardened, preload: join(__dirname, 'chrome.js'), partition: 'longboard-chrome' } });
@@ -228,6 +240,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   let pending:
     | { what: 'permission'; site: string; names: Askable[]; answer: Array<(granted: boolean) => void> }
     | { what: 'profile'; profile: Profile }
+    | { what: 'extension'; extension: DownloadedExtension }
     | { what: 'download'; download: Download }
     | null = null;
   /** A file on its way, or that was. `temp` is where it is held until it is whole and agreed to. */
@@ -311,7 +324,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
   /** The sites that open without the PIN, or null when every site does. */
   const onlySites = (): string[] | null => (lock?.homeOnly && !unlocked ? homeSites([...apps, ...saved]) : null);
-  const navRules = (): { automation: boolean; httpsOnly: boolean; onlySites: string[] | null } => ({ automation: options.automation, httpsOnly: config.httpsOnly === true, onlySites: onlySites() });
+  const navRules = (): { automation: boolean; httpsOnly: boolean; onlySites: string[] | null; extensions: string[] } => ({ automation: options.automation, httpsOnly: config.httpsOnly === true, onlySites: onlySites(), extensions: extensions.ids() });
   /**
    * Locking: a page that is not on one of Home's sites gives way to the
    * notice saying so, in every tab, and Back leads to nothing opened while
@@ -374,6 +387,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
           })(sites[pageSite() ?? '']?.answers ?? {}),
           secure: /^https:/i.test(page.getURL()) || /^http:\/\/(localhost|127\.0\.0\.1)[:/]/i.test(page.getURL()),
           saved: saved.some((p) => p.url === page.getURL()),
+          storeExtension: storeExtensionId(page.getURL()) !== null && !extensions.ids().includes(storeExtensionId(page.getURL()) ?? ''),
           desktop: sites[pageSite() ?? '']?.desktop === true,
           adBlocking: ((key) => {
             if (!key) return null;
@@ -417,6 +431,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
             downloads: downloadsDir(),
             dataFolder: dataDir,
             httpsOnly: config.httpsOnly === true,
+            extensions: extensions.list().map((e) => ({ id: e.id, name: e.name, version: e.version, opens: e.options ?? e.popup })),
+            extensionUpdates: config.extensionUpdates !== false,
             update: deps.settings.update(),
             lock: lock ? { homeOnly: lock.homeOnly } : null,
             doNotTrack: config.doNotTrack === true,
@@ -473,6 +489,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
       ? null
       : pending.what === 'profile'
         ? { what: 'profile', name: pending.profile.name, version: pending.profile.version, hosts: pending.profile.match.hosts.slice(0, 6) }
+        : pending.what === 'extension'
+          ? { what: 'extension', name: pending.extension.name, version: pending.extension.version, can: pending.extension.can }
         : pending.what === 'download'
           ? { what: 'download', site: pending.download.site, name: pending.download.name, size: sizeText(pending.download.item.getTotalBytes()), folder: downloadsDir() }
           : { what: 'permission', site: pending.site, wants: describeAsk(pending.names) },
@@ -524,7 +542,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     else if (asked.what === 'download') {
       if (!asked.download.arrived) asked.download.item.cancel();
       rmSync(asked.download.temp, { force: true });
-    }
+    } else if (asked.what === 'extension') extensions.discard(asked.extension);
   };
 
   /** Sizes and shows the views for the current state, and gives the keys to the one in front. */
@@ -538,6 +556,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (panel !== 'reader') reading = null;
     if (panel !== 'pin') pinFor = null;
     shownPanel = panel;
+    extensions.selectTab(page);
     const [width = 0, height = 0] = win.getContentSize();
     for (const view of views.values()) {
       view.setBounds(view === pageView ? pageArea() : { x: 0, y: 0, width, height });
@@ -767,6 +786,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
     showPage();
     void page.loadURL(url).catch(() => undefined);
   };
+
+  /** Opens a page in a tab of the session everything shares: where extensions live. Not put on Home. */
+  const openInSharedTab = (url: string): void => open(url, false, isTab(lastTab) && !isPrivate(lastTab) ? lastTab : '');
 
   /**
    * Where Back leads in the view's history, or -1 when it leads Home.
@@ -1252,6 +1274,25 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (!asked) return;
     pending = null;
     panel = null;
+    if (asked.what === 'extension') {
+      layout();
+      if (!allow) {
+        extensions.discard(asked.extension);
+        return;
+      }
+      void extensions.enable(asked.extension).then(
+        () => {
+          layout();
+          notify(`"${asked.extension.name}" is added. Settings, under Extensions, opens or removes it`);
+        },
+        (err) => {
+          console.error(`[longboard] extension could not be switched on: ${String(err).slice(0, 200)}`);
+          extensions.discard(asked.extension);
+          notify(`"${asked.extension.name}" could not be added: this browser cannot run it`);
+        },
+      );
+      return;
+    }
     if (asked.what === 'profile') {
       deps.profiles.answer(asked.profile, allow, remember);
       layout();
@@ -1324,6 +1365,15 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (!wc.isDestroyed()) wc.setWebRTCIPHandlingPolicy(config.hideLocalAddress === true ? 'default_public_interface_only' : 'default');
   };
   eachSession(signalSession);
+  eachPage((wc) => extensions.addTab(wc));
+  void extensions.load().then(() => {
+    // Newer versions of installed extensions, a minute after starting and once a day. Not in a scripted run.
+    const refresh = (): void => {
+      if (config.extensionUpdates !== false && !options.automation) void extensions.update();
+    };
+    setTimeout(refresh, 60_000).unref();
+    setInterval(refresh, 24 * 60 * 60 * 1000).unref();
+  });
   eachPage(guardAddress);
   /** Puts those settings into effect again after one was changed. */
   const applyPrivacy = (): void => {
@@ -2011,6 +2061,29 @@ export function createBrowser(deps: BrowserDeps): Browser {
         notify(file ? `Profile saved as ${file}` : 'There is no profile to export here');
         break;
       }
+      case 'addExtension': {
+        const id = surface === 'page' ? storeExtensionId(page.getURL()) : null;
+        if (!id || extensions.ids().includes(id) || pending) break;
+        // An extension can see everything that is browsed: with a parental lock, adding one needs the PIN.
+        withPin('Enter the PIN to add an extension', () => {
+          panel = null;
+          layout();
+          notify('Fetching the extension from the Chrome Web Store');
+          extensions.download(id).then(
+            (extension) => {
+              if (pending) return extensions.discard(extension);
+              pending = { what: 'extension', extension };
+              panel = 'prompt';
+              layout();
+            },
+            (err) => {
+              console.error(`[longboard] extension could not be fetched: ${String(err).slice(0, 200)}`);
+              notify('That extension could not be fetched from the store');
+            },
+          );
+        });
+        break;
+      }
       case 'importProfiles': {
         panel = null;
         layout();
@@ -2280,6 +2353,18 @@ export function createBrowser(deps: BrowserDeps): Browser {
         panel = null;
         pinFor = null;
         then();
+        break;
+      }
+      case 'extension': {
+        // From the Settings screen: open an extension's own page, or remove it.
+        const item = panel === 'settings' && typeof msg.id === 'string' ? extensions.list().find((e) => e.id === msg.id) : undefined;
+        if (!item) break;
+        if (msg.op === 'remove') {
+          void extensions.remove(item.id).then(() => {
+            layout();
+            notify(`"${item.name}" is removed`);
+          });
+        } else if (msg.op === 'open' && (item.options ?? item.popup)) openInSharedTab(`chrome-extension://${item.id}/${item.options ?? item.popup}`);
         break;
       }
       case 'lock':

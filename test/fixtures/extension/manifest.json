@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "Longboard fixture extension",
+  "version": "1.0.0",
+  "description": "A made-up extension for the tests: it marks every page it runs on.",
+  "content_scripts": [{ "matches": ["<all_urls>"], "js": ["mark.js"], "run_at": "document_end" }],
+  "options_page": "options.html"
+}

@@ -2,6 +2,51 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-19: the first release, updates tested for real, extensions
+
+Andrew allowed releases and asked for one to test updates, and for
+extensions from the Chrome Web Store. DECISIONS.md has every choice.
+
+**Release v0.1.0** is published (AppImage, tar.gz, Flatpak), made by the new
+release workflow from a pushed tag.
+
+**Updates, verified against GitHub itself:** an AppImage of 0.0.1 built by
+CI was run on the headless VM. It asked GitHub, found v0.1.0, downloaded the
+128 MB package, and replaced itself: the file's SHA-256 afterwards is the one
+GitHub's API states for the release's AppImage. Started again, the replaced
+file drew Home, asked again, found nothing newer, and left itself alone.
+The file name and GitHub's `digest` field, assumed yesterday, are confirmed.
+
+**Extensions, built:** added from an extension's page in the store through
+the menu, after a question that says what it will be able to do; listed,
+opened and removed in Settings; daily check for newer versions with a
+switch.
+
+**Extensions, verified and how:**
+
+- Unit tests (470 in all): reading the store address, what an extension is
+  said to be able to do, which of its pages may be opened.
+- End to end, with a made-up extension: its content script runs on a page,
+  Settings lists it, its own page opens in the tab and the arrows move on
+  it, and removing it (two presses) takes it off the disk.
+- By a one-off scripted run against the real store, sandbox on: Dark Reader
+  added through Longboard's screens, its panel opened and working.
+
+**Not verified, or known not to work:**
+
+- **uBlock Origin Lite does not work:** it installs, but its background
+  worker fails to start. Other extensions will fail too; only two were tried.
+- Extensions in a packaged build (the libraries now have to be found in the
+  package's `node_modules`): v0.1.0 does not contain them, and no package
+  with them has been built yet.
+- Extension updates, and whether any extension's panel is usable with a
+  remote on a TV. Panels opened as a page are not attached to another tab.
+- The updater: a restart is not forced, so a person keeps the old version
+  until they close Longboard; a download cut off half way was not tried on
+  a real connection; nothing signs releases.
+- The trademark check the guardrails ask for before a public release was
+  not done before v0.1.0.
+
 ## 2026-11-18, end: the rules gone over, rule 4 removed, automatic updates
 
 Andrew had every Hard rule scrutinised for a whole browser, then: removed

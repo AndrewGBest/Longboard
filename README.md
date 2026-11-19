@@ -56,7 +56,8 @@ Add an address to open it straight away: `npm start -- https://example.com`.
 
 Settings (in the menu) has the search site, sizes, ad blocking, privacy
 (including "ask sites not to track" and refusing trackers), what sites may
-ask for, a parental lock with a PIN, and profiles. The menu's page about the
+ask for, a parental lock with a PIN, extensions from the Chrome Web Store
+(not all of them work), new versions, and profiles. The menu's page about the
 site in front has reader view, "Desktop site", find on the page, and keeping
 the page on Home. Keys and controller buttons can be remapped
 in `~/.config/Longboard/config.json`, which is also where Settings keeps its

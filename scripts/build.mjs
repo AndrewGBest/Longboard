@@ -18,7 +18,8 @@ await build({
   outfile: 'dist/main.js',
   platform: 'node',
   format: 'cjs',
-  external: ['electron'],
+  // The two extension libraries stay as they are in node_modules: they find their own preload file from where they sit.
+  external: ['electron', 'electron-chrome-extensions', 'electron-chrome-web-store'],
 });
 
 // The page view's preload (the layer) and the chrome view's (Longboard's own screens).

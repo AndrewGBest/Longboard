@@ -14,6 +14,7 @@ export const BACKGROUND =
   'For ad blocking it downloads a public filter list, EasyList, from its authors at easylist.to every four days, also whole. ' +
   'Put "adBlocking": false in config.json to leave ad blocking out and stop that download. ' +
   `Once a day it asks GitHub whether there is a newer release of ${PRODUCT.name}; Settings, under New versions, can stop that. ` +
+  'If you have added extensions, it asks the Chrome Web Store once a day for newer versions of them; Settings, under Extensions, can stop that. ' +
   'The browser engine itself downloads the component that plays protected video (Widevine) from Google and keeps it up to date; that one cannot be turned off here.';
 
 export const HELP: readonly (readonly [string, string])[] = [

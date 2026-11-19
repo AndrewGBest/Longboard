@@ -4,6 +4,7 @@
 import { looksLikeSpendUrl } from '../layer/guard/purchase-guard';
 import { PRODUCT } from '../shared/product';
 import { onHomeSite } from '../shared/lock';
+import { extensionOfPage } from '../shared/extensions';
 
 export type BlockReason = 'not-web' | 'credentials' | 'automation-spend' | 'not-secure' | 'locked';
 
@@ -14,7 +15,7 @@ export type BlockReason = 'not-web' | 'credentials' | 'automation-spend' | 'not-
  * user name or password is refused too: it is a common disguise for a
  * look-alike site.
  */
-export function blockReason(url: string, opts: { automation: boolean; httpsOnly?: boolean; onlySites?: readonly string[] | null }): BlockReason | null {
+export function blockReason(url: string, opts: { automation: boolean; httpsOnly?: boolean; onlySites?: readonly string[] | null; extensions?: readonly string[] }): BlockReason | null {
   let u: URL;
   try {
     u = new URL(url);
@@ -23,6 +24,9 @@ export function blockReason(url: string, opts: { automation: boolean; httpsOnly?
   }
   // A blank page is what a site's own pop-up starts as.
   if (url === 'about:blank') return null;
+  // An installed extension's own pages (its settings, its panel) are opened like pages.
+  const extension = extensionOfPage(url);
+  if (extension && opts.extensions?.includes(extension)) return null;
   if (u.protocol !== 'https:' && u.protocol !== 'http:') return 'not-web';
   if (!u.hostname) return 'not-web';
   if (u.username || u.password) return 'credentials';

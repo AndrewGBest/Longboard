@@ -30,7 +30,7 @@ let menuPage: 'main' | 'site' = 'main';
 /** A list to choose one thing from, opened from a Settings page. */
 let choosing: 'search' | 'language' | 'ads' | 'theme' | null = null;
 /** Which page of Settings is showing. */
-type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote' | 'lock' | 'updates';
+type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote' | 'lock' | 'updates' | 'extensions';
 let settingsPage: SettingsPage = 'main';
 /** A button that clears something has been pressed once and waits for the second press. */
 let confirming: string | null = null;
@@ -188,6 +188,7 @@ function menuPanel(s: ChromeState): Node[] {
       el('h1', { text: 'This site' }),
       el('p', { cls: 'where', text: page.title ? `${page.title} (${page.site})` : page.site }),
       page.saved ? button('menu-unsave', 'Take this page off Home', act('unsavePage')) : button('menu-save', 'Keep this page on Home', act('savePage')),
+      ...(page.storeExtension ? [button('menu-add-extension', 'Add this extension', act('addExtension'))] : []),
       button('menu-find', 'Find words on this page', act('find')),
       button('menu-reader', 'Reader view: only the words of this page, big', act('reader')),
       button('menu-desktop', `Desktop site: ${page.desktop ? 'on' : 'off'}`, act('desktop')),
@@ -566,6 +567,36 @@ function settingsPanel(s: ChromeState): Node[] {
       items.push(say(`This keeps a child with the remote out. It does not stop someone with a keyboard and the files: deleting lock.json in ${st.dataFolder} removes the lock, which is also what to do if the PIN is forgotten.`), back);
       return items;
     }
+    case 'extensions': {
+      const items: Node[] = [
+        el('h1', { text: 'Extensions' }),
+        say('Extensions come from the Chrome Web Store. Open the store, go to an extension\'s page, then choose "Add this extension" on the menu\'s page about the site.'),
+        button('ext-store', 'Open the Chrome Web Store', () => tell({ kind: 'open', input: 'https://chromewebstore.google.com/category/extensions' })),
+      ];
+      st.extensions.forEach((x, i) => {
+        const id = `ext-remove-${i}`;
+        if (x.opens) items.push(button(`ext-open-${i}`, `Open "${x.name}"`, () => tell({ kind: 'extension', op: 'open', id: x.id })));
+        else items.push(say(`"${x.name}" (${x.version}) has no page of its own.`));
+        items.push(
+          button(id, confirming === id ? `Press again to remove "${x.name}"` : `Remove "${x.name}"`, () => {
+            if (confirming === id) {
+              confirming = null;
+              tell({ kind: 'extension', op: 'remove', id: x.id });
+            } else {
+              confirming = id;
+              render();
+            }
+          }),
+        );
+      });
+      if (!st.extensions.length) items.push(say('None are installed.'));
+      items.push(
+        button('ext-updates', `Look for newer versions of extensions every day: ${yesNo(st.extensionUpdates)}`, set('extensionUpdates', st.extensionUpdates ? false : null)),
+        say(`Not every extension works: ${PRODUCT.name} is not Chrome, and some need things it does not have. They are made for a mouse; pointer mode helps. Extensions do not run in private tabs or in apps that keep their own sign-ins.`),
+        back,
+      );
+      return items;
+    }
     case 'updates': {
       const u = st.update;
       const words = { install: u.canInstall ? 'installed by themselves' : 'looked for, and you are told', tell: 'looked for, and you are told', off: 'not looked for' } as const;
@@ -610,6 +641,7 @@ function settingsPanel(s: ChromeState): Node[] {
         button('settings-lock', `Parental lock: ${st.lock ? 'PIN set' : 'no PIN'}`, go('lock')),
         button('settings-profiles', 'Profiles and apps', go('profiles')),
         button('settings-downloads', 'Downloads', go('downloads')),
+        button('settings-extensions', `Extensions (${st.extensions.length})`, go('extensions')),
         button('settings-remote', 'Remote and keyboard buttons', go('remote')),
         button('settings-updates', 'New versions', go('updates')),
         say(`Settings are kept in config.json in ${st.dataFolder}.`),
@@ -762,6 +794,17 @@ function promptPanel(s: ChromeState): Node[] {
       el('p', { text: `A profile is settings, not a program: it tells ${PRODUCT.name} where things are on a site and cannot run anything. Your answer is remembered.` }),
       button('prompt-allow', 'Use it', answer(true)),
       button('prompt-deny', 'Do not use it', answer(false)),
+    ];
+  }
+  if (s.prompt?.what === 'extension') {
+    return [
+      el('h1', { text: 'Add this extension?' }),
+      el('p', { cls: 'where', text: `${s.prompt.name} (version ${s.prompt.version})` }),
+      el('p', { text: 'It will be able to:' }),
+      ...s.prompt.can.map((c) => el('p', { text: `• ${c}` })),
+      el('p', { text: `An extension is a program written by someone else. ${PRODUCT.name} has not looked at it. Add it only if you trust who made it.` }),
+      button('prompt-allow', 'Add it', answer(true)),
+      button('prompt-deny', 'Do not add it', answer(false)),
     ];
   }
   if (s.prompt?.what === 'download') {

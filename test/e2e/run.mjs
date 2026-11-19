@@ -2,7 +2,7 @@
 // DevTools Protocol against invented fixture pages served from this machine.
 // Run with `npm run e2e` (needs a display; `xvfb-run -a npm run e2e` headless).
 import { createServer } from 'node:http';
-import { createHash } from 'node:crypto';
+import { createHash, generateKeyPairSync } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -1468,6 +1468,57 @@ await scenario('a new version that is not what the release says is left alone', 
   await sleep(500);
   check('a package whose checksum is not the one stated is not installed', [state.installed ?? null, state.available, readFileSync(join(app.userData, 'pkg', 'Longboard.AppImage'), 'utf8'), readdirSync(join(app.userData, 'pkg'))], [null, '99.0.0', 'the old package', ['Longboard.AppImage']]);
   check('and the log says why', /could not be installed .*not the one the release describes/.test(app.log), true);
+});
+
+// A store extension is known by a key in its manifest, and its name in the store is made from that key.
+// A key is made up here for the made-up extension.
+const fixtureKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).publicKey.export({ type: 'spki', format: 'der' });
+const fixtureExtensionId = [...createHash('sha256').update(fixtureKey).digest('hex').slice(0, 32)].map((c) => String.fromCharCode(97 + parseInt(c, 16))).join('');
+await scenario('an extension', {
+  url: `${site.origin}/home.html`,
+  seed: (data) => {
+    const to = join(data, 'Extensions', fixtureExtensionId, '1.0.0_0');
+    mkdirSync(to, { recursive: true });
+    for (const f of ['mark.js', 'options.html']) copyFileSync(join(root, 'test/fixtures/extension', f), join(to, f));
+    writeFileSync(join(to, 'manifest.json'), JSON.stringify({ ...JSON.parse(readFileSync(join(root, 'test/fixtures/extension/manifest.json'), 'utf8')), key: fixtureKey.toString('base64') }));
+  },
+}, async (app) => {
+  const page = await app.page(site.origin);
+  const chrome = await app.chrome();
+  const reach = async (id) => {
+    for (let i = 0; i < 30 && (await chrome.focused()) !== id; i++) await chrome.press('ArrowDown');
+    return chrome.focused();
+  };
+  await sleep(1200);
+  check('an installed extension runs on the pages that are opened', await until(() => page.evaluate('document.documentElement.getAttribute("data-fixture-extension")'), (v) => v === 'ran', 30), 'ran');
+  check('a page that is not an extension\'s page in the store is not offered one', (await page.press('ContextMenu', 500), await siteMenu(chrome), await chrome.evaluate('document.getElementById("menu-add-extension")')), null);
+  await chrome.press('Escape', 300);
+  await reach('menu-settings');
+  await chrome.press('Enter', 400);
+  check('Settings counts the extensions', await chrome.evaluate('document.getElementById("settings-extensions")?.textContent'), 'Extensions (1)');
+  await reach('settings-extensions');
+  await chrome.press('Enter', 400);
+  const listed = await chrome.evaluate('[...document.querySelectorAll("#panel button")].map((b) => b.textContent)');
+  check('and lists each with a way to open it and to remove it', listed.slice(0, 3), ['Open the Chrome Web Store', 'Open "Longboard fixture extension"', 'Remove "Longboard fixture extension"']);
+  await reach('ext-open-0');
+  await chrome.press('Enter', 1200);
+  const own = await app.view((u) => u.startsWith('chrome-extension://') && u.endsWith('/options.html'), 40);
+  check('"Open" shows the extension\'s own page in the tab', own && (await own.evaluate('document.title')), 'Fixture extension settings');
+  if (!own) return;
+  await sleep(600);
+  await own.press('ArrowRight', 300);
+  await own.press('ArrowRight', 300);
+  check('and the arrows move on it as on any page', await own.evaluate('document.querySelector("[data-longboard-focus]")?.id ?? null'), 'two');
+  await own.press('ContextMenu', 500);
+  await reach('menu-settings');
+  await chrome.press('Enter', 400);
+  await reach('settings-extensions');
+  await chrome.press('Enter', 400);
+  await reach('ext-remove-0');
+  await chrome.press('Enter', 300);
+  check('removing asks for a second press', await chrome.evaluate('document.getElementById("ext-remove-0").textContent'), 'Press again to remove "Longboard fixture extension"');
+  await chrome.press('Enter', 900);
+  check('and then it is gone, from Settings and from disk', [await until(() => chrome.evaluate('document.querySelector("#panel")?.textContent.includes("None are installed.")'), (v) => v === true, 30), existsSync(join(app.userData, 'Extensions', fixtureExtensionId))], [true, false]);
 });
 
 await scenario('settings that change how sites are shown', { url: `${site.origin}/video.html`, config: { theme: 'dark', httpsOnly: true, autoplay: false }, args: [mapHost] }, async (app) => {
