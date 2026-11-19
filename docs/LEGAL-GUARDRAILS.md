@@ -39,10 +39,10 @@ What remains forbidden, by the rules that are left:
 - Skipping or hiding advertising inside a video stream, and defeating a
   site's detection of ad blocking (rule 5).
 
-What no rule forbids any longer **[the agent's reading; say if it is not what
-was meant]**: region or VPN workarounds, and changing pages on sites that
-are not protected by rules 2, 3 and 5. Neither has been built, and the agent
-will not build either without being asked.
+What no rule forbids any longer (confirmed by Andrew, 2026-11-19: "Now that
+rule 4 is gone they aren't forbidden"): region or VPN workarounds, and
+changing pages on sites, within rules 2, 3 and 5. Neither has been built;
+each would be an ordinary recorded decision.
 
 ## Ad blocking
 

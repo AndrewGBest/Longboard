@@ -1,0 +1,44 @@
+# Publishes a GitHub release when a version tag (v1.2.3) is pushed: the same
+# checks and packages as "Build packages", then the release with the packages
+# attached. Copies of Longboard look at the latest release for new versions
+# (src/shared/update.ts), so a tag is pushed only when a release is meant.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: The tag must be the version in package.json
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      - run: npm ci
+      - run: npm run check
+      - run: xvfb-run -a npm run e2e
+      - run: npx electron-builder --linux --publish never
+      - name: Install Flatpak tooling and runtimes
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder elfutils
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08 org.electronjs.Electron2.BaseApp//25.08
+      - name: Build the Flatpak bundle
+        run: npx electron-builder --linux flatpak --publish never
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l release/
+          gh release create "$GITHUB_REF_NAME" release/*.AppImage release/*.tar.gz release/*.flatpak \
+            --title "Longboard ${GITHUB_REF_NAME#v}" --notes-file docs/RELEASE-NOTES.md

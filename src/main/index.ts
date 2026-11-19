@@ -193,7 +193,8 @@ async function main(): Promise<void> {
   const updater = new Updater({
     current: app.getVersion(),
     feed,
-    hosts: value('updates') ? [new URL(feed).host] : ['github.com'],
+    // Packages come from GitHub's release pages; a scripted run may also use the made-up host it points at.
+    hosts: value('updates') ? ['github.com', new URL(feed).host] : ['github.com'],
     folder: data,
     // An AppImage says where its file is; no other kind of package can replace itself.
     target: process.env['APPIMAGE'] || null,
