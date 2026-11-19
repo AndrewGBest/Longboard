@@ -179,7 +179,7 @@ let nextPort = 9300 + Math.floor(Math.random() * 400);
  * default window), unless a scenario passes --zoom=. Running everything at
  * a scale of 1 once hid a pointer bug that every real TV would have shown.
  */
-export async function launch({ url, config, args = [], width, height, seed } = {}) {
+export async function launch({ url, config, args = [], width, height, seed, env = {} } = {}) {
   const port = nextPort++;
   const userData = mkdtempSync(join(tmpdir(), 'longboard-e2e-'));
   // Searches go to a name that can never resolve, so a test never contacts a search engine.
@@ -190,7 +190,7 @@ export async function launch({ url, config, args = [], width, height, seed } = {
     electronPath,
     [root, '--dev', '--automation', ...(width ? [`--size=${width}x${height}`] : []), ...(url ? [`--url=${url}`] : []), `--downloads=${join(userData, 'downloads')}`, ...args, `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--no-sandbox', '--disable-gpu'],
     // The desktop's app list is kept inside the throw-away folder too: a test never writes to the real one.
-    { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, XDG_DATA_HOME: join(userData, 'xdg') } },
+    { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, XDG_DATA_HOME: join(userData, 'xdg'), ...(typeof env === 'function' ? env(userData) : env) } },
   );
   const app = { child, userData, log: '' };
   child.stdout.on('data', (d) => (app.log += d));

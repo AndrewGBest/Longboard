@@ -18,11 +18,12 @@
 // wins over the built-in one for that key.
 import type { Action } from './actions';
 import { isSearchTemplate } from './address';
+import { UPDATE_MODES, type UpdateMode } from './update';
 import { BLOCKING_MODES, blockingMode, MAX_LISTS, parseDomains, parseFilterLists, type BlockingMode } from './adblock';
 
 /** The kinds of access the person can say no site may ask for (the names main/permissions.ts asks about). */
 export const NEVER_ASKABLE = ['camera', 'microphone', 'location', 'notifications', 'clipboard', 'midi', 'pointerLock'] as const;
-const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress'] as const;
+const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress', 'updates'] as const;
 
 export const ACTION_NAMES = [
   'up', 'down', 'left', 'right', 'select', 'back', 'playPause',
@@ -66,6 +67,8 @@ export interface UserConfig {
   blockTrackers?: boolean;
   /** Keep this device's address on the home network from sites that set up calls (WebRTC). */
   hideLocalAddress?: boolean;
+  /** New versions: "install" them (the usual), only "tell", or "off" to never look. */
+  updates?: UpdateMode;
   /** Clear what sites have stored each time the program closes. */
   clearOnExit?: boolean;
   /** Set to false to keep no history of the pages opened. */
@@ -140,6 +143,10 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
   if (r['theme'] !== undefined) {
     if (r['theme'] === 'dark' || r['theme'] === 'light') config.theme = r['theme'];
     else problems.push('"theme" must be "dark" or "light"');
+  }
+  if (r['updates'] !== undefined) {
+    if ((UPDATE_MODES as readonly unknown[]).includes(r['updates'])) config.updates = r['updates'] as UpdateMode;
+    else problems.push('"updates" must be "install", "tell" or "off"');
   }
   if (r['history'] !== undefined) {
     if (typeof r['history'] === 'boolean') config.history = r['history'];

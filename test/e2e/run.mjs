@@ -4,7 +4,7 @@
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { check, fail, failureCount, launch, root, serveFixtures, sleep, until } from './harness.mjs';
 
@@ -46,6 +46,8 @@ function pngSquare(size, [r, g, b]) {
 }
 const siteIcon = pngSquare(32, [40, 120, 200]);
 
+/** What stands for a newer package in the update checks. */
+const newPackage = Buffer.from('#!/bin/sh\n# a made-up newer package\n'.repeat(200));
 /** What the made-up site was asked for, for the download checks. */
 const asks = { file: 0, made: 0, slow: [], adverts: 0, bigIcon: 0, maskIcon: 0 };
 const site = await serveFixtures({
@@ -90,6 +92,16 @@ const site = await serveFixtures({
     asks.maskIcon += 1;
     res.writeHead(200, { 'content-type': 'image/png' }).end(siteIcon);
   },
+  // A made-up release feed and the package it describes.
+  '/releases/latest': (req, res) =>
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({ tag_name: 'v99.0.0', draft: false, prerelease: false, assets: [{ name: 'Longboard-x86_64.AppImage', browser_download_url: `http://${req.headers.host}/releases/package`, size: newPackage.length, digest: `sha256:${createHash('sha256').update(newPackage).digest('hex')}` }] }),
+    ),
+  '/releases/tampered': (req, res) =>
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({ tag_name: 'v99.0.0', assets: [{ name: 'Longboard-x86_64.AppImage', browser_download_url: `http://${req.headers.host}/releases/package`, size: newPackage.length, digest: `sha256:${'0'.repeat(64)}` }] }),
+    ),
+  '/releases/package': (_req, res) => res.writeHead(200, { 'content-type': 'application/octet-stream' }).end(newPackage),
   // What a request arrived with, by header name.
   '/headers': (req, res) => res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify(req.headers)),
   '/site.js': (_req, res) => res.writeHead(200, { 'content-type': 'text/javascript', 'cache-control': 'no-store' }).end('window.__seen.push("site");'),
@@ -1424,6 +1436,38 @@ await scenario('the parental lock', { url: `${site.origin}/home.html` }, async (
   await chrome.press('Enter', 500);
   await four();
   check('the right PIN opens Settings', await title(), 'Settings');
+});
+
+const oldPackage = (data) => ({ APPIMAGE: (mkdirSync(join(data, 'pkg'), { recursive: true }), writeFileSync(join(data, 'pkg', 'Longboard.AppImage'), 'the old package'), join(data, 'pkg', 'Longboard.AppImage')) });
+await scenario('a new version is fetched, checked and put in place', { args: [`--updates=${site.origin}/releases/latest`], env: oldPackage }, async (app) => {
+  const chrome = await app.chrome();
+  const file = join(app.userData, 'pkg', 'Longboard.AppImage');
+  const reach = async (id) => {
+    for (let i = 0; i < 30 && (await chrome.focused()) !== id; i++) await chrome.press('ArrowDown');
+    return chrome.focused();
+  };
+  const state = await until(() => (existsSync(join(app.userData, 'update.json')) ? JSON.parse(readFileSync(join(app.userData, 'update.json'), 'utf8')) : {}), (s) => s.installed, 60);
+  check('a newer release is noticed and installed at start', state.installed, '99.0.0');
+  check('the package this copy was started from is now the new one, and can be run', [readFileSync(file).equals(newPackage), (statSync(file).mode & 0o111) !== 0, readdirSync(join(app.userData, 'pkg'))], [true, true, ['Longboard.AppImage']]);
+  await until(() => chrome.focused(), (id) => id === 'go');
+  await chrome.press('ContextMenu', 500);
+  await reach('menu-settings');
+  await chrome.press('Enter', 400);
+  await reach('settings-updates');
+  await chrome.press('Enter', 400);
+  const said = await chrome.evaluate('document.getElementById("panel").textContent');
+  check('Settings says so, and says what is asked of whom', [said.includes('Version 99.0.0 is in place: close and open Longboard to use it.'), said.includes('asks GitHub whether there is a newer release'), await chrome.evaluate('document.getElementById("set-updates").textContent')], [true, true, 'New versions are: installed by themselves']);
+  await reach('set-updates');
+  await chrome.press('Enter', 400);
+  await chrome.press('Enter', 400);
+  check('and can turn looking off', [await chrome.evaluate('document.getElementById("set-updates").textContent'), JSON.parse(readFileSync(join(app.userData, 'config.json'), 'utf8')).updates], ['New versions are: not looked for', 'off']);
+});
+await scenario('a new version that is not what the release says is left alone', { args: [`--updates=${site.origin}/releases/tampered`], env: oldPackage }, async (app) => {
+  await app.chrome();
+  const state = await until(() => (existsSync(join(app.userData, 'update.json')) ? JSON.parse(readFileSync(join(app.userData, 'update.json'), 'utf8')) : {}), (s) => s.checkedAt, 60);
+  await sleep(500);
+  check('a package whose checksum is not the one stated is not installed', [state.installed ?? null, state.available, readFileSync(join(app.userData, 'pkg', 'Longboard.AppImage'), 'utf8'), readdirSync(join(app.userData, 'pkg'))], [null, '99.0.0', 'the old package', ['Longboard.AppImage']]);
+  check('and the log says why', /could not be installed .*not the one the release describes/.test(app.log), true);
 });
 
 await scenario('settings that change how sites are shown', { url: `${site.origin}/video.html`, config: { theme: 'dark', httpsOnly: true, autoplay: false }, args: [mapHost] }, async (app) => {

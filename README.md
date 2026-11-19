@@ -77,7 +77,8 @@ Compared with a mainstream browser, today:
 - A site is asked about before it gets the camera, microphone, location,
   notifications, the clipboard, MIDI or the pointer. USB, serial and screen
   capture are refused: they need a chooser Longboard does not have yet.
-- No packages, no automatic updates.
+- No published release yet. Once there is one, a copy run as an AppImage
+  looks for new releases daily and installs them; Settings can turn that off.
 
 ## What it will not do
 

@@ -12,7 +12,9 @@ export const BACKGROUND =
   'Longboard-Profiles repository on GitHub; the whole list is fetched, so nothing is revealed about the sites you visit. ' +
   'Put "catalogue": false in config.json to stop it. ' +
   'For ad blocking it downloads a public filter list, EasyList, from its authors at easylist.to every four days, also whole. ' +
-  'Put "adBlocking": false in config.json to leave ad blocking out and stop that download.';
+  'Put "adBlocking": false in config.json to leave ad blocking out and stop that download. ' +
+  `Once a day it asks GitHub whether there is a newer release of ${PRODUCT.name}; Settings, under New versions, can stop that. ` +
+  'The browser engine itself downloads the component that plays protected video (Widevine) from Google and keeps it up to date; that one cannot be turned off here.';
 
 export const HELP: readonly (readonly [string, string])[] = [
   ['Arrows or D-pad', 'Move'],

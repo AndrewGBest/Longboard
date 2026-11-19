@@ -8,6 +8,10 @@ import { DEFAULT_INDEX_URL } from '../shared/catalogue';
 import { blockingMode, DEFAULT_FILTER_LISTS, effectiveVerified, parseVerified } from '../shared/adblock';
 import { changeSetting, resetSettings } from '../shared/settings';
 import { listsInUse } from '../shared/privacy';
+import { RELEASE_FEED, updateMode, updateWords, type UpdateState } from '../shared/update';
+import { Updater } from './update';
+import { createHash } from 'node:crypto';
+import { createWriteStream } from 'node:fs';
 import { FilterStore } from './adblock';
 import { createBrowser } from './browser';
 import { refreshCatalogue } from './catalogue';
@@ -185,6 +189,41 @@ async function main(): Promise<void> {
   // The look sites are asked for (their dark or light one), when the person chose.
   nativeTheme.themeSource = config.theme ?? 'system';
 
+  const feed = value('updates') ?? RELEASE_FEED;
+  const updater = new Updater({
+    current: app.getVersion(),
+    feed,
+    hosts: value('updates') ? [new URL(feed).host] : ['github.com'],
+    folder: data,
+    // An AppImage says where its file is; no other kind of package can replace itself.
+    target: process.env['APPIMAGE'] || null,
+    arch: process.arch,
+    fetchJson: async (url) => JSON.parse((await fetchBytes(url, 2_000_000)).toString('utf8')) as unknown,
+    download: async (url, to, maxBytes) => {
+      const response = await fetcher.fetch(url, { credentials: 'omit', cache: 'no-store' });
+      if (!response.ok || !response.body) throw new Error(`${response.status} for the package`);
+      const hash = createHash('sha256');
+      const out = createWriteStream(to, { mode: 0o600 });
+      let size = 0;
+      try {
+        const reader = response.body.getReader();
+        for (;;) {
+          const { done, value: chunk } = await reader.read();
+          if (done) break;
+          size += chunk.byteLength;
+          if (size > maxBytes) throw new Error('the package is larger than the release says');
+          hash.update(chunk);
+          if (!out.write(chunk)) await new Promise<void>((resolve) => out.once('drain', () => resolve()));
+        }
+      } finally {
+        await new Promise<void>((resolve) => out.end(() => resolve()));
+      }
+      return { size, sha256: hash.digest('hex') };
+    },
+    now: () => Date.now(),
+    note,
+  });
+
   const browser = createBrowser({
     options,
     config,
@@ -215,6 +254,8 @@ async function main(): Promise<void> {
       },
       reset: () => saveConfig(resetSettings(rawConfig)),
       refreshCatalogue: () => fetchCatalogue(true),
+      update: () => ({ words: updateWords(app.getVersion(), updater.state, updateMode(config.updates)), mode: updateMode(config.updates), canInstall: updater.canInstall() }),
+      lookForUpdate: () => lookForUpdate(true),
     },
   });
   void readyFilters(value('filters') !== undefined);
@@ -232,6 +273,17 @@ async function main(): Promise<void> {
     if (wantedApp) browser.openApp(wantedApp);
     else if (address) browser.openAddress(address);
   });
+  // New versions (shared/update.ts): looked for at start and once a day,
+  // unless Settings says not to. A scripted run looks only when pointed at a
+  // release feed of its own.
+  const lookForUpdate = (force = false): Promise<UpdateState> => {
+    const mode = updateMode(config.updates);
+    if (mode === 'off' || (options.automation && !value('updates'))) return Promise.resolve(updater.state);
+    return updater.check(mode === 'install', force);
+  };
+  void lookForUpdate(value('updates') !== undefined);
+  setInterval(() => void lookForUpdate(), 60 * 60 * 1000).unref();
+
   // "Clear what sites stored when Longboard closes": done before the program goes, once.
   let cleared = false;
   app.on('before-quit', (event) => {

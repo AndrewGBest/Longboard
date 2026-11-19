@@ -2,6 +2,38 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-18, end: the rules gone over, rule 4 removed, automatic updates
+
+Andrew had every Hard rule scrutinised for a whole browser, then: removed
+rule 4, changed rules 10 and 12, kept rule 3, and asked for automatic updates
+from GitHub releases. `docs/LEGAL-GUARDRAILS.md` was rewritten to match.
+Details and every assumption are in DECISIONS.md.
+
+**Built:** a daily check for a new release; an AppImage fetches it, checks it
+against the SHA-256 the release states, and replaces itself for the next
+start; other packages are told. Settings has "New versions" (install, only
+tell, off; look now). About now also discloses the Widevine download.
+
+**Verified, and how:** unit tests (version order, the feed, the setting, and
+installing with made-up files: a good package replaces the old one, a wrong
+checksum, a missing checksum, an older release and an unreadable feed leave
+it alone). End to end, two scenarios against a made-up feed: the file the
+app was "started from" is replaced and executable, Settings says so and can
+turn looking off; a package with the wrong checksum is left alone and logged.
+
+**Not verified:**
+
+- Anything against GitHub itself: no release exists, and the agent may not
+  publish one. The asset's file name and GitHub's `digest` field are assumed.
+- A real AppImage replacing itself while running, and starting afterwards.
+- A download of real size on a slow connection, or cut off half way.
+- Nothing signs releases; the checksum guards the download, not the publisher.
+
+**Open for Andrew:** whether "no region or VPN workarounds" and "pages are
+not changed" were meant to go with rule 4 (LEGAL-GUARDRAILS.md, "With rule 4
+gone"); rules 1 and 5 still have lagging wording; a password store is now
+allowed but not built.
+
 ## 2026-11-18, after that: Do Not Track, privacy settings, a PIN, reader view, desktop site, better icons
 
 Andrew asked for all six (DECISIONS.md has his words and every choice made).
@@ -55,9 +87,7 @@ Andrew asked for all six (DECISIONS.md has his words and every choice made).
 - Icons from real sites' manifests; an SVG icon.
 - Any of it by a person on a TV.
 
-**Open for Andrew:** Hard rule 4 as written forbids adding headers, and the
-two signals are added by his decision. The rule's wording was left alone;
-DECISIONS.md suggests an amendment.
+*(Rule 4 was removed later the same day; see above.)*
 
 ## 2026-11-18, last of the day: features to stand beside the major browsers
 

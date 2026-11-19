@@ -40,6 +40,7 @@ import { desktopZoom, hoverPoint, pageBounds, tvZoom } from './zoom';
 import { filterSession, type FilterSet } from './adblock';
 import { privacySignals } from './signals';
 import { parseArticle, type Article } from '../shared/reader';
+import type { UpdateMode } from '../shared/update';
 import { homeSites, isPin, onHomeSite, parseLock, waitAfter, type Lock } from '../shared/lock';
 import { checkPin, makeLock } from './lock';
 import { blockingOn, cleanDomain, editStartsOff, isVerified, startsOffEntries, type BlockingMode } from '../shared/adblock';
@@ -86,7 +87,14 @@ export interface BrowserDeps {
     refresh: () => Promise<boolean>;
   };
   /** The Settings screen's way to config.json. `set` is false when the value is not one the setting can take. */
-  settings: { set: (name: string, value: unknown) => boolean; reset: () => void; refreshCatalogue: () => Promise<boolean> };
+  settings: {
+    set: (name: string, value: unknown) => boolean;
+    reset: () => void;
+    refreshCatalogue: () => Promise<boolean>;
+    /** New versions: where things stand in words, the setting, and whether this copy can replace itself. */
+    update: () => { words: string; mode: UpdateMode; canInstall: boolean };
+    lookForUpdate: () => Promise<unknown>;
+  };
 }
 
 /** Share of the window's width the menu panel takes over a website. */
@@ -409,6 +417,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
             downloads: downloadsDir(),
             dataFolder: dataDir,
             httpsOnly: config.httpsOnly === true,
+            update: deps.settings.update(),
             lock: lock ? { homeOnly: lock.homeOnly } : null,
             doNotTrack: config.doNotTrack === true,
             blockTrackers: config.blockTrackers === true,
@@ -863,7 +872,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   eachPage((wc) => wc.on('will-navigate', (e, url) => {
     if (wc !== page || !allowed(url)) e.preventDefault();
   }));
-  // Frames inside a page are the site's own business (Hard rule 4); only
+  // Frames inside a page are the site's own business; only
   // where the view itself goes is checked.
   eachPage((wc) => wc.on('will-redirect', (e, url, _isInPlace, isMainFrame) => {
     if (!isMainFrame) return;
@@ -2190,6 +2199,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
         void deps.settings.refreshCatalogue().then((ok) => {
           if (panel === 'settings') layout();
           notify(ok ? 'Reviewed profiles are up to date' : 'Reviewed profiles could not be downloaded');
+        });
+        break;
+      case 'checkUpdate':
+        notify('Looking for a new version');
+        void deps.settings.lookForUpdate().then(() => {
+          if (panel === 'settings') layout();
+          notify(deps.settings.update().words);
         });
         break;
       case 'reset':

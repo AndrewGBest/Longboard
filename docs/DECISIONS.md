@@ -3,6 +3,52 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-18: the Hard rules gone over for a whole browser; automatic updates
+
+Andrew asked for every rule to be scrutinised now that Longboard is a browser
+and not Tropic Video. The agent's review kept seven as they were and put five
+to him. **His decisions:**
+
+- **Rule 4 is removed.** ("Remove rule 4.") Its number is kept so references
+  to the other rules stay right. Nothing Longboard does changed with it; see
+  "With rule 4 gone" in LEGAL-GUARDRAILS.md for what the remaining rules
+  still forbid, and for the agent's reading of what they no longer do.
+- **Rule 10** now lets Longboard keep a password when the person asks,
+  encrypted with the system keyring, on the machine only. Everything about
+  agents, scripts, logs and commits is unchanged. No password store is built.
+- **Rule 12** no longer names two background requests. Every such request
+  must be disclosed in Settings, be possible to turn off there, and be a
+  recorded decision. **The agent added one sentence Andrew did not see
+  first:** the engine's own download of the Widevine component cannot be
+  turned off by Longboard and is disclosed. Without it the rule would be
+  untrue. That download was missing from the rule and from Settings before
+  today; About now says it.
+- **Rule 3 stays.**
+- **Rule 14: automatic updates from GitHub releases.** Built; below.
+- Rules 1 and 5 have wording that lags what was decided (dependencies; the
+  setting over all sites). Andrew did not ask for those to be reworded, so
+  they are not; LEGAL-GUARDRAILS.md describes them as they are applied.
+
+The rule check lost its rule-4 checks (changing traffic, touching a video
+element, the limits on the Do Not Track module). The limits on the
+ad-blocking module stay, under rule 5.
+
+**Automatic updates, each choice the agent's assumption:**
+
+| Choice | As built | Why |
+|---|---|---|
+| Where from | GitHub's public API for this repository's latest release, once a day and at start | What Andrew asked for. One request, no identifier |
+| Written here, not a library | About 250 lines | The usual library needs files a release would have to carry and cannot be tested without a real release; this can be, against a made-up feed |
+| What can replace itself | Only an AppImage, in a folder it can write to. The new file takes the old one's place in one step and is used from the next start | It is the one package that is a single file the person owns. A Flatpak is updated by Flatpak; an unpacked folder is told a new version is out |
+| Trust | The package is installed only if the release states its SHA-256 and the file has it. Only later versions; never drafts or pre-releases | Guards against a damaged or swapped download. **It is not a signature:** whoever can publish a release on the repository can publish an update. Signing needs a key Andrew would hold |
+| Setting | Install (as shipped), only tell, or off; a button to look now | Rule 12: disclosed, and can be turned off |
+| Restart | Not forced. Settings says a new version is in place | A TV browser should not close under someone watching |
+
+**No release exists yet, and the agent is not to publish one.** So this has
+only ever run against made-up feeds. Before the first release that relies on
+it: confirm the AppImage's file name is the one looked for
+(`Longboard-x86_64.AppImage`), and that GitHub's API states a `digest` for it.
+
 ## 2026-11-18: Andrew asks for Do Not Track, privacy features, a PIN, reader view, desktop site, and icons
 
 Andrew, in chat, after reading the "not built" table in the entry below:
@@ -27,15 +73,13 @@ It is built as narrowly as it can be:
   setting on. **Off as shipped (assumption):** Brave ships Global Privacy
   Control on, but Longboard's first job is streaming sites working as their
   owners intend, so adding anything is the person's choice.
-- It changes and removes no other header and never sees a reply. The rule
-  check allows request headers to be touched in that module only, fails if
-  the module names any other header, and fails if the signals are anything
-  but those two.
+- It changes and removes no other header and never sees a reply. A unit
+  test holds it to those two. (The rule check also did, until rule 4 was removed.)
 - **Not done:** the page-side half of Global Privacy Control
   (`navigator.globalPrivacyControl`). Setting it would mean putting script
   into pages, which Longboard does not do. Sites that read the signal on
   their servers get it; a script that reads only the page-side property does not.
-- **The wording of rule 4 in CLAUDE.md has not been changed.** The agent does
+- *(Later the same day Andrew removed rule 4; see the entry above.)* **The wording of rule 4 in CLAUDE.md has not been changed.** The agent does
   not reword Hard rules. As written the rule and this feature disagree;
   Andrew should amend it. Suggested: after "on any site" add "except the two
   standard do-not-track signals (DNT, Sec-GPC), added only when the person

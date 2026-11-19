@@ -84,6 +84,8 @@ export interface ChromeState {
     downloads: string;
     dataFolder: string;
     httpsOnly: boolean;
+    /** New versions: where things stand, the setting, and whether this copy can replace itself. */
+    update: { words: string; mode: 'install' | 'tell' | 'off'; canInstall: boolean };
     /** The parental lock, when a PIN is set. */
     lock: { homeOnly: boolean } | null;
     doNotTrack: boolean;
@@ -178,8 +180,8 @@ export type ChromeMessage =
   /** `remember` false is "not now": the question comes again another time. */
   | { kind: 'answer'; allow: boolean; remember?: boolean };
 
-export type SettingsAction = 'clearSiteData' | 'clearCache' | 'clearHome' | 'clearHistory' | 'clearAll' | 'forgetSites' | 'updateFilters' | 'updateCatalogue' | 'reset';
-export const SETTINGS_ACTIONS: readonly SettingsAction[] = ['clearSiteData', 'clearCache', 'clearHome', 'clearHistory', 'clearAll', 'forgetSites', 'updateFilters', 'updateCatalogue', 'reset'];
+export type SettingsAction = 'clearSiteData' | 'clearCache' | 'clearHome' | 'clearHistory' | 'clearAll' | 'forgetSites' | 'updateFilters' | 'updateCatalogue' | 'checkUpdate' | 'reset';
+export const SETTINGS_ACTIONS: readonly SettingsAction[] = ['clearSiteData', 'clearCache', 'clearHome', 'clearHistory', 'clearAll', 'forgetSites', 'updateFilters', 'updateCatalogue', 'checkUpdate', 'reset'];
 
 export type EditAction = 'include' | 'exclude' | 'row' | 'player' | 'wider' | 'narrower' | 'pickAgain' | 'save' | 'discard';
 export const EDIT_ACTIONS: readonly EditAction[] = ['include', 'exclude', 'row', 'player', 'wider', 'narrower', 'pickAgain', 'save', 'discard'];

@@ -1,24 +1,48 @@
 # Longboard: guardrails and why
 
 Not legal advice. These are the lines the project has chosen to stay behind,
-most of them inherited from Tropic Video, with the reasoning for each. The
-short form is the Hard rules list in [CLAUDE.md](../CLAUDE.md).
+with the reasoning for each. Longboard began from Tropic Video, a client for
+streaming sites, and several rules came from there; they were gone over on
+2026-11-18 for what Longboard now is, a general web browser for a TV, and
+Andrew removed one and changed two (DECISIONS.md). The short form is the Hard
+rules list in [CLAUDE.md](../CLAUDE.md); the numbers match.
 
-| Rule | Why |
-|---|---|
-| No third-party material in the repo | Copying a service's code, artwork, fonts or text is the plainest copyright problem a project like this can have. The Widevine module is never committed or bundled; the shell fetches it the normal way |
-| DRM is left alone | Circumventing access controls is unlawful in many places regardless of intent. Longboard uses the standard interface with the unmodified module and never works around a quality or output limit |
-| Honest identity | Claiming to be a TV, console or another system to get service not offered to a Linux browser is misrepresentation, and usually the first step of a DRM workaround |
-| Streaming services are not altered | No ad skipping, no region workarounds, no rewriting their pages or responses. This is what keeps Longboard a browser showing a site, not a modified client |
-| Ad blocking is a per-site switch with careful defaults | See below |
-| No trademarks in names, icons or artwork | Profile names may say which site they are for in plain text. Launcher entries use the site's own icon as served to the user's machine, never one stored in the repo |
-| Profiles are data | A profile that could run code would make the catalogue a way to attack users. Data-only profiles can be reviewed by reading them |
-| Selectors come from evidence | Keeps profiles honest and reviewable, and keeps guesses out |
-| No reverse engineering of services' apps | The only inputs are pages served to a signed-in browser |
-| Credentials are the user's business | Sign-in happens on the site's own page. Longboard never reads, logs or stores passwords or codes. Nothing from a signed-in session is ever committed |
-| Automation never spends money | Agent- or script-driven runs use the automation flag, which blocks purchase and sign-up controls |
-| Privacy by default | No telemetry. Outlines contain structure only. The two background downloads (profile index, filter lists) are disclosed |
-| Least privilege in the shell | Sandboxed, isolated pages; nothing exposed to them |
+| # | Rule | Why, for a browser |
+|---|---|---|
+| 1 | No third-party material in the repo | Copying a site's code, artwork, fonts or text is the plainest copyright problem a project like this can have. Open-source libraries are used as ordinary dependencies, each with its licence recorded in DECISIONS.md; filter lists and the Widevine module are fetched by each copy and never committed or bundled |
+| 2 | DRM is left alone | Circumventing access controls is unlawful in many places regardless of intent. Longboard uses the standard interface with the unmodified module and never works around a quality or output limit |
+| 3 | Honest identity | Claiming to be a TV, console or another system to get service not offered to a Linux browser is misrepresentation, and usually the first step of a DRM workaround. The cost is accepted: some sites treat a Linux browser worse. "Desktop site" changes only the width a site is given |
+| 4 | *Removed* | It said streaming services were not altered: no rewriting of responses, headers or scripts on any site, no region workarounds, and no direct control of a site's video. It was written for a streaming client. A browser legitimately does things it forbade (sending Do Not Track, showing a reader view), so Andrew removed it. What still holds is in the note below |
+| 5 | Ad blocking is a per-site switch with careful defaults | See below |
+| 6 | No trademarks in names, icons or artwork | Profile names and settings may name a site in plain text. Tiles and launcher entries use the site's own icon as served to the person's machine, never one stored in the repo |
+| 7 | Profiles are data | A profile that could run code would make the catalogue a way to attack users. Data-only profiles can be reviewed by reading them |
+| 8 | Selectors come from evidence | Keeps profiles honest and reviewable, and keeps guesses out |
+| 9 | No reverse engineering of services' apps | The only inputs are pages served to a browser |
+| 10 | Credentials are the user's business | An agent or script never types, reads or handles passwords or codes; they are never logged; nothing from a signed-in session is committed. Changed 2026-11-18: Longboard may keep a password when the person asks, encrypted with the system's keyring, on the machine only. **Nothing that keeps passwords has been built yet** |
+| 11 | Automation never spends money | Agent- or script-driven runs use the automation flag, which blocks purchase and sign-up controls |
+| 12 | Privacy by default | No telemetry. Changed 2026-11-18 from a fixed list of two background requests to a test every such request must pass: disclosed in Settings, can be turned off there, added only by a recorded decision. Today there are three of Longboard's own (the profile index, the filter lists, the check for a new version) and one the engine makes that cannot be turned off (the Widevine component) |
+| 13 | Least privilege in the shell | Sandboxed, isolated pages; nothing exposed to them; no way past a certificate error. Stricter than mainstream browsers on the last point, on purpose |
+| 14 | Stay current | A browser on an old engine is unsafe. The project updates the engine promptly, and each copy looks for a new release daily and, as an AppImage, installs it |
+
+## With rule 4 gone
+
+Removing the rule did not change what Longboard does. As of 2026-11-18 it
+still changes no response, puts no script or style into a page, and sends a
+site's player ordinary key presses rather than driving its video directly.
+Those are now how it is built, not promises, and changing any of them is an
+ordinary recorded decision.
+
+What remains forbidden, by the rules that are left:
+
+- Anything touching DRM, including getting round a quality or output limit (rule 2).
+- Claiming to be another device, system or browser (rule 3).
+- Skipping or hiding advertising inside a video stream, and defeating a
+  site's detection of ad blocking (rule 5).
+
+What no rule forbids any longer **[the agent's reading; say if it is not what
+was meant]**: region or VPN workarounds, and changing pages on sites that
+are not protected by rules 2, 3 and 5. Neither has been built, and the agent
+will not build either without being asked.
 
 ## Ad blocking
 
@@ -36,6 +60,9 @@ Video's rules, so the scope is written down carefully.
   everywhere, ignoring the list of sites where it starts off, or off
   everywhere. They can also edit that list for themselves. Longboard ships
   with neither: the starting positions above are what a new copy does.
+- **Trackers too, when asked** (Andrew, 2026-11-18): a setting adds the
+  public EasyPrivacy list. It works by the same per-site switch, so it is
+  off wherever ad blocking is off.
 - **What it is:** refusing network requests that match public filter lists,
   as many browsers do. As built: only requests are refused. Nothing on a
   page is hidden, no script is put into a page, no response or header is

@@ -1,4 +1,4 @@
-// The ad-blocking request filter (Hard rules 4 and 5). This is the only
+// The ad-blocking request filter (Hard rule 5). This is the only
 // module that may touch a website's requests, and all it ever does is refuse
 // one: it never redirects a request, changes a header, puts anything into a
 // page or hides anything on one. The shell asks, before each refusal, whether

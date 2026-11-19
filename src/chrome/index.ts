@@ -30,7 +30,7 @@ let menuPage: 'main' | 'site' = 'main';
 /** A list to choose one thing from, opened from a Settings page. */
 let choosing: 'search' | 'language' | 'ads' | 'theme' | null = null;
 /** Which page of Settings is showing. */
-type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote' | 'lock';
+type SettingsPage = 'main' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote' | 'lock' | 'updates';
 let settingsPage: SettingsPage = 'main';
 /** A button that clears something has been pressed once and waits for the second press. */
 let confirming: string | null = null;
@@ -566,6 +566,24 @@ function settingsPanel(s: ChromeState): Node[] {
       items.push(say(`This keeps a child with the remote out. It does not stop someone with a keyboard and the files: deleting lock.json in ${st.dataFolder} removes the lock, which is also what to do if the PIN is forgotten.`), back);
       return items;
     }
+    case 'updates': {
+      const u = st.update;
+      const words = { install: u.canInstall ? 'installed by themselves' : 'looked for, and you are told', tell: 'looked for, and you are told', off: 'not looked for' } as const;
+      const next = { install: 'tell', tell: 'off', off: null } as const;
+      return [
+        el('h1', { text: 'New versions' }),
+        say(`This is version ${s.version}. ${u.words}`),
+        button('set-updates', `New versions are: ${words[u.mode]}`, set('updates', next[u.mode])),
+        say(
+          u.canInstall
+            ? `Once a day ${PRODUCT.name} asks GitHub whether there is a newer release. A new one is downloaded, checked against the checksum the release states, and used from the next start.`
+            : `Once a day ${PRODUCT.name} asks GitHub whether there is a newer release. This copy was not started from an AppImage it can write to, so it cannot replace itself: it only tells you.`,
+        ),
+        say('The request names this project and nothing about you or the sites you visit.'),
+        once('check-update', 'Look for a new version now', 'checkUpdate'),
+        back,
+      ];
+    }
     case 'remote': {
       const items: Node[] = [el('h1', { text: 'Remote and keyboard buttons' })];
       if (st.capturing) {
@@ -593,6 +611,7 @@ function settingsPanel(s: ChromeState): Node[] {
         button('settings-profiles', 'Profiles and apps', go('profiles')),
         button('settings-downloads', 'Downloads', go('downloads')),
         button('settings-remote', 'Remote and keyboard buttons', go('remote')),
+        button('settings-updates', 'New versions', go('updates')),
         say(`Settings are kept in config.json in ${st.dataFolder}.`),
         twice('settings-reset', 'Put every setting back to the usual', 'Press again to put every setting back', 'reset'),
         button('settings-about', 'About and help', () => tell({ kind: 'menu', action: 'about' })),

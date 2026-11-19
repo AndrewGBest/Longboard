@@ -25,11 +25,9 @@ The reasoning for each is in `docs/LEGAL-GUARDRAILS.md`.
    only the app tokens removed. Never claim to be a TV, console, phone, another
    OS or another browser. Never invent device IDs or serials. No user-agent
    switcher.
-4. **Streaming services are not altered.** No in-stream ad skipping, no region
-   or VPN workarounds, no rewriting of responses, headers or scripts, on any
-   site. Requests are refused only by the ad-blocking switch in rule 5.
-   The layer adds its own UI and sends ordinary input. It never calls `play()`,
-   `pause()` or sets `currentTime` on a site's video.
+4. *(Removed by Andrew, 2026-11-18. Longboard is a whole browser, not a
+   client for streaming services. The number is kept so the other rules keep
+   theirs. Rules 2, 3 and 5 still stand.)*
 5. **Ad blocking is a per-site switch the person controls.** It starts off on
    verified sites (the reviewed list in the profiles repository), and on
    everywhere else. Never change the switch
@@ -50,18 +48,22 @@ The reasoning for each is in `docs/LEGAL-GUARDRAILS.md`.
 9. **No reverse engineering of services' apps.** The only inputs are pages
    served to a browser.
 10. **Credentials are the user's business.** Sign-in happens on the site's own
-    page. Never read, log or store passwords or one-time codes. The on-screen
-    keyboard may pass a person's own key picks to those fields; an agent or
-    script never types them, and under `--automation` the keyboard stays out of
-    them. Never commit cookies, profiles of browsing data, HAR files or
-    anything captured from a signed-in session.
+    page. An agent or script never types, reads or handles passwords or
+    one-time codes, and under `--automation` the on-screen keyboard stays out
+    of those fields; a person's own key picks may pass to them. Passwords and
+    codes are never logged. Longboard may keep a password only when the person
+    asks it to, encrypted with the system's keyring, on this machine only,
+    never synced or sent anywhere. Never commit cookies, profiles of browsing
+    data, HAR files or anything captured from a signed-in session.
 11. **Automation never spends money.** Any agent- or script-driven run uses
     `--automation`, which blocks purchase, rental, subscription and sign-up
     controls. Never disable or weaken the guard to get a test through.
 12. **Privacy by default.** No telemetry, analytics or crash upload. Outlines
-    contain structure only and are written locally. The only background
-    requests are the profile index and filter lists; both are disclosed in
-    Settings and neither reveals which sites are visited.
+    contain structure only and are written locally. Every request Longboard
+    makes by itself in the background is disclosed in Settings and can be
+    turned off there; adding one needs a recorded decision. The one it cannot
+    turn off is the engine's own download of the protected-playback
+    component, which is disclosed.
 13. **Least privilege in the shell.** Keep `contextIsolation: true`,
     `sandbox: true`, `nodeIntegration: false`, no `contextBridge` API exposed to
     web pages, default-deny permissions (a site gets camera, microphone,

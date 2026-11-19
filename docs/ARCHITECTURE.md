@@ -113,7 +113,7 @@ module that redirects, rewrites or injects.
 - **Matching** is done by the request matcher of Ghostery's adblocker
   library (MPL-2.0) [Sourced: its package]. Only its core is used. Its
   ready-made Electron wrapper also injects scripts and styles and adds
-  headers, which Hard rules 4 and 5 forbid, so it is not a dependency.
+  headers, which Hard rule 5 forbids, so it is not a dependency.
 - **What is read from a list:** network filters and their exceptions. Hiding
   (cosmetic) filters, scriptlets, HTML filtering and header filters are
   dropped when the list is read. A filter that would swap a response for a
@@ -140,9 +140,8 @@ module that redirects, rewrites or injects.
 
 `src/main/signals.ts` adds the `DNT` and `Sec-GPC` headers when the person
 turns "ask sites not to track" on (shared/privacy.ts, DECISIONS.md
-2026-11-18). It is the only module that may touch request headers; the rule
-check holds it to those two and to naming no other header. Nothing reads or
-changes a reply anywhere.
+2026-11-18). It is the only module that touches request headers, and a unit test holds
+it to those two. Nothing reads or changes a reply anywhere.
 
 ### 6.2 Reader view, the parental lock
 

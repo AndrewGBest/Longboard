@@ -26,10 +26,8 @@ const CODE_CHECKS = [
   [3, /SMART-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|AFT[A-Z]|Android TV|PlayStation|Xbox|Cobalt\/|Windows NT|Macintosh|CrOS/, 'looks like a spoofed device or OS identity'],
   // Rule 3: no way to change the user agent per site or per request.
   [3, /setUserAgent\(|userAgent:\s|User-Agent/, 'sets a user agent somewhere other than the one honest fallback'],
-  // Rule 4. Nothing changes a site's traffic. Refusing a request is the one
-  // exception, and only the ad-blocking module may do it (see below).
-  [4, /onHeadersReceived|onSendHeaders|interceptBuffer|registerHttpProtocol|protocol\.handle|setProxy|skipAd|sponsorblock/i, 'modifies a site\'s traffic'],
-  [4, /\.(currentTime|playbackRate)\s*[-+]?=(?!=)|\.(play|pause)\(\)/, 'controls the site\'s video element directly instead of sending input'],
+  // Rule 5: blocking refuses requests; it never skips advertising inside a stream.
+  [5, /skipAd|sponsorblock/i, 'skips advertising inside a video'],
   // Rule 12
   [12, /sentry|google-analytics|gtag\(|posthog|mixpanel|crashReporter\.start/i, 'telemetry or crash upload'],
   // Rule 13
@@ -52,7 +50,7 @@ for (const file of files) {
   }
 }
 
-// Rules 4 and 5: requests are refused in one module only, and that module
+// Rule 5: requests are refused in one module only, and that module
 // does nothing but refuse. The ready-made Electron wrapper of the filtering
 // library also injects scripts, styles and headers, so it is never used.
 const FILTER_MODULE = 'src/main/adblock.ts';
@@ -62,29 +60,12 @@ for (const file of files) {
   const text = readFileSync(file, 'utf8');
   if (/adblocker-electron|adblocker-webextension|adblocker-puppeteer|adblocker-playwright/.test(text)) fail(5, file, 'uses a filtering wrapper that changes pages, not only the request matcher');
   if (file === 'package-lock.json') continue;
-  if (file !== FILTER_MODULE && /onBeforeRequest|@ghostery\/adblocker/.test(text) && file !== 'package.json') fail(4, file, 'filters requests outside the ad-blocking module');
+  if (file !== FILTER_MODULE && /onBeforeRequest|@ghostery\/adblocker/.test(text) && file !== 'package.json') fail(5, file, 'filters requests outside the ad-blocking module');
   if (file === FILTER_MODULE) {
     const m = /redirectURL|responseHeaders|requestHeaders|insertCSS|executeJavaScript|getCosmeticsFilters|load(Cosmetic|GenericCosmetics|CSP)Filters:\s*true|enableHtmlFiltering:\s*true|loadExtendedSelectors:\s*true/.exec(text);
     if (m) fail(5, file, `the request filter does more than refuse requests (matched "${m[0]}")`);
   }
 }
-
-// Rule 4: the two "do not track" signals are the only thing ever added to
-// what a site is sent (Andrew's decision, 2026-11-18). One module adds them,
-// and it names no other header and never looks at a reply.
-const SIGNALS_MODULE = 'src/main/signals.ts';
-for (const file of files) {
-  if (file === SELF || file.startsWith('docs/') || file.endsWith('.md') || file.startsWith('test/') || file === 'package-lock.json') continue;
-  if (!TEXT_EXT.has(extname(file).toLowerCase())) continue;
-  const text = readFileSync(file, 'utf8');
-  if (file !== SIGNALS_MODULE && /onBeforeSendHeaders/.test(text)) fail(4, file, 'changes request headers outside the privacy-signals module');
-  if (file === SIGNALS_MODULE) {
-    const m = /cookie|referer|authorization|accept-language|origin\b|responseHeaders|cancel|redirect/i.exec(text);
-    if (m) fail(4, file, `the privacy-signals module does more than add its two signals (matched "${m[0]}")`);
-  }
-}
-const signalNames = [...readFileSync('src/shared/privacy.ts', 'utf8').matchAll(/^\s+(?:'([A-Za-z-]+)'|([A-Za-z]+)): '1',$/gm)].map((m) => m[1] ?? m[2]);
-if (signalNames.join(',') !== 'DNT,Sec-GPC') fail(4, 'src/shared/privacy.ts', `the signals sent must be exactly DNT and Sec-GPC (found ${signalNames.join(',') || 'none'})`);
 
 // Rule 6: branding.
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
