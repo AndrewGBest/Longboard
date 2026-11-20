@@ -46,6 +46,14 @@ polish it, and go past the sign-in pages; he signs in himself.
 - **Unverified:** everything behind a sign-in (waiting on Andrew);
   whether a large site will let an embedded browser sign in at all;
   playing video; any of it with a remote at a TV.
+- **A search company's sign-in refuses Longboard** (Andrew, at the real
+  screen, 2026-11-20): "This browser or app may not be secure". Not worked
+  round, and not to be: Longboard says honestly what it is (Hard rule 3).
+  Why it is refused is not known; the agent's guess is that the company
+  turns away browsers built into other programs. So its video, music and
+  assistant sites can only be used signed out, and "sign in with" that
+  company's account on other sites should be expected to fail too
+  (untested).
 - **Seen, not fixed:** on a music service, Down from the side column goes
   to the bar pinned at the bottom before the main pane (Right goes
   straight there); the first press lands on an advertisement's frame on
