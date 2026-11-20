@@ -2,6 +2,15 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.11:
+
+- **The highlight goes inside embedded frames.** A sign-in prompt that is
+  a page within the page can be walked with the arrows: no pointer
+  needed. The pointer still takes over for frames with nothing to
+  select, such as maps.
+- **A strip under the part of a page that scrolls** (a "which country"
+  question) is offered on the way down, once.
+
 New in 0.3.10:
 
 - **Sign-in prompts the browser draws in front of everything** no longer

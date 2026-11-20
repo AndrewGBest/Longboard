@@ -3,6 +3,25 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-21: the highlight goes inside frames
+
+**Andrew, 2026-11-21:** "dig deep to see if you can get the apple tv
+working without a pointer. Even if it needs to be a profile instead." How
+is **the agent's assumption**. It replaces "the layer itself inside frames:
+still not done" of earlier the same day.
+
+| Question | Choice | Why |
+|---|---|---|
+| A profile or a general rule | General | The form is in frames inside the page, one from another site. A profile is data about one page's own elements and cannot reach or run in a frame (Hard rule 7) |
+| How a frame is entered | OK on it, or an arrow with nowhere to go when it shows over 40% of the screen. The frame gets the cursor; the shell asks every frame of the page and the one with the cursor starts its layer and takes the highlight | The frame element cannot be matched to the frame's process from the page; who has the cursor can |
+| How it is left | A press with nowhere to go in the frame, or Back with nothing to close, goes to what holds the frame, which carries on that way from the frame. If there is nowhere to go there either, the highlight stays in the frame | The way a row inside a page is left |
+| When nothing in the frame can take the highlight, or it does not answer in 0.7 s | The pointer, on the frame, with the words as before | Maps, players and drawings only answer a mouse |
+| The keyboard, menu and pointer | The page's. A frame's layer has none; it says a text field has the cursor and the shell brings the page's keyboard up | One keyboard, drawn at the size of the screen and not of a frame |
+| What a frame's layer may ask of the shell | Five things: into a frame inside it, out, the menu, the pointer, a text field has the cursor | Least privilege (rule 13). Everything else a layer can send is dropped in the frame's preload |
+| The guard in frames | Unchanged: in a scripted run each frame has its own, and OK there goes through it | Hard rule 11 |
+| A frame that goes to a new page while the highlight is in it | The new page's layer is asked to take the highlight; if none does, the page's own layer takes it back | A sign-in form's second step is a new page in the same frame |
+| A strip beside a pane that scrolls | Offered once when the pane's next thing is out of sight and the strip is in view; after that the pane scrolls on | The 0.3.8 rule made such a strip reachable only from the pane's far end |
+
 ## 2026-11-21: a page of offers may be looked at by a scripted run
 
 **Andrew, 2026-11-21.** He said the guard should not stand in the way of a

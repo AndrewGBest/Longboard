@@ -61,6 +61,8 @@ export type BridgeMessage =
   | { kind: 'pointerOff' }
   /** The on-screen keyboard that was up for a field inside an embedded frame has been put away. */
   | { kind: 'frameFieldDone' }
+  /** The highlight is asked into the frame that now has the cursor. `stay`: it carries on where it was in there. */
+  | { kind: 'frameEnter'; stay: boolean }
   /** Directions held on a game controller while pointer mode is on. */
   | { kind: 'pointerHeld'; dirs: Direction[] }
   /**

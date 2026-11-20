@@ -81,9 +81,12 @@ view. It is Tropic Video's layer, generalised:
 The layer never calls the site's player directly and never rewrites the page.
 It draws its own highlight in a closed shadow root and sends ordinary input.
 
-Frames: the layer starts with the top frame only. Cross-origin frames (embedded
-players, sign-in boxes) are a known hard part and are handled by pointer mode
-until there is a design for them.
+Frames: the layer starts in the top frame. An embedded frame gets a layer of
+its own the first time the highlight is sent into it (OK on the frame, or an
+arrow with nowhere to go on a large one): it moves the highlight there and
+hands back at its edges, and has no keyboard, menu or pointer of its own
+(DECISIONS.md, 2026-11-21). A frame with nothing to select is handled by
+pointer mode.
 
 ## 4. Chrome views
 

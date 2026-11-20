@@ -2035,6 +2035,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
         if (msg.x === undefined) setPointer(!pointerOn);
         else setPointer(true, startPoint(msg, page.getZoomFactor(), pageSize()));
         break;
+      case 'frameEnter':
+        if (wc === page && active() === page) askIntoFrame(page.mainFrame, msg.stay === true);
+        break;
       case 'frameFieldDone': {
         // The person put the keyboard away: back to the pointer, where it was, if that is how they got there.
         const was = frameField;
@@ -2093,13 +2096,65 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const frameKey = (frame: Electron.WebFrameMain): string => `${frame.processId}:${frame.routingId}`;
   /** True when every frame inside the page has its guard up. */
   const framesGuarded = (): boolean => page.mainFrame.framesInSubtree.every((f) => f === page.mainFrame || guarded.has(frameKey(f)));
+  // The highlight is sent into a frame by whoever holds the frame (the
+  // page's layer, or a frame's own for a frame inside it). Every frame of
+  // the page is asked; the one with the cursor answers. No answer, or "no",
+  // and the asker is told so and falls back (the pointer, on the page).
+  let asker: Electron.WebFrameMain | null = null;
+  let askTimer: NodeJS.Timeout | undefined;
+  /** The highlight is inside some frame of the page. */
+  let inFrame = false;
+  /** The frame that had the highlight went to a new page: its new layer is asked to take it again. */
+  let reasking = false;
+  const frameAnswered = (taken: boolean): void => {
+    clearTimeout(askTimer);
+    const to = asker;
+    asker = null;
+    if (to === page.mainFrame || taken) inFrame = taken;
+    if (to && !to.isDestroyed()) to.send('longboard:frame-in', taken ? 'in' : reasking ? 'lost' : 'none');
+    reasking = false;
+  };
+  const askIntoFrame = (from: Electron.WebFrameMain, stay: boolean, again = false): void => {
+    clearTimeout(askTimer);
+    asker = from;
+    reasking = again;
+    // A moment for the cursor to arrive in the frame.
+    setTimeout(() => {
+      if (page.isDestroyed() || asker !== from) return;
+      for (const f of page.mainFrame.framesInSubtree) if (f !== page.mainFrame && !f.isDestroyed()) f.send('longboard:frame-enter', stay);
+    }, 60);
+    askTimer = setTimeout(() => frameAnswered(false), 700);
+  };
   const onFrame = (event: Electron.IpcMainEvent, what: unknown): void => {
     const frame = event.senderFrame;
     if (!isPageView(event.sender) || !frame || frame === event.sender.mainFrame) return;
-    // A text field inside the frame has the cursor after a click, or has lost it.
     if (what && typeof what === 'object') {
-      const said = what as { field?: unknown; secret?: unknown; hint?: unknown; top?: unknown; bottom?: unknown };
+      const said = what as { field?: unknown; secret?: unknown; hint?: unknown; top?: unknown; bottom?: unknown; enter?: unknown; stay?: unknown; entered?: unknown; exit?: unknown; menu?: unknown; pointer?: unknown };
       if (event.sender !== page || active() !== page) return;
+      // The highlight inside frames: asked in, taken or not, and out again.
+      if (said.enter === true) {
+        askIntoFrame(frame, said.stay === true);
+        return;
+      }
+      if (typeof said.entered === 'boolean') {
+        frameAnswered(said.entered);
+        return;
+      }
+      if (said.exit === 'up' || said.exit === 'down' || said.exit === 'left' || said.exit === 'right' || said.exit === 'back') {
+        const to = frame.parent;
+        if (to === page.mainFrame) inFrame = false;
+        if (to && !to.isDestroyed()) to.send('longboard:frame-exit', said.exit);
+        return;
+      }
+      if (said.menu === true) {
+        toggleMenu();
+        return;
+      }
+      if (said.pointer === true) {
+        setPointer(!pointerOn);
+        return;
+      }
+      // A text field inside the frame has the cursor, or has lost it.
       // A scripted run never types a password or a one-time code (Hard rule 10): no keyboard for such a field.
       const open = said.field === 'in' && !(options.automation && said.secret === true);
       if (open) {
@@ -2121,6 +2176,15 @@ export function createBrowser(deps: BrowserDeps): Browser {
   eachPage((wc) => wc.on('did-frame-navigate', (_e, _url, _code, _status, isMainFrame, processId, routingId) => {
     // A frame that has gone somewhere new has to say again that it is guarded.
     if (!isMainFrame) guarded.delete(`${processId}:${routingId}`);
+    // And if the highlight was inside a frame, the page that has come may be
+    // the next step of what was there (a sign-in form's second page): ask
+    // it to take the highlight. The page's own layer is told if nothing does.
+    if (wc === page && inFrame) {
+      if (isMainFrame) inFrame = false;
+      else setTimeout(() => {
+        if (!page.isDestroyed() && inFrame && !asker) askIntoFrame(page.mainFrame, false, true);
+      }, 500);
+    }
   }));
 
   // ---- The profile editor ----------------------------------------------------

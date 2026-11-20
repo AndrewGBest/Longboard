@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: a frame with nothing to select</title>
+<!-- A made-up frame that only answers the mouse, as a map or a drawing would. -->
+<style>body { margin: 0; background: #dfe; } div { height: 260px; }</style>
+</head>
+<body>
+<div id="area"></div>
+<script>
+  document.getElementById('area').addEventListener('mousedown', () => parent.postMessage('pressed', '*'));
+</script>
+</body>
+</html>

@@ -39,7 +39,7 @@ function guardFrame(): void {
  * cursor is said, whether it is a secret one, the page's word for the Enter
  * key and where the field is; never what is in it.
  */
-function watchFrameFields(): void {
+function watchFrameFields(): (el: Element) => void {
   const isField = (el: EventTarget | null): el is HTMLElement => {
     if (el instanceof HTMLTextAreaElement) return true;
     if (el instanceof HTMLInputElement) return !['button', 'submit', 'checkbox', 'radio', 'range', 'reset', 'file', 'image', 'color', 'hidden'].includes(el.type);
@@ -80,6 +80,48 @@ function watchFrameFields(): void {
   };
   window.addEventListener('focusout', gone, true);
   window.addEventListener('blur', gone);
+  return (el) => {
+    if (isField(el)) say(el);
+  };
+}
+
+/**
+ * A layer of its own for a frame, started the first time the highlight is
+ * sent into it. It moves the highlight among what is in the frame and
+ * presses what OK is pressed on, as in the page. It has no keyboard, menu
+ * or pointer of its own: those are the page's, and it asks the shell for
+ * them in a few fixed words. A press with nowhere to go leaves the frame.
+ */
+function frameLayer(sayField: (el: Element) => void): void {
+  let layer: Layer | null = null;
+  const tell = (what: Record<string, unknown>): void => ipcRenderer.send('longboard:frame', what);
+  const begin = (): Layer =>
+    (layer ??= startLayer({
+      doc: document,
+      options: { dev: false, automation: process.argv.includes('--longboard-automation') },
+      rules: rulesFromUntrusted(null, document),
+      // Of all a layer may ask the shell, a frame's may ask for these only.
+      send: (msg) => {
+        if (msg.kind === 'frameEnter') tell({ enter: true, stay: msg.stay === true });
+        else if (msg.kind === 'menu') tell({ menu: true });
+        else if (msg.kind === 'pointer' && msg.x === undefined) tell({ pointer: true });
+      },
+      frame: {
+        exit: (how) => tell({ exit: how }),
+        field: sayField,
+      },
+    }));
+  // The shell asks every frame; the one that has the cursor answers.
+  ipcRenderer.on('longboard:frame-enter', (_event, stay: unknown) => {
+    if (!document.hasFocus() || document.activeElement instanceof HTMLIFrameElement) return;
+    tell({ entered: begin().takeHighlight(stay === true) });
+  });
+  ipcRenderer.on('longboard:frame-in', (_event, state: unknown) => {
+    if (state === 'in' || state === 'none' || state === 'lost') layer?.frameIn(state);
+  });
+  ipcRenderer.on('longboard:frame-exit', (_event, how: unknown) => {
+    if (how === 'up' || how === 'down' || how === 'left' || how === 'right' || how === 'back') layer?.frameExit(how);
+  });
 }
 
 // In a scripted run the guard goes up now, before any of the page's own
@@ -154,6 +196,13 @@ const start = (): void => {
     const f = field as { hint?: unknown; top?: unknown; bottom?: unknown } | null;
     layer.frameField(f && typeof f === 'object' ? { hint: typeof f.hint === 'string' ? f.hint : '', top: Number(f.top) || 0, bottom: Number(f.bottom) || 0 } : null);
   });
+  // The highlight was asked into a frame, or has come out of one.
+  ipcRenderer.on('longboard:frame-in', (_event, state: unknown) => {
+    if (state === 'in' || state === 'none' || state === 'lost') layer.frameIn(state);
+  });
+  ipcRenderer.on('longboard:frame-exit', (_event, how: unknown) => {
+    if (how === 'up' || how === 'down' || how === 'left' || how === 'right' || how === 'back') layer.frameExit(how);
+  });
   // A key the shell took while that keyboard is up (the frame has the keys, not this page).
   ipcRenderer.on('longboard:frame-key', (_event, action: unknown) => {
     const a = action as Action | null;
@@ -227,7 +276,7 @@ const start = (): void => {
 
 if (window.top !== window) {
   guardFrame();
-  watchFrameFields();
+  frameLayer(watchFrameFields());
 } else if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', start, { once: true });
 } else {

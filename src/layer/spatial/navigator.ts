@@ -251,6 +251,12 @@ export function rowOf(el: Element, view: Window): Element | null {
   return null;
 }
 
+/** True when some of `el` shows on the screen. */
+function isOnScreen(el: Element, view: Window): boolean {
+  const r = el.getBoundingClientRect();
+  return r.bottom > 0 && r.top < view.innerHeight && r.right > 0 && r.left < view.innerWidth;
+}
+
 /** How far a pane must still be able to scroll for a key to scroll it and not leave it. */
 const PANE_ROOM = 8;
 
@@ -862,7 +868,7 @@ export class SpatialNavigator {
   }
 
   /** One attempt at a move among `all`. Null when nothing lies in that direction. */
-  /** Pinned notices the highlight has already been taken to once. */
+  /** Pinned notices, and strips beside a scrolling pane, the highlight has already been taken to once. */
   private offered = new WeakSet<Element>();
 
   private step(dir: Direction, all: Element[]): boolean | null {
@@ -1057,7 +1063,46 @@ export class SpatialNavigator {
     // view went to the notice, and the rest of the pane was never reached.)
     if (target && view && (dir === 'up' || dir === 'down')) {
       const pane = paneWithMore(from, this.doc, view, dir);
-      if (pane && !deepContains(pane, target)) {
+      // What lies outside the pane is offered once all the same: a strip
+      // under the pane that asks something (which country, on that film
+      // service) could otherwise only be reached from the pane's far end.
+      // After that the pane scrolls on, and the strip is at its end.
+      let outside: Element | null = pane && !deepContains(pane, target) ? target : null;
+      while (outside && pane) {
+        const up = composedParent(outside);
+        if (!up || deepContains(up, pane)) break;
+        outside = up;
+      }
+      const firstTime = !!outside && !this.offered.has(outside) && isOnScreen(target, view);
+      if (firstTime && outside) this.offered.add(outside);
+      // The same when what is next in the pane is still out of sight below
+      // (or above) its edge, and something outside the pane is in view that
+      // way: that is what the eye would go to next, so it is offered first, once.
+      if (pane && deepContains(pane, target)) {
+        const p = pane.getBoundingClientRect();
+        const t = target.getBoundingClientRect();
+        const unseen = dir === 'down' ? t.top >= Math.min(p.bottom, view.innerHeight) - 1 : t.bottom <= Math.max(p.top, 0) + 1;
+        if (unseen) {
+          const beside = all.filter((el) => {
+            if (el === from || deepContains(pane, el) || !isOnScreen(el, view) || !isVisible(el, view)) return false;
+            const r = el.getBoundingClientRect();
+            return dir === 'down' ? r.top >= p.bottom - 1 : r.bottom <= p.top + 1;
+          });
+          const j = pickNext(toRect(from), beside.map(toRect), dir);
+          const pick = beside[j === -1 ? pickInitial(beside.map(toRect)) : j] ?? null;
+          let strip: Element | null = pick;
+          while (strip) {
+            const up = composedParent(strip);
+            if (!up || deepContains(up, pane)) break;
+            strip = up;
+          }
+          if (pick && strip && !this.offered.has(strip)) {
+            this.offered.add(strip);
+            return this.focus(pick);
+          }
+        }
+      }
+      if (pane && !deepContains(pane, target) && !firstTime) {
         pane.scrollBy({ top: (dir === 'down' ? 0.8 : -0.8) * pane.clientHeight, behavior: 'instant' });
         const inside = this.candidates(true).filter((el) => el !== from && deepContains(pane, el) && shownIn(el, pane, view) >= 0.99);
         const j = pickNext(toRect(from), inside.map(toRect), dir);

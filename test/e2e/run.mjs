@@ -854,45 +854,74 @@ await scenario('a video with the browser\'s own controls', { url: `${site.origin
   check('with ordinary key presses, not by calling the video', (await evaluate('__v.keys')).filter((k) => k === ' ').length, 2);
 });
 
-await scenario('a text field inside a frame from another site', { url: `${site.origin}/frames.html` }, async (app) => {
+await scenario('the highlight inside a frame from another site', { url: `${site.origin}/frames.html` }, async (app) => {
   const page = await app.page(`${site.origin}/frames.html`);
-  const { evaluate, press } = page;
+  const { evaluate, press, focused } = page;
   const messages = () => evaluate('__frame.messages');
+  const inFrame = () => evaluate('document.activeElement?.id');
   await sleep(1000);
   await press('ArrowDown');
   await press('ArrowDown');
-  await press('Enter', 500);
-  const box = await evaluate('(() => { const r = document.getElementById("frame").getBoundingClientRect(); return { l: r.left, t: r.top }; })()');
-  // The frame has a 2-pixel border; the field is at 20,30 in it, 160 by 30.
-  check('the pointer can be walked to a text field in the frame', await page.pointTo(box.l + 2 + 100, box.t + 2 + 45), true);
+  check('the highlight can land on an embedded frame', await focused(), 'frame');
   await press('Enter', 900);
-  check('OK on it brings the on-screen keyboard up, and the pointer gives way to it', [await page.keyboardShown(), await page.pointerAt()], [true, null]);
+  check('OK on it sends the highlight into the frame: the frame has the keys, and no pointer is needed', [await inFrame(), await page.pointerAt()], ['frame', null]);
+  // In the frame: a text field on the left, two buttons to its right, a password field below it.
+  const at = async () => (await messages()).filter((m) => m.startsWith('at ')).at(-1);
+  await press('Enter', 600);
+  check('it starts on the first thing in the frame, and OK presses it', [await at(), (await messages()).filter((m) => m.startsWith('clicked'))], ['at inside', ['clicked 1']]);
+  await press('ArrowRight', 500);
+  await press('Enter', 700);
+  check('the arrows move among what is in the frame; a purchase control there is not pressed in a scripted run', [await at(), (await messages()).includes('bought')], ['at buy', false]);
+  await press('ArrowLeft', 400);
+  await press('ArrowLeft', 400);
+  await press('Enter', 900);
+  check('OK on a text field in the frame brings the page\'s keyboard up', [await at(), await page.keyboardShown()], ['at name', true]);
   await press('Enter', 500);
   await press('ArrowRight', 300);
   await press('Enter', 500);
   const typed = (await messages()).filter((m) => m.startsWith('typed '));
   check('its keys type into the field in the frame', [typed.length, typed.at(-1)?.length], [2, 'typed '.length + 2]);
   check('and the arrows moved along the keyboard, not into the frame', (await messages()).filter((m) => m.startsWith('key Arrow')), []);
-  await press('Escape', 600);
-  check('Back puts the keyboard away and the pointer comes back', [await page.keyboardShown(), (await page.pointerAt()) !== null], [false, true]);
+  await press('Escape', 700);
+  check('Back puts the keyboard away, and the keys are the frame\'s again', [await page.keyboardShown(), await inFrame(), await page.pointerAt()], [false, 'frame', null]);
+  // As in the page itself: a field that has been typed in keeps the arrows until Back leaves it.
+  await press('Escape', 500);
   // A scripted run never types a password (Hard rule 10): no keyboard for that field.
-  check('the pointer can be walked to a password field in the frame', await page.pointTo(box.l + 2 + 100, box.t + 2 + 215), true);
+  await press('ArrowDown', 500);
   await press('Enter', 900);
-  check('in a scripted run no keyboard comes up for it', await page.keyboardShown(), false);
+  check('in a scripted run no keyboard comes up for a password field in the frame', [await at(), await page.keyboardShown()], ['at secret', false]);
+  await press('ArrowDown', 900);
+  check('a press with nowhere to go in the frame leaves it, that way', await focused(), 'below');
+  await press('ArrowUp', 500);
+  await press('ArrowUp', 500);
+  check('and the page is walked as before', await focused(), 'above');
+});
+
+await scenario('a frame with nothing in it to select', { url: `${site.origin}/frames.html?inner=inner-picture.html` }, async (app) => {
+  const page = await app.page(`${site.origin}/frames.html`);
+  const { evaluate, press, focused } = page;
+  await sleep(1000);
+  await press('ArrowDown');
+  await press('ArrowDown');
+  check('the highlight lands on the frame', await focused(), 'frame');
+  await press('Enter', 1500);
+  check('OK on it falls back to the pointer, on the frame, and says so', [(await page.pointerAt()) !== null, await page.toastText()], [true, 'Pointer mode: this part of the page needs the pointer']);
+  await press('Enter', 600);
+  check('and OK presses what is under the pointer', await evaluate('__frame.messages'), ['pressed']);
 });
 
 await scenario('a prompt that is a frame over the whole page', { url: `${site.origin}/frame-prompt.html` }, async (app) => {
   const page = await app.page(`${site.origin}/frame-prompt.html`);
   const { press } = page;
   await sleep(1200);
-  check('no pointer to begin with', await page.pointerAt(), null);
-  await press('ArrowDown', 500);
-  await press('ArrowDown', 500);
-  check('the arrows hand over to the pointer, and say so', [(await page.pointerAt()) !== null, await page.toastText()], [true, 'Pointer mode: this part of the page needs the pointer']);
-  // The prompt calls itself a dialog, and the highlight is kept in dialogs: that must not take the cursor out of the frame's field.
-  check('the pointer can be walked to a text field in the prompt', await page.pointTo(100, 45), true);
+  await press('ArrowDown', 700);
+  await press('ArrowDown', 900);
+  check('the arrows go into the prompt by themselves, with no pointer', [await page.evaluate('document.activeElement?.id'), await page.pointerAt()], ['frame', null]);
+  // The prompt calls itself a dialog, and the highlight is kept in dialogs: that must not take the cursor out of the frame.
+  await sleep(1500);
+  await press('ArrowLeft', 500);
   await press('Enter', 2500);
-  check('OK on it brings the keyboard up, and it stays up', await page.keyboardShown(), true);
+  check('OK on a text field there brings the keyboard up, and it stays up', await page.keyboardShown(), true);
   await press('Enter', 600);
   check('and its keys type into the field', (await page.evaluate('__frame.messages')).filter((m) => m.startsWith('typed ')).length, 1);
 });
@@ -918,18 +947,19 @@ await scenario('a dialog the browser draws in front of everything', { url: `${si
 await scenario('pointer mode', { url: `${site.origin}/frames.html` }, async (app) => {
   const page = await app.page(`${site.origin}/frames.html`);
   const { evaluate, press, focused } = page;
-  const messages = () => evaluate('__frame.messages');
+  const messages = async () => (await evaluate('__frame.messages')).filter((m) => !m.startsWith('at '));
   await sleep(1000);
   check('no pointer is shown to begin with', await page.pointerAt(), null);
   await press('ArrowDown');
   await press('ArrowDown');
   check('the highlight can land on an embedded frame', await focused(), 'frame');
-  await press('Enter', 500);
-  const start = await page.pointerAt();
+  await press('F2', 500);
   const box = await evaluate('(() => { const r = document.getElementById("frame").getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; })()');
-  check('OK on it switches to pointer mode, with the pointer on the frame and the ring put away', [!!start && start.x > box.l && start.x < box.r && start.y > box.t && start.y < box.b, await focused()], [true, null]);
+  check('the pointer key brings the pointer, and it can be walked onto the frame', await page.pointTo((box.l + box.r) / 2, (box.t + box.b) / 2), true);
+  const start = await page.pointerAt();
+  check('with the ring put away', await focused(), null);
   await press('Enter', 600);
-  check('OK clicks what is under the pointer, inside the frame', [await messages(), await page.toastText()], [['clicked 1'], 'Pointer mode: this part of the page needs the pointer']);
+  check('OK clicks what is under the pointer, inside the frame', await messages(), ['clicked 1']);
 
   // The guard reaches into the frame: a purchase button there is not pressed either.
   check('the pointer can be walked to another button in the frame', await page.pointTo(start.x + 200, start.y), true);

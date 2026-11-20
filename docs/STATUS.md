@@ -22,6 +22,30 @@ four things. He asked to be brought back to those sites once fixed.
 | The other film service's sign-in prompt still could not be used | Two things. The prompt is a dialog the browser draws in its top layer, in front of Longboard's own drawings, so the pointer, the highlight and the keyboard were all underneath it. And the rule that keeps the highlight inside a dialog took the cursor out of the frame's field half a second after the keyboard opened | Longboard's drawings are put in front again whenever the page opens a modal dialog or a popover. The dialog rule stands aside while the keyboard is typing into a frame |
 | The streaming service whose sign-in button could not be reached | Andrew: "seems to work now, odd it didn't before". Not explained | Nothing done. By script, Down from a fresh page lands on its sign-in button |
 
+- **Third round** (same day). Andrew: the X on the first film service's
+  notice does not close it; the other's "which country" strip cannot be
+  reached; and "dig deep to see if you can get [that service's sign-in]
+  working without a pointer. Even if it needs to be a profile instead."
+
+| Asked | What was done |
+|---|---|
+| Sign-in without the pointer | **The highlight now goes inside frames.** OK on a frame, or an arrow with nowhere to go on a frame over 40% of the screen, gives the frame the cursor and starts a layer of its own in it: the arrows move among what is in the frame, OK presses it, a press with nowhere to go (or Back with nothing to close) comes back out. A frame inside a frame is entered the same way. The keyboard is still the page's. Only when nothing in the frame can take the highlight (a map, a player) is the pointer brought, as before |
+| Why not a profile | A profile names things in the page it is for. The form is in frames inside that page, one of them from the service's sign-in site, where no selector of the page reaches (and a profile cannot run code, Hard rule 7) |
+| The "which country" strip | It sits under the pane that scrolls. Since 0.3.8 the pane was not left while it had more to show, so the strip could only be reached from the far end of the page. Now what lies beside the pane in view is offered once, when the pane's next thing is out of sight |
+| The X that does not close the notice | **Not reproduced.** By script on the live site OK on the X closes the notice, from either side and with the pointer. Not yet tried with Andrew's own signed-in session |
+
+- **That service's prompt, by script on the live site, arrows only:** Down
+  goes into the prompt and walks its email field, its link and its
+  Continue button; OK on Continue with nothing typed puts the cursor in
+  the field and the keyboard comes up. The step after the email (in a
+  frame from the sign-in site, inside the first) has not been seen: it
+  needs a real account, and a script types no password (Hard rule 10).
+- **What a frame's layer may ask the shell:** to send the highlight into a
+  frame inside it, to leave, the menu, the pointer, and that a text field
+  has the cursor. Nothing else it sends is passed on, and no API is
+  exposed to any page (Hard rule 13).
+- **Not done in frames:** a drop-down's own list (it needs a real key
+  press, which is not yet sent into frames); profiles; the player.
 - **The film service's prompt, by script on the live site:** an arrow
   brings the pointer, OK on the email field brings the keyboard up in
   front of the prompt, and a key typed one letter into the field. Nothing

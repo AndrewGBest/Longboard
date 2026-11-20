@@ -18,7 +18,8 @@
   window.__frame = { messages: [] };
   window.addEventListener('message', (e) => window.__frame.messages.push(String(e.data)));
   // Another origin: this machine under its other name, same port.
-  document.getElementById('frame').src = `http://localhost:${location.port}/inner.html`;
+  // "?inner=" names another page for the frame (one with nothing in it to select).
+  document.getElementById('frame').src = `http://localhost:${location.port}/${new URLSearchParams(location.search).get('inner') ?? 'inner.html'}`;
 </script>
 </body>
 </html>

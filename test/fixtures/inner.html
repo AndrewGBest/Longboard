@@ -13,13 +13,18 @@
 <body>
 <button id="inside">Inside the frame</button>
 <button id="buy">Buy now</button>
-<input id="name" type="text" aria-label="Name" style="position:absolute; left:20px; top:30px; width:160px; height:30px">
+<input id="name" type="text" aria-label="Name" style="position:absolute; left:20px; top:115px; width:160px; height:30px">
 <input id="secret" type="password" aria-label="Secret" style="position:absolute; left:20px; top:200px; width:160px; height:30px">
 <script>
   let n = 0;
   document.getElementById('inside').addEventListener('click', () => parent.postMessage(`clicked ${++n}`, '*'));
   document.getElementById('buy').addEventListener('click', () => parent.postMessage('bought', '*'));
   window.addEventListener('keydown', (e) => parent.postMessage(`key ${e.key}`, '*'));
+  // Where the highlight is, for the tests: the layer marks what it is on with an attribute.
+  new MutationObserver(() => {
+    const at = document.querySelector('[data-longboard-focus]');
+    parent.postMessage(`at ${at ? at.id : 'nothing'}`, '*');
+  }).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['data-longboard-focus'] });
   document.getElementById('name').addEventListener('input', (e) => parent.postMessage(`typed ${e.target.value}`, '*'));
 </script>
 </body>

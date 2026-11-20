@@ -32,6 +32,16 @@ export interface LayerDeps {
     /** A press with nowhere to go in that direction. Return true when something was done about it. */
     edge?: (dir: 'up' | 'down' | 'left' | 'right') => boolean;
   };
+  /**
+   * Set when this layer runs inside an embedded frame. It then has no
+   * keyboard or menu of its own: a text field is told to the shell, which
+   * brings the page's keyboard up for it, and a press with nowhere to go
+   * (or Back with nothing to close) leaves the frame for what holds it.
+   */
+  frame?: {
+    exit: (how: 'up' | 'down' | 'left' | 'right' | 'back') => void;
+    field: (el: Element) => void;
+  };
 }
 
 /**
@@ -56,6 +66,12 @@ function isTextEntry(el: Element | null): boolean {
 
 export interface Layer {
   dispatch: (a: Action) => void;
+  /** The shell's answer after the highlight was asked into a frame: taken (`in`), nothing there to take it (`none`), or what had it is gone (`lost`). */
+  frameIn: (state: 'in' | 'none' | 'lost') => void;
+  /** The highlight has left a frame of this page, by a direction or by Back. */
+  frameExit: (how: 'up' | 'down' | 'left' | 'right' | 'back') => void;
+  /** In a frame's own layer: take the highlight (the frame was entered). False when nothing here can. `stay`: keep it where it was. */
+  takeHighlight: (stay: boolean) => boolean;
   /** A text field inside an embedded frame has the cursor after a click (`null`: no longer). */
   frameField: (field: { hint: string; top: number; bottom: number } | null) => void;
   /** Show a short message from the shell, for example that a navigation was refused. */
@@ -87,7 +103,7 @@ export interface Layer {
   stop: () => void;
 }
 
-export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Layer {
+export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDeps): Layer {
   const view = doc.defaultView;
   if (!view) throw new Error('layer needs a window');
 
@@ -243,16 +259,14 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     }
     if (moved) return;
     // On a frame that fills most of the screen (a sign-in prompt from the
-    // service's own sign-in site) the arrows have nothing to move to, and
-    // what is inside cannot be reached from here: the pointer takes over,
-    // as OK on the frame would have it.
+    // service's own sign-in site) the arrows have nothing to move to here:
+    // the highlight goes into the frame, as OK on the frame would have it.
     const framed = nav.focused;
     if (!hooks && framed instanceof HTMLIFrameElement) {
       const b = framed.getBoundingClientRect();
       const shown = Math.max(0, Math.min(b.right, view.innerWidth) - Math.max(b.left, 0)) * Math.max(0, Math.min(b.bottom, view.innerHeight) - Math.max(b.top, 0));
       if (shown >= BIG_FRAME_SHARE * view.innerWidth * view.innerHeight) {
-        overlay.toast('Pointer mode: this part of the page needs the pointer');
-        send({ kind: 'pointer', x: (Math.max(b.left, 0) + Math.min(b.right, view.innerWidth)) / 2, y: (Math.max(b.top, 0) + Math.min(b.bottom, view.innerHeight)) / 2 });
+        enterFrame(framed, false);
         return;
       }
     }
@@ -279,6 +293,11 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
           // has gone out of sight, or was never in what is being scrolled.
           if (!f || nav.focusIsOffScreen() || !deepContains(scrolled, f)) nav.focusOnScreen(dir, scrolled);
         }, 350);
+        return;
+      }
+      // Inside a frame, a press with nowhere to go leaves it for what holds it.
+      if (frame) {
+        frame.exit(dir);
         return;
       }
       // Up at the very top of a website: pressed again, it opens the menu,
@@ -341,7 +360,71 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       return false;
     }
   };
+  /** The highlight is inside this frame of the page (the frame has the keys and its own layer). */
+  let frameInside: HTMLIFrameElement | null = null;
+  /** A frame the highlight has been asked into, until the shell says whether anything in it took it. */
+  let frameAsked: HTMLIFrameElement | null = null;
+  /**
+   * Into a frame: it is given the cursor, and the shell tells the layer
+   * inside it to take the highlight. `stay`: carry on where it was.
+   */
+  const enterFrame = (el: HTMLIFrameElement, stay: boolean): void => {
+    frameAsked = el;
+    try {
+      el.focus({ preventScroll: true });
+      el.contentWindow?.focus();
+    } catch {
+      // A frame from another site may refuse; the shell's answer decides.
+    }
+    send({ kind: 'frameEnter', stay });
+  };
+  /** The shell's answer: something in the frame took the highlight, nothing did, or what had it is gone. */
+  const frameIn = (state: 'in' | 'none' | 'lost'): void => {
+    const el = frameAsked ?? frameInside;
+    if (state === 'in') {
+      frameInside = frameAsked ?? frameInside;
+      frameAsked = null;
+      overlay.track(null);
+      return;
+    }
+    frameAsked = null;
+    frameInside = null;
+    if (!el?.isConnected) return;
+    if (doc.activeElement === el) {
+      el.blur();
+      view.focus();
+    }
+    nav.focus(el);
+    if (state === 'none' && !frame) {
+      // Nothing in it can take the highlight (a player, a map): the pointer, on it.
+      const box = el.getBoundingClientRect();
+      overlay.toast('Pointer mode: this part of the page needs the pointer');
+      send({ kind: 'pointer', x: (Math.max(box.left, 0) + Math.min(box.right, view.innerWidth)) / 2, y: (Math.max(box.top, 0) + Math.min(box.bottom, view.innerHeight)) / 2 });
+    }
+  };
+  /** The highlight has left a frame of this page by `how`: carry on from the frame, that way. */
+  const frameExit = (how: Direction | 'back'): void => {
+    const el = frameInside ?? (doc.activeElement instanceof HTMLIFrameElement ? doc.activeElement : null);
+    frameInside = null;
+    if (!el) return;
+    el.blur();
+    view.focus();
+    nav.focus(el);
+    if (how === 'back') {
+      back();
+      return;
+    }
+    if (nav.move(how)) return;
+    // Nowhere to go from the frame either: out of this frame too, or back into the one just left.
+    if (frame) frame.exit(how);
+    else enterFrame(el, true);
+  };
   const openOsk = (field: Element): void => {
+    // Inside a frame the keyboard is the page's: the shell is told of the field.
+    if (frame) {
+      frame.field(field);
+      return;
+    }
     // The keyboard needs the arrows; the pointer gives them up.
     if (pointerOn) send({ kind: 'pointerOff' });
     if (!oskOpen) osk.reset();
@@ -456,7 +539,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     // Not while the keyboard is typing into a frame of the dialog: taking
     // the highlight there takes the cursor out of the field. (Seen on a
     // film service's sign-in prompt: the keyboard closed as it opened.)
-    if (!frameTyping && (!f || !deepContains(dialog, f))) {
+    if (!frameTyping && !frameInside && !frameAsked && (!f || !deepContains(dialog, f))) {
       beforeDialog = f;
       nav.focusFirstIn(dialog);
     }
@@ -600,7 +683,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   };
   // The shell does the going back: it knows whether there is a page to go
   // back to, and shows Home when there is not.
-  const goBack = (): void => send({ kind: 'back' });
+  const goBack = (): void => (frame ? frame.exit('back') : send({ kind: 'back' }));
 
   // Some sites keep the search field hidden until a control is activated.
   // The control is clicked like any other; the field is focused once it shows.
@@ -678,9 +761,13 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       if (a.type === 'move') {
         // Up from the top row leaves the keyboard for the page.
         if (!osk.move(a.dir) && a.dir === 'up') {
+          // (A field inside a frame keeps the cursor: the keys go back to the frame.)
+          const inFrame = frameTyping;
           closeOsk();
-          (doc.activeElement as HTMLElement | null)?.blur();
-          nav.move('up');
+          if (!inFrame) {
+            (doc.activeElement as HTMLElement | null)?.blur();
+            nav.move('up');
+          }
         }
         drawOsk();
         return;
@@ -746,10 +833,9 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
           if (!keyboardBarred(target)) openOsk(target);
           break;
         }
-        // An embedded frame cannot be driven from here: hand over to the pointer, on it.
+        // An embedded frame: the highlight goes into it (the pointer, on it, when that cannot be).
         if (target instanceof HTMLIFrameElement && box) {
-          overlay.toast('Pointer mode: this part of the page needs the pointer');
-          send({ kind: 'pointer', x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2 });
+          enterFrame(target, false);
           break;
         }
         // A drop-down opens as the browser's own list, with the key that opens it.
@@ -881,7 +967,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   const reclaim = (): void => {
     view.setTimeout(() => {
       const active = doc.activeElement;
-      if (pointerOn || frameTyping || !(active instanceof HTMLIFrameElement)) return;
+      if (pointerOn || frameTyping || frameInside || frameAsked || !(active instanceof HTMLIFrameElement)) return;
       active.blur();
       view.focus();
     }, 0);
@@ -892,7 +978,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   // redirect: an advertisement's frame had them from the start and no press
   // of the remote did anything.) So it is also looked for now and then.
   view.setInterval(() => {
-    if (!pointerOn && !frameTyping && doc.visibilityState === 'visible' && doc.activeElement instanceof HTMLIFrameElement) reclaim();
+    if (!pointerOn && !frameTyping && !frameInside && !frameAsked && doc.visibilityState === 'visible' && doc.activeElement instanceof HTMLIFrameElement) reclaim();
   }, 1000);
 
   // A text field the page focused by itself (a sign-in page puts the cursor
@@ -972,6 +1058,12 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     notice: (text) => overlay.toast(text, 6000),
     loading: (on) => overlay.loading(on),
     frameField,
+    frameIn,
+    frameExit,
+    takeHighlight: (stay) => {
+      if (stay && nav.focused?.isConnected) return nav.focus(nav.focused);
+      return nav.focusFirstOnScreen() || nav.focusFirstIn(doc.documentElement);
+    },
     phoneText: (id) => {
       const into = deepActiveElement(doc);
       if (!into || !isTextEntry(into)) {
@@ -1011,7 +1103,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
         // A click may have left the keys inside an embedded frame, where
         // this layer would never hear them. Take them back.
         const active = doc.activeElement;
-        if (active instanceof HTMLIFrameElement && !frameTyping) active.blur();
+        if (active instanceof HTMLIFrameElement && !frameTyping && !frameInside) active.blur();
       }
     },
     editPick: (x, y) => {

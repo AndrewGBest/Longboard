@@ -959,7 +959,12 @@ describe('what a site has shut away or keeps in a pane of its own', () => {
     pane.scrollTo = (() => undefined) as typeof pane.scrollTo;
     const nav = new SpatialNavigator(document);
     nav.focus(document.getElementById('one'));
-    // "two" is cut off below the pane, so the notice is nearest; the pane is scrolled instead.
+    // "two" is cut off below the pane, so the notice is nearest. It is offered once.
+    nav.move('down');
+    expect([top, nav.focused?.id]).toEqual([0, 'notice']);
+    nav.move('up');
+    expect(nav.focused?.id).toBe('one');
+    // After that the pane is scrolled instead.
     nav.move('down');
     expect(top).toBe(320);
     expect(nav.focused?.id).toBe('one');
@@ -1032,5 +1037,27 @@ describe('what a site has shut away or keeps in a pane of its own', () => {
     // Not out of the notice: nothing lies further left in it.
     nav.move('left');
     expect(nav.focused?.id).toBe('more');
+  });
+
+  // Shape seen on a film service: shelves in a pane that scrolls, and under the pane a strip asking which country.
+  it('offers a strip under a scrolling pane once, when what is next in the pane is out of sight', () => {
+    document.body.innerHTML = `<div id="pane" data-rect="0,0,960,400" style="overflow-y: auto">${card('one', 0, 300)}${card('two', 0, 700)}</div><div id="strip" data-rect="0,400,960,140"><button id="close" data-rect="20,450,20,20">x</button><button id="go" data-rect="800,440,140,40">go</button></div>`;
+    const pane = document.getElementById('pane')!;
+    Object.defineProperty(pane, 'scrollHeight', { value: 1000, configurable: true });
+    Object.defineProperty(pane, 'clientHeight', { value: 400, configurable: true });
+    Object.defineProperty(pane, 'scrollTop', { value: 0, writable: true, configurable: true });
+    pane.scrollBy = (() => undefined) as typeof pane.scrollBy;
+    pane.scrollTo = (() => undefined) as typeof pane.scrollTo;
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('one'));
+    // "two" is below the pane's edge; the strip's button is in view.
+    nav.move('down');
+    expect(nav.focused?.id).toBe('close');
+    nav.move('right');
+    expect(nav.focused?.id).toBe('go');
+    // The second time the pane goes on (here it scrolls toward its next thing), and the strip is left alone.
+    nav.focus(document.getElementById('one'));
+    nav.move('down');
+    expect(['one', 'two']).toContain(nav.focused?.id);
   });
 });
