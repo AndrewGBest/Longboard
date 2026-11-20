@@ -28,16 +28,18 @@ function scrollsItself(el: Element, view: Window, axis: Axis): boolean {
  * scrolls that way and has room left, ending with the page itself. Without
  * `from`, the search starts from whatever is in the middle of the screen, so
  * a web app whose content lives in one scrolling pane still scrolls.
- * Null when nothing can scroll that way.
+ * Null when nothing can scroll that way. With `within` (a layer laid over
+ * the page), only something inside it is scrolled: never the page behind.
  */
-export function scrollerFor(doc: Document, from: Element | null, dir: Direction): Element | null {
+export function scrollerFor(doc: Document, from: Element | null, dir: Direction, within: Element | null = null): Element | null {
   const view = doc.defaultView;
   if (!view) return null;
   const page = doc.scrollingElement ?? doc.documentElement;
   const start = from ?? (typeof doc.elementFromPoint === 'function' ? doc.elementFromPoint(view.innerWidth / 2, view.innerHeight / 2) : null);
   for (let node = start, i = 0; node && node !== page && node !== doc.body && i < 40; node = composedParent(node), i++) {
-    if (room(node, dir) > 1 && scrollsItself(node, view, axisOf(dir))) return node;
+    if (room(node, dir) > 1 && scrollsItself(node, view, axisOf(dir)) && (!within || within.contains(node))) return node;
   }
+  if (within) return null;
   return room(page, dir) > 1 ? page : null;
 }
 
@@ -47,8 +49,8 @@ export function scrollerFor(doc: Document, from: Element | null, dir: Direction)
  * while the pane beside it is what has more to show). Returns what was
  * scrolled, or null when there was nowhere to scroll.
  */
-export function scrollBy(doc: Document, from: Element | null, dir: Direction, instant: boolean): Element | null {
-  const target = scrollerFor(doc, from, dir) ?? (from ? scrollerFor(doc, null, dir) : null);
+export function scrollBy(doc: Document, from: Element | null, dir: Direction, instant: boolean, within: Element | null = null): Element | null {
+  const target = scrollerFor(doc, from, dir, within) ?? (from ? scrollerFor(doc, null, dir, within) : null);
   if (!target) return null;
   const vertical = axisOf(dir) === 'y';
   const amount = (forward(dir) ? 1 : -1) * SCROLL_SHARE * (vertical ? target.clientHeight : target.clientWidth);

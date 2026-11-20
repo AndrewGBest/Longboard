@@ -170,6 +170,23 @@ describe('scrolling when there is nothing to move to', () => {
     pane.scrollTop = 1600;
     expect(scrollerFor(document, document.getElementById('link'), 'down')).toBeNull();
   });
+
+  it('never scrolls the page behind a layer laid over it', () => {
+    document.body.innerHTML = '<div id="layer"><div id="words" style="overflow-y:auto"><a href="#" id="more">x</a></div><button id="yes">x</button></div><a href="#" id="behind">x</a>';
+    const page = document.documentElement;
+    Object.defineProperty(document, 'scrollingElement', { value: page, configurable: true });
+    scrollable(page, { scrollHeight: 5000, clientHeight: 600 });
+    const layer = document.getElementById('layer')!;
+    const yes = document.getElementById('yes');
+    // Without the layer named, the page is what scrolls.
+    expect(scrollerFor(document, yes, 'down')).toBe(page);
+    expect(scrollerFor(document, yes, 'down', layer)).toBeNull();
+    // What scrolls inside the layer still does.
+    const words = document.getElementById('words')!;
+    scrollable(words, { scrollHeight: 900, clientHeight: 300 });
+    expect(scrollerFor(document, document.getElementById('more'), 'down', layer)).toBe(words);
+    scrollable(page, { scrollHeight: 0, clientHeight: 0 });
+  });
 });
 
 describe('a video counts as being watched only when it fills the screen, on a site with no profile', () => {

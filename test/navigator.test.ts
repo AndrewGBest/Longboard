@@ -136,7 +136,7 @@ describe('row memory', () => {
 
   it('does not take a page-sized clipping container for a row', () => {
     Object.defineProperty(window, 'innerHeight', { value: 540, configurable: true });
-    document.body.innerHTML = `<div id="pageBox" style="overflow-x: hidden">${card('top', 0, 0)}${card('g0', 0, 300)}${card('g1', 240, 300)}${card('below', 240, 400)}</div>`;
+    document.body.innerHTML = `<div id="pageBox" data-rect="0,0,960,2600" style="overflow-x: hidden">${card('top', 0, 0)}${card('g0', 0, 300)}${card('g1', 240, 300)}${card('below', 240, 400)}</div>`;
     const box = document.getElementById('pageBox')!;
     Object.defineProperty(box, 'scrollWidth', { value: 2000, configurable: true });
     Object.defineProperty(box, 'clientWidth', { value: 960, configurable: true });
@@ -923,5 +923,52 @@ describe('a layer fixed over the whole screen with nothing to say it is a dialog
     document.getElementById('yes')!.remove();
     (document as { elementFromPoint?: unknown }).elementFromPoint = () => document.getElementById('gate');
     expect(coveringLayer(document)).toBeNull();
+  });
+});
+
+describe('what a site has shut away or keeps in a pane of its own', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerHeight', { value: 540, configurable: true });
+    Object.defineProperty(window, 'innerWidth', { value: 960, configurable: true });
+  });
+
+  // Shape seen on a music site: the player's bar is closed to no height and cuts off its buttons, which keep their boxes.
+  it('never goes to a control inside a box closed up to nothing', () => {
+    document.body.innerHTML = `${card('a', 0, 100)}<div id="bar" data-rect="0,300,960,0" style="overflow-y: hidden"><div><button id="play" data-rect="0,280,40,40">p</button></div></div>${card('b', 0, 400)}`;
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('a'));
+    nav.move('down');
+    expect(nav.focused?.id).toBe('b');
+  });
+
+  // Shape seen on a film service: shelves in a pane that scrolls, a notice under the pane.
+  it('scrolls a pane on, and stays in it, while it has more to show', () => {
+    document.body.innerHTML = `<div id="pane" data-rect="0,0,960,400" style="overflow-y: auto">${card('one', 0, 300)}${card('two', 0, 700)}</div>${card('notice', 0, 420)}`;
+    const pane = document.getElementById('pane')!;
+    let top = 0;
+    Object.defineProperty(pane, 'scrollHeight', { value: 1000, configurable: true });
+    Object.defineProperty(pane, 'clientHeight', { value: 400, configurable: true });
+    const place = (id: string, y: number): void => document.getElementById(id)!.setAttribute('data-rect', `0,${y - top},100,60`);
+    const scrollTo = (y: number): void => {
+      top = Math.max(0, Math.min(600, y));
+      place('one', 300);
+      place('two', 700);
+    };
+    Object.defineProperty(pane, 'scrollTop', { get: () => top, set: scrollTo, configurable: true });
+    pane.scrollBy = ((o: ScrollToOptions) => scrollTo(top + (o.top ?? 0))) as typeof pane.scrollBy;
+    pane.scrollTo = (() => undefined) as typeof pane.scrollTo;
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('one'));
+    // "two" is cut off below the pane, so the notice is nearest; the pane is scrolled instead.
+    nav.move('down');
+    expect(top).toBe(320);
+    expect(nav.focused?.id).toBe('one');
+    nav.move('down');
+    expect(nav.focused?.id).toBe('two');
+    // The pane is taken to its end first; then the notice is reached.
+    nav.move('down');
+    expect([top, nav.focused?.id]).toEqual([600, 'two']);
+    nav.move('down');
+    expect(nav.focused?.id).toBe('notice');
   });
 });

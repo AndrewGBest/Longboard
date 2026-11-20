@@ -184,7 +184,8 @@ export function isVisible(el: Element, view: Window, faded?: Map<Element, boolea
       break;
     }
     walked.push(node);
-    if (view.getComputedStyle(node).opacity === '0') {
+    const around = view.getComputedStyle(node);
+    if (around.opacity === '0' || collapsed(node, around)) {
       hidden = true;
       break;
     }
@@ -192,6 +193,20 @@ export function isVisible(el: Element, view: Window, faded?: Map<Element, boolea
   // Everything walked lies under where the search ended, so it shares the answer.
   if (faded) for (const n of walked) faded.set(n, hidden);
   return !hidden;
+}
+
+/**
+ * True for a box closed up to nothing that cuts off what is in it: its
+ * contents keep their sizes and places but none of them shows. (Seen on a
+ * music site: the player's bar is shut to no height until something plays,
+ * and Down went to a button in it that nobody could see.)
+ */
+function collapsed(node: Element, style: CSSStyleDeclaration): boolean {
+  const cuts = (o: string): boolean => o === 'hidden' || o === 'clip';
+  if (!cuts(style.overflowY) && !cuts(style.overflowX)) return false;
+  if (style.display === 'contents' || style.display.startsWith('inline')) return false;
+  const box = node.getBoundingClientRect();
+  return (cuts(style.overflowY) && box.height < 1) || (cuts(style.overflowX) && box.width < 1);
 }
 
 /**
@@ -234,6 +249,34 @@ export function rowOf(el: Element, view: Window): Element | null {
     if (node.scrollWidth > node.clientWidth + 8 && view.getComputedStyle(node).overflowX !== 'visible') return node;
   }
   return null;
+}
+
+/** How far a pane must still be able to scroll for a key to scroll it and not leave it. */
+const PANE_ROOM = 8;
+
+/**
+ * The nearest pane around `el` that scrolls up and down by itself (not the
+ * page) and has more to show in `dir`. Null when there is none.
+ */
+export function paneWithMore(el: Element, doc: Document, view: Window, dir: 'up' | 'down'): Element | null {
+  const page = doc.scrollingElement ?? doc.documentElement;
+  for (let node = composedParent(el), i = 0; node && node !== page && node !== doc.body && node !== doc.documentElement && i < 40; node = composedParent(node), i++) {
+    const room = dir === 'down' ? node.scrollHeight - node.clientHeight - node.scrollTop : node.scrollTop;
+    if (room <= PANE_ROOM) continue;
+    const overflow = view.getComputedStyle(node).overflowY;
+    if (overflow === 'auto' || overflow === 'scroll' || overflow === 'overlay') return node;
+  }
+  return null;
+}
+
+/** The share of `el`'s box that shows inside `pane` and the screen, 0 to 1. */
+export function shownIn(el: Element, pane: Element, view: Window): number {
+  const r = el.getBoundingClientRect();
+  const p = pane.getBoundingClientRect();
+  if (r.width <= 0 || r.height <= 0) return 0;
+  const w = Math.min(r.right, p.right, view.innerWidth) - Math.max(r.left, p.left, 0);
+  const h = Math.min(r.bottom, p.bottom, view.innerHeight) - Math.max(r.top, p.top, 0);
+  return w <= 0 || h <= 0 ? 0 : (w * h) / (r.width * r.height);
 }
 
 /**
@@ -930,6 +973,22 @@ export class SpatialNavigator {
         if (last && others.includes(last)) target = last;
       }
     }
+    // A pane that scrolls by itself is not left by the key that scrolls it
+    // while it has more to show that way: the pane moves on and the
+    // highlight takes up what comes into view. (Seen on a film service and a
+    // music one: a notice lay under the pane, Down from the last card in
+    // view went to the notice, and the rest of the pane was never reached.)
+    if (target && view && (dir === 'up' || dir === 'down')) {
+      const pane = paneWithMore(from, this.doc, view, dir);
+      if (pane && !deepContains(pane, target)) {
+        pane.scrollBy({ top: (dir === 'down' ? 0.8 : -0.8) * pane.clientHeight, behavior: 'instant' });
+        const inside = this.candidates(true).filter((el) => el !== from && deepContains(pane, el) && shownIn(el, pane, view) >= 0.99);
+        const j = pickNext(toRect(from), inside.map(toRect), dir);
+        if (j !== -1) return this.focus(inside[j] ?? null, { scroll: false });
+        if (shownIn(from, pane, view) < 0.5) this.focusOnScreen(dir, pane);
+        return true;
+      }
+    }
     // A held key stops at the last row and does not run on into the page's
     // footer: more rows may be about to load in front of it, and the footer
     // would carry the focus away from them. A single press still goes there.
@@ -1005,11 +1064,13 @@ export class SpatialNavigator {
     const cache = new Map<Element, boolean>();
     // Only what the scrolling brought: inside the pane that scrolled, when it was a pane.
     const pane = within && within !== this.doc.scrollingElement && within !== this.doc.documentElement && within !== this.doc.body ? within : null;
-    const onScreen = this.candidates(true).filter((el) => {
-      if (pane && !deepContains(pane, el)) return false;
+    const inPane = this.candidates(true).filter((el) => (!pane || deepContains(pane, el)) && !isPinned(el, view, cache));
+    let onScreen = inPane.filter((el) => {
       const r = el.getBoundingClientRect();
-      return r.top >= 0 && r.bottom <= view.innerHeight && r.left >= 0 && r.right <= view.innerWidth && !isPinned(el, view, cache);
+      return r.top >= 0 && r.bottom <= view.innerHeight && r.left >= 0 && r.right <= view.innerWidth && (!pane || shownIn(el, pane, view) >= 0.99);
     });
+    // A pane shorter than its cards may show none of them whole: then what is mostly in view.
+    if (onScreen.length === 0 && pane) onScreen = inPane.filter((el) => shownIn(el, pane, view) >= 0.5);
     if (onScreen.length === 0) return false;
     const rects = onScreen.map(toRect);
     let pick = pickInitial(rects);

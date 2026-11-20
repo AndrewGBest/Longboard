@@ -218,9 +218,11 @@ let nextPort = 9300 + Math.floor(Math.random() * 400);
  * default window), unless a scenario passes --zoom=. Running everything at
  * a scale of 1 once hid a pointer bug that every real TV would have shown.
  */
-export async function launch({ url, config, args = [], width, height, seed, env = {}, sandbox = false } = {}) {
+export async function launch({ url, config, args = [], width, height, seed, env = {}, sandbox = false, keep } = {}) {
   const port = nextPort++;
-  const userData = mkdtempSync(join(tmpdir(), 'longboard-e2e-'));
+  // `keep` names a data folder that outlives the run (the survey's signed-in
+  // pass: a person signed in there by hand). It is never deleted here.
+  const userData = keep ?? mkdtempSync(join(tmpdir(), 'longboard-e2e-'));
   // Searches go to a name that can never resolve, so a test never contacts a search engine.
   writeFileSync(join(userData, 'config.json'), JSON.stringify({ search: 'https://search.invalid/find?q=%s', ...config }));
   // Files a scenario wants in the data folder before the app starts.
@@ -280,7 +282,7 @@ export async function launch({ url, config, args = [], width, height, seed, env 
     for (const view of open) view.close();
     child.kill();
     await sleep(300);
-    rmSync(userData, { recursive: true, force: true });
+    if (!keep) rmSync(userData, { recursive: true, force: true });
   };
   return app;
 }

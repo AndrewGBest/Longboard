@@ -92,6 +92,12 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   const playerShare = (): number => (rules.generic ? GENERIC_PLAYER_SHARE : 0.5);
   const mainVideo = (): HTMLVideoElement | null => findMainVideo(doc, playerRoots, playerShare());
   const inPlayer = (): boolean => isPlayerActive(doc, playerRoots, playerShare());
+  /** The pop-up or covering layer in front, when it is pinned to the screen and so does not move with the page. */
+  const pinnedLayer = (): Element | null => {
+    const layer = openDialog(doc) ?? (inPlayer() ? null : coveringLayer(doc));
+    for (let el: Element | null = layer; el; el = el.parentElement) if (view.getComputedStyle(el).position === 'fixed') return layer;
+    return null;
+  };
   /** While the player is open, focus stays among its own controls. */
   const scope = (): Element | null => {
     // A pop-up the page opened in front of everything: only it can be reached.
@@ -244,7 +250,8 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       // a little wider than the screen must not slide about under the arrows.
       const sideways = dir === 'left' || dir === 'right';
       const here = from && isVisible(from, view) && !nav.focusIsOffScreen() ? from : null;
-      const scrolled = !sideways || here ? scrollBy(doc, here, dir, false) : null;
+      // In a layer pinned over the page, the page behind stays where it is.
+      const scrolled = !sideways || here ? scrollBy(doc, here, dir, false, pinnedLayer()) : null;
       if (scrolled) {
         view.clearTimeout(scrollTimer);
         scrollTimer = view.setTimeout(() => {

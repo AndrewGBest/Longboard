@@ -4,7 +4,7 @@
 // where nothing moves although the page goes on, a highlight left off
 // screen, and controls Tab reaches that the highlight cannot.
 //
-//   xvfb-run -a -s "-screen 0 1920x1080x24" node test/scorecard/survey.mjs [words] [--out=file.jsonl] [--shots=folder] [--part=1/2] [--answer-gate] [--open-first]
+//   xvfb-run -a -s "-screen 0 1920x1080x24" node test/scorecard/survey.mjs [words] [--out=file.jsonl] [--shots=folder] [--part=1/2] [--answer-gate] [--open-first] [--data=folder]
 //
 // Always --automation (Hard rule 11): nothing is typed, bought or signed in
 // to. What is written holds kinds, sizes and counts, never a page's words.
@@ -18,14 +18,26 @@ const shots = opt('shots');
 const out = opt('out');
 const answerGate = args.includes('--answer-gate');
 const openFirst = args.includes('--open-first');
+// A data folder a person has signed in to by hand (test/scorecard/sign-in.mjs).
+const keep = opt('data');
 const [part, parts] = (opt('part') ?? '1/1').split('/').map(Number);
 const only = args.filter((a) => !a.startsWith('--'));
 const { sites } = JSON.parse(readFileSync(join(root, opt('list') ?? 'test/scorecard/survey-sites.json'), 'utf8'));
-const list = sites.filter((s, i) => (only.length === 0 || only.some((o) => s.url.includes(o))) && i % parts === part - 1);
+const list = sites.filter((s) => !keep || s.account).map((s) => (keep && s.app ? { ...s, url: s.app } : s)).filter((s, i) => (only.length === 0 || only.some((o) => s.url.includes(o))) && i % parts === part - 1);
 if (shots) mkdirSync(shots, { recursive: true });
 
 const STATE = `(() => {
-  const f = document.querySelector('[data-longboard-focus]');
+  // The highlight may be inside a component's own tree, which querySelector does not look into.
+  const deep = (root) => {
+    const hit = root.querySelector('[data-longboard-focus]');
+    if (hit) return hit;
+    for (const e of root.querySelectorAll('*')) {
+      const inner = e.shadowRoot && deep(e.shadowRoot);
+      if (inner) return inner;
+    }
+    return null;
+  };
+  const f = deep(document);
   const r = f?.getBoundingClientRect();
   const doc = document.scrollingElement ?? document.documentElement;
   return {
@@ -45,7 +57,7 @@ const STATE = `(() => {
 
 async function survey(site) {
   const row = { site: new URL(site.url).hostname, kind: site.kind, loaded: false, endedAt: '', elements: 0, dialog: false, first: '-', topIn: null, topFault: '', down: { moved: 0, stuckWithRoom: 0, loop: 0, offScreen: 0, small: 0, leftSite: false }, side: 0, tab: '-', missed: '-', beyond: 0, note: '' };
-  const app = await launch({ url: site.url, args: ['--zoom=2'], width: 1920, height: 1080 });
+  const app = await launch({ url: site.url, args: ['--zoom=2'], width: 1920, height: 1080, keep });
   try {
     const page = await app.page('http', 150);
     if (!page) throw new Error('no page');
