@@ -2,6 +2,16 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.8, from a second pass over 68 well-known sites:
+
+- **Shelves in a part of the page that scrolls by itself** can be walked
+  to the end. Before, a notice underneath could take the highlight and
+  the rest was out of reach.
+- **The highlight no longer goes to buttons a site has folded away** (a
+  music player's bar before anything plays).
+- **The page behind a cookie notice that fills the screen** stays where
+  it is while the notice is open.
+
 New in 0.3.7:
 
 - A search field whose list of suggestions does nothing with the arrow

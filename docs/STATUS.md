@@ -2,6 +2,56 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-20, night: all 68 sites again, and the way in for sign-ins
+
+Andrew: run every site once more, ask of each whether a profile would
+polish it, and go past the sign-in pages; he signs in himself.
+
+- **All 68 sites run again signed out**, then once more on the fixed build.
+  Up reaches the top on 67; the 68th did not open (a streaming service
+  whose front page is an offers page the spending guard refuses).
+- **Three faults found and fixed in the general rules** (no profile):
+
+| Seen on | Fault | Rule now |
+|---|---|---|
+| A film service (shelves in a pane that scrolls, a notice under it) | Down went to the notice and stuck; the rest of the pane was never reached | A pane that scrolls by itself is not left by Down or Up while it has more to show that way |
+| A music service | The highlight went to a button in the player bar, which is shut to no height until something plays | A control inside a box closed up to nothing is not a place to go |
+| An electronics maker (cookie notice over the whole screen) | Down at the notice's last button scrolled the page hidden behind it | The page behind a layer pinned to the screen stays where it is |
+
+- **Each tried on its live site after the fix:** the film service walks
+  to the end of its page; the music service no longer stops on the hidden
+  button; the page behind the notice stays at its top.
+- **The survey's numbers read differently now on three services** whose
+  front page opens with a privacy or welcome dialog: Down "does not move"
+  there, because the highlight is in the dialog and the page behind no
+  longer scrolls. That is the fix working, not a fault.
+- **A mistake of the agent's, corrected:** the first run today had the
+  age-question step on for every site. It pressed "accept" on thirteen
+  sites' ordinary notices and skewed eleven results. Those were run again
+  without it. The step is for the adult sites only.
+- **The survey now sees a highlight inside a component's own tree**
+  (shadow DOM). One forum's vote buttons had been counted as "nothing
+  highlighted".
+- **Signing in** (`test/scorecard/sign-in.mjs`): opens each of the 45
+  sites that have an account worth having, one at a time, on the real
+  screen. No script is attached to that window and there is no debugging
+  port. The survey then opens the same data folder with `--data=` under
+  `--automation`. The folder is outside the repository.
+- **Profiles:** none written. Every fault on the signed-out pages came
+  from a habit several sites share. The verdict site by site waits for the
+  signed-in pages, where shelves, players and search are.
+- **Verified:** `npm run check` (563 unit tests); `npm run e2e` (496
+  checks, all passing); the survey runs above; the sign-in window opened
+  on the real screen with a harmless page.
+- **Unverified:** everything behind a sign-in (waiting on Andrew);
+  whether a large site will let an embedded browser sign in at all;
+  playing video; any of it with a remote at a TV.
+- **Seen, not fixed:** on a music service, Down from the side column goes
+  to the bar pinned at the bottom before the main pane (Right goes
+  straight there); the first press lands on an advertisement's frame on
+  three news sites; one weather site's page ends in a run of
+  advertisement frames the highlight stops on.
+
 ## 2026-11-20, later still: past the age question
 
 Andrew: "Test beyond the age gate".

@@ -158,7 +158,7 @@ Known and not fixed:
 
 ## The survey
 
-`test/scorecard/survey.mjs` is a wider and rougher look: 63 well-known
+`test/scorecard/survey.mjs` is a wider and rougher look: 68 well-known
 sites (`test/scorecard/survey-sites.json`), each checked for the faults a
 script can see. It is for finding faults, not for scoring. STATUS.md of
 2026-11-20 has what the first two runs found.
@@ -166,4 +166,16 @@ script can see. It is for finding faults, not for scoring. STATUS.md of
 ```
 xvfb-run -a -s "-screen 0 1920x1080x24" node test/scorecard/survey.mjs --out=results.jsonl
 ```
+
+Pages behind a sign-in: a person signs in by hand first, in windows no
+script is attached to, and the survey then opens the same data folder
+(DECISIONS.md, 2026-11-20). The folder must be outside the repository.
+
+```
+node test/scorecard/sign-in.mjs --data=$HOME/.local/share/longboard-survey-signed-in
+xvfb-run -a -s "-screen 0 1920x1080x24" node test/scorecard/survey.mjs --data=$HOME/.local/share/longboard-survey-signed-in --out=signed-in.jsonl
+```
+
+`--answer-gate` is for sites that open with an age question. On other
+sites it presses "accept" on ordinary notices and skews the result.
 

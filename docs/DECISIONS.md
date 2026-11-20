@@ -3,6 +3,32 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-20: signing in for the survey is done by a person, in a window no script can see
+
+**Andrew, 2026-11-20:** "This time we're going past log in screens, bring
+up each webpage when you need me to log into them and I'll create accounts
+and log in." How it is done is **the agent's assumption**.
+
+| Question | Choice | Why |
+|---|---|---|
+| Who types | Andrew, on the real screen | Hard rule 10 |
+| The sign-in window | Started as a person would start the app: no `--automation`, no debugging port, nothing read from the page | With no port there is no way for a script to see what is typed. `--automation` is for runs a script drives (rule 11); this one is driven by a person, and the guard would get in the way of an account he chooses to pay for |
+| Where the cookies live | One data folder outside the repository, `~/.local/share/longboard-survey-signed-in` | Rule 10: nothing from a signed-in session is committed |
+| The signed-in survey | The same folder, under `--automation`, with the spending guard on; arrow keys, and OK only on a card when asked | Rule 11. What it writes is kinds, sizes and counts, as before |
+| Which sites | 45 of the 68: those where an account shows more. Free ones first. Four share another's account | Signing in to an encyclopedia or a weather site changes nothing about getting around. The marks are in `survey-sites.json` and are the agent's judgement |
+| Pictures of signed-in pages | Kept out of the repository; none of the adult sites | Rule 1 and rule 10 |
+
+## 2026-11-20: three more general rules, no profile
+
+**The agent's assumption**, from the second pass over the surveyed sites.
+
+| Question | Choice | Why |
+|---|---|---|
+| A pane that scrolls by itself, with something under it | Down and Up scroll the pane on while it has more than 8 pixels to show that way, and the highlight takes what comes into view; only at its end is it left | Without it the nearest thing below the last card in view was outside the pane, and the rest of the pane could not be reached. Sideways is left alone |
+| A control inside a box shut to no width or height that cuts off its contents | Hidden | It keeps its size and place, so nothing else said it was not there |
+| The page behind a pop-up or covering layer that is pinned to the screen | Not scrolled when the layer has nowhere further to go | It moved unseen, and was somewhere else when the layer closed. A pop-up that is part of the page's own flow still scrolls with the page |
+| A profile for any of the three sites | No | Each is a habit other sites share |
+
 ## 2026-11-20: adult sites are tested like any others
 
 **Andrew, 2026-11-20:** "Its important to also have support for adult
