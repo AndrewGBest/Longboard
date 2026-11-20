@@ -982,7 +982,33 @@ export class SpatialNavigator {
       others = others.filter((el) => el !== pick);
     }
     const i = pickNext(toRect(from), others.map(toRect), dir);
-    if (i === -1) return null;
+    if (i === -1) {
+      // Inside one notice or pop-up nothing is left out of reach sideways
+      // for lying a little higher or lower: the nearest thing that way in
+      // it is taken. (Seen on a film service's cookie notice: its button,
+      // a link in its words and its X are at three heights, and Right from
+      // the button went nowhere.)
+      if (view && (dir === 'left' || dir === 'right')) {
+        const box = this.opts.scope?.() ?? pinnedNotices(this.doc, view).find((n) => deepContains(n, from)) ?? null;
+        if (box && deepContains(box, from)) {
+          const f = from.getBoundingClientRect();
+          let best: Element | null = null;
+          let least = Infinity;
+          for (const el of all) {
+            if (el === from || !deepContains(box, el) || !isVisible(el, view)) continue;
+            const r = el.getBoundingClientRect();
+            if (dir === 'right' ? r.left < f.right - 1 : r.right > f.left + 1) continue;
+            const gap = (dir === 'right' ? r.left - f.right : f.left - r.right) + 2 * Math.abs((r.top + r.bottom) / 2 - (f.top + f.bottom) / 2);
+            if (gap < least) {
+              least = gap;
+              best = el;
+            }
+          }
+          if (best) return this.focus(best);
+        }
+      }
+      return null;
+    }
     let target = others[i] ?? null;
     if (target && (dir === 'up' || dir === 'down')) target = this.rowEntry(target, from, others);
     // Coming into a group that remembers: back to where the highlight last was in it.

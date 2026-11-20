@@ -21,7 +21,14 @@ import { isSecretField } from '../shared/osk';
 function guardFrame(): void {
   if (!process.argv.includes('--longboard-automation')) return;
   installPurchaseGuard(document, [], () => ipcRenderer.send('longboard:frame', 'blocked'));
-  ipcRenderer.send('longboard:frame', 'guarded');
+  // Said now, and again once the document is there: the first word can
+  // reach the shell before the shell hears that the frame has gone to this
+  // page, and is then forgotten with the page before. (Seen on a film
+  // service's sign-in frame, 2026-11-21: guarded, and never known to be.)
+  const say = (): void => ipcRenderer.send('longboard:frame', 'guarded');
+  say();
+  document.addEventListener('DOMContentLoaded', say, { once: true });
+  window.addEventListener('load', say, { once: true });
 }
 
 /**

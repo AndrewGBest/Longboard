@@ -140,6 +140,20 @@ export class Overlay {
       host.setAttribute('popover', 'manual');
       this.raise();
       doc.addEventListener('fullscreenchange', () => this.raise());
+      // The same when the page opens something else in the top layer after
+      // it: a dialog shown as modal, or a popover of its own. Whatever came
+      // last is in front, so the overlay is shown again to be last. (Seen
+      // on a film service's sign-in prompt, a modal dialog: the highlight,
+      // the pointer and the keyboard were all drawn underneath it.)
+      const lift = (): void => void view?.setTimeout(() => this.raise(), 0);
+      doc.addEventListener('toggle', (e) => {
+        if (e.target !== host && (e as Event & { newState?: string }).newState === 'open') lift();
+      }, true);
+      if (typeof MutationObserver === 'function') {
+        new MutationObserver((records) => {
+          if (records.some((r) => r.target instanceof HTMLDialogElement && r.target.open && r.target.matches(':modal'))) lift();
+        }).observe(doc.documentElement, { subtree: true, attributes: true, attributeFilter: ['open'] });
+      }
     }
   }
 

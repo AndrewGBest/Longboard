@@ -1014,4 +1014,23 @@ describe('what a site has shut away or keeps in a pane of its own', () => {
     nav.move('up');
     expect(['more', 'close']).toContain(nav.focused?.id);
   });
+
+  // Shape seen on a film service: a notice whose button, link and X are at three heights.
+  it('reaches everything inside one notice sideways, though it lies higher or lower', () => {
+    document.body.innerHTML = `${card('page', 0, 400)}
+      <div style="position: fixed"><div role="dialog" id="notice" data-rect="50,90,860,140"><a href="#" id="here" data-rect="745,112,27,15">h</a><button id="more" data-rect="80,169,125,42">m</button><button id="close" data-rect="868,100,44,44">x</button></div></div>`;
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('more'));
+    nav.move('right');
+    expect(nav.focused?.id).toBe('here');
+    nav.move('right');
+    expect(nav.focused?.id).toBe('close');
+    nav.move('left');
+    expect(nav.focused?.id).toBe('here');
+    nav.move('left');
+    expect(nav.focused?.id).toBe('more');
+    // Not out of the notice: nothing lies further left in it.
+    nav.move('left');
+    expect(nav.focused?.id).toBe('more');
+  });
 });

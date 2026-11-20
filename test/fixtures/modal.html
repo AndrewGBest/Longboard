@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: a dialog shown as modal</title>
+<!-- A made-up page that opens a dialog with showModal(), which the browser
+     draws in its top layer, in front of everything opened before it. -->
+<style>
+  body { margin: 0; padding: 24px 32px; background: #fff; color: #222; font: 16px/1.5 system-ui, sans-serif; }
+  button { font: inherit; padding: 12px 20px; }
+  dialog { width: 60vw; height: 60vh; }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+</style>
+</head>
+<body>
+<button id="open">Open the prompt</button>
+<dialog id="prompt"><p>A prompt.</p><button id="yes">Yes</button> <button id="no">No</button></dialog>
+<script>
+  document.getElementById('open').addEventListener('click', () => document.getElementById('prompt').showModal());
+  document.getElementById('no').addEventListener('click', () => document.getElementById('prompt').close());
+</script>
+</body>
+</html>

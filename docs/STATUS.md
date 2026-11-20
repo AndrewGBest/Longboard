@@ -14,6 +14,27 @@ four things. He asked to be brought back to those sites once fixed.
 | A film service's sign-in prompt "not working" | The prompt is a frame the highlight cannot enter. It needed OK on the frame to get the pointer, which nothing said; and a click on a field in a frame never brought the keyboard up, so a remote could not type there at all | On a frame over 40% of the screen the arrows hand over to the pointer and say so. A click on a text field inside any frame brings the on-screen keyboard up; its keys type into that field; Back returns to the pointer where it was |
 | Another streaming service: the sign-in button could not be reached | **Not known.** Its front page is an offers page the spending guard refuses in a scripted run, so the agent has not seen it | Nothing changed for it on purpose. An outline saved by Andrew on that page (Ctrl+Shift+D) would show the cause |
 
+- **Second round, after Andrew tried the fixes** (same day):
+
+| Reported | Cause | Now |
+|---|---|---|
+| The film service's notice: "Learn more" can be reached, its X cannot | Its button, a link in its words and its X are at three heights, so Left and Right inside the notice went nowhere | Inside one notice or pop-up, a sideways press that finds nothing level takes the nearest thing that way in it |
+| The other film service's sign-in prompt still could not be used | Two things. The prompt is a dialog the browser draws in its top layer, in front of Longboard's own drawings, so the pointer, the highlight and the keyboard were all underneath it. And the rule that keeps the highlight inside a dialog took the cursor out of the frame's field half a second after the keyboard opened | Longboard's drawings are put in front again whenever the page opens a modal dialog or a popover. The dialog rule stands aside while the keyboard is typing into a frame |
+| The streaming service whose sign-in button could not be reached | Andrew: "seems to work now, odd it didn't before". Not explained | Nothing done. By script, Down from a fresh page lands on its sign-in button |
+
+- **The film service's prompt, by script on the live site:** an arrow
+  brings the pointer, OK on the email field brings the keyboard up in
+  front of the prompt, and a key typed one letter into the field. Nothing
+  was sent.
+- **Found on the way:** a frame's "my guard is up" could reach the shell
+  before the shell heard the frame had gone to that page, and was then
+  forgotten, so a scripted run refused every click into such a frame. The
+  frame now says it again once its document is there. The guard itself
+  was up all along.
+- **A scripted run may now look at a page of offers** (Andrew's decision,
+  DECISIONS.md). Sign-up addresses are still refused: on that streaming
+  service the sign-in button's own address is one, so no script has seen
+  the form behind it.
 - **How the keyboard reaches a frame:** the frame's own preload says only
   that a field has the cursor after a click, whether it is a secret one,
   the page's word for Enter and where the field is. The shell takes the
@@ -25,12 +46,9 @@ four things. He asked to be brought back to those sites once fixed.
 - **Verified:** `npm run check` (566 unit tests); `npm run e2e` (505 checks, all passing); the two
   notices on their live sites, by script: Down reaches each notice's
   buttons and carries on into the page afterwards.
-- **Unverified:** the framed sign-in prompt on the live film service.
-  A scripted run may not click into a frame it cannot check ("Blocked:
-  automation mode could not check an embedded frame"), which is the guard
-  doing its job, so only the hand-over to the pointer was seen there. The
-  keyboard for a framed field is proven on an invented page only. A
-  password field that changes its kind without losing the cursor is not
+- **Unverified:** the framed prompt past its first field (the password
+  step is never typed by a script, Hard rule 10); any of it by a person
+  with a remote. A password field that changes its kind without losing the cursor is not
   noticed (the frame speaks when the cursor arrives).
 
 ## 2026-11-20, night: all 68 sites again, and the way in for sign-ins

@@ -453,7 +453,10 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     const dialog = openDialog(doc);
     if (!dialog) return false;
     const f = nav.focused;
-    if (!f || !deepContains(dialog, f)) {
+    // Not while the keyboard is typing into a frame of the dialog: taking
+    // the highlight there takes the cursor out of the field. (Seen on a
+    // film service's sign-in prompt: the keyboard closed as it opened.)
+    if (!frameTyping && (!f || !deepContains(dialog, f))) {
       beforeDialog = f;
       nav.focusFirstIn(dialog);
     }

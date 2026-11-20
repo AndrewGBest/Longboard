@@ -889,6 +889,30 @@ await scenario('a prompt that is a frame over the whole page', { url: `${site.or
   await press('ArrowDown', 500);
   await press('ArrowDown', 500);
   check('the arrows hand over to the pointer, and say so', [(await page.pointerAt()) !== null, await page.toastText()], [true, 'Pointer mode: this part of the page needs the pointer']);
+  // The prompt calls itself a dialog, and the highlight is kept in dialogs: that must not take the cursor out of the frame's field.
+  check('the pointer can be walked to a text field in the prompt', await page.pointTo(100, 45), true);
+  await press('Enter', 2500);
+  check('OK on it brings the keyboard up, and it stays up', await page.keyboardShown(), true);
+  await press('Enter', 600);
+  check('and its keys type into the field', (await page.evaluate('__frame.messages')).filter((m) => m.startsWith('typed ')).length, 1);
+});
+
+await scenario('a dialog the browser draws in front of everything', { url: `${site.origin}/modal.html` }, async (app) => {
+  const page = await app.page(`${site.origin}/modal.html`);
+  const { press, focused } = page;
+  // What is in the browser's top layer, back to front: the last is what is seen.
+  const front = async () => {
+    const { nodeIds } = await page.cdp.send('DOM.getTopLayerElements');
+    const names = [];
+    for (const nodeId of nodeIds) names.push((await page.cdp.send('DOM.describeNode', { nodeId })).node.localName);
+    return names.filter((n) => n !== '::backdrop').at(-1);
+  };
+  await sleep(800);
+  await page.cdp.send('DOM.getDocument', { depth: 0 });
+  await press('ArrowDown', 300);
+  await press('Enter', 900);
+  check('the highlight goes into the dialog', await focused(), 'yes');
+  check('and Longboard\'s own drawings are in front of it, not under it', await front(), 'longboard-overlay');
 });
 
 await scenario('pointer mode', { url: `${site.origin}/frames.html` }, async (app) => {
