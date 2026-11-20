@@ -3,6 +3,30 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-21: Longboard may say it is a TV, to a site whose profile asks
+
+**Andrew, 2026-11-21:** "Im interested in having profiles that apply fixes
+that make you get the tv ui when you are infact using it as a tv. Make a
+youtube profile that does what it needs to do to get the proper tv UI,
+update the rules to reflect that this is okay, because you are afterall a
+tv and should be getting that ui." This amends Hard rule 3, and replaces
+"no user-agent switcher of any kind" in the standing brief to the extent
+below. How it is done is **the agent's assumption**.
+
+| Question | Choice | Why |
+|---|---|---|
+| What is said | The unchanged honest identity, then `, Longboard_TV/<version> (Longboard, <system>)` | Tried against the video site's TV page on 2026-11-21 with plain requests: this is the least it accepts. The honest identity alone, or with a bare "TV" word in several places, is answered with a small "not for this device" page |
+| Not what the app looked at for comparison does | That app sends the identity of the engine the site's own TV apps run on, with a version copied from one of them (read in its source, 2026-11-21) | That is claiming to be another browser. It turned out not to be needed |
+| Who chooses the words | Longboard, in `src/main/useragent.ts`, the only file the rule checker lets set an identity | A profile that could carry a user agent would be a user-agent switcher fed from the catalogue |
+| What a profile says | `view.device: "tv"`, and no other value is valid | Rule 7: data, and the smallest there can be |
+| Where it applies | Pages the profile matches (host and path) and everything those pages fetch; the page's scripts are told the same. Any other page, of the same site too, gets the usual identity | The server and the page's scripts must agree, and nothing else should see it |
+| The browser's other statements about itself (the "client hints" headers) | Untouched: they go on naming the real engine | Honest, and the TV page did not need them changed |
+| The remote | The site's. Arrows, OK, media keys, and Back as Escape or Backspace reach the page as they are; no highlight | An app made for TVs moves its own mark; two marks would fight |
+| The spending guard | Unchanged: in a scripted run OK on a purchase or sign-up control is still refused. So the agent cannot get past the TV app's first screen ("Get started") and has not seen the rest | Rule 11 |
+| When "using it as a TV" is true | Always, for now: Longboard is a browser for TVs whatever window it is in | **Assumption.** A check for full-screen mode could be added if Andrew wants the TV interface only then |
+| Limits that stay | No other maker, model, system or browser named; no serials; nothing from the person or a profile; never as a way past DRM, payment, region or resolution limits | The rest of rule 3, and rule 2 |
+| The risk | A site's terms may reserve its TV interface for its own apps or certified devices, and it can stop serving it to Longboard whenever it likes. Then the profile stops working and the ordinary site is still there | Said to Andrew; his to accept. Not legal advice |
+
 ## 2026-11-21: what the highlight does when the page takes its place away
 
 **The agent's assumption**, from the signed-in run over 49 sites.

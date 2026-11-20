@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { keyToAction } from '../src/layer/input/keys';
+import { keyToAction, ownRemoteKey } from '../src/layer/input/keys';
 import {
   Btn,
   buttonToAction,
@@ -89,5 +89,23 @@ describe('gamepad', () => {
     expect(t.update(new Set([Btn.A]), 0)).toEqual([Btn.A]);
     expect(t.update(new Set(), 16)).toEqual([]);
     expect(t.update(new Set([Btn.A]), 32)).toEqual([Btn.A]);
+  });
+});
+
+describe('a site that answers the remote itself', () => {
+  it('gets the arrows, OK and the media keys as they are', () => {
+    for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) expect(ownRemoteKey('move', key)).toBe(true);
+    expect(ownRemoteKey('select', 'Enter')).toBe(true);
+    expect(ownRemoteKey('playPause', 'MediaPlayPause')).toBe(true);
+  });
+  it('gets Back only as a key such apps know as Back', () => {
+    expect(ownRemoteKey('back', 'Escape')).toBe(true);
+    expect(ownRemoteKey('back', 'Backspace')).toBe(true);
+    expect(ownRemoteKey('back', 'BrowserBack')).toBe(false);
+  });
+  it('never gets the menu, the way out, or keys remapped from letters', () => {
+    expect(ownRemoteKey('menu', 'ContextMenu')).toBe(false);
+    expect(ownRemoteKey('exit', 'q')).toBe(false);
+    expect(ownRemoteKey('move', 'w')).toBe(false);
   });
 });

@@ -26,9 +26,17 @@ The reasoning for each is in `docs/LEGAL-GUARDRAILS.md`.
    wrap the CDM, inspect or replay licence traffic, record or download streams,
    or work around a resolution or output restriction.
 3. **Honest identity.** The user agent is the embedded Chromium's real one with
-   only the app tokens removed. Never claim to be a TV, console, phone, another
-   OS or another browser. Never invent device IDs or serials. No user-agent
-   switcher.
+   only the app tokens removed. Never claim to be another browser or engine,
+   another OS, a console, a phone, or another maker's device. Never invent
+   device IDs or serials. No user-agent switcher. **One addition is allowed**
+   (Andrew, 2026-11-21): Longboard is a TV browser, so for a site whose
+   profile says `view.device: "tv"` it may add, after the unchanged honest
+   identity, the one fixed statement that it is Longboard running as a TV,
+   so that the site serves the interface it made for TVs. The wording is
+   Longboard's and lives in `src/main/useragent.ts`; a profile can only say
+   `"tv"`, never supply or alter an identity; the person cannot pick one
+   either. This is never used to get past DRM, a paywall, a region limit or
+   a resolution limit (rule 2 stands untouched).
 4. *(Removed by Andrew, 2026-11-18. Longboard is a whole browser, not a
    client for streaming services. The number is kept so the other rules keep
    theirs. Rules 2, 3 and 5 still stand.)*

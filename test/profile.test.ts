@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { genericRules, rulesFrom, rulesFromUntrusted, rulesReport } from '../src/layer/profile/rules';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
 import { ProfileStore, sourceLabel } from '../src/main/profiles';
-import { canvasOf, chooseProfile, exportName, hostMatches, importKey, matchScore, validateProfile, type Profile, type StoredProfile } from '../src/shared/profile';
+import { canvasOf, wantsTv, chooseProfile, exportName, hostMatches, importKey, matchScore, validateProfile, type Profile, type StoredProfile } from '../src/shared/profile';
 
 const base = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
   longboard: 1,
@@ -396,5 +396,25 @@ describe('the profile store', () => {
     const file = store.exportProfile(valid());
     expect(file).toBe(join(dir, 'exports/example-video.longboard-profile.json'));
     expect(validateProfile(JSON.parse(readFileSync(file!, 'utf8'))).problems).toEqual([]);
+  });
+});
+
+describe('a site with an interface for TVs', () => {
+  it('is named by one word, and nothing else is accepted there', () => {
+    expect(wantsTv(valid({ view: { device: 'tv' } }))).toBe(true);
+    expect(wantsTv(valid())).toBe(false);
+    expect(wantsTv(null)).toBe(false);
+    for (const device of ['console', 'TV', 'phone', 'Mozilla/5.0 (Another Browser)', true, { tv: true }]) {
+      expect(validateProfile(base({ view: { device } })).problems.join()).toContain('"view.device" can only be "tv"');
+    }
+    // No way to hand over a user agent of the profile's own.
+    expect(validateProfile(base({ view: { userAgent: 'x' } })).profile).toBeNull();
+    expect(validateProfile(base({ identity: 'x' })).profile).toBeNull();
+  });
+
+  it('leaves the remote to the site', () => {
+    expect(rulesFrom(valid({ view: { device: 'tv' } })).ownRemote).toBe(true);
+    expect(rulesFrom(valid()).ownRemote).toBe(false);
+    expect(genericRules().ownRemote).toBe(false);
   });
 });

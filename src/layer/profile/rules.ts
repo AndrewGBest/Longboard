@@ -30,6 +30,12 @@ export interface SiteRules {
   /** Where the highlight starts, or null. */
   initial: string | null;
   groups: ProfileGroup[];
+  /**
+   * The site is an app made for TVs and answers the remote itself: the
+   * arrows, OK and Back reach it as the keys they are, and the highlight
+   * stays out of its way.
+   */
+  ownRemote: boolean;
   /** The ordinary keys the site's player answers to. */
   playerKeys: { playPause: PlayerKeyName; back: PlayerKeyName; forward: PlayerKeyName };
 }
@@ -45,6 +51,7 @@ export function genericRules(): SiteRules {
     selectors: { extraFocusable: [], exclude: [], searchInput: [], searchOpen: [], rowPrev: [], rowNext: [], playerRoot: [], playerClose: [], purchaseControls: [], dismiss: [] },
     initial: null,
     groups: [],
+    ownRemote: false,
     playerKeys: { playPause: 'Space', back: 'ArrowLeft', forward: 'ArrowRight' },
   };
 }
@@ -71,6 +78,7 @@ export function rulesFrom(profile: Profile, doc?: Document): SiteRules {
   rules.name = profile.name;
   rules.version = profile.version;
   rules.generic = false;
+  rules.ownRemote = profile.view?.device === 'tv';
   rules.selectors = {
     extraFocusable: ok([...(profile.focus?.include ?? []), profile.player?.controls]),
     exclude: ok(profile.focus?.exclude ?? []),

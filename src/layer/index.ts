@@ -11,7 +11,7 @@ import { installPurchaseGuard, isSpendControl } from './guard/purchase-guard';
 import { startPolling } from './input/gamepad';
 import { TopEdge } from './input/top-edge';
 import { activeOption, openCombo } from './combobox';
-import { keyToAction, type Mode } from './input/keys';
+import { keyToAction, ownRemoteKey, type Mode } from './input/keys';
 import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
 import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo, type PlayerKey, type TextKey } from '../shared/player-keys';
@@ -953,6 +953,10 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     // In the player, a key that is already the site's own key for the action
     // goes straight to the site, untouched.
     if (isNativePlayerKey(e.key, action, rules.playerKeys) && inPlayer()) return;
+    // An app made for TVs answers the remote itself. With Longboard's own
+    // things out of the way (keyboard, menu, pointer), the arrows and OK are
+    // the site's, and so is Back when it is a key such an app knows as Back.
+    if (rules.ownRemote && !oskOpen && !pointerOn && ownRemoteKey(action.type, e.key)) return;
     e.preventDefault();
     // Immediate: the site may also listen on the window, and must not see a
     // key the layer has taken.

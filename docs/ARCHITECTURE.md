@@ -39,7 +39,9 @@ Carried over from Tropic Video and kept:
 
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`;
 - nothing exposed to the page through `contextBridge`;
-- the user agent is Chromium's own with only the app's tokens removed.
+- the user agent is Chromium's own with only the app's tokens removed; for a site
+  whose profile says `view.device: "tv"` it is followed by the one statement
+  that Longboard is running as a TV (`src/main/useragent.ts`, Hard rule 3).
 
 These match Electron's own security checklist [Sourced: Electron].
 

@@ -1,0 +1,11 @@
+{
+  "longboard": 1,
+  "id": "fixture-tv-app",
+  "name": "A made-up app for TVs",
+  "version": "1.0.0",
+  "authors": ["longboard"],
+  "licence": "CC0-1.0",
+  "match": { "hosts": ["profile.test"], "paths": ["/tvapp.html"] },
+  "view": { "device": "tv" },
+  "evidence": { "outline": "outline.txt" }
+}

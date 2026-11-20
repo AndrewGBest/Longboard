@@ -2,6 +2,50 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-21, last: a site's own interface for TVs, and rule 3 amended
+
+0.3.12 is published (six packages). Then Andrew asked how another project
+gets a video site's TV interface, and then for profiles that get it for
+Longboard, with the rules changed to allow it "because you are afterall a
+tv". Hard rule 3 is amended (CLAUDE.md, LEGAL-GUARDRAILS.md, DECISIONS.md).
+
+**What was found first.** That project sends the identity of the engine the
+site's own TV apps run on (read in its source). Longboard does not need to:
+tried with plain requests, the site's `/tv` page is served to Longboard's
+real identity followed by `, Longboard_TV/<version> (Longboard, Linux)`,
+and not to the real identity alone.
+
+**What was built (0.3.13).**
+
+- A profile key, `view.device`, whose only value is `"tv"`.
+- For pages such a profile matches, the view says the honest identity plus
+  that statement, to the server and to the page's scripts, and so does
+  everything the page fetches. Set in `src/main/useragent.ts` only; the
+  rule checker refuses it anywhere else, and refuses a profile format that
+  carries an identity.
+- On such pages the site answers the remote: arrows, OK, media keys, and
+  Back as Escape or Backspace go through untouched; no highlight.
+- A profile in the catalogue for the video site's `/tv` address.
+
+**Verified:** 579 unit tests; a new end-to-end scenario with an invented
+TV app (identity to page and to requests, usual identity elsewhere on the
+same site, arrows reach the app, the spending guard still refuses OK on a
+sign-up button in a scripted run); the whole end-to-end suite; on the live
+site by script, the TV app loads and starts under the profile, and the
+ordinary site beside it is told only the usual identity.
+
+**Not verified, and it matters:** anything past the TV app's first screen.
+Its one button begins signing in, which a scripted run never presses (rule
+11). Browsing, search, the player, Back at the top, the app's own keyboard
+and signing in have not been seen by anyone in Longboard. **Andrew needs to
+try it with a remote:** open `youtube.com/tv`.
+
+**Known gaps.** Opening the plain domain still gives the ordinary site (a
+profile cannot redirect). A Back key that is not Escape or Backspace still
+goes back in history instead of to the app. Nothing on screen says the site
+is being told "TV"; the site menu shows the profile's name only. The site's
+terms may reserve the TV interface for its own apps; it can stop serving it.
+
 ## 2026-11-21, later: the signed-in run over 49 sites, and whether each wants a profile
 
 0.3.11 is published (six packages). After Andrew closed the last sign-in

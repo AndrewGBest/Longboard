@@ -43,7 +43,8 @@ import { readJson, writeJson } from './store';
 import { MENU_TIP } from '../shared/about';
 import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeLauncher } from '../platform';
 import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
-import { canvasOf, type Profile, type ProfileSource } from '../shared/profile';
+import { canvasOf, wantsTv, type Profile, type ProfileSource } from '../shared/profile';
+import { identityFor, systemName, tvUserAgent } from './useragent';
 import { desktopZoom, hoverPoint, pageBounds, tvZoom } from './zoom';
 import { filterSession, type FilterSet } from './adblock';
 import { privacySignals } from './signals';
@@ -1694,7 +1695,15 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // The privacy settings that act on every website view: the two "do not
   // track" signals (main/signals.ts), and keeping the device's address on the
   // home network from sites that set up calls.
-  const signalSession = (web: Electron.Session): void => privacySignals(web, config.doNotTrack === true);
+  // What a view says it is: Longboard's honest identity, and for a site
+  // whose profile asks for its TV interface, that plus "running as a TV"
+  // (main/useragent.ts; rule 3 as amended 2026-11-21).
+  const honestAgent = app.userAgentFallback;
+  const identity = identityFor(honestAgent, tvUserAgent(honestAgent, PRODUCT.name, app.getVersion(), systemName(honestAgent)), (url) => wantsTv(profileFor(url)?.profile ?? null));
+  eachPage((wc) => wc.on('did-start-navigation', (details) => {
+    if (details.isMainFrame && !details.isSameDocument) identity.follow(wc, details.url);
+  }));
+  const signalSession = (web: Electron.Session): void => privacySignals(web, config.doNotTrack === true, identity.header);
   const guardAddress = (wc: WebContents): void => {
     if (!wc.isDestroyed()) wc.setWebRTCIPHandlingPolicy(config.hideLocalAddress === true ? 'default_public_interface_only' : 'default');
   };

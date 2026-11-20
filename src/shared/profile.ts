@@ -33,7 +33,7 @@ export interface Profile {
   authors: string[];
   licence: string;
   match: { hosts: string[]; paths?: string[] };
-  view?: { canvas?: string; safeMargin?: number };
+  view?: { canvas?: string; safeMargin?: number; device?: 'tv' };
   focus?: {
     /** Elements that can take the highlight, added to what generic mode finds. */
     include?: string[];
@@ -162,11 +162,16 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
 
   const view = section('view');
   if (view) {
-    only(view, ['canvas', 'safeMargin'], 'view');
+    only(view, ['canvas', 'safeMargin', 'device'], 'view');
     profile.view = {};
     if (view['canvas'] !== undefined) {
       if (typeof view['canvas'] !== 'string' || !CANVAS.test(view['canvas'])) bad('"view.canvas" must look like 960x540');
       else profile.view.canvas = view['canvas'];
+    }
+    if (view['device'] !== undefined) {
+      // One word and nothing else: a profile cannot say what Longboard calls itself (Hard rule 3).
+      if (view['device'] !== 'tv') bad('"view.device" can only be "tv"');
+      else profile.view.device = 'tv';
     }
     const margin = view['safeMargin'];
     if (margin !== undefined) {
@@ -358,6 +363,15 @@ export function importKey(profile: Profile): string {
 export function canvasOf(profile: Profile | null): { width: number; height: number } | null {
   const m = CANVAS.exec(profile?.view?.canvas ?? '');
   return m ? { width: Number(m[1]), height: Number(m[2]) } : null;
+}
+
+/**
+ * True when a profile says its site has an interface made for TVs, which the
+ * site gives to devices that say they are one. Longboard then says so to
+ * that site (main/useragent.ts) and leaves the remote's keys to it.
+ */
+export function wantsTv(profile: Profile | null): boolean {
+  return profile?.view?.device === 'tv';
 }
 
 /** The file name a profile is exported under. */

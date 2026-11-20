@@ -33,8 +33,8 @@ and ordinary websites without reaching for a keyboard.
    before the person notices a delay (targets in section 9).
 6. **Easy to help.** A person who cannot program can still fix a site by
    making a profile.
-7. **Honest and private.** No telemetry, no pretending to be another device,
-   no DRM tricks.
+7. **Honest and private.** No telemetry, no pretending to be another browser
+   or another maker's device (it may say it is a TV, which it is), no DRM tricks.
 
 ## 3. The three ways a page is driven
 

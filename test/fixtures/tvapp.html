@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>A made-up app for TVs</title>
+<style>
+  body { margin: 0; background: #101418; color: #eee; font: 20px sans-serif; }
+  .tile { display: inline-block; width: 200px; height: 120px; margin: 20px; background: #234; }
+  .tile.on { outline: 4px solid #fff; }
+  button { font: inherit; margin: 20px; padding: 10px 20px; }
+</style>
+<!-- An invented app that answers the remote itself, as apps made for TVs do:
+     it listens for the arrow keys and moves its own mark. -->
+<div id="tiles"><div class="tile on"></div><div class="tile"></div><div class="tile"></div></div>
+<button id="join">Sign up</button>
+<a href="/home.html" id="leave">Somewhere else</a>
+<script>
+  const tiles = [...document.querySelectorAll('.tile')];
+  let at = 0;
+  window.seen = [];
+  window.pressed = 0;
+  document.getElementById('join').addEventListener('click', () => { window.pressed += 1; });
+  addEventListener('keydown', (e) => {
+    window.seen.push(e.key);
+    if (e.key === 'ArrowRight') at = Math.min(tiles.length - 1, at + 1);
+    if (e.key === 'ArrowLeft') at = Math.max(0, at - 1);
+    if (e.key === 'ArrowDown') document.getElementById('join').focus();
+    if (e.key === 'ArrowUp') document.getElementById('join').blur();
+    tiles.forEach((t, i) => t.classList.toggle('on', i === at));
+  });
+  window.where = () => at;
+</script>

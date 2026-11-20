@@ -62,6 +62,8 @@ const site = await serveFixtures({
     asks.suggest.push(q);
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify([q, [`${q} today`, `${q} tomorrow`]]));
   },
+  // What a request said it was, for the checks on the identity sent to a site with a TV interface.
+  '/agent': (req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(req.headers['user-agent'] ?? '')),
   '/favicon.ico': (_req, res) => res.writeHead(200, { 'content-type': 'image/png' }).end(siteIcon),
   '/catalogue/index.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(catalogueIndex),
   '/catalogue/profiles/profile.test/profile.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(fixtureProfile),
@@ -1054,6 +1056,42 @@ await scenario('a site with no profile, then with one', { url: profiled, args: [
   check('the menu says there is no profile', (await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)')).includes('No profile for this site: generic mode'), true);
   check('and offers nothing to export', await chrome.evaluate('!!document.getElementById("menu-export")'), false);
 });
+
+// Rule 3 as amended on 2026-11-21: a profile may say its site has an interface
+// for TVs. Longboard then adds, for that site only, that it is running as a
+// TV; and the site answers the remote itself.
+await scenario(
+  'a site with an interface for TVs',
+  {
+    url: `http://profile.test:${port}/tvapp.html`,
+    args: [mapHost],
+    seed: (data) => {
+      mkdirSync(join(data, 'profiles'), { recursive: true });
+      copyFileSync(join(root, 'test/fixtures/profiles/tvapp.json'), join(data, 'profiles/tvapp.json'));
+    },
+  },
+  async (app) => {
+    const page = await app.page('http://profile.test');
+    const { evaluate, press } = page;
+    await sleep(800);
+    const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+    const said = await evaluate('navigator.userAgent');
+    const cut = said.lastIndexOf(', Longboard_TV');
+    const [honest, added] = cut < 0 ? [said, ''] : [said.slice(0, cut), said.slice(cut + 2)];
+    check('the page is told Longboard is running as a TV, after everything it says anyway', [/^Mozilla\/5\.0 \(X11; Linux [^)]+\) AppleWebKit\/[\d.]+ \(KHTML, like Gecko\) Chrome\/[\d.]+ Safari\/[\d.]+$/.test(honest), added], [true, `Longboard_TV/${version} (Longboard, Linux)`]);
+    check('no other browser, engine, maker or system is named', /Cobalt|Tizen|Web0S|SMART|PlayStation|Xbox|Android|Windows|Macintosh/i.test(said), false);
+    check('what it fetches says the same', await evaluate('fetch("/agent").then((r) => r.json())'), said);
+    await press('ArrowRight');
+    await press('ArrowRight');
+    check('the arrows are the app\'s own: it moves its mark, and Longboard highlights nothing', [await evaluate('where()'), await evaluate('seen.join()'), await evaluate('!!document.querySelector("[data-longboard-focus]")')], [2, 'ArrowRight,ArrowRight', false]);
+    await press('ArrowDown');
+    await press('Enter', 400);
+    check('in a scripted run OK still never presses a sign-up button', [await evaluate('document.activeElement.id'), await evaluate('pressed'), /never activates purchase or sign-up/.test((await page.toastText()) ?? '')], ['join', 0, true]);
+    await evaluate('location.href = "/home.html"');
+    await sleep(1200);
+    check('a page of the same site outside the profile is told only the usual, and so is what it fetches', [await evaluate('location.pathname'), await evaluate('navigator.userAgent'), await evaluate('fetch("/agent").then((r) => r.json())')], ['/home.html', honest, honest]);
+  },
+);
 
 await scenario(
   'a profile of your own',

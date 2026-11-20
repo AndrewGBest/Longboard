@@ -111,3 +111,17 @@ export function keyToAction(e: KeyLike, mode: Mode, overrides: Readonly<Record<s
       return null;
   }
 }
+
+/** The keys an app made for TVs is left to answer by itself. */
+const OWN_REMOTE_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' ', 'MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaStop', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaFastForward', 'MediaRewind']);
+
+/**
+ * True when a key press belongs to a site that answers the remote itself
+ * (a profile's `view.device: "tv"`). Back is the site's only as the keys
+ * such apps know as Back; the menu, the pointer and the rest stay Longboard's.
+ */
+export function ownRemoteKey(action: string, key: string): boolean {
+  if (action === 'back') return key === 'Escape' || key === 'Backspace';
+  if (action === 'menu' || action === 'exit' || action === 'diagnostics') return false;
+  return OWN_REMOTE_KEYS.has(key);
+}

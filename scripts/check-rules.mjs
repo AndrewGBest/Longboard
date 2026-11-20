@@ -18,14 +18,17 @@ const BANNED_NAMES = /(^|\/)(cookies?(\.txt|\.json|\.sqlite)?|Login Data|Local S
 
 const TEXT_EXT = new Set(['.ts', '.mjs', '.js', '.json', '.css', '.html', '.yml', '.yaml']);
 const SELF = 'scripts/check-rules.mjs';
+// Rule 3, as amended 2026-11-21: Longboard's honest identity, and for a site
+// whose profile says "tv", the same identity plus "Longboard running as a TV".
+const IDENTITY_MODULE = 'src/main/useragent.ts';
 
 const CODE_CHECKS = [
   // Rule 2
   [2, /libwidevine|widevinecdm|content_decryption_module|pywidevine|license_?server|getLicense|keyStatuses|MediaKeySession\b.*\.update/i, 'touches the CDM or licence exchange'],
   // Rule 3
   [3, /SMART-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|AFT[A-Z]|Android TV|PlayStation|Xbox|Cobalt\/|Windows NT|Macintosh|CrOS/, 'looks like a spoofed device or OS identity'],
-  // Rule 3: no way to change the user agent per site or per request.
-  [3, /setUserAgent\(|userAgent:\s|User-Agent/, 'sets a user agent somewhere other than the one honest fallback'],
+  // Rule 3: what a view says it is, is decided in one module (see IDENTITY_MODULE below).
+  [3, /setUserAgent\(|userAgent:\s|User-Agent/, 'sets a user agent outside the one module that may'],
   // Rule 5: blocking refuses requests; it never skips advertising inside a stream.
   [5, /skipAd|sponsorblock/i, 'skips advertising inside a video'],
   // Rule 12
@@ -45,6 +48,9 @@ for (const file of files) {
   for (const [rule, pattern, why] of CODE_CHECKS) {
     // Tests may name forbidden things in order to assert they are rejected.
     if (inTests && rule !== 13) continue;
+    // The one module that may say what a view is. It is still held to the
+    // other rule-3 check: no other maker's device, system or browser is named in it.
+    if (file === IDENTITY_MODULE && pattern.source.startsWith('setUserAgent')) continue;
     const m = pattern.exec(text);
     if (m) fail(rule, file, `${why} (matched "${m[0]}")`);
   }
@@ -65,6 +71,13 @@ for (const file of files) {
     const m = /redirectURL|responseHeaders|requestHeaders|insertCSS|executeJavaScript|getCosmeticsFilters|load(Cosmetic|GenericCosmetics|CSP)Filters:\s*true|enableHtmlFiltering:\s*true|loadExtendedSelectors:\s*true/.exec(text);
     if (m) fail(5, file, `the request filter does more than refuse requests (matched "${m[0]}")`);
   }
+}
+
+// Rule 3: a profile says "tv" and nothing more. The format has no key that carries an identity.
+{
+  const format = readFileSync('src/shared/profile.ts', 'utf8');
+  if (/userAgent|user_agent|['"]identity['"]/.test(format)) fail(3, 'src/shared/profile.ts', 'the profile format must not carry a user agent or an identity of its own');
+  if (!/view\['device'\] !== 'tv'/.test(format)) fail(3, 'src/shared/profile.ts', '"view.device" must be checked to be exactly "tv"');
 }
 
 // Rule 6: branding.
