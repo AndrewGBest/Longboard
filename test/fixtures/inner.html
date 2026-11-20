@@ -13,11 +13,14 @@
 <body>
 <button id="inside">Inside the frame</button>
 <button id="buy">Buy now</button>
+<input id="name" type="text" aria-label="Name" style="position:absolute; left:20px; top:30px; width:160px; height:30px">
+<input id="secret" type="password" aria-label="Secret" style="position:absolute; left:20px; top:200px; width:160px; height:30px">
 <script>
   let n = 0;
   document.getElementById('inside').addEventListener('click', () => parent.postMessage(`clicked ${++n}`, '*'));
   document.getElementById('buy').addEventListener('click', () => parent.postMessage('bought', '*'));
   window.addEventListener('keydown', (e) => parent.postMessage(`key ${e.key}`, '*'));
+  document.getElementById('name').addEventListener('input', (e) => parent.postMessage(`typed ${e.target.value}`, '*'));
 </script>
 </body>
 </html>

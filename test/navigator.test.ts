@@ -971,4 +971,47 @@ describe('what a site has shut away or keeps in a pane of its own', () => {
     nav.move('down');
     expect(nav.focused?.id).toBe('notice');
   });
+
+  // Shape seen on a streaming site: a cookie notice across the bottom of the screen, cards going on under and below it.
+  it('offers a notice pinned to the bottom when the next thing down lies under it, and lets the page be walked on', () => {
+    document.body.innerHTML = `${card('c1', 0, 100)}${card('c2', 0, 300)}${card('c3', 0, 440)}${card('c4', 0, 900)}
+      <div style="position: fixed"><div role="dialog" id="notice" data-rect="0,400,960,140"><button id="settings" data-rect="650,420,140,40">s</button><button id="accept" data-rect="650,470,140,40">a</button></div></div>`;
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('c1'));
+    nav.move('down');
+    expect(nav.focused?.id).toBe('c2');
+    // c3 is next, and lies under the notice.
+    nav.move('down');
+    expect(nav.focused?.id).toBe('settings');
+    nav.move('down');
+    expect(nav.focused?.id).toBe('accept');
+    nav.move('up');
+    nav.move('up');
+    expect(nav.focused?.id).toBe('c2');
+  });
+
+  it('offers such a notice once when the next thing down is off the screen, and not again', () => {
+    document.body.innerHTML = `${card('c1', 0, 100)}${card('c4', 0, 900)}${card('c5', 0, 1000)}
+      <div style="position: fixed"><div role="dialog" id="notice" data-rect="0,400,960,140"><button id="accept" data-rect="650,470,140,40">a</button></div></div>`;
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('c1'));
+    nav.move('down');
+    expect(nav.focused?.id).toBe('accept');
+    nav.focus(document.getElementById('c1'));
+    nav.move('down');
+    expect(nav.focused?.id).toBe('c4');
+  });
+
+  // Shape seen on a film service: the notice hangs under the top bar, over the top of the page.
+  it('offers a pinned notice that lies between the highlight and what would be next', () => {
+    document.body.innerHTML = `${card('bar', 700, 20)}${card('field', 260, 360)}
+      <div style="position: fixed"><div role="dialog" id="notice" data-rect="50,90,860,140"><button id="more" data-rect="80,170,125,42">m</button><button id="close" data-rect="868,138,44,44">x</button></div></div>`;
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('bar'));
+    nav.move('down');
+    expect(nav.focused?.id).toBe('close');
+    nav.focus(document.getElementById('field'));
+    nav.move('up');
+    expect(['more', 'close']).toContain(nav.focused?.id);
+  });
 });

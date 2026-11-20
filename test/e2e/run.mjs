@@ -854,6 +854,43 @@ await scenario('a video with the browser\'s own controls', { url: `${site.origin
   check('with ordinary key presses, not by calling the video', (await evaluate('__v.keys')).filter((k) => k === ' ').length, 2);
 });
 
+await scenario('a text field inside a frame from another site', { url: `${site.origin}/frames.html` }, async (app) => {
+  const page = await app.page(`${site.origin}/frames.html`);
+  const { evaluate, press } = page;
+  const messages = () => evaluate('__frame.messages');
+  await sleep(1000);
+  await press('ArrowDown');
+  await press('ArrowDown');
+  await press('Enter', 500);
+  const box = await evaluate('(() => { const r = document.getElementById("frame").getBoundingClientRect(); return { l: r.left, t: r.top }; })()');
+  // The frame has a 2-pixel border; the field is at 20,30 in it, 160 by 30.
+  check('the pointer can be walked to a text field in the frame', await page.pointTo(box.l + 2 + 100, box.t + 2 + 45), true);
+  await press('Enter', 900);
+  check('OK on it brings the on-screen keyboard up, and the pointer gives way to it', [await page.keyboardShown(), await page.pointerAt()], [true, null]);
+  await press('Enter', 500);
+  await press('ArrowRight', 300);
+  await press('Enter', 500);
+  const typed = (await messages()).filter((m) => m.startsWith('typed '));
+  check('its keys type into the field in the frame', [typed.length, typed.at(-1)?.length], [2, 'typed '.length + 2]);
+  check('and the arrows moved along the keyboard, not into the frame', (await messages()).filter((m) => m.startsWith('key Arrow')), []);
+  await press('Escape', 600);
+  check('Back puts the keyboard away and the pointer comes back', [await page.keyboardShown(), (await page.pointerAt()) !== null], [false, true]);
+  // A scripted run never types a password (Hard rule 10): no keyboard for that field.
+  check('the pointer can be walked to a password field in the frame', await page.pointTo(box.l + 2 + 100, box.t + 2 + 215), true);
+  await press('Enter', 900);
+  check('in a scripted run no keyboard comes up for it', await page.keyboardShown(), false);
+});
+
+await scenario('a prompt that is a frame over the whole page', { url: `${site.origin}/frame-prompt.html` }, async (app) => {
+  const page = await app.page(`${site.origin}/frame-prompt.html`);
+  const { press } = page;
+  await sleep(1200);
+  check('no pointer to begin with', await page.pointerAt(), null);
+  await press('ArrowDown', 500);
+  await press('ArrowDown', 500);
+  check('the arrows hand over to the pointer, and say so', [(await page.pointerAt()) !== null, await page.toastText()], [true, 'Pointer mode: this part of the page needs the pointer']);
+});
+
 await scenario('pointer mode', { url: `${site.origin}/frames.html` }, async (app) => {
   const page = await app.page(`${site.origin}/frames.html`);
   const { evaluate, press, focused } = page;

@@ -10,6 +10,7 @@ import { startLayer, type Layer } from '../layer/index';
 import { readArticle } from '../layer/reader';
 import { Referee } from '../layer/diagnostics/referee';
 import { HOST_TAG } from '../layer/ui/overlay';
+import { isSecretField } from '../shared/osk';
 
 /**
  * Inside an embedded frame there is no layer. The one thing done there, and
@@ -21,6 +22,57 @@ function guardFrame(): void {
   if (!process.argv.includes('--longboard-automation')) return;
   installPurchaseGuard(document, [], () => ipcRenderer.send('longboard:frame', 'blocked'));
   ipcRenderer.send('longboard:frame', 'guarded');
+}
+
+/**
+ * The other thing done in a frame: saying when a click (pointer mode's, or a
+ * mouse's) has put the cursor in a text field there, and when it has left,
+ * so the on-screen keyboard can come up for it. A sign-in prompt is often a
+ * frame from the service's own sign-in site. Only that a field has the
+ * cursor is said, whether it is a secret one, the page's word for the Enter
+ * key and where the field is; never what is in it.
+ */
+function watchFrameFields(): void {
+  const isField = (el: EventTarget | null): el is HTMLElement => {
+    if (el instanceof HTMLTextAreaElement) return true;
+    if (el instanceof HTMLInputElement) return !['button', 'submit', 'checkbox', 'radio', 'range', 'reset', 'file', 'image', 'color', 'hidden'].includes(el.type);
+    return el instanceof HTMLElement && el.isContentEditable;
+  };
+  let pressedAt = 0;
+  let told = false;
+  window.addEventListener('mousedown', (e) => {
+    if (e.isTrusted) pressedAt = Date.now();
+  }, true);
+  const say = (el: HTMLElement): void => {
+    const box = el.getBoundingClientRect();
+    told = true;
+    ipcRenderer.send('longboard:frame', {
+      field: 'in',
+      secret: isSecretField(el.getAttribute('type'), el.getAttribute('autocomplete'), `${el.getAttribute('name') ?? ''} ${el.id}`),
+      hint: (el.getAttribute('enterkeyhint') ?? '').toLowerCase().slice(0, 10),
+      top: Math.round(box.top),
+      bottom: Math.round(box.bottom),
+    });
+  };
+  window.addEventListener('focusin', (e) => {
+    // Only a field a click just went to, or the next one while the keyboard is already up for this frame.
+    if (isField(e.target) && (told || Date.now() - pressedAt < 1500)) say(e.target);
+  }, true);
+  // A click on a field that already had the cursor.
+  window.addEventListener('mouseup', (e) => {
+    if (e.isTrusted && !told && isField(document.activeElement) && document.activeElement.contains(e.target as Node)) say(document.activeElement);
+  }, true);
+  const gone = (): void => {
+    if (!told) return;
+    // The cursor may be on its way to the next field: wait and see.
+    setTimeout(() => {
+      if (isField(document.activeElement) && document.hasFocus()) return;
+      told = false;
+      ipcRenderer.send('longboard:frame', { field: 'out' });
+    }, 50);
+  };
+  window.addEventListener('focusout', gone, true);
+  window.addEventListener('blur', gone);
 }
 
 // In a scripted run the guard goes up now, before any of the page's own
@@ -90,6 +142,16 @@ const start = (): void => {
   ipcRenderer.on('longboard:phone-text', (_event, id: unknown) => {
     if (typeof id === 'number') layer.phoneText(id);
   });
+  // A text field inside an embedded frame has the cursor (or no longer has): the keyboard comes up for it here.
+  ipcRenderer.on('longboard:frame-field', (_event, field: unknown) => {
+    const f = field as { hint?: unknown; top?: unknown; bottom?: unknown } | null;
+    layer.frameField(f && typeof f === 'object' ? { hint: typeof f.hint === 'string' ? f.hint : '', top: Number(f.top) || 0, bottom: Number(f.bottom) || 0 } : null);
+  });
+  // A key the shell took while that keyboard is up (the frame has the keys, not this page).
+  ipcRenderer.on('longboard:frame-key', (_event, action: unknown) => {
+    const a = action as Action | null;
+    if (a && typeof a === 'object' && (a.type === 'move' || a.type === 'select' || a.type === 'back')) layer.dispatch(a.type === 'move' ? { type: 'move', dir: a.dir } : { type: a.type });
+  });
   ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
     if (typeof text === 'string') layer.notice(text.slice(0, 200));
   });
@@ -158,6 +220,7 @@ const start = (): void => {
 
 if (window.top !== window) {
   guardFrame();
+  watchFrameFields();
 } else if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', start, { once: true });
 } else {

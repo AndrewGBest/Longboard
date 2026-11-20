@@ -2,6 +2,15 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.9, from the owner signing in to 45 sites by hand:
+
+- **Cookie notices pinned to the top or bottom of the screen** can be
+  reached with the arrows. Before, some could not be answered at all.
+- **Sign-in prompts that are a page within the page:** the arrows now
+  switch to the pointer there by themselves, and choosing a text field
+  with the pointer brings up the on-screen keyboard. Before, nothing
+  could be typed into such a prompt with a remote.
+
 New in 0.3.8, from a second pass over 68 well-known sites:
 
 - **Shelves in a part of the page that scrolls by itself** can be walked

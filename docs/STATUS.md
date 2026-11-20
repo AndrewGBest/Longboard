@@ -2,6 +2,37 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-21: what Andrew found while signing in
+
+Andrew went through the 45 sign-in windows at the real screen and reported
+four things. He asked to be brought back to those sites once fixed.
+
+| Reported | Cause | Now |
+|---|---|---|
+| A streaming site's cookie notice could not be selected | It is pinned to the bottom of the screen. Pinned bars were only reached when the page ran out, and that page never does | A pinned notice that calls itself a dialog is offered when what would be next lies under it or beyond it on screen, and once when what would be next is off the screen |
+| The same on a film service | Its notice hangs under the top bar; Down from the bar went over it | The same rule ("beyond it") |
+| A film service's sign-in prompt "not working" | The prompt is a frame the highlight cannot enter. It needed OK on the frame to get the pointer, which nothing said; and a click on a field in a frame never brought the keyboard up, so a remote could not type there at all | On a frame over 40% of the screen the arrows hand over to the pointer and say so. A click on a text field inside any frame brings the on-screen keyboard up; its keys type into that field; Back returns to the pointer where it was |
+| Another streaming service: the sign-in button could not be reached | **Not known.** Its front page is an offers page the spending guard refuses in a scripted run, so the agent has not seen it | Nothing changed for it on purpose. An outline saved by Andrew on that page (Ctrl+Shift+D) would show the cause |
+
+- **How the keyboard reaches a frame:** the frame's own preload says only
+  that a field has the cursor after a click, whether it is a secret one,
+  the page's word for Enter and where the field is. The shell takes the
+  arrows, OK and Back while the keyboard is up and hands them to the
+  page's layer. Letters, Enter and backspace go through the browser's
+  DevTools input channel, which pointer mode already uses: Electron's own
+  key events and `insertText` do not arrive in a frame from another origin
+  (measured here; with `insertText` the page stopped answering).
+- **Verified:** `npm run check` (566 unit tests); `npm run e2e` (505 checks, all passing); the two
+  notices on their live sites, by script: Down reaches each notice's
+  buttons and carries on into the page afterwards.
+- **Unverified:** the framed sign-in prompt on the live film service.
+  A scripted run may not click into a frame it cannot check ("Blocked:
+  automation mode could not check an embedded frame"), which is the guard
+  doing its job, so only the hand-over to the pointer was seen there. The
+  keyboard for a framed field is proven on an invented page only. A
+  password field that changes its kind without losing the cursor is not
+  noticed (the frame speaks when the cursor arrives).
+
 ## 2026-11-20, night: all 68 sites again, and the way in for sign-ins
 
 Andrew: run every site once more, ask of each whether a profile would

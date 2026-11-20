@@ -3,6 +3,21 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-21: notices pinned to the screen, and typing into a frame
+
+**The agent's assumption**, from what Andrew reported while signing in.
+
+| Question | Choice | Why |
+|---|---|---|
+| A notice pinned to an edge that calls itself a dialog but does not hold the page | Offered on the way past: always when what would be next is under it or on screen beyond it; once when what would be next is off the screen | It asks for an answer and could not be given one. "Once" for the off-screen case, or every screenful of an endless page would stop at the notice first |
+| Other pinned bars (a player's bar, a sign-up strip) | As before: reached when the page has run out that way | They are not questions, and visiting them every screenful would be worse |
+| A frame over 40% of the screen under the highlight | The first arrow that has nowhere to go switches to the pointer on it, with the same words OK on a frame shows | The arrows were dead there and nothing said why |
+| A text field inside a frame | A click on it (pointer mode's, or a mouse's) brings the keyboard up; Back puts it away and returns to the pointer | Without it nothing typed with a remote could reach a sign-in prompt served from the service's sign-in site |
+| What a frame may tell the shell | That a field has the cursor after a click, whether it is secret, the page's word for Enter, the field's place. Never its contents | Hard rules 10 and 12. No API is exposed to pages (rule 13): this is the preload's own channel |
+| Secret fields in a scripted run | No keyboard, as in the page itself | Hard rule 10 |
+| How the letters get there | The DevTools input channel, attached while that keyboard is up | Electron's `sendInputEvent` and `insertText` do not reach a frame from another origin. The same channel, for the same reason, as pointer mode's clicks (2026-11-18) |
+| The layer itself inside frames | Still not done (ROADMAP, "Later") | A larger piece of work; the pointer plus the keyboard is enough to sign in |
+
 ## 2026-11-20: signing in for the survey is done by a person, in a window no script can see
 
 **Andrew, 2026-11-20:** "This time we're going past log in screens, bring

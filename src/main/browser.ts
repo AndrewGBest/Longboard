@@ -1208,7 +1208,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     }
   };
   const detach = (): void => {
-    if (!attached) return;
+    // Kept while the on-screen keyboard is typing into a frame: its letters go this way too.
+    if (!attached || frameField) return;
     attached = false;
     try {
       // Left attached while the page is frozen: letting go would wake it.
@@ -1332,6 +1333,38 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // A new page has a new layer, which has to be told the pointer is out.
   eachPage((wc) => wc.on('dom-ready', () => {
     if (wc === page && pointerOn) showPointer();
+  }));
+  // While the on-screen keyboard is up for a text field inside an embedded
+  // frame, that frame has the keys. The shell takes the arrows, OK and Back
+  // before the frame sees them and hands them to the page's layer, which
+  // has the keyboard. Keys the shell itself sends for that keyboard (Enter,
+  // backspace) are let through, as is anything typed on a real keyboard.
+  let frameField: { pointer: boolean } | null = null;
+  const sentKeys: { key: string; until: number }[] = [];
+  eachPage((wc) => wc.on('before-input-event', (event, input) => {
+    if (wc !== page || !frameField || pointerOn || active() !== page) return;
+    const now = Date.now();
+    while (sentKeys.length && sentKeys[0]!.until < now) sentKeys.shift();
+    const mine = sentKeys.findIndex((k) => k.key === input.key);
+    if (mine !== -1) {
+      if (input.type === 'keyUp') sentKeys.splice(mine, 1);
+      return;
+    }
+    if (input.key === 'Backspace') return;
+    const action = keyToAction({ key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift }, 'browse', config.keys);
+    if (!action || (action.type !== 'move' && action.type !== 'select' && action.type !== 'back')) return;
+    event.preventDefault();
+    // Handed over after this event has been dealt with: acting on the page
+    // from inside the handling of a key event stalls the key (as in pointer mode).
+    if (input.type === 'keyDown') setImmediate(() => {
+      if (frameField && !page.isDestroyed()) page.send('longboard:frame-key', action);
+    });
+  }));
+  eachPage((wc) => wc.on('did-start-navigation', (details) => {
+    if (wc === page && details.isMainFrame && !details.isSameDocument && frameField) {
+      frameField = null;
+      if (!pointerOn) detach();
+    }
   }));
   // In pointer mode the shell takes the keys before the page sees them: the
   // pointer must work wherever in the page the keys would have gone.
@@ -1842,6 +1875,18 @@ export function createBrowser(deps: BrowserDeps): Browser {
       case 'playerKey': {
         // An ordinary key press, delivered to the page like one from a keyboard.
         const info = playerKeyInfo(msg.key);
+        if (info && frameField && wc === page && attached) {
+          // The keyboard's Enter and backspace, for a field inside a frame: the same channel as its letters.
+          sentKeys.push({ key: info.domKey, until: Date.now() + 1000 });
+          const key = { key: info.domKey, code: info.domKey, windowsVirtualKeyCode: info.domKey === 'Enter' ? 13 : 8, nativeVirtualKeyCode: info.domKey === 'Enter' ? 13 : 8 };
+          if (info.domKey === 'Enter' || info.domKey === 'Backspace') {
+            void page.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key })
+              .then(() => (info.char ? page.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'char', ...key, text: info.char }) : undefined))
+              .then(() => page.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', ...key }))
+              .catch(() => undefined);
+          }
+          break;
+        }
         if (info) {
           wc.sendInputEvent({ type: 'keyDown', keyCode: info.code });
           if (info.char) wc.sendInputEvent({ type: 'char', keyCode: info.char });
@@ -1893,7 +1938,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
       }
       case 'typeText': {
         const text = typableText(msg.text);
-        if (text) void wc.insertText(text);
+        if (!text) break;
+        // Into a field inside an embedded frame the letters go through the
+        // DevTools input channel, as pointer mode's clicks do: Electron's own
+        // insertText does not return there, and its key events do not arrive
+        // (seen 2026-11-20, a frame from another origin).
+        if (frameField && wc === page && attached) page.debugger.sendCommand('Input.insertText', { text }).catch(() => undefined);
+        else void wc.insertText(text);
         break;
       }
       case 'revealControls': {
@@ -1984,6 +2035,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
         if (msg.x === undefined) setPointer(!pointerOn);
         else setPointer(true, startPoint(msg, page.getZoomFactor(), pageSize()));
         break;
+      case 'frameFieldDone': {
+        // The person put the keyboard away: back to the pointer, where it was, if that is how they got there.
+        const was = frameField;
+        frameField = null;
+        if (wc === page && was?.pointer && active() === page) setPointer(true, { x: pointer.x, y: pointer.y });
+        else if (!pointerOn) detach();
+        break;
+      }
       case 'pointerOff':
         if (wc !== page) break;
         if (edit) openEditPanel();
@@ -2036,7 +2095,25 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const framesGuarded = (): boolean => page.mainFrame.framesInSubtree.every((f) => f === page.mainFrame || guarded.has(frameKey(f)));
   const onFrame = (event: Electron.IpcMainEvent, what: unknown): void => {
     const frame = event.senderFrame;
-    if (!isPageView(event.sender) || !frame || frame === event.sender.mainFrame || !options.automation) return;
+    if (!isPageView(event.sender) || !frame || frame === event.sender.mainFrame) return;
+    // A text field inside the frame has the cursor after a click, or has lost it.
+    if (what && typeof what === 'object') {
+      const said = what as { field?: unknown; secret?: unknown; hint?: unknown; top?: unknown; bottom?: unknown };
+      if (event.sender !== page || active() !== page) return;
+      // A scripted run never types a password or a one-time code (Hard rule 10): no keyboard for such a field.
+      const open = said.field === 'in' && !(options.automation && said.secret === true);
+      if (open) {
+        if (!frameField) frameField = { pointer: pointerOn };
+        attach();
+        page.send('longboard:frame-field', { hint: typeof said.hint === 'string' ? said.hint.slice(0, 10) : '', top: Number(said.top) || 0, bottom: Number(said.bottom) || 0 });
+      } else if (frameField) {
+        frameField = null;
+        if (!pointerOn) detach();
+        page.send('longboard:frame-field', null);
+      }
+      return;
+    }
+    if (!options.automation) return;
     if (what === 'guarded') guarded.add(frameKey(frame));
     else if (what === 'blocked' && event.sender === page) page.send('longboard:notice', 'Blocked: automation mode never activates purchase or sign-up controls');
   };

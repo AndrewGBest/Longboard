@@ -269,6 +269,23 @@ export function paneWithMore(el: Element, doc: Document, view: Window, dir: 'up'
   return null;
 }
 
+/**
+ * Notices on screen that call themselves dialogs and are pinned to it: a
+ * cookie notice across the bottom, a sign-up prompt in a corner. Not what
+ * `openDialog` or `coveringLayer` answer for; those hold the highlight.
+ */
+export function pinnedNotices(doc: Document, view: Window): Element[] {
+  const out: Element[] = [];
+  for (const el of doc.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]')) {
+    const r = el.getBoundingClientRect();
+    if (r.width < 4 || r.height < 4) continue;
+    if (r.right <= 0 || r.bottom <= 0 || r.left >= view.innerWidth || r.top >= view.innerHeight) continue;
+    if (!isPinned(el, view) || !isVisible(el, view)) continue;
+    out.push(el);
+  }
+  return out;
+}
+
 /** The share of `el`'s box that shows inside `pane` and the screen, 0 to 1. */
 export function shownIn(el: Element, pane: Element, view: Window): number {
   const r = el.getBoundingClientRect();
@@ -845,6 +862,9 @@ export class SpatialNavigator {
   }
 
   /** One attempt at a move among `all`. Null when nothing lies in that direction. */
+  /** Pinned notices the highlight has already been taken to once. */
+  private offered = new WeakSet<Element>();
+
   private step(dir: Direction, all: Element[]): boolean | null {
     const view = this.doc.defaultView;
     // What had focus may have been put away without being removed (an entry
@@ -971,6 +991,37 @@ export class SpatialNavigator {
       if (dest?.group.remember && dest.el !== home?.el) {
         const last = this.groupMemory.get(dest.el);
         if (last && others.includes(last)) target = last;
+      }
+    }
+    // A notice pinned to an edge that asks for an answer (it calls itself a
+    // dialog, but does not hold the page) is offered on the way past: when
+    // what would be next lies under it or beyond it, or, the first time,
+    // when what would be next is off the screen. Otherwise a pinned bar is reached only when
+    // the page has run out, and a page that goes on for ever never does.
+    // (Seen on a streaming site: its cookie notice lay across the bottom
+    // quarter of the screen and could not be answered.)
+    if (target && view && (dir === 'up' || dir === 'down')) {
+      const t = target.getBoundingClientRect();
+      const f = from.getBoundingClientRect();
+      for (const notice of pinnedNotices(this.doc, view)) {
+        if (deepContains(notice, from) || deepContains(notice, target)) continue;
+        const n = notice.getBoundingClientRect();
+        if (dir === 'down' ? (n.top + n.bottom) / 2 <= f.bottom : (n.top + n.bottom) / 2 >= f.top) continue;
+        const x = (t.left + t.right) / 2;
+        const y = (t.top + t.bottom) / 2;
+        const under = x >= n.left && x <= n.right && y >= n.top && y <= n.bottom;
+        const away = dir === 'down' ? t.top >= view.innerHeight : t.bottom <= 0;
+        // Or it lies on the way: what would be next is on screen beyond it. (Seen on a
+        // film service: its notice hangs under the top bar, and Down from
+        // the bar went over it to the page.)
+        const middle = (n.top + n.bottom) / 2;
+        const passed = !away && (dir === 'down' ? middle < y && n.bottom <= t.bottom : middle > y && n.top >= t.top);
+        if (!under && !passed && !(away && !this.offered.has(notice))) continue;
+        const inside = all.filter((el) => el !== from && deepContains(notice, el) && isVisible(el, view));
+        if (inside.length === 0) continue;
+        this.offered.add(notice);
+        const j = pickNext(toRect(from), inside.map(toRect), dir);
+        return this.focus(inside[j === -1 ? pickInitial(inside.map(toRect)) : j] ?? null);
       }
     }
     // A pane that scrolls by itself is not left by the key that scrolls it

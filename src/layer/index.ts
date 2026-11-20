@@ -42,6 +42,9 @@ export interface LayerDeps {
 const GENERIC_SEARCH_OPEN = ['a[href$="/search" i]', 'a[href*="/search?" i]'];
 const GENERIC_SEARCH = ['input[type="search"]', '[role="search"] input', 'input[name*="search" i]', 'input[aria-label*="search" i]'];
 
+/** A frame showing over this share of the screen is where the page's business is: the arrows hand over to the pointer on it. */
+const BIG_FRAME_SHARE = 0.4;
+
 function isTextEntry(el: Element | null): boolean {
   if (!el) return false;
   if (el instanceof HTMLTextAreaElement) return true;
@@ -53,6 +56,8 @@ function isTextEntry(el: Element | null): boolean {
 
 export interface Layer {
   dispatch: (a: Action) => void;
+  /** A text field inside an embedded frame has the cursor after a click (`null`: no longer). */
+  frameField: (field: { hint: string; top: number; bottom: number } | null) => void;
   /** Show a short message from the shell, for example that a navigation was refused. */
   notice: (text: string) => void;
   /** Text has come from a phone or from speech: says back (by the number given) whether there is a text field with the cursor for it. The shell holds the text and types it. */
@@ -237,6 +242,20 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
       moved = nav.move(dir);
     }
     if (moved) return;
+    // On a frame that fills most of the screen (a sign-in prompt from the
+    // service's own sign-in site) the arrows have nothing to move to, and
+    // what is inside cannot be reached from here: the pointer takes over,
+    // as OK on the frame would have it.
+    const framed = nav.focused;
+    if (!hooks && framed instanceof HTMLIFrameElement) {
+      const b = framed.getBoundingClientRect();
+      const shown = Math.max(0, Math.min(b.right, view.innerWidth) - Math.max(b.left, 0)) * Math.max(0, Math.min(b.bottom, view.innerHeight) - Math.max(b.top, 0));
+      if (shown >= BIG_FRAME_SHARE * view.innerWidth * view.innerHeight) {
+        overlay.toast('Pointer mode: this part of the page needs the pointer');
+        send({ kind: 'pointer', x: (Math.max(b.left, 0) + Math.min(b.right, view.innerWidth)) / 2, y: (Math.max(b.top, 0) + Math.min(b.bottom, view.innerHeight)) / 2 });
+        return;
+      }
+    }
     // Longboard's own lists go round at their ends.
     if (hooks?.edge?.(dir)) return;
     const from = nav.focused;
@@ -312,6 +331,8 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   let oskOpen = false;
   let oskSubmit = 'enter';
   let oskSide: 'top' | 'bottom' = 'bottom';
+  /** The keyboard is up for a text field inside an embedded frame: the frame has the cursor, and the shell hands the keys over. */
+  let frameTyping = false;
   const drawOsk = (): void => overlay.keyboard(oskOpen ? osk.rows : null, { row: osk.row, index: osk.index }, oskSubmit, oskSide);
   const isSearchField = (el: Element): boolean => {
     try {
@@ -337,6 +358,26 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   const closeOsk = (): void => {
     if (!oskOpen) return;
     oskOpen = false;
+    if (frameTyping) {
+      frameTyping = false;
+      send({ kind: 'frameFieldDone' });
+    }
+    drawOsk();
+  };
+  /** The shell says a click put the cursor in a text field inside a frame (or that it has left). */
+  const frameField = (field: { hint: string; top: number; bottom: number } | null): void => {
+    if (!field) {
+      if (frameTyping) closeOsk();
+      return;
+    }
+    if (pointerOn) send({ kind: 'pointerOff' });
+    if (!oskOpen) osk.reset();
+    oskSubmit = ['go', 'search', 'send', 'next', 'done'].includes(field.hint) ? field.hint : 'enter';
+    // Where the field is on the screen, as nearly as can be known from here: the frame's place plus the field's place in it.
+    const frame = doc.activeElement instanceof HTMLIFrameElement ? doc.activeElement.getBoundingClientRect() : null;
+    oskSide = oskDock({ top: (frame?.top ?? 0) + field.top, bottom: (frame?.top ?? 0) + field.bottom }, doc.defaultView?.innerHeight ?? 0);
+    frameTyping = true;
+    oskOpen = true;
     drawOsk();
   };
   const pressOsk = (): void => {
@@ -368,7 +409,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     if (oskOpen) {
       // The keyboard only makes sense while its field still has focus, and is one it may type in.
       const into = deepActiveElement(doc);
-      if (isTextEntry(into) && !(into && keyboardBarred(into))) return 'browse';
+      if (frameTyping || (isTextEntry(into) && !(into && keyboardBarred(into)))) return 'browse';
       closeOsk();
     }
     // A text field under the highlight is only that until someone types in
@@ -837,7 +878,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   const reclaim = (): void => {
     view.setTimeout(() => {
       const active = doc.activeElement;
-      if (pointerOn || !(active instanceof HTMLIFrameElement)) return;
+      if (pointerOn || frameTyping || !(active instanceof HTMLIFrameElement)) return;
       active.blur();
       view.focus();
     }, 0);
@@ -848,7 +889,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
   // redirect: an advertisement's frame had them from the start and no press
   // of the remote did anything.) So it is also looked for now and then.
   view.setInterval(() => {
-    if (!pointerOn && doc.visibilityState === 'visible' && doc.activeElement instanceof HTMLIFrameElement) reclaim();
+    if (!pointerOn && !frameTyping && doc.visibilityState === 'visible' && doc.activeElement instanceof HTMLIFrameElement) reclaim();
   }, 1000);
 
   // A text field the page focused by itself (a sign-in page puts the cursor
@@ -927,6 +968,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
     dispatch,
     notice: (text) => overlay.toast(text, 6000),
     loading: (on) => overlay.loading(on),
+    frameField,
     phoneText: (id) => {
       const into = deepActiveElement(doc);
       if (!into || !isTextEntry(into)) {
@@ -966,7 +1008,7 @@ export function startLayer({ doc, options, rules, send, hooks }: LayerDeps): Lay
         // A click may have left the keys inside an embedded frame, where
         // this layer would never hear them. Take them back.
         const active = doc.activeElement;
-        if (active instanceof HTMLIFrameElement) active.blur();
+        if (active instanceof HTMLIFrameElement && !frameTyping) active.blur();
       }
     },
     editPick: (x, y) => {

@@ -59,6 +59,8 @@ export type BridgeMessage =
   | { kind: 'pointerClick' }
   /** Pointer mode cannot continue (the on-screen keyboard needs the arrows). */
   | { kind: 'pointerOff' }
+  /** The on-screen keyboard that was up for a field inside an embedded frame has been put away. */
+  | { kind: 'frameFieldDone' }
   /** Directions held on a game controller while pointer mode is on. */
   | { kind: 'pointerHeld'; dirs: Direction[] }
   /**
