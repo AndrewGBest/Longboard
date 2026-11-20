@@ -18,8 +18,14 @@ const PRICE = /[$£€¥]\s?\d|\d\s?[$£€¥]/;
 /** What counts as a control in its own right, whatever is inside it. */
 const CONTROL = 'a, button, [role="button"], [role="link"], input[type="submit"], input[type="button"], input[type="image"]';
 
-/** URL fragments that indicate a payment or sign-up flow. Heuristic until confirmed on the live site. */
-const SPEND_URL = /(checkout|\/buy\b|\/gp\/buy|purchase|signup|sign-up|\/offers?\b|subscribe|payment)/i;
+/**
+ * URL fragments that indicate a payment or sign-up flow. Heuristic until confirmed on the live site.
+ * Not "offers" (Andrew, 2026-11-21): one service's signed-out front page
+ * lives at such an address, and looking at a page of offers spends nothing.
+ * The buttons on it are still never pressed (SPEND_WORDS, PRICE), and
+ * where they lead is still never opened (the rest of this list).
+ */
+const SPEND_URL = /(checkout|\/buy\b|\/gp\/buy|purchase|signup|sign-up|subscribe|payment)/i;
 /** The same for the first part of a host name: checkout.example.com. */
 const SPEND_HOST = /^(checkout|pay|payments?|billing|buy|subscribe|signup)\./i;
 

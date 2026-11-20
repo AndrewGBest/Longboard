@@ -3,6 +3,20 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-21: a page of offers may be looked at by a scripted run
+
+**Andrew, 2026-11-21.** He said the guard should not stand in the way of a
+signed-out front page. The agent said this touches Hard rule 11 ("never
+disable or weaken the guard to get a test through") and stopped; it
+proposed one narrow change, and Andrew answered: "lets implement your
+change."
+
+| Question | Choice | Why |
+|---|---|---|
+| What changed | A scripted run no longer refuses an address only because it contains `/offer` or `/offers` | One streaming service's signed-out front page lives at such an address, so no script had ever seen it. Looking at a page spends nothing |
+| What did not | Buy, rent, subscribe, sign-up and free-trial controls, and any control with a price on it, are never pressed. Addresses that look like a checkout, a payment, a purchase or a sign-up are never opened | Hard rule 11 as written: it is those controls and flows the guard is for |
+| "Signed out cannot spend" as a rule for the guard | Not adopted (**the agent's advice**, which Andrew's answer accepted) | The guard cannot tell whether a site is signed in, and the survey's signed-in pass uses a session Andrew signed in to, with whatever payment method the account holds |
+
 ## 2026-11-21: notices pinned to the screen, and typing into a frame
 
 **The agent's assumption**, from what Andrew reported while signing in.

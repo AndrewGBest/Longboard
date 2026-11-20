@@ -68,7 +68,7 @@ const site = await serveFixtures({
   '/catalogue/profiles/tampered.test/profile.json': (_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(fixtureProfile),
   // A start page that redirects somewhere automation refuses, as a service
   // does for a signed-out visitor.
-  '/signed-out': (_req, res) => res.writeHead(302, { location: '/offers/landing?token=SECRET' }).end(),
+  '/signed-out': (_req, res) => res.writeHead(302, { location: '/signup/landing?token=SECRET' }).end(),
   // Something a browser would save to disk.
   '/file.bin': (_req, res) => {
     asks.file += 1;
@@ -129,7 +129,7 @@ const site = await serveFixtures({
     res.write('h'.repeat(100000));
     asks.slow.push(res);
   },
-  '/offers/landing': (_req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>should never load</title>'),
+  '/signup/landing': (_req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>should never load</title>'),
 });
 /**
  * Says yes to the question on screen. The highlight starts on the answer
@@ -580,7 +580,7 @@ await scenario('a start page that automation refuses', { url: `${site.origin}/si
     const text = await until(() => notice.evaluate('document.body?.innerText ?? ""'), (t) => t && !t.startsWith('Starting'), 100);
     check(
       'the notice names the blocked address, the cause and the way out, and no query',
-      [text.includes('/offers/landing'), text.includes('--automation'), text.includes('Ctrl+Q'), text.includes('SECRET')],
+      [text.includes('/signup/landing'), text.includes('--automation'), text.includes('Ctrl+Q'), text.includes('SECRET')],
       [true, true, true, false],
     );
   }
@@ -590,7 +590,7 @@ await scenario('a start page that automation refuses', { url: `${site.origin}/si
     const chrome = await app.chrome();
     check('Back from it goes Home, not to the "Starting" notice', await chrome.evaluate('document.visibilityState + !!document.getElementById("home")'), 'visibletrue');
   }
-  check('the blocked start page is logged', /blocked navigation \(automation-spend\): http:\/\/127\.0\.0\.1:\d+\/offers\/landing\n/.test(app.log), true);
+  check('the blocked start page is logged', /blocked navigation \(automation-spend\): http:\/\/127\.0\.0\.1:\d+\/signup\/landing\n/.test(app.log), true);
 });
 
 // A made-up player. Player control must reach the page as real key presses,

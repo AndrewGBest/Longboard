@@ -36,9 +36,11 @@ describe('blockReason', () => {
   });
 
   it('refuses spend-looking pages only under automation', () => {
-    const url = 'https://www.example.com/offers/landing?ref_=abc';
+    const url = 'https://www.example.com/signup/plans?ref_=abc';
     expect(blockReason(url, live)).toBeNull();
     expect(blockReason(url, auto)).toBe('automation-spend');
+    // A page of offers may be looked at (the owner's decision, 2026-11-21).
+    expect(blockReason('https://www.example.com/offers/landing?ref_=abc', auto)).toBeNull();
     expect(blockReason('https://example.com/checkout', auto)).toBe('automation-spend');
   });
 });

@@ -70,6 +70,11 @@ describe('purchase guard', () => {
   it('flags spend URLs and refuses unparseable ones', () => {
     expect(looksLikeSpendUrl('https://www.example.com/gp/buy/thing')).toBe(true);
     expect(looksLikeSpendUrl('https://www.example.com/detail/123')).toBe(false);
+    // A page of offers may be looked at (the owner's decision, 2026-11-21); what its buttons lead to may not.
+    expect(looksLikeSpendUrl('https://www.example.com/offers/welcome')).toBe(false);
+    expect(looksLikeSpendUrl('https://www.example.com/offers/checkout')).toBe(true);
+    expect(looksLikeSpendUrl('https://www.example.com/signup?plan=1')).toBe(true);
+    expect(looksLikeSpendUrl('https://www.example.com/subscribe')).toBe(true);
     expect(looksLikeSpendUrl('http://[bad')).toBe(true);
   });
 });
