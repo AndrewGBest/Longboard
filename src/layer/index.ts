@@ -1000,7 +1000,20 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     if (e.isTrusted) lastPressAt = Date.now();
   };
   view.addEventListener('mousedown', onMouseDown, true);
-  const onFocusIn = (e: FocusEvent): void => adoptField(e.target instanceof Element ? e.target : null);
+  const onFocusIn = (e: FocusEvent): void => {
+    const el = e.target instanceof Element ? e.target : null;
+    // The page drew again what had the highlight and gave the new one its
+    // focus: the highlight goes with it, rather than vanish until a key is pressed.
+    if (el && !nav.focusing && !el.closest(HOST_TAG)) {
+      // A moment later: the new one is given focus before the old one is taken away.
+      view.setTimeout(() => {
+        // Only back to what the highlight came from: a page that focuses
+        // something else as it draws is not telling the highlight where to go.
+        if (el.isConnected && doc.activeElement === el) nav.comeBack(nav.candidates(true), el);
+      }, 50);
+    }
+    adoptField(el);
+  };
   doc.addEventListener('focusin', onFocusIn, true);
   adoptField(deepActiveElement(doc));
 

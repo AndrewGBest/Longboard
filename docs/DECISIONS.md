@@ -3,6 +3,19 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-21: what the highlight does when the page takes its place away
+
+**The agent's assumption**, from the signed-in run over 49 sites.
+
+| Question | Choice | Why |
+|---|---|---|
+| What had the highlight is removed or hidden | The next press carries on from where it was: from whatever now stands in that place at about that size, else from the place itself. Before, it began again from the first thing on screen | A site that draws a thing again should not send the person back to the top |
+| It was a pop-up that closed because the highlight went into it | The highlight goes back to what it came from when the page gives that its focus (or at the next press), and from there passes over everything that was not on the page before it arrived there | Seen on a photo site's card about a picture's owner. Without it the card is the nearest thing below every time, and Down never gets past |
+| Why not a profile for that site | Its class names are machine-made; and any site with such a card has the same trap | Rule 8, and the general case |
+| A page with its own scrolling shut off | Bringing the highlight into view moves panes, not the page; the page is moved only if the highlighted thing would be cut off, and only far enough | An app of panes was pushed up off the screen. But such an app can be taller than the screen, and then moving it is the only way to show its last strip |
+| The music player | A profile, the first written for a site because of a test run: `view.canvas` 1280x720 and the app's four parts | The fault is the site's size on a 960x540 page, which is exactly what `view.canvas` is for. Published to the catalogue, so every copy gets it; tested by script only, which the profile's notes say |
+| Outlines for profiles of sites that need an account | Taken signed out | Rule 10: nothing captured from a signed-in session is committed. What only shows when signed in is left to the general rules |
+
 ## 2026-11-21: the highlight goes inside frames
 
 **Andrew, 2026-11-21:** "dig deep to see if you can get the apple tv

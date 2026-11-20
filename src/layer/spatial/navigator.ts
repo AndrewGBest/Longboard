@@ -511,6 +511,13 @@ export const READING_REACH = 0.35;
 /** Moves closer together than this are a held key (or a very quick thumb). */
 const RAPID_MS = 220;
 
+/** False when the page has turned the window's own scrolling off. */
+function pageScrolls(doc: Document, view: Window): boolean {
+  const root = view.getComputedStyle(doc.documentElement).overflowY;
+  const used = root && root !== 'visible' ? root : doc.body ? view.getComputedStyle(doc.body).overflowY : root;
+  return used !== 'hidden' && used !== 'clip';
+}
+
 export class SpatialNavigator {
   private current: Element | null = null;
   private zoomed: Element | null = null;
@@ -538,6 +545,44 @@ export class SpatialNavigator {
   get focused(): Element | null {
     if (this.current && !this.current.isConnected) this.current = null;
     return this.current;
+  }
+
+  /** Where on the page the highlight was last put, for carrying on when the page replaces what had it. */
+  private lastBox: Rect | null = null;
+
+  /**
+   * Where the highlight was, in window terms, when what had it has been
+   * taken out of the page and that place is still on screen. Null otherwise.
+   */
+  lostBox(): Rect | null {
+    const view = this.doc.defaultView;
+    if (!this.lastBox || !view) return null;
+    const held = this.focused;
+    if (held && isLaidOut(held, view)) return null;
+    const box = { left: this.lastBox.left - view.scrollX, right: this.lastBox.right - view.scrollX, top: this.lastBox.top - view.scrollY, bottom: this.lastBox.bottom - view.scrollY };
+    if (box.bottom <= 0 || box.top >= view.innerHeight || box.right <= 0 || box.left >= view.innerWidth) return null;
+    return box;
+  }
+
+  /** The control now standing where the highlight was, if the page put one there. */
+  private standIn(box: Rect, all: readonly Element[]): Element | null {
+    const x = (box.left + box.right) / 2;
+    const y = (box.top + box.bottom) / 2;
+    let best: Element | null = null;
+    let bestArea = Infinity;
+    for (const el of all) {
+      const r = el.getBoundingClientRect();
+      if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+      // Of much the same size: a whole card around a small button is not that button.
+      const area = r.width * r.height;
+      const was = (box.right - box.left) * (box.bottom - box.top);
+      if (area > was * 2.5 || area < was / 2.5) continue;
+      if (area < bestArea) {
+        best = el;
+        bestArea = area;
+      }
+    }
+    return best;
   }
 
   /**
@@ -862,9 +907,77 @@ export class SpatialNavigator {
     this.rapid = Date.now() - this.lastMoveAt < RAPID_MS;
     // First among what is near the screen, which is quick; the whole page
     // only when nothing near lies that way.
-    const moved = this.step(dir, this.candidates(true)) ?? this.step(dir, this.candidates()) ?? false;
+    const before = this.focused;
+    const beforeBox = this.lastBox;
+    const near = this.candidates(true);
+    this.comeBack(near);
+    // What came up only because the highlight rested here, and closed when
+    // the highlight stepped into it, is passed over.
+    const few = this.withoutFleeting(near);
+    const moved = (few ? this.step(dir, few) : null) ?? this.step(dir, near) ?? this.step(dir, this.candidates()) ?? false;
+    const now = this.focused;
+    if (now && now !== before) {
+      this.arrival = before && beforeBox ? { from: before, fromBox: beforeBox, known: this.knownHere } : null;
+      this.knownHere = new WeakSet(near);
+    }
     this.lastMoveAt = Date.now();
     return moved;
+  }
+
+  /** How the highlight got where it is: from what, and what there was to go to when it arrived on that. */
+  private arrival: { from: Element; fromBox: Rect; known: WeakSet<Element> } | null = null;
+  /** What there was to go to when the highlight arrived where it is. */
+  private knownHere = new WeakSet<Element>();
+  /** A place whose pop-up closed under the highlight, and what was there before the pop-up. */
+  private fleeting: { box: Rect; known: WeakSet<Element> } | null = null;
+
+  private inWindow(box: Rect): Rect | null {
+    const view = this.doc.defaultView;
+    if (!view) return null;
+    const r = { left: box.left - view.scrollX, right: box.right - view.scrollX, top: box.top - view.scrollY, bottom: box.bottom - view.scrollY };
+    return r.bottom <= 0 || r.top >= view.innerHeight || r.right <= 0 || r.left >= view.innerWidth ? null : r;
+  }
+
+  /**
+   * What had the highlight is gone. If it was reached from something still
+   * on screen, the highlight goes back to that (or to what now stands in its
+   * place), and what it opened is remembered as fleeting. Says whether it did.
+   */
+  comeBack(all: readonly Element[], given?: Element): boolean {
+    const view = this.doc.defaultView;
+    const a = this.arrival;
+    if (!view || !a || !this.lostBox()) return false;
+    const box = this.inWindow(a.fromBox);
+    if (!box) return false;
+    let back: Element | null = a.from.isConnected && isLaidOut(a.from, view) ? a.from : this.standIn(box, all);
+    if (given) {
+      const r = given.getBoundingClientRect();
+      const x = (r.left + r.right) / 2;
+      const y = (r.top + r.bottom) / 2;
+      back = given === back || (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) ? given : null;
+    }
+    if (!back) return false;
+    this.fleeting = { box: a.fromBox, known: a.known };
+    this.arrival = null;
+    this.current?.removeAttribute(FOCUS_ATTR);
+    this.current = back;
+    back.setAttribute(FOCUS_ATTR, '');
+    this.lastBox = a.fromBox;
+    this.opts.onFocusChange?.(back);
+    return true;
+  }
+
+  private withoutFleeting(all: readonly Element[]): Element[] | null {
+    const from = this.focused;
+    const box = this.fleeting ? this.inWindow(this.fleeting.box) : null;
+    if (!from || !box || !this.fleeting) return null;
+    const r = from.getBoundingClientRect();
+    const x = (r.left + r.right) / 2;
+    const y = (r.top + r.bottom) / 2;
+    if (x < box.left || x > box.right || y < box.top || y > box.bottom) return null;
+    const known = this.fleeting.known;
+    const few = all.filter((el) => el === from || known.has(el));
+    return few.length > 1 ? few : null;
   }
 
   /** One attempt at a move among `all`. Null when nothing lies in that direction. */
@@ -877,8 +990,23 @@ export class SpatialNavigator {
     // of a menu that has closed). It is then nowhere, and moving "from" it
     // lands somewhere arbitrary; carry on as if nothing had focus.
     const held = this.focused;
+    // The page replaced or hid what had the highlight (a picture drawn
+    // again, a list filled in). Carry on from where it was: from what stands
+    // there now, or failing that from the place itself, not from the top again.
+    const lost = this.lostBox();
     if (held && view && !isLaidOut(held, view)) this.clear();
-    const from = this.focused;
+    let from = this.focused;
+    if (lost) {
+      const stand = this.standIn(lost, all);
+      if (stand) {
+        this.current = stand;
+        stand.setAttribute(FOCUS_ATTR, '');
+        from = stand;
+      } else {
+        const i = pickNext(lost, all.map(toRect), dir);
+        if (i !== -1) return this.focus(all[i] ?? null);
+      }
+    }
     if (!from) {
       // Focus was lost part-way down a page (what had it was replaced as
       // more of the page loaded): carry on from what is on screen, not from the top.
@@ -1241,6 +1369,10 @@ export class SpatialNavigator {
     // not half under the bar. Further down, the focused row is centred.
     const top = view ? el.getBoundingClientRect().top + view.scrollY : Infinity;
     const bottom = view ? top + el.getBoundingClientRect().height : Infinity;
+    if (view) {
+      const r = el.getBoundingClientRect();
+      this.lastBox = { left: r.left + view.scrollX, right: r.right + view.scrollX, top, bottom };
+    }
     if (how.scroll === false) {
       // Already where the person is looking; the page stays put.
     } else if (view && bottom <= view.innerHeight) {
@@ -1249,7 +1381,24 @@ export class SpatialNavigator {
       scrollWithinList(el, view);
     } else {
       // With a key held, a smooth scroll is restarted by every repeat and never arrives.
+      const before = view ? { top: view.scrollY, left: view.scrollX } : null;
       el.scrollIntoView({ block: 'center', inline: 'center', behavior: this.rapid ? 'instant' : 'smooth' });
+      // A page that has shut its own scrolling off (an app of panes, a page
+      // behind a prompt) is not moved: bringing something into view inside
+      // a pane would otherwise push the whole app up off the screen.
+      // Unless that leaves it cut off: such an app can be taller than the
+      // screen, and then moving the page is the only way to show its last strip.
+      if (view && before && !pageScrolls(this.doc, view)) {
+        view.scrollTo({ ...before, behavior: 'instant' });
+        const show = (): void => {
+          if (this.current !== el) return;
+          const r = el.getBoundingClientRect();
+          const down = r.bottom > view.innerHeight ? r.bottom - view.innerHeight + 8 : r.top < 0 ? r.top - 8 : 0;
+          if (down !== 0) view.scrollBy({ top: down, behavior: 'instant' });
+        };
+        if (this.rapid) show();
+        else view.setTimeout(show, 350);
+      }
     }
     this.opts.onFocusChange?.(el);
     return true;
@@ -1263,6 +1412,7 @@ export class SpatialNavigator {
   }
 
   clear(): void {
+    this.lastBox = null;
     this.current?.removeAttribute(FOCUS_ATTR);
     this.zoomed?.removeAttribute(ZOOM_ATTR);
     this.zoomed = null;

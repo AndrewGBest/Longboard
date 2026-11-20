@@ -77,8 +77,77 @@ describe('SpatialNavigator', () => {
     nav.move('down');
     document.getElementById('home')!.remove();
     expect(nav.focused).toBeNull();
+    // Carries on from where it was, not from the top again.
     nav.move('down');
-    expect(nav.focused?.id).toBe('store');
+    expect(nav.focused?.id).toBe('a1');
+  });
+
+  it('carries on from what the page put in place of the highlighted control', () => {
+    const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
+    nav.focus(document.getElementById('a2'));
+    document.getElementById('a2')!.outerHTML = card('a2new', 122, 101);
+    expect(nav.focused).toBeNull();
+    nav.move('right');
+    expect(nav.focused?.id).toBe('a3');
+  });
+
+  // Shape seen on a photo site: resting on a small picture brings up a card
+  // about its owner, and the card closes as soon as focus goes into it.
+  it('goes back to what opened a card that closed under it, and passes the card over after that', () => {
+    const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
+    nav.focus(document.getElementById('home'));
+    nav.move('down');
+    expect(nav.focused?.id).toBe('a1');
+    const open = (): void => document.body.insertAdjacentHTML('beforeend', `<div id="pop">${card('follow', 10, 165)}</div>`);
+    open();
+    nav.move('down');
+    expect(nav.focused?.id).toBe('follow');
+    document.getElementById('pop')!.remove();
+    expect(nav.focused).toBeNull();
+    // The page gives its focus back to the picture; the highlight goes with it.
+    expect(nav.comeBack(nav.candidates(), document.getElementById('a1')!)).toBe(true);
+    expect(nav.focused?.id).toBe('a1');
+    open();
+    nav.move('down');
+    expect(nav.focused?.id).toBe('b1');
+  });
+
+  // Shape seen on a music site: an app of panes, the window's own scrolling shut off.
+  it('does not move a page that has shut its own scrolling off', () => {
+    Object.defineProperty(window, 'innerHeight', { value: 540, configurable: true });
+    document.body.insertAdjacentHTML('beforeend', card('deep', 0, 900));
+    const calls: unknown[] = [];
+    window.scrollTo = ((o: unknown) => calls.push(o)) as typeof window.scrollTo;
+    const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
+    nav.focus(document.getElementById('deep'));
+    expect(calls).toEqual([]);
+    document.body.style.overflowY = 'hidden';
+    nav.focus(document.getElementById('b1'));
+    nav.focus(document.getElementById('deep'));
+    document.body.style.overflowY = '';
+    expect(calls.at(-1)).toEqual({ top: 0, left: 0, behavior: 'instant' });
+    // Still cut off a moment later (the app is taller than the screen): then the page is moved, just far enough.
+    const by: unknown[] = [];
+    window.scrollBy = ((o: unknown) => by.push(o)) as typeof window.scrollBy;
+    vi.useFakeTimers();
+    nav.focus(document.getElementById('b1'));
+    document.body.style.overflowY = 'hidden';
+    nav.focus(document.getElementById('deep'));
+    vi.advanceTimersByTime(400);
+    vi.useRealTimers();
+    document.body.style.overflowY = '';
+    expect(by).toEqual([{ top: 428, behavior: 'instant' }]);
+  });
+
+  it('finds its own way back when the page says nothing', () => {
+    const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
+    nav.focus(document.getElementById('home'));
+    nav.move('down');
+    document.body.insertAdjacentHTML('beforeend', `<div id="pop">${card('follow', 10, 165)}</div>`);
+    nav.move('down');
+    document.getElementById('pop')!.remove();
+    nav.move('down');
+    expect(nav.focused?.id).toBe('b1');
   });
 
   it('uses adapter selectors for extra focusable elements', () => {

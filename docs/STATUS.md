@@ -2,6 +2,61 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-21, later: the signed-in run over 49 sites, and whether each wants a profile
+
+0.3.11 is published (six packages). After Andrew closed the last sign-in
+window the survey was run again over the 49 sites that take an account,
+with his sign-ins, at 1920x1080, by script with the spending guard on
+(`survey.mjs --data=`; the data folder is outside the repository and nothing
+from it is committed).
+
+**What state each site was in** (seen in the run's own pictures):
+
+- Signed in, 13: two short-video and photo sites, two social sites, a forum,
+  three live-video sites, a music player, an anime service, and three film
+  services (one of them stops at "who is watching?"; the run does not pick
+  a viewer on someone's account, so nothing past that was seen).
+- Not offered in Canada, 3: three film services show only a notice.
+- Signed out, 33: the search company's sign-in refuses this browser (rule 3:
+  not worked round), and the rest were closed without signing in.
+
+**Result:** on no site did the highlight stop with page left to see. Two
+real faults, both mended in the general rules, and one site given a profile:
+
+| Seen | Cause | Now |
+|---|---|---|
+| A photo site, signed in: Down went round three things for ever | Resting on a small profile picture opens a card about its owner. The card was the nearest thing below, the highlight stepped into it, and the site closes the card the moment focus enters it. The highlight was gone and the next press began at the top | When what had the highlight is taken away and the page gives focus back to what the highlight came from, the highlight goes back there too. From there, what was not on the page before it arrived is passed over. With no word from the page, the next press carries on from where the highlight was, not from the top |
+| A music player: the whole app slid 61 px up off the screen as the highlight moved | The app has its own scrolling shut off and is 601 high in a 540 window. Bringing something into view inside a pane also moved the page | A page that has shut its scrolling off is not moved, unless what is highlighted would otherwise be cut off |
+| The same player: first press on a link in the top bar; the player bar under the bottom of the screen | It is laid out for a taller window than the 960x540 page | A profile in the catalogue (`open.spotify.com`): drawn at 1280x720, where it fits whole; highlight starts in the main pane; the four parts of the app named. Evidence: an outline taken signed out |
+
+Looked into and left: a live-video site walks its long list of followed
+channels before anything else (Right goes to the page; correct, slow); a
+film service's walk ends on its "which country" strip (that is the end of
+the page); one search site showed nothing highlighted once and was fine when
+tried again (not explained).
+
+**Would a profile polish each site further?** The agent's judgement, from
+this run. A profile can only name elements, set the drawing size, say where
+the highlight starts, and group things; it needs class names or attributes
+that stay put, shown in an outline that may be committed (so: taken signed
+out).
+
+| Sites | Verdict | Why |
+|---|---|---|
+| The music player | **Yes, done** | Above |
+| Two film services that have profiles already | Enough as they are | Both walk top to bottom signed in; nothing new to say |
+| The film service behind "who is watching?" | **Not known** | Nothing past the question was seen |
+| The live-video site with the long side list | **Maybe** | A profile could start the highlight on the page instead of the list. Not written: no outline taken yet, and it is a preference, not a fault |
+| The photo site, the two social sites, the short-video site | No | Their class names are machine-made and change; a profile would have nothing lasting to name. What went wrong there was general and is mended generally |
+| The forum, the other live-video site, the anime service, the film and TV guide, the video-sharing sites | No need seen | The general rules walk them without a loop or a stop |
+| The 33 signed out and the 3 not offered here | Not known signed in | Signed out they walk as in the earlier runs |
+
+**Verified:** 572 unit tests; the end-to-end suite (516 checks) on the
+photo-site rule, and again on the final build; the photo site and the music
+player by script on the live sites, signed in; the profile signed in and
+signed out. **Not verified:** any of it by a person with a remote; the
+music player's other pages; playing anything.
+
 ## 2026-11-21: what Andrew found while signing in
 
 Andrew went through the 45 sign-in windows at the real screen and reported

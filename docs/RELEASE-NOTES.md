@@ -2,6 +2,18 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.12, from a run over 49 sites with the owner's sign-ins:
+
+- **A pop-up card that closes when the highlight steps into it** (the card
+  about a picture's owner on a photo site) no longer swallows the
+  highlight: it goes back to the picture and passes the card over.
+- **When a page redraws what was highlighted**, the next press carries on
+  from there, not from the top.
+- **An app of panes is no longer pushed up off the screen** as the
+  highlight moves.
+- **A profile for a music player's web app** is in the catalogue: the app
+  now fits on the screen whole.
+
 New in 0.3.11:
 
 - **The highlight goes inside embedded frames.** A sign-in prompt that is
