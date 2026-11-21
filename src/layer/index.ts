@@ -928,6 +928,35 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     }
   };
 
+  // In an app that answers the remote itself, Up pressed again where the
+  // app has nowhere further up still opens the menu: a remote may have no
+  // key for it. Whether the app went anywhere is seen from outside: what
+  // has its focus, where that is, and the address, a moment after the key.
+  // Not while a video is being watched, where Up is the player's.
+  const ownRemoteUp = (key: string): void => {
+    if (key !== 'ArrowUp' || inPlayer()) {
+      topEdge.reset();
+      return;
+    }
+    const at = Date.now();
+    const mark = (): string => {
+      const el = deepActiveElement(doc);
+      const r = el?.getBoundingClientRect();
+      return `${view.location.href} ${view.scrollY} ${el?.tagName ?? ''} ${r ? [r.left, r.top, r.width, r.height].map(Math.round).join(',') : ''}`;
+    };
+    const before = mark();
+    const held = deepActiveElement(doc);
+    view.setTimeout(() => {
+      if (deepActiveElement(doc) !== held || mark() !== before) {
+        topEdge.reset();
+        return;
+      }
+      const edge = topEdge.up(at);
+      if (edge === 'menu') send({ kind: 'menu' });
+      else if (edge === 'hint') overlay.toast('Press Up again for the menu');
+    }, 200);
+  };
+
   const onKey = (e: KeyboardEvent): void => {
     // Only keys that were really pressed (by a person, or by a script through
     // the browser's own input channel). A key event the page made up is not one.
@@ -956,7 +985,10 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     // An app made for TVs answers the remote itself. With Longboard's own
     // things out of the way (keyboard, menu, pointer), the arrows and OK are
     // the site's, and so is Back when it is a key such an app knows as Back.
-    if (rules.ownRemote && !oskOpen && !pointerOn && ownRemoteKey(action.type, e.key)) return;
+    if (rules.ownRemote && !oskOpen && !pointerOn && ownRemoteKey(action.type, e.key)) {
+      ownRemoteUp(e.key);
+      return;
+    }
     e.preventDefault();
     // Immediate: the site may also listen on the window, and must not see a
     // key the layer has taken.

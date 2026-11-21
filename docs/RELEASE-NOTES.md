@@ -3,6 +3,12 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.17:
+
+- **Up twice opens the menu inside a site's own TV app too.** There the
+  arrows belong to the app, so the menu could not be reached without a
+  Menu key.
+
 New in 0.3.16:
 
 - **Another program can ask Longboard to show Steam's sign-in page and,

@@ -1092,6 +1092,19 @@ await scenario(
     await press('ArrowRight');
     await press('ArrowRight');
     check('the arrows are the app\'s own: it moves its mark, and Longboard highlights nothing', [await evaluate('where()'), await evaluate('seen.join()'), await evaluate('!!document.querySelector("[data-longboard-focus]")')], [2, 'ArrowRight,ArrowRight', false]);
+    // Up where the app has nowhere further up: pressed again, it opens the menu, as on any site.
+    await press('ArrowUp', 500);
+    check('Up with nowhere to go in the app says how to reach the menu', await page.toastText(), 'Press Up again for the menu');
+    await press('ArrowUp', 700);
+    const menuChrome = await app.chrome();
+    check('and Up again opens it', await menuChrome.evaluate('document.querySelector("#panel h1")?.textContent ?? null'), 'Menu');
+    await menuChrome.press('Escape', 500);
+    // Long enough for the words from before to have gone.
+    await until(() => page.toastText(), (t) => !t, 60);
+    await press('ArrowDown');
+    await press('ArrowUp', 500);
+    check('an Up the app did something with is the app\'s alone', [await evaluate('document.activeElement.id'), await page.toastText()], ['', null]);
+    await sleep(4200);
     await press('ArrowDown');
     await press('Enter', 400);
     check('in a scripted run OK still never presses a sign-up button', [await evaluate('document.activeElement.id'), await evaluate('pressed'), /never activates purchase or sign-up/.test((await page.toastText()) ?? '')], ['join', 0, true]);

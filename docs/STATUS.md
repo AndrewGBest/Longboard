@@ -2,6 +2,22 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-21: the menu from inside a site's own TV app (0.3.17)
+
+Andrew, at the TV: pressing Up on the video site's TV app did not bring up
+Longboard's menu. On such a site the arrows are the site's, so "Up twice at
+the top" had nothing to go on. Now Longboard watches from outside whether
+the app did anything with an Up (what has its focus, where that is, the
+address): an Up the app did nothing with shows "Press Up again for the
+menu", and the next one opens it. Not while a video is being watched.
+
+**Verified:** the scenario with the invented TV app (three more checks);
+on the live TV app by script, as a guest: Up from the first row goes to
+its search field, and Up twice more there opens the menu. The whole
+end-to-end suite in six parts (numbers in the commit). **Not verified:**
+by a person with a remote; the app's other screens (a screen whose top
+item keeps focus but changes something else on Up would be misread).
+
 ## 2026-11-21: handing a Steam library back to the program that asked (0.3.16)
 
 Decided by Andrew (DECISIONS.md, top entry) and brought in from the branch
