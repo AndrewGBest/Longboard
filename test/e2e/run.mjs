@@ -1063,7 +1063,8 @@ await scenario('a site with no profile, then with one', { url: profiled, args: [
 await scenario(
   'a site with an interface for TVs',
   {
-    url: `http://profile.test:${port}/tvapp.html`,
+    // The site's front page is asked for; the profile says its TV interface starts elsewhere.
+    url: `http://profile.test:${port}/`,
     args: [mapHost],
     seed: (data) => {
       mkdirSync(join(data, 'profiles'), { recursive: true });
@@ -1074,6 +1075,7 @@ await scenario(
     const page = await app.page('http://profile.test');
     const { evaluate, press } = page;
     await sleep(800);
+    check('asking for the site\'s front page opens its interface for TVs', await evaluate('location.pathname'), '/tvapp.html');
     const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
     const said = await evaluate('navigator.userAgent');
     const cut = said.lastIndexOf(', Longboard_TV');
@@ -1089,7 +1091,11 @@ await scenario(
     check('in a scripted run OK still never presses a sign-up button', [await evaluate('document.activeElement.id'), await evaluate('pressed'), /never activates purchase or sign-up/.test((await page.toastText()) ?? '')], ['join', 0, true]);
     await evaluate('location.href = "/home.html"');
     await sleep(1200);
+    check('a page of the site that was asked for by name is opened as asked', await evaluate('location.pathname'), '/home.html');
     check('a page of the same site outside the profile is told only the usual, and so is what it fetches', [await evaluate('location.pathname'), await evaluate('navigator.userAgent'), await evaluate('fetch("/agent").then((r) => r.json())')], ['/home.html', honest, honest]);
+    await evaluate('location.href = "/"');
+    await sleep(1500);
+    check('and a link to the front page goes to the interface for TVs too', await evaluate('location.pathname'), '/tvapp.html');
   },
 );
 

@@ -33,7 +33,7 @@ export interface Profile {
   authors: string[];
   licence: string;
   match: { hosts: string[]; paths?: string[] };
-  view?: { canvas?: string; safeMargin?: number; device?: 'tv' };
+  view?: { canvas?: string; safeMargin?: number; device?: 'tv'; entry?: string };
   focus?: {
     /** Elements that can take the highlight, added to what generic mode finds. */
     include?: string[];
@@ -162,7 +162,7 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
 
   const view = section('view');
   if (view) {
-    only(view, ['canvas', 'safeMargin', 'device'], 'view');
+    only(view, ['canvas', 'safeMargin', 'device', 'entry'], 'view');
     profile.view = {};
     if (view['canvas'] !== undefined) {
       if (typeof view['canvas'] !== 'string' || !CANVAS.test(view['canvas'])) bad('"view.canvas" must look like 960x540');
@@ -172,6 +172,12 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
       // One word and nothing else: a profile cannot say what Longboard calls itself (Hard rule 3).
       if (view['device'] !== 'tv') bad('"view.device" can only be "tv"');
       else profile.view.device = 'tv';
+    }
+    if (view['entry'] !== undefined) {
+      // A path on the site itself and nothing more: never another site, never an address with a question in it.
+      const entry = view['entry'];
+      if (!isText(entry, 200) || !/^\/[A-Za-z0-9._~\-/]*$/.test(entry) || entry.startsWith('//') || entry === '/') bad('"view.entry" must be a plain path on the site, such as "/tv"');
+      else profile.view.entry = entry;
     }
     const margin = view['safeMargin'];
     if (margin !== undefined) {
@@ -372,6 +378,32 @@ export function canvasOf(profile: Profile | null): { width: number; height: numb
  */
 export function wantsTv(profile: Profile | null): boolean {
   return profile?.view?.device === 'tv';
+}
+
+/**
+ * Where a site's front page is opened instead, when a profile says the
+ * site's interface for this kind of device starts somewhere else
+ * (`view.entry`). Only the front page itself: an address that names a page
+ * of the site is opened as asked. `use` is the profile that would be used
+ * for an address (the usual choice, with its order of sources and the
+ * person's answers); the profile must be the one in use at its own entry,
+ * so one that is passed over or was refused sends nobody anywhere.
+ */
+export function entryFor(url: string, stored: readonly StoredProfile[], use: (url: string) => Profile | null): string | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if ((u.protocol !== 'https:' && u.protocol !== 'http:') || u.pathname !== '/' || u.search !== '') return null;
+  for (const { profile } of stored) {
+    const entry = profile.view?.entry;
+    if (!entry || !profile.match.hosts.some((p) => hostMatches(p, u.hostname))) continue;
+    const there = `${u.origin}${entry}`;
+    if (use(there) === profile) return there;
+  }
+  return null;
 }
 
 /** The file name a profile is exported under. */

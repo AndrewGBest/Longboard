@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { genericRules, rulesFrom, rulesFromUntrusted, rulesReport } from '../src/layer/profile/rules';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
 import { ProfileStore, sourceLabel } from '../src/main/profiles';
-import { canvasOf, wantsTv, chooseProfile, exportName, hostMatches, importKey, matchScore, validateProfile, type Profile, type StoredProfile } from '../src/shared/profile';
+import { canvasOf, wantsTv, entryFor, chooseProfile, exportName, hostMatches, importKey, matchScore, validateProfile, type Profile, type StoredProfile } from '../src/shared/profile';
 
 const base = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
   longboard: 1,
@@ -416,5 +416,35 @@ describe('a site with an interface for TVs', () => {
     expect(rulesFrom(valid({ view: { device: 'tv' } })).ownRemote).toBe(true);
     expect(rulesFrom(valid()).ownRemote).toBe(false);
     expect(genericRules().ownRemote).toBe(false);
+  });
+});
+
+describe('a site whose interface for TVs starts somewhere other than its front page', () => {
+  const tv = valid({ match: { hosts: ['example.com', 'www.example.com'], paths: ['/tv'] }, view: { device: 'tv', entry: '/tv' } });
+  const stored: StoredProfile[] = [{ profile: tv, source: 'catalogue', file: 'tv.json' } as StoredProfile];
+  const use = (url: string): Profile | null => {
+    const c = chooseProfile(url, stored, {});
+    return c.kind === 'use' ? c.profile : null;
+  };
+
+  it('opens the front page there, and only the front page', () => {
+    expect(entryFor('https://www.example.com/', stored, use)).toBe('https://www.example.com/tv');
+    expect(entryFor('https://example.com', stored, use)).toBe('https://example.com/tv');
+    expect(entryFor('https://www.example.com/watch?v=1', stored, use)).toBeNull();
+    expect(entryFor('https://www.example.com/?q=1', stored, use)).toBeNull();
+    expect(entryFor('https://www.example.com/tv', stored, use)).toBeNull();
+    expect(entryFor('https://other.example.org/', stored, use)).toBeNull();
+    expect(entryFor('file:///', stored, use)).toBeNull();
+  });
+
+  it('sends nobody anywhere when the profile is not the one in use there', () => {
+    expect(entryFor('https://www.example.com/', stored, () => null)).toBeNull();
+  });
+
+  it('takes a plain path on the site and nothing else', () => {
+    for (const entry of ['https://elsewhere.example/tv', '//elsewhere.example/tv', '/tv?x=1', '/tv#/watch', 'tv', '/', '/a b', 7]) {
+      expect(validateProfile(base({ view: { entry } })).problems.join()).toContain('"view.entry" must be a plain path');
+    }
+    expect(valid({ view: { entry: '/tv' } }).view?.entry).toBe('/tv');
   });
 });

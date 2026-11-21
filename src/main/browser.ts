@@ -962,7 +962,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
 
   /** Opens an address the person asked for. `remember` puts it on Home. `inSession` is an app's own session, or "" for the shared one. */
-  const open = (url: string, remember: boolean, inSession = lastTab): void => {
+  const open = (asked: string, remember: boolean, inSession = lastTab): void => {
+    // A site whose profile says its interface for a TV starts elsewhere: its front page opens there.
+    const url = deps.profiles.entry(asked) ?? asked;
     const reason = blockReason(url, navRules());
     if (reason === 'locked') {
       // Asked for by the person: the PIN opens it, and every other site until Longboard is locked again.
@@ -1099,14 +1101,26 @@ export function createBrowser(deps: BrowserDeps): Browser {
     }
     return false;
   };
+  // The front page of a site whose profile names another way in (view.entry)
+  // is opened there, however it was reached: a link, or the site's own redirect.
+  const byEntry = (wc: WebContents, e: { preventDefault: () => void }, url: string): void => {
+    const entry = wc === page ? deps.profiles.entry(url) : null;
+    if (!entry || !allowed(entry)) return;
+    e.preventDefault();
+    setImmediate(() => {
+      if (!page.isDestroyed()) void page.loadURL(entry).catch(() => undefined);
+    });
+  };
   eachPage((wc) => wc.on('will-navigate', (e, url) => {
     if (wc !== page || !allowed(url)) e.preventDefault();
+    else byEntry(wc, e, url);
   }));
   // Frames inside a page are the site's own business; only
   // where the view itself goes is checked.
   eachPage((wc) => wc.on('will-redirect', (e, url, _isInPlace, isMainFrame) => {
     if (!isMainFrame) return;
     if (wc !== page || !allowed(url)) e.preventDefault();
+    else byEntry(wc, e, url);
   }));
   // No pop-up windows: a link that asks for one opens in the same view.
   eachPage((wc) => wc.setWindowOpenHandler(({ url }) => {

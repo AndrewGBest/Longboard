@@ -4,7 +4,7 @@
 import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { chooseProfile, exportName, importKey, validateProfile, type Profile, type ProfileChoice, type ProfileSource, type StoredProfile } from '../shared/profile';
+import { chooseProfile, exportName, importKey, validateProfile, type Profile, type ProfileChoice, type ProfileSource, type StoredProfile, entryFor } from '../shared/profile';
 import { readJson, writeJson } from './store';
 
 export interface ProfileFolders {
@@ -100,6 +100,14 @@ export class ProfileStore {
     const answers = { ...this.answers };
     for (const key of this.later) answers[key] ??= 'no';
     return chooseProfile(url, this.stored, answers, answerKey);
+  }
+
+  /** Where a site's front page is opened instead, when the profile in use there says so (shared/profile.ts entryFor). */
+  entry(url: string): string | null {
+    return entryFor(url, this.stored, (at) => {
+      const choice = this.choose(at);
+      return choice.kind === 'use' ? choice.profile : choice.kind === 'ask' ? (choice.fallback?.profile ?? null) : null;
+    });
   }
 
   /** Records the answer to "use this imported profile?". `remember` false keeps it for this run only. */

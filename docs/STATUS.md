@@ -40,8 +40,18 @@ Its one button begins signing in, which a scripted run never presses (rule
 and signing in have not been seen by anyone in Longboard. **Andrew needs to
 try it with a remote:** open `youtube.com/tv`.
 
-**Known gaps.** Opening the plain domain still gives the ordinary site (a
-profile cannot redirect). A Back key that is not Escape or Backspace still
+**Then (0.3.14), at Andrew's word that the profile should apply "when they
+go to youtube using the url too":** a second key, `view.entry`. The site's
+front page, however reached, opens at the path the profile names; any other
+address of the site opens as asked. Seen on the live site by script: the
+bare domain, with and without `www`, lands on the TV app; a search address
+opens the ordinary search page with the usual identity. 582 unit tests,
+the scenario extended (nine checks). The profile in the catalogue is now
+1.1.0 and needs 0.3.14: 0.3.13 does not know the key and passes the profile
+over.
+
+**Known gaps.** A link to one video still opens the ordinary site's page
+for it. A Back key that is not Escape or Backspace still
 goes back in history instead of to the app. Nothing on screen says the site
 is being told "TV"; the site menu shows the profile's name only. The site's
 terms may reserve the TV interface for its own apps; it can stop serving it.

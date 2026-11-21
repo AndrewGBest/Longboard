@@ -3,6 +3,25 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-21: a site's front page opens at its interface for TVs
+
+**Andrew, 2026-11-21:** asked whether the TV statement should go to every
+site instead of being a profile's business; the agent advised against for
+now (the remote must be handed over per site anyway; the effect on other
+sites, streaming services above all, is not measured; a Longboard token on
+every request marks the person out among very few). He answered: "Ok but
+the profiles should apply when they go to youtube using the url too." How
+is **the agent's assumption**.
+
+| Question | Choice | Why |
+|---|---|---|
+| How | A profile key, `view.entry`: a plain path on the site | Tried on the live site: with the TV statement the bare domain still serves the ordinary site; only the `/tv` address serves the TV app. So the person has to be taken there. Data, not code (rule 7) |
+| Which addresses are taken there | The front page only: path `/`, nothing after a `?` | A link to one video or one search must still open that video or search. Whether the TV app can be opened at a given video is not known, so nothing is guessed |
+| However it was reached | Typed, from Home, a link on a page, the site's own redirect | "When they go to youtube using the url" |
+| What the path may be | Letters, digits, `. _ ~ - /`, starting with one `/`; not `/` itself | It cannot name another site or carry anything in a query |
+| Whose profile | Only the one that would be in use at that path, by the usual order and the person's answers | A profile that was refused sends nobody anywhere |
+| The TV statement to every site | **Not done.** Offered: a run of the 68-site list with and without it, to see what changes | Andrew has not asked for it |
+
 ## 2026-11-21: Longboard may say it is a TV, to a site whose profile asks
 
 **Andrew, 2026-11-21:** "Im interested in having profiles that apply fixes
