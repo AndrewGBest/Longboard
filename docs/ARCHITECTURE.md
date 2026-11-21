@@ -212,3 +212,11 @@ Whether protected video actually plays on each is unverified.
 - castLabs Electron releases: https://github.com/castlabs/electron-releases/releases
 - Electron security tutorial: https://electronjs.org/docs/latest/tutorial/security
 - Ghostery adblocker: https://github.com/ghostery/adblocker
+
+Handing something back to another program (`src/main/handback.ts`): started
+with `--hand-back=<name> --hand-back-to=<file>`, the shell opens the named
+site's own sign-in page, learns who is signed in by fetching the site's
+front page from the main process with the page's session (nothing is put
+into the page), asks the person, and only on a yes fetches the one thing
+named and writes it to the file. The names are a list in that module; a
+program cannot name an address, a page or a cookie.

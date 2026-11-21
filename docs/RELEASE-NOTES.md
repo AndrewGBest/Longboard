@@ -5,6 +5,11 @@ edges.
 
 New in 0.3.16:
 
+- **Another program can ask Longboard to show Steam's sign-in page and,
+  with your yes, hand back the list of games you own.** The Bilby app
+  store uses this on a TV. You sign in on Steam's own page; Longboard asks
+  before anything is shared, starts on "Do not share", and passes on only
+  the account number and the list. Not yet tried signed in to Steam.
 - **Longboard tells sites its name.** Its identity now ends with
   `Longboard/<version>`, after the engine and system it always named.
   With the name left out, a large sign-in service refused it as "may not

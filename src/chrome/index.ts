@@ -944,6 +944,17 @@ function promptPanel(s: ChromeState): Node[] {
       row('prompt-never', 'Never for this site', () => tell({ kind: 'answer', allow: false, never: true }), { cls: 'quiet' }),
     ];
   }
+  if (s.prompt?.what === 'handBack') {
+    return [
+      heading('Share this?', 'shield'),
+      lead(`The program that opened ${PRODUCT.name} is asking for ${s.prompt.wants}.`),
+      el('p', { text: `Only that list is shared, once, with that program on this device. Your password and your sign-in to ${s.prompt.site} are not.` }),
+      // Longboard cannot know which program asked. Where the answer goes is what it does know, and it says so.
+      note(`${PRODUCT.name} cannot tell which program that is. The list would be written to this file: ${s.prompt.to}`),
+      yes('Share the list'),
+      no('Do not share'),
+    ];
+  }
   if (s.prompt?.what === 'download') {
     return [
       heading('Download this file?', 'download'),

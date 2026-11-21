@@ -154,6 +154,8 @@ export interface ChromeState {
     | { what: 'extension'; name: string; version: string; can: string[]; cannot: string[] }
     /** Keep the password just typed for this site? */
     | { what: 'password'; site: string; user: string }
+    /** Another program on this machine asked for something from a site the person is signed in to: share it? */
+    | { what: 'handBack'; site: string; wants: string; /** The file the answer goes to: the one thing known about who is asking. */ to: string }
     /** Fetch the speech model, once? `size` in words. */
     | { what: 'voiceModel'; size: string }
     | null;

@@ -3,6 +3,44 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-21: handing a Steam library back to the program that asked
+
+**Andrew, 2026-11-21: Longboard may do this.** It replaces the entry
+"proposed, not yet decided" that came with the branch `steam-hand-back`,
+written from the Bilby app store's side. Bilby lets a person sign in to
+Steam so it can mark the games they already own; on a TV it does that
+through Longboard, because a remote can drive Longboard and cannot drive a
+plain browser window. The contract is fixed, because released copies of
+Bilby use it:
+
+`longboard --hand-back=steam-library --hand-back-to=/absolute/path/steam.json --url=<Steam's sign-in page>`
+
+The table is the branch's, kept. Rows the agent changed or added when
+bringing it into Longboard are marked **[changed]** or **[added]**; those
+are **the agent's assumptions**.
+
+| Question | Choice | Why |
+|---|---|---|
+| What another program can ask for | One thing from a list in `src/main/handback.ts`, by name: `--hand-back=steam-library --hand-back-to=<file>`. Today the list has that one entry. The `--url=` Bilby also passes is not used: the sign-in address is Longboard's own | A program that could name an address, a page or a cookie could take anything the person is signed in to. A name Longboard gives meaning to cannot |
+| Where the person signs in | Steam's own sign-in page, opened by Longboard | Rule 10: sign-in happens on the site's own page |
+| How Longboard learns who is signed in | It fetches Steam's front page itself, with the session's cookies, and reads the account number Steam prints there. No script or style is put into Steam's pages | Keeps how Longboard is built: it changes no page. Tried 2026-11-21: the engine's `session.fetch` sends the session's cookies (against a local server) |
+| The question **[changed]** | "Share this?", saying what is asked for and that the password and the sign-in are not shared; the highlight starts on "Do not share"; Back is a no. Added: "Longboard cannot tell which program that is. The list would be written to this file: <the file>" | The same shape as every other question Longboard asks. The file is the one true thing known about who is asking, and it usually names the program's own folder |
+| Why not the asking program's name **[added]** | Not shown | Longboard could read the name of the process that started it, but any program can take any name, a launcher or a shell is often what really started it, and a name on the question would be trusted more than it has earned |
+| What is fetched, and when | Only after a yes: Steam's own list of what the account owns (`/dynamicstore/userdata/`) | Nothing leaves before the answer |
+| What is written | One line in the file named: the account number and the ids owned (`rgOwnedApps`). Nothing else Steam said, no cookie, no token. The file is for this user only (0600), written whole or not at all. A no, a question left unanswered, or a failure writes `{"declined":true}` | The asking program gets a list, not a way to act as the account |
+| Longboard closed before an answer **[added]** | `{"declined":true}` is written as the window closes | The branch left the program waiting for ever |
+| Steam's front page no longer says who is signed in the way known here **[added]** | Nothing is shared; `{"declined":true}` is written; the person is told "Steam's pages have changed and Longboard can no longer tell who is signed in, so nothing was shared". "Nobody is signed in yet" is told apart from this and waits quietly | Andrew: "If they stop answering, nothing must be shared and the person must be told." On the branch the question simply never appeared |
+| Steam does not answer at all **[added]** | The person is told once, and the next Steam page they open looks again. Not a no yet | A network hiccup should not end the exchange |
+| The list cannot be fetched after a yes | `{"declined":true}`, and the person is told "The list could not be fetched from Steam, so nothing was shared" | As on the branch |
+| When Longboard looks **[changed]** | On reaching a store page past the sign-in page, by a new page or by the site changing the address of the page it is on | A sign-in page that moves on without loading a new page would never have been noticed |
+| Who may ask | Any program this user runs | Such a program can already read Longboard's own files; the question is there so the person knows it is happening |
+| A second request before the first is answered | Takes its place; the first is told no | One question at a time |
+| Asked of a Longboard that is already running | Works: the second copy passes its arguments on | Now tested end to end |
+| Is this a background request (rule 12)? | **No**, the agent agrees with the branch, for these reasons: rule 12 is about what Longboard does "by itself in the background" (looking for updates, fetching the catalogue). Here nothing is asked of Steam unless a program was started by the person to sign in to Steam, the person is on Steam's own pages at that moment, and both requests go only to Steam, as the signed-in browser the person is using, telling it nothing it does not have. The first (who is signed in) is made before the yes and what it learns stays in Longboard; the second only after a yes. So it is not listed in Settings and has no switch there: the switch is the question | **Andrew asked for this to be checked; if he reads the rule differently it is his to say** |
+| Rule 9 (no reverse engineering of services' apps) | Not touched: both addresses are pages Steam serves to a browser | |
+| Scripted runs | `--hand-back-site=http://127.0.0.1:<port>/...` points the three addresses at a stand-in, only with `--automation` and only on this machine's own address | So the whole exchange is tested end to end against an invented store, as `--filters=` and `--catalogue=` do for their lists |
+| The risk | These addresses are what Steam's own web pages use; Steam does not publish them for other programs, and can change them. The Playnite game library reads the same ones (its source, read 2026-11-21 by the Bilby-side agent). Then nothing is shared and the person is told | Fails closed, and now says so |
+
 ## 2026-11-21: Longboard says its own name to every site
 
 **Andrew, 2026-11-21**, asked where Longboard should name itself after the

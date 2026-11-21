@@ -234,6 +234,19 @@ export async function launch({ url, config, args = [], width, height, seed, env 
     { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, XDG_DATA_HOME: join(userData, 'xdg'), ...(typeof env === 'function' ? env(userData) : env) } },
   );
   const app = { child, userData, log: '' };
+  /**
+   * Starts a second copy on the same data folder, as choosing Longboard
+   * again from another program does while it is already running. The copy
+   * passes its arguments to the first and leaves; resolves when it has left.
+   */
+  app.again = (more = []) =>
+    new Promise((done) => {
+      const copy = spawn(electronPath, [root, '--dev', '--automation', ...more, `--user-data-dir=${userData}`, '--password-store=basic', ...(sandbox ? [] : ['--no-sandbox']), '--disable-gpu'], {
+        stdio: 'ignore',
+        env: { ...process.env, XDG_DATA_HOME: join(userData, 'xdg'), ...(typeof env === 'function' ? env(userData) : env) },
+      });
+      copy.on('exit', done);
+    });
   child.stdout.on('data', (d) => (app.log += d));
   child.stderr.on('data', (d) => (app.log += d));
   const open = [];

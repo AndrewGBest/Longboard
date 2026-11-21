@@ -2,6 +2,50 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-21: handing a Steam library back to the program that asked (0.3.16)
+
+Decided by Andrew (DECISIONS.md, top entry) and brought in from the branch
+`steam-hand-back`, which was cut at 0.3.13: re-applied on main (the code
+applied cleanly; only these two documents conflicted), reviewed, and
+changed where the decision table says **[changed]** or **[added]**. Started
+with `--hand-back=steam-library --hand-back-to=<file>`, Longboard opens
+Steam's sign-in page, asks the person once they are signed in, and on a yes
+writes the account number and the ids of what it owns to the file.
+
+**Verified, by script:**
+
+- 596 unit tests, including the rules in `src/main/handback.ts` and telling
+  "nobody signed in" from "this page can no longer be read".
+- Five end-to-end scenarios against an invented store (24 checks): a yes; a
+  no; **the request arriving at a Longboard that is already running** (new),
+  including a second request taking the place of an unanswered first; a
+  store whose pages have changed (new: nothing shared, the program told no,
+  the person told why); Longboard closed with the question unanswered (new).
+- Against the real Steam, signed out: started exactly as Bilby starts it,
+  Longboard shows Steam's sign-in page and asks nothing; closing it writes
+  `{"declined":true}`. Steam's real front page reads as "nobody signed in"
+  (not as unreadable), and its real list address answers with an empty
+  `rgOwnedApps`, which the code turns into an empty `owned`.
+- The whole end-to-end suite on the final code (this change and the one
+  below it together), run in six parts because the machine is short of
+  memory: 551 checks, all passed, none needing a second run.
+
+**Not verified by anyone: any of it signed in to the real Steam.** That
+Steam's front page says who is signed in the way the code expects
+(`logged_in: true` with `steamid`) comes from another project's source, not
+from seeing it. If it is otherwise, the person will be told Steam's pages
+have changed and nothing will be shared. Andrew will sign in on the TV:
+Bilby, Settings, "Or sign in to Steam in a browser (Longboard)".
+
+**Also not tried:** Steam's sign-in by QR code; a person who was already
+signed in to Steam in Longboard before Bilby asked (expected: the question
+comes straight away).
+
+**Open, separate:** Longboard installed through Bilby on Andrew's TV did
+not start (it does on a Debian 13 test machine). The next Bilby release
+reports why an app closed at once; that message, when it comes, is a bug
+report against the AppImage.
+
 ## 2026-11-21: Longboard names itself, and a sign-in service lets it in
 
 Andrew asked to get the search company's services working. Its sign-in
