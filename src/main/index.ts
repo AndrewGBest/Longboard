@@ -18,6 +18,7 @@ import { createWriteStream } from 'node:fs';
 import { FilterStore } from './adblock';
 import { createBrowser } from './browser';
 import { refreshCatalogue } from './catalogue';
+import { handBackFrom } from './handback';
 import { ProfileStore } from './profiles';
 import { readJson, writeJson } from './store';
 import { browserUserAgent } from './useragent';
@@ -228,10 +229,12 @@ async function main(): Promise<void> {
     note,
   });
 
+  const startAsk = handBackFrom(argv, options.automation);
   const browser = createBrowser({
     options,
     config,
-    startUrl: startUrl(config),
+    // Started to hand something back: its sign-in page is opened below, in place of any address.
+    startUrl: startAsk ? null : startUrl(config),
     startApp: value('app') ?? null,
     // For a scripted run on a machine with no network: the phone page is served on this machine's own address.
     phoneAt: value('phone-at') === '127.0.0.1' ? '127.0.0.1' : undefined,
@@ -272,6 +275,7 @@ async function main(): Promise<void> {
   if (config.catalogue !== false) void fetchCatalogue(value('catalogue') !== undefined);
 
   const { win } = browser;
+  if (startAsk) void componentsReady.then(() => browser.handBack(startAsk));
   // Started again while already running (an entry in the TV's app list was
   // chosen): the window comes forward and opens what was asked for.
   app.on('second-instance', (_event, args) => {
@@ -280,7 +284,9 @@ async function main(): Promise<void> {
     const wantedApp = args.find((a) => a.startsWith('--app='))?.slice(6);
     const given = args.find((a) => a.startsWith('--url='))?.slice(6) ?? args.slice(1).find((a) => /^https?:\/\//i.test(a));
     const address = given ? resolveAddress(given, config.search) : null;
-    if (wantedApp) browser.openApp(wantedApp);
+    const ask = handBackFrom(args, options.automation);
+    if (ask) browser.handBack(ask);
+    else if (wantedApp) browser.openApp(wantedApp);
     else if (address) browser.openAddress(address);
   });
   // New versions (shared/update.ts): looked for at start and once a day,

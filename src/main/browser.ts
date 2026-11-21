@@ -10,6 +10,7 @@ import { Voice } from './voice';
 import { voiceModelSize } from '../shared/voice';
 import qrcode from 'qrcode-generator';
 import { cleanCredentials, loginPlace, shouldOffer } from '../shared/passwords';
+import { DECLINED, HAND_BACKS, steamAccount, steamAnswer, steamStorePage, type HandBack } from './handback';
 import { accessSync, constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { basename, dirname, join } from 'node:path';
@@ -257,7 +258,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
     | { what: 'download'; download: Download }
     | { what: 'password'; place: string; user: string; password: string }
     | { what: 'voiceModel' }
+    | { what: 'handBack'; ask: HandBack; steamid: string; from: Electron.Session }
     | null = null;
+  /** What the program that started Longboard asked to be handed back, until it is answered. */
+  let wanted: HandBack | null = null;
+  let lookingForAccount = false;
   /** A file on its way, or that was. `temp` is where it is held until it is whole and agreed to. */
   interface Download {
     id: number;
@@ -667,6 +672,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         ? { what: 'profile', name: pending.profile.name, version: pending.profile.version, hosts: pending.profile.match.hosts.slice(0, 6) }
         : pending.what === 'extension'
           ? { what: 'extension', name: pending.extension.name, version: pending.extension.version, can: pending.extension.can, cannot: pending.extension.cannot }
+        : pending.what === 'handBack'
+          ? { what: 'handBack', site: HAND_BACKS[pending.ask.what].site, wants: HAND_BACKS[pending.ask.what].wants }
         : pending.what === 'voiceModel'
           ? { what: 'voiceModel', size: voiceModelSize() }
         : pending.what === 'password'
@@ -723,6 +730,50 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (!asked.download.arrived) asked.download.item.cancel();
       rmSync(asked.download.temp, { force: true });
     } else if (asked.what === 'extension') extensions.discard(asked.extension);
+    // A question that went unanswered is a no, and the program waiting is told.
+    else if (asked.what === 'handBack') writeHandBack(asked.ask, DECLINED);
+  };
+
+  /** Writes the answer where the asking program looks for it: whole or not at all, and for this user only. */
+  const writeHandBack = (ask: HandBack, line: string): void => {
+    if (wanted === ask) wanted = null;
+    try {
+      writeFileSync(`${ask.to}.part`, line, { mode: 0o600 });
+      renameSync(`${ask.to}.part`, ask.to);
+    } catch (err) {
+      console.error(`[longboard] the answer could not be written: ${String(err).slice(0, 200)}`);
+    }
+  };
+
+  /**
+   * Once the person is past Steam's sign-in page: sees who is signed in, by
+   * fetching Steam's front page as this browser, and asks whether to share.
+   * Nothing is put into the page, and nothing leaves before the answer.
+   */
+  const lookForHandBack = async (wc: WebContents, url: string): Promise<void> => {
+    const ask = wanted;
+    if (!ask || lookingForAccount || pending || wc !== page || !steamStorePage(url, ask.at)) return;
+    lookingForAccount = true;
+    try {
+      const response = await wc.session.fetch(ask.at.home, { credentials: 'include', cache: 'no-store' });
+      const steamid = response.ok ? steamAccount(await response.text()) : null;
+      if (!steamid || wanted !== ask || pending || win.isDestroyed() || wc !== page || surface !== 'page') return;
+      pending = { what: 'handBack', ask, steamid, from: wc.session };
+      panel = 'prompt';
+      layout();
+    } catch {
+      // Not reachable just now: the next page the person opens there looks again.
+    } finally {
+      lookingForAccount = false;
+    }
+  };
+  eachPage((wc) => wc.on('did-navigate', (_e, url) => void lookForHandBack(wc, url)));
+
+  /** Opens the sign-in page for what was asked for. One request at a time: a new one replaces one not yet answered. */
+  const handBack = (ask: HandBack): void => {
+    if (wanted && wanted !== ask) writeHandBack(wanted, DECLINED);
+    wanted = ask;
+    open(ask.at.signIn, false);
   };
 
   /** Sizes and shows the views for the current state, and gives the keys to the one in front. */
@@ -1608,6 +1659,27 @@ export function createBrowser(deps: BrowserDeps): Browser {
           notify(`"${asked.extension.name}" could not be added: this browser cannot run it`);
         },
       );
+      return;
+    }
+    if (asked.what === 'handBack') {
+      layout();
+      if (!allow) {
+        writeHandBack(asked.ask, DECLINED);
+        return;
+      }
+      void asked.from
+        .fetch(`${asked.ask.at.owned}?t=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((said: unknown) => {
+          const line = steamAnswer(asked.steamid, said);
+          if (!line) throw new Error('not a list');
+          writeHandBack(asked.ask, line);
+          notify(`The list was shared. Go back to the program that asked for it`);
+        })
+        .catch(() => {
+          writeHandBack(asked.ask, DECLINED);
+          notify(`The list could not be fetched from ${HAND_BACKS[asked.ask.what].site}, so nothing was shared`);
+        });
       return;
     }
     if (asked.what === 'voiceModel') {
@@ -3176,6 +3248,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     win,
     openApp,
     openAddress: (url: string) => open(url, true),
+    handBack,
     clearSiteData,
   };
 }
@@ -3186,6 +3259,8 @@ export interface Browser {
   /** Opens an app by its id; false when there is none. */
   openApp: (id: string) => boolean;
   openAddress: (url: string) => void;
+  /** Opens the sign-in page for something another program asked to be handed back (main/handback.ts). */
+  handBack: (ask: HandBack) => void;
   /** Clears what every site has stored, for "clear when Longboard closes". */
   clearSiteData: () => Promise<void>;
 }

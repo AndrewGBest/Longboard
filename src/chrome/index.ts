@@ -942,6 +942,15 @@ function promptPanel(s: ChromeState): Node[] {
       row('prompt-never', 'Never for this site', () => tell({ kind: 'answer', allow: false, never: true }), { cls: 'quiet' }),
     ];
   }
+  if (s.prompt?.what === 'handBack') {
+    return [
+      heading('Share this?', 'shield'),
+      lead(`The program that opened ${PRODUCT.name} is asking for ${s.prompt.wants}.`),
+      el('p', { text: `Only that list is shared, once, with that program on this device. Your password and your sign-in to ${s.prompt.site} are not.` }),
+      yes('Share the list'),
+      no('Do not share'),
+    ];
+  }
   if (s.prompt?.what === 'download') {
     return [
       heading('Download this file?', 'download'),

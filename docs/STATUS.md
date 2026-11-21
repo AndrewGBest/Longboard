@@ -2,6 +2,24 @@
 
 Update this at the end of every working session. Newest first.
 
+
+## 2026-11-21, on the branch `steam-hand-back` only: handing a Steam library back
+
+Not on main, and not decided (docs/DECISIONS.md, top entry). Started with
+`--hand-back=steam-library --hand-back-to=<file>`, Longboard opens Steam's
+sign-in page, asks the person once they are signed in, and on a yes writes
+the account number and the ids of what it owns to the file. Written from the
+Bilby app store's side, which uses it for sign-in on a TV.
+
+- Verified: `npm run check`; `npm run e2e` including two new scenarios
+  against an invented store (yes, and no); started by hand with the options,
+  Steam's real sign-in page is shown.
+- **Unverified: signed in to the real Steam.** Whether its front page says
+  who is signed in the way the code expects, and whether the list comes
+  back, has been seen only in another project's source.
+- Not done: the same started while Longboard is already running was written
+  (the second copy passes the request on) but has no test.
+
 ## 2026-11-21, last: a site's own interface for TVs, and rule 3 amended
 
 0.3.12 is published (six packages). Then Andrew asked how another project

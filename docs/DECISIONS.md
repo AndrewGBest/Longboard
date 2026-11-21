@@ -3,6 +3,36 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-21: handing a Steam library back to the program that asked (proposed, on a branch)
+
+**Not yet decided by Andrew for Longboard.** It was asked for from the Bilby
+app store's side: Andrew, there, on signing in to Steam to learn what a
+person owns: "Embed a simple browser for desktop and mobile but use
+longboard for tvs". This entry and the code with it are on the branch
+`steam-hand-back`, written by the agent working on Bilby, for Andrew to
+accept, change or drop. Everything in the table is **that agent's
+assumption**.
+
+| Question | Choice | Why |
+|---|---|---|
+| What another program can ask for | One thing from a list in `src/main/handback.ts`, by name: `--hand-back=steam-library --hand-back-to=<file>`. Today the list has that one entry | A program that could name an address, a page or a cookie could take anything the person is signed in to. A name Longboard gives meaning to cannot |
+| Where the person signs in | Steam's own sign-in page, opened by Longboard | Rule 10: sign-in happens on the site's own page |
+| How Longboard learns who is signed in | It fetches Steam's front page itself, with the session's cookies, and reads the account number Steam prints there. No script or style is put into Steam's pages | Keeps how Longboard is built: it changes no page. Tried 2026-11-21: the engine's `session.fetch` sends the session's cookies [run here against a local server] |
+| The question | "Share this?", saying what is asked for and that the password and the sign-in are not shared; the highlight starts on "Do not share"; Back is a no | The same shape as every other question Longboard asks |
+| What is fetched, and when | Only after a yes: Steam's own list of what the account owns (`/dynamicstore/userdata/`) | Nothing leaves before the answer |
+| What is written | One line in the file named: the account number and the ids owned. Nothing else Steam said, no cookie, no token. The file is for this user only. A no, a question left unanswered, or a failure writes `{"declined":true}` | The asking program gets a list, not a way to act as the account |
+| Who may ask | Any program this user runs. Longboard cannot tell which one started it, and the question says "the program that opened Longboard" for that reason | Such a program can already read Longboard's own files; the question is there so the person knows it is happening |
+| Is this a background request (rule 12)? | No: both requests are made because the person, in another program, asked to sign in, and the second only after a yes. It is not listed in Settings | **For Andrew to confirm** |
+| Scripted runs | `--hand-back-site=http://127.0.0.1:<port>/...` points the three addresses at a stand-in, only with `--automation` and only on this machine's own address | So the whole exchange is tested end to end against an invented store, as `--filters=` and `--catalogue=` do for their lists |
+| The risk | These addresses are what Steam's own web pages use; Steam does not publish them for other programs, and can change them. The Playnite game library reads the same ones (its source, read 2026-11-21). Then the question stops appearing and nothing is shared | Fails closed |
+
+Verified: the rules in `handback.ts` by unit test; the whole exchange (sign
+in, question, yes and no, the file) end to end against an invented store;
+that Longboard started with these options shows Steam's real sign-in page;
+the reading of the account number against Steam's real front page, signed
+out. **Not verified: any of it signed in to Steam.** Nobody has; rule 10
+keeps the agent from doing so.
+
 ## 2026-11-21: Longboard may say it is a TV, to a site whose profile asks
 
 **Andrew, 2026-11-21:** "Im interested in having profiles that apply fixes

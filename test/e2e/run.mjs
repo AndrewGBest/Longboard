@@ -4,7 +4,8 @@
 import { createServer } from 'node:http';
 import { createHash, generateKeyPairSync } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { check, fail, failureCount, launch, root, serveFixtures, sleep, until } from './harness.mjs';
 
@@ -2296,6 +2297,60 @@ await scenario('speaking: the model is asked about, and not fetched unless agree
     check('the page loads by itself once the site is reachable', !!(await app.page(`http://127.0.0.1:${sitePort}`)), true);
   });
   late?.close();
+}
+
+// Another program asks for the list of games the person owns at a store they
+// are signed in to (main/handback.ts). The store here is invented: a sign-in
+// page that signs in by itself, a front page that says who is signed in the
+// way the real one does, and the list.
+{
+  const config = (signedIn) => JSON.stringify(signedIn ? { logged_in: true, steamid: '76561198000000001' } : { logged_in: false }).replace(/"/g, '&quot;');
+  const signedIn = (req) => /(^|;\s*)who=me/.test(req.headers.cookie ?? '');
+  const html = (res, body) => res.writeHead(200, { 'content-type': 'text/html' }).end(`<!doctype html><title>Pretend store</title>${body}`);
+  const asked = [];
+  const store = await serveFixtures({
+    '/pretend/login/': (_req, res) => html(res, '<h1>Sign in</h1><script>setTimeout(() => { document.cookie = "who=me; path=/"; location.href = "/pretend/"; }, 2500);</script>'),
+    '/pretend/': (req, res) => html(res, `<div id="application_config" data-config="{}" data-userinfo="${config(signedIn(req))}"></div><h1 id="front">Front page</h1>`),
+    '/pretend/dynamicstore/userdata/': (req, res) => {
+      asked.push(signedIn(req));
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ rgOwnedApps: signedIn(req) ? [570, 440] : [], rgWishlist: [10], secret: 'not passed on' }));
+    },
+  });
+  const handBack = (file) => ['--hand-back=steam-library', `--hand-back-to=${file}`, `--hand-back-site=${store.origin}/pretend`];
+  const question = (chrome) => until(() => chrome.evaluate('document.querySelector("#panel h1")?.textContent'), (t) => t === 'Share this?', 80);
+  const folder = mkdtempSync(join(tmpdir(), 'longboard-hand-back-'));
+  const yesFile = join(folder, 'yes.json');
+  const noFile = join(folder, 'no.json');
+
+  await scenario('handing back the list of games owned', { args: handBack(yesFile) }, async (app) => {
+    const file = yesFile;
+    const chrome = await app.chrome();
+    check('the sign-in page of the store is opened', !!(await app.page(`${store.origin}/pretend/login/`)), true);
+    check('nothing is asked or fetched while nobody is signed in', [await chrome.evaluate('document.querySelector("#panel h1")?.textContent ?? null'), asked.length, existsSync(file)], [null, 0, false]);
+    check('once signed in, the person is asked', await question(chrome), 'Share this?');
+    const words = await chrome.evaluate('(document.getElementById("panel")?.ariaLabel ?? document.getElementById("panel")?.textContent)');
+    check('in plain words: what is asked for, and what is not shared', [words.includes('the list of games and tools you own on Steam'), words.includes('Your password and your sign-in to Steam are not')], [true, true]);
+    check('with the highlight on the answer that changes nothing', await chrome.focused(), 'prompt-deny');
+    check('and nothing fetched or written before the answer', [asked.length, existsSync(file)], [0, false]);
+    await sayYes(chrome, 300);
+    await until(() => existsSync(file), (there) => there, 60);
+    check('a yes writes the account number and the ids owned, and nothing else the store said', existsSync(file) ? readFileSync(file, 'utf8') : null, '{"steamid":"76561198000000001","owned":[570,440]}');
+    check('fetched as the signed-in browser, once', asked, [true]);
+    check('for this user only', (statSync(file).mode & 0o077) === 0, true);
+  });
+
+  asked.length = 0;
+  await scenario('declining to hand back the list of games owned', { args: handBack(noFile) }, async (app) => {
+    const file = noFile;
+    const chrome = await app.chrome();
+    check('the person is asked', await question(chrome), 'Share this?');
+    await sleep(750);
+    await chrome.press('Enter', 400);
+    await until(() => existsSync(file), (there) => there, 40);
+    check('a no is written as a no, and the list is never fetched', [existsSync(file) ? readFileSync(file, 'utf8') : null, asked.length], ['{"declined":true}', 0]);
+  });
+  store.close();
+  rmSync(folder, { recursive: true, force: true });
 }
 
 site.close();
