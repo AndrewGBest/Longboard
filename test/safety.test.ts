@@ -156,12 +156,14 @@ describe('diagnostics outline', () => {
 });
 
 describe('user agent', () => {
-  it('removes app tokens and keeps the real engine and OS', () => {
+  it('keeps the real engine and OS, drops the toolkit\'s tokens, and says its own name once, at the end', () => {
     const ua =
       'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) longboard/0.0.1 Chrome/146.0.0.0 Electron/44.10.1 Safari/537.36';
-    expect(browserUserAgent(ua)).toBe(
-      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+    expect(browserUserAgent(ua, 'Longboard', '1.2.3')).toBe(
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Longboard/1.2.3',
     );
+    expect(browserUserAgent(ua, 'Longboard', '1.2.3')).not.toMatch(/Electron|longboard\/0\.0\.1/);
+    expect(browserUserAgent(ua, 'Longboard', '1.2.3').match(/Longboard/gi)).toHaveLength(1);
   });
 });
 
@@ -241,7 +243,7 @@ describe('the guard, after an independent review', () => {
 });
 
 describe('what Longboard says it is to a site with an interface for TVs (rule 3, amended 2026-11-21)', () => {
-  const honest = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36';
+  const honest = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Longboard/1.2.3';
   const tv = tvUserAgent(honest, 'Longboard', '1.2.3', systemName(honest));
   const id = identityFor(honest, tv, (url) => new URL(url).pathname.startsWith('/tv'));
 

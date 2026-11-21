@@ -21,6 +21,7 @@ import { refreshCatalogue } from './catalogue';
 import { ProfileStore } from './profiles';
 import { readJson, writeJson } from './store';
 import { browserUserAgent } from './useragent';
+import { PRODUCT } from '../shared/product';
 
 const argv = process.argv.slice(1);
 const flag = (name: string): boolean => argv.includes(`--${name}`);
@@ -84,7 +85,7 @@ async function main(): Promise<void> {
       console.log(`[longboard] video decode: ${status['video_decode'] ?? 'unknown'}${config.hardwareDecode ? ' (hardwareDecode is on)' : ''}`);
     })
     .catch(() => undefined);
-  app.userAgentFallback = browserUserAgent(app.userAgentFallback);
+  app.userAgentFallback = browserUserAgent(app.userAgentFallback, PRODUCT.name, app.getVersion());
 
   // Nothing but our two views is ever created; a page cannot embed another browser.
   app.on('web-contents-created', (_e, contents) => {

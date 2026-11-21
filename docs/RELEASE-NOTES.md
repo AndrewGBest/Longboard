@@ -3,6 +3,14 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.16:
+
+- **Longboard tells sites its name.** Its identity now ends with
+  `Longboard/<version>`, after the engine and system it always named.
+  With the name left out, a large sign-in service refused it as "may not
+  be secure"; with it, the same page goes on to ask for the account.
+  Whether the rest of that sign-in works has not been tried yet.
+
 New in 0.3.15:
 
 - **With a profile for a site's TV interface, the site always opens in

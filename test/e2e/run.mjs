@@ -209,7 +209,7 @@ await scenario('a page driven with the arrows', { url: `${site.origin}/home.html
   check('right never jumps diagonally out of a row', await focused(), 'rent');
 
   const ua = await evaluate('navigator.userAgent');
-  check('user agent hides nothing but the app tokens', /Electron|longboard/i.test(ua) === false && /Linux/.test(ua) && /Chrome\//.test(ua), true);
+  check('the user agent names the real engine and system, and Longboard once, by its own name', [/Electron/i.test(ua), /Linux/.test(ua) && /Chrome\//.test(ua), ua.match(/longboard\/[\d.]+/gi)], [false, true, [`Longboard/${JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version}`]]);
 
   // On-screen keyboard: the search key focuses the field and a remote can type into it.
   await press('/');
@@ -1085,7 +1085,7 @@ await scenario(
     const said = await evaluate('navigator.userAgent');
     const cut = said.lastIndexOf(', Longboard_TV');
     const [honest, added] = cut < 0 ? [said, ''] : [said.slice(0, cut), said.slice(cut + 2)];
-    check('the page is told Longboard is running as a TV, after everything it says anyway', [/^Mozilla\/5\.0 \(X11; Linux [^)]+\) AppleWebKit\/[\d.]+ \(KHTML, like Gecko\) Chrome\/[\d.]+ Safari\/[\d.]+$/.test(honest), added], [true, `Longboard_TV/${version} (Longboard, Linux)`]);
+    check('the page is told Longboard is running as a TV, after everything it says anyway', [/^Mozilla\/5\.0 \(X11; Linux [^)]+\) AppleWebKit\/[\d.]+ \(KHTML, like Gecko\) Chrome\/[\d.]+ Safari\/[\d.]+ Longboard\/[\d.]+$/.test(honest), added], [true, `Longboard_TV/${version} (Longboard, Linux)`]);
     check('no other browser, engine, maker or system is named', /Cobalt|Tizen|Web0S|SMART|PlayStation|Xbox|Android|Windows|Macintosh/i.test(said), false);
     check('what it fetches says the same', await evaluate('fetch("/agent").then((r) => r.json())'), said);
     await press('ArrowRight');

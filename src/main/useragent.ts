@@ -1,22 +1,31 @@
 import { PRODUCT } from '../shared/product';
 
 /**
- * The browser identity we send: the embedded Chromium's own user agent with
- * the Electron and app tokens removed. It states the real engine, the real
- * version and the real OS. It never claims to be another browser, engine,
- * system or maker's device, and there is no way to switch it (Hard rule 3).
+ * The browser identity we send: the embedded Chromium's own user agent,
+ * which states the real engine, the real version and the real OS, without
+ * the toolkit's two tokens and with Longboard's own name and version at
+ * the end. It never claims to be another browser, engine, system or
+ * maker's device, and there is no way to switch it (Hard rule 3).
+ *
+ * Until 2026-11-21 the name was left out, so that Longboard looked like any
+ * Chromium. That turned out to be the less honest choice and the one that
+ * got it refused: a sign-in service that asks browsers to "identify
+ * themselves clearly" turned away the nameless identity and accepted the
+ * named one (docs/DECISIONS.md, tried with nothing else changed). Andrew
+ * chose to name it to every site.
  */
-export function browserUserAgent(defaultUa: string): string {
-  return defaultUa
+export function browserUserAgent(defaultUa: string, product: string = PRODUCT.name, version = ''): string {
+  const plain = defaultUa
     .replace(/\s?Electron\/\S+/g, '')
     .replace(new RegExp(`\\s?${PRODUCT.packageName}\\/\\S+`, 'gi'), '')
     .replace(/\s{2,}/g, ' ')
     .trim();
+  return version ? `${plain} ${product}/${version}` : plain;
 }
 
 /**
  * What Longboard says to a site whose profile asks for its TV interface
- * (`view.device: "tv"`): the same honest identity, followed by one more
+ * (`view.device: "tv"`): the same identity, followed by one more
  * statement that is also true, that this is Longboard running as a TV.
  * Rule 3 as amended by Andrew on 2026-11-21 (docs/DECISIONS.md).
  *

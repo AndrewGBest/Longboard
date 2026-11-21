@@ -110,13 +110,15 @@ Compared with a mainstream browser, today:
 ## What it will not do
 
 - It does not remove or work around DRM, and it never claims to be another
-  browser, another system or another maker's device. To a site whose profile
+  browser, another system or another maker's device. It tells every site
+  what it is: the engine it is built on, and its own name. To a site whose profile
   says it has an interface made for TVs, it does say what is true: that it
   is Longboard, running as a TV.
 - It does not skip ads inside video, download streaming video, or get
   around region limits. Ad blocking is a per-site switch that starts
   off on reviewed sites such as streaming services and on elsewhere.
-- It sends no telemetry.
+- It sends no telemetry. (Its name is in what it tells sites it is, as
+  with any browser, so a site can tell you are using Longboard.)
 
 ## Documents
 

@@ -2,6 +2,24 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-21: Longboard names itself, and a sign-in service lets it in
+
+Andrew asked to get the search company's services working. Its sign-in
+refused Longboard by hand and by script ("This browser or app may not be
+secure"). Tried on its sign-in page with a made-up address and no password
+(DECISIONS.md has the table): the refusal goes away when the user agent
+ends with ` Longboard/<version>`, and nothing else tried made a difference.
+Andrew chose to say the name to every site; rule 3 is amended. 0.3.16.
+
+**Verified:** by script, the built app on that sign-in page now gets
+"Couldn't find this account" for the made-up address where it got the
+refusal before; the video site's TV page still serves its TV app; the list
+of 68 sites run again signed out with the new identity: none refused it or
+served something lesser (six differed from the earlier run; each was looked
+at and is a notice in front of the page, an advert's frame, or the earlier
+change to the spending guard). **Not verified:** the rest of that sign-in
+(password and after), which only Andrew can try.
+
 ## 2026-11-21, last: a site's own interface for TVs, and rule 3 amended
 
 0.3.12 is published (six packages). Then Andrew asked how another project

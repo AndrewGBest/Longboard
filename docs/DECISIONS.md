@@ -3,6 +3,51 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-21: Longboard says its own name to every site
+
+**Andrew, 2026-11-21**, asked where Longboard should name itself after the
+findings below: "Every site". (The agent had recommended the sign-in pages
+only, for the two costs in the last row.) This amends Hard rule 3: the
+name is no longer taken out of the user agent.
+
+**How it came up.** Andrew asked to get the search company's services
+working. Its sign-in had answered him, signing in by hand, "This browser or
+app may not be secure".
+
+**What is published** (read 2026-11-21): since 4 January 2021 that company
+blocks sign-in "from all embedded frameworks"; a browser that may sign in
+must, among other things, "identify itself clearly in its User-Agent" and
+"not use another browser's User-Agent string", and must not be driven by
+automation. Sources: its developers' blog, "Guidance to developers affected
+by our effort to block less secure browsers and applications" (28 August
+2020), and its accounts help page 7675428.
+
+**What was tried**, on its sign-in page by script, with a made-up address
+that belongs to nobody and never a password (the refusal comes before the
+account is looked up, so no account is needed to see it):
+
+| What Longboard said it was | Answer |
+|---|---|
+| As shipped until now: Chromium's identity with the name taken out | Refused: "This browser or app may not be secure" (three runs) |
+| The same, set again by the test with nothing changed (a control) | Refused |
+| The same, with a "Longboard" entry added to the brand list only | Refused |
+| ` Longboard/<version>` added at the end of the user agent, brand list untouched | Let through: "Couldn't find this account" (two runs) |
+| Both | Let through |
+| The build with this change, nothing set by the test | Let through |
+
+**A guess, labelled as one:** with the name left out, the user agent read
+as the well-known browser's while the rest did not match it, which is the
+"another browser's User-Agent string" case. Nothing published says so.
+
+| Question | Choice | Why |
+|---|---|---|
+| What is added | ` Longboard/<version>` at the end, exactly the form that was tried | Tested |
+| The brand list (the "client hints") | Untouched: it names the engine | It made no difference either way |
+| What another small browser does about the same refusal | Sends that one site the identity of a different, unrelated browser (as its documentation of defaults says; not re-read today, so **from memory**) | That is claiming to be another browser. Not needed, and rule 3 forbids it |
+| The statement for sites with a TV interface | Unchanged, and still accepted by the video site's TV page after the new name (tried with a plain request) | |
+| Costs, accepted by Andrew's choice | Any site can tell a Longboard user from other people, among few. A site may serve an unfamiliar name something worse. The list of 68 sites was run again to look for that; see STATUS | Said before he chose |
+| **Not known** | Whether the rest of that sign-in (password, second step) has further checks. Only a person can try: the agent never handles a password (rule 10). And a scripted run is itself something the sign-in may refuse later on | |
+
 ## 2026-11-21: with such a profile, the site is never opened in its ordinary form
 
 **Andrew, 2026-11-21:** "It should never open the ordinary site unless you
