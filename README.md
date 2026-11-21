@@ -7,7 +7,7 @@ controller or a keyboard, by moving a highlight from one thing to the next.
 address from a home screen, drive ordinary websites with the arrows, switch
 to an on-screen pointer, and use profiles. Its owner has tested it at a TV
 with a remote, including signed in to a number of well-known sites; what they
-finds wrong is fixed and written down. Beyond that it is tested by
+find wrong is fixed and written down. Beyond that it is tested by
 scripts, against made-up pages and against a list of public sites. Not
 every part has been tried by hand, and nobody else has reported on it yet:
 expect rough edges. Packages are on the
