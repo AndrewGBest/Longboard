@@ -21,8 +21,20 @@ added before this appear once 0.3.18 has been started.
 
 **Verified:** unit tests for where the entry goes and how it starts each
 kind of package; an end-to-end scenario with Longboard told it is a
-Flatpak; the whole suite in parts. **See the next lines for what was tried
-with the real Flatpak package.**
+Flatpak; the whole suite in six parts (557 checks, all passed).
+
+**Verified with the real 0.3.18 Flatpak**, installed for this user on the
+development machine (Debian, not Kinoite), by script: started with one app
+already in its list, it wrote the entry into `~/.local/share/applications`
+with `Exec=flatpak run io.github.andrewgbest.Longboard --app=<id>` and a
+picture that exists; that command, run while the Flatpak was already
+running, handed the request to the running copy, which opened the app.
+
+**Not verified:** on Fedora Kinoite, or that Plasma Bigscreen then shows
+the entry in its app list (it reads that folder; not seen). Whether the
+AppImage on that box had the same fault is not known: its entries went to
+the right folder, but with a picture path that broke at the next start,
+which is also mended.
 
 ## 2026-11-21: the menu from inside a site's own TV app (0.3.17)
 
