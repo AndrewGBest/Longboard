@@ -1,6 +1,7 @@
 An early build of Longboard, a web browser for the TV driven by a remote or
-game controller. It has been checked by automated tests on a headless
-machine only: nobody has yet tried it on a TV. Expect rough edges.
+game controller. Its owner has tested it at a TV with a remote, and it is checked
+by automated tests; not every part has been tried by hand. Expect rough
+edges.
 
 New in 0.3.15:
 

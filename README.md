@@ -3,12 +3,17 @@
 A web browser for the TV. You drive it from the couch with a remote, a game
 controller or a keyboard, by moving a highlight from one thing to the next.
 
-**Status: early, runs, not released.** You can start it, open any address
-from a home screen, drive ordinary websites with the arrows, switch to an
-on-screen pointer, and use profiles. It has been tested by scripts against
-made-up pages and a handful of public sites, **not yet by a person with a
-remote at a TV**. There are no packages to download; see "Trying it" below.
-[docs/STATUS.md](docs/STATUS.md) says exactly what has been checked.
+**Status: early, released, in use on a TV.** You can start it, open any
+address from a home screen, drive ordinary websites with the arrows, switch
+to an on-screen pointer, and use profiles. Its owner has tested it at a TV
+with a remote, including signed in to a number of well-known sites; what he
+finds wrong is fixed and written down. Beyond that it is tested by
+scripts, against made-up pages and against a list of public sites. Not
+every part has been tried by hand, and nobody else has reported on it yet:
+expect rough edges. Packages are on the
+[releases page](https://github.com/AndrewGBest/Longboard/releases/latest);
+see "Trying it" below. [docs/STATUS.md](docs/STATUS.md) says exactly what
+has been checked, and how.
 
 It grew out of [Tropic Video](https://github.com/AndrewGBest/Tropic-Video),
 which does this for one website.
@@ -36,8 +41,9 @@ six buttons: up, down, left, right, OK and Back.
 **A package:** from the [latest release](https://github.com/AndrewGBest/Longboard/releases/latest),
 `Longboard-x86_64.AppImage` for 64-bit Intel and AMD machines or
 `Longboard-arm64.AppImage` for 64-bit ARM ones. `chmod +x` it and run it. It
-needs Linux with a desktop session. The ARM package is built and tested on
-ARM machines and has not yet been tried on a TV box.
+needs Linux with a desktop session. Each release also has a Flatpak file and
+a plain `.tar.gz` for both kinds of machine. The ARM packages are built and
+tested by script on ARM machines and have not yet been tried on an ARM TV box.
 
 **From source:** Linux on 64-bit Intel/AMD or ARM, with Node 22 or newer:
 
@@ -65,8 +71,8 @@ Settings (in the menu) has the search site, sizes, ad blocking, privacy
 (including "ask sites not to track" and refusing trackers), what sites may
 ask for, a parental lock with a PIN, extensions from the Chrome Web Store
 (not all of them work), saved passwords, new versions, and profiles. The menu's page about the
-site in front has reader view, "Desktop site", find on the page, and keeping
-the page on Home. Keys and controller buttons can be remapped
+site in front has reader view, "Desktop site", find on the page, keeping
+the page on Home, and a switch for the site's profile. Keys and controller buttons can be remapped
 in `~/.config/Longboard/config.json`, which is also where Settings keeps its
 choices (see `src/shared/config.ts`).
 
