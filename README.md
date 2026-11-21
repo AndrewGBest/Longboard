@@ -23,11 +23,20 @@ which does this for one website.
 Websites are built for a mouse or a finger. Longboard makes them usable with
 six buttons: up, down, left, right, OK and Back.
 
-- **Any website works to some degree.** A built-in generic mode finds the
-  things you can press on a page and lets you move a highlight between them.
-- **Good websites work properly.** A *profile* is a small settings file for
-  one website that tells Longboard exactly how that site is laid out. If a
-  reviewed profile exists for the site you open, Longboard uses it by itself.
+- **The major websites just work.** Longboard finds the things you can
+  press on any page and moves a highlight between them, with no setting up
+  per site. It is run against a list of 68 of the most-visited sites and
+  streaming services, signed out and (for those its owner has accounts on)
+  signed in, and the highlight gets around every one of them: sign-in
+  prompts, cookie notices, menus, feeds, players. Its owner's verdict from
+  the couch: it works better than any other browser for the TV they have
+  used. [docs/SCORECARD.md](docs/SCORECARD.md) and
+  [docs/STATUS.md](docs/STATUS.md) have the runs and the known rough spots.
+- **Profiles for the finishing touches.** A *profile* is a small settings
+  file for one website: the size it is drawn at, where the highlight
+  starts, or that the site has an interface made for TVs, which Longboard
+  then opens instead. If a reviewed profile exists for the site you open,
+  Longboard uses it by itself, and you can switch it off.
 - **Anyone can make a profile.** Profiles are data, not programs. You can
   write one, export it as a file, import someone else's, or submit it to the
   shared catalogue on GitHub.
