@@ -34,11 +34,11 @@ sign-up button in a scripted run); the whole end-to-end suite; on the live
 site by script, the TV app loads and starts under the profile, and the
 ordinary site beside it is told only the usual identity.
 
-**Not verified, and it matters:** anything past the TV app's first screen.
-Its one button begins signing in, which a scripted run never presses (rule
-11). Browsing, search, the player, Back at the top, the app's own keyboard
-and signing in have not been seen by anyone in Longboard. **Andrew needs to
-try it with a remote:** open `youtube.com/tv`.
+**Not verified, and it matters:** signing in (the app's own way, with a
+code on another device), the app's search and its own keyboard, Back at
+the app's top level, and anything by a person with a remote. (What was
+seen as a guest is listed further down.) **Andrew needs to try it with a
+remote:** open the site.
 
 **Then (0.3.14), at Andrew's word that the profile should apply "when they
 go to youtube using the url too":** a second key, `view.entry`. The site's
@@ -50,8 +50,28 @@ the scenario extended (nine checks). The profile in the catalogue is now
 1.1.0 and needs 0.3.14: 0.3.13 does not know the key and passes the profile
 over.
 
-**Known gaps.** A link to one video still opens the ordinary site's page
-for it. A Back key that is not Escape or Backspace still
+**Then (0.3.15), at Andrew's word "It should never open the ordinary site
+unless you disable the profile":** every address of the site goes to the
+TV app (`view.entry`), a link to one video keeps its video (`view.carry`,
+`["v"]`), and the site menu has a switch, "Use this site's profile", which
+is the way to the ordinary site. Profile 1.2.0 in the catalogue; needs
+0.3.15.
+
+**Seen on the live site by script, signed out, as a guest** (the account
+screen's "Watch as guest" is not a sign-up control, so a scripted run may
+press it): a short link to a video lands on the TV app and, after "Watch
+as guest", that video plays; Back (Escape) leaves the player for the app's
+start page; the arrows move its mark among the videos there; a search
+address lands on the app's start. 584 unit tests; the scenario is now
+twelve checks, including the switch off and on again. The end-to-end
+suite was run in parts (`npm run e2e -- --part=1/3`, new) because the
+machine was short of memory and twice ended a whole run part-way: 528
+checks passed in all; one check in the Settings scenario (a remapped key's
+label) failed once and passed when that scenario was run again by itself.
+It was not looked into further.
+
+**Known gaps.** A link to a search, a channel or a playlist lands on the
+app's start, not on that thing. A Back key that is not Escape or Backspace still
 goes back in history instead of to the app. Nothing on screen says the site
 is being told "TV"; the site menu shows the profile's name only. The site's
 terms may reserve the TV interface for its own apps; it can stop serving it.

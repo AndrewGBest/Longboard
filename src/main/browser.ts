@@ -282,7 +282,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
   let edit: { site: string; draft: Profile; chain: PickedStep[]; level: number; saving: boolean } | null = null;
 
   /** The profile that applies to an address now, without asking about one that still needs an answer. */
+  /** True when the person switched the profile of the site at this address off (the site menu). */
+  const profileOffAt = (url: string): boolean => sites[siteKey(url) ?? '']?.profile === false;
   const profileFor = (url: string): { profile: Profile; source: ProfileSource } | null => {
+    if (profileOffAt(url)) return null;
     const choice = deps.profiles.choose(url);
     return choice.kind === 'use' ? choice : choice.kind === 'ask' ? choice.fallback : null;
   };
@@ -558,6 +561,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
           saved: saved.some((p) => p.url === page.getURL()),
           storeExtension: storeExtensionId(page.getURL()) !== null && !extensions.ids().includes(storeExtensionId(page.getURL()) ?? ''),
           desktop: sites[pageSite() ?? '']?.desktop === true,
+          profileOff: sites[pageSite() ?? '']?.profile === false,
           adBlocking: ((key) => {
             if (!key) return null;
             const mode = deps.adBlock.mode();
@@ -962,9 +966,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
 
   /** Opens an address the person asked for. `remember` puts it on Home. `inSession` is an app's own session, or "" for the shared one. */
+  /** Where an address of a site is opened instead, when the site's profile says its interface for a TV is elsewhere and the person has not switched the profile off. */
+  const entryAt = (url: string): string | null => (profileOffAt(url) ? null : deps.profiles.entry(url));
   const open = (asked: string, remember: boolean, inSession = lastTab): void => {
     // A site whose profile says its interface for a TV starts elsewhere: its front page opens there.
-    const url = deps.profiles.entry(asked) ?? asked;
+    const url = entryAt(asked) ?? asked;
     const reason = blockReason(url, navRules());
     if (reason === 'locked') {
       // Asked for by the person: the PIN opens it, and every other site until Longboard is locked again.
@@ -1104,7 +1110,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // The front page of a site whose profile names another way in (view.entry)
   // is opened there, however it was reached: a link, or the site's own redirect.
   const byEntry = (wc: WebContents, e: { preventDefault: () => void }, url: string): void => {
-    const entry = wc === page ? deps.profiles.entry(url) : null;
+    const entry = wc === page ? entryAt(url) : null;
     if (!entry || !allowed(entry)) return;
     e.preventDefault();
     setImmediate(() => {
@@ -1874,10 +1880,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
     else {
       // Chosen by the shell from the frame's real address, never from anything the page says.
       const choice = deps.profiles.choose(event.senderFrame?.url ?? '');
-      const use = choice.kind === 'use' ? choice : choice.kind === 'ask' ? choice.fallback : null;
+      const use = profileOffAt(event.senderFrame?.url ?? '') ? null : choice.kind === 'use' ? choice : choice.kind === 'ask' ? choice.fallback : null;
       boot.profile = use?.profile ?? null;
       driving.set(wc, use?.profile ?? null);
-      if (choice.kind === 'ask' && wc === page) {
+      if (choice.kind === 'ask' && wc === page && !profileOffAt(event.senderFrame?.url ?? '')) {
         const asked = choice.profile;
         setImmediate(() => askAboutProfile(asked));
       }
@@ -2652,6 +2658,26 @@ export function createBrowser(deps: BrowserDeps): Browser {
         saveSites();
         applyZoom();
         layout();
+        break;
+      }
+      case 'siteProfile': {
+        // The site's profile, off or on again for this site. Off, the site is
+        // what any browser gets: no interface for TVs, no other way in.
+        const key = surface === 'page' ? pageSite() : null;
+        if (!key) break;
+        const at = page.getURL();
+        const was = profileFor(at)?.profile ?? null;
+        const site = { ...sites[key] };
+        if (site.profile === false) delete site.profile;
+        else site.profile = false;
+        if (Object.keys(site).length) sites[key] = site;
+        else delete sites[key];
+        saveSites();
+        panel = null;
+        layout();
+        // Leaving a profile's own way in: that address is nothing without the profile, so the site's front page instead.
+        const inside = site.profile === false && was?.view?.entry !== undefined;
+        open(inside ? new URL('/', at).href : at, false);
         break;
       }
       case 'reader':

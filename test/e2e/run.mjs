@@ -152,9 +152,14 @@ const logs = [];
 
 /** Runs one scenario with its own app; a crash in it fails the run and the app's log is kept. */
 // `npm run e2e -- words` runs only the scenarios whose names contain one of the words.
-const only = process.argv.slice(2);
+// `--part=2/3` runs every third scenario starting with the second: the whole
+// suite in pieces, for a machine too short of memory to run it in one go.
+const part = /^--part=(\d+)\/(\d+)$/.exec(process.argv.slice(2).find((a) => a.startsWith('--part=')) ?? '');
+const only = process.argv.slice(2).filter((a) => !a.startsWith('--part='));
+let ordinal = 0;
 async function scenario(name, options, body) {
   if (only.length && !only.some((word) => name.includes(word))) return;
+  if (part && ordinal++ % Number(part[2]) !== Number(part[1]) - 1) return;
   console.log(`\n# ${name}`);
   const before = failureCount();
   const app = await launch(options);
@@ -1089,13 +1094,29 @@ await scenario(
     await press('ArrowDown');
     await press('Enter', 400);
     check('in a scripted run OK still never presses a sign-up button', [await evaluate('document.activeElement.id'), await evaluate('pressed'), /never activates purchase or sign-up/.test((await page.toastText()) ?? '')], ['join', 0, true]);
+    // Any other address of the site goes to the interface for TVs too, keeping only what the profile says that interface understands.
+    await evaluate('location.href = "/home.html?v=abc123&other=1"');
+    await sleep(1500);
+    check('any other page of the site opens the interface for TVs, with the video it named', await evaluate('location.pathname + location.search'), '/tvapp.html?v=abc123');
+    // The way out: the site menu's switch.
+    const chrome = await app.chrome();
+    const reachRow = async (id) => {
+      for (let i = 0; i < 30 && (await chrome.focused()) !== id; i++) await chrome.press('ArrowDown');
+      return chrome.focused();
+    };
+    await press('ContextMenu', 500);
+    await siteMenu(chrome);
+    check('the site menu has a switch for the site\'s profile, on', [await reachRow('menu-site-profile'), await chrome.evaluate('(document.getElementById("menu-site-profile")?.ariaLabel ?? document.getElementById("menu-site-profile")?.textContent)')], ['menu-site-profile', "Use this site's profile: on"]);
+    await chrome.press('Enter', 1500);
+    check('switched off, the site\'s front page is opened as any browser gets it', [await evaluate('location.pathname'), await evaluate('navigator.userAgent'), JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8'))['profile.test']], ['/', honest, { profile: false }]);
     await evaluate('location.href = "/home.html"');
     await sleep(1200);
-    check('a page of the site that was asked for by name is opened as asked', await evaluate('location.pathname'), '/home.html');
-    check('a page of the same site outside the profile is told only the usual, and so is what it fetches', [await evaluate('location.pathname'), await evaluate('navigator.userAgent'), await evaluate('fetch("/agent").then((r) => r.json())')], ['/home.html', honest, honest]);
-    await evaluate('location.href = "/"');
-    await sleep(1500);
-    check('and a link to the front page goes to the interface for TVs too', await evaluate('location.pathname'), '/tvapp.html');
+    check('and its pages open as asked, told only the usual, as is what they fetch', [await evaluate('location.pathname'), await evaluate('navigator.userAgent'), await evaluate('fetch("/agent").then((r) => r.json())')], ['/home.html', honest, honest]);
+    await press('ContextMenu', 500);
+    await siteMenu(chrome);
+    check('the switch is still there, off', [await reachRow('menu-site-profile'), await chrome.evaluate('(document.getElementById("menu-site-profile")?.ariaLabel ?? document.getElementById("menu-site-profile")?.textContent)')], ['menu-site-profile', "Use this site's profile: off"]);
+    await chrome.press('Enter', 1500);
+    check('switched on again, the page it was on gives way to the interface for TVs', [await evaluate('location.pathname'), /Longboard_TV/.test(await evaluate('navigator.userAgent'))], ['/tvapp.html', true]);
   },
 );
 

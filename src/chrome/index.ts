@@ -216,9 +216,11 @@ function menuPanel(s: ChromeState): Node[] {
     if (page.answers) items.push(el('h2', { text: 'This site' }), note(page.answers), row('menu-forget', 'Forget what this site may do', act('forgetAnswers'), { icon: 'shield' }));
     items.push(
       el('h2', { text: 'Profile' }),
-      note(page.profile ? `Profile: ${page.profile}` : 'No profile for this site: generic mode'),
+      note(page.profile ? `Profile: ${page.profile}` : page.profileOff ? "This site's profile is switched off: generic mode" : 'No profile for this site: generic mode'),
       row('menu-edit', page.profile ? 'Edit the profile for this site' : 'Make a profile for this site', act('editProfile'), { icon: 'layers', chevron: true }),
     );
+    // A profile can change a site a great deal (its own interface for TVs); the person can always have the site without it.
+    if (page.profile || page.profileOff) items.push(row('menu-site-profile', "Use this site's profile", act('siteProfile'), { icon: 'layers', on: !page.profileOff, sub: page.profileOff ? 'Off: the site as any browser gets it' : 'On' }));
     if (page.profile) items.push(row('menu-export', 'Export this profile', act('exportProfile'), { icon: 'download' }));
     items.push(
       row('menu-outline', 'Save page outline', act('outline'), { icon: 'download', sub: 'The structure only, for making a profile' }),

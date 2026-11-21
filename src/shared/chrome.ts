@@ -53,6 +53,8 @@ export interface ChromeState {
     saved: boolean;
     /** Whether the person asked for this site at the width of a desk screen. */
     desktop: boolean;
+    /** True when the person switched this site's profile off. */
+    profileOff: boolean;
     /** The app this site was added as, if it was. */
     app: { id: string; name: string } | null;
     /** Whether the TV's app list can be written to on this system. */
@@ -159,10 +161,10 @@ export interface ChromeState {
 
 export type MenuAction =
   | 'open' | 'home' | 'resume' | 'back' | 'forward' | 'stop' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'reader' | 'lock' | 'addExtension' | 'settings' | 'history' | 'tabs' | 'find' | 'voice' | 'phone' | 'phoneOff' | 'savePassword' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'siteProfile' | 'reader' | 'lock' | 'addExtension' | 'settings' | 'history' | 'tabs' | 'find' | 'voice' | 'phone' | 'phoneOff' | 'savePassword' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'open', 'home', 'resume', 'back', 'forward', 'stop', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'voice', 'phone', 'phoneOff', 'savePassword', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
+  'open', 'home', 'resume', 'back', 'forward', 'stop', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'siteProfile', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'voice', 'phone', 'phoneOff', 'savePassword', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
 ];
 
 export type ChromeMessage =

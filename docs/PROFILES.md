@@ -39,7 +39,8 @@ disagree, the code is right and this document needs fixing.
     "canvas": "960x540",
     "safeMargin": 0.05,
     "device": "tv",
-    "entry": "/tv"
+    "entry": "/tv",
+    "carry": ["v"]
   },
 
   "focus": {
@@ -89,7 +90,8 @@ Only `longboard`, the identity fields, `match` and `evidence` are required.
 | `view.canvas` | The size the site is drawn at before being scaled to the screen. 960x540 without it |
 | `view.safeMargin` | The share of the screen kept clear at every edge, 0 to 0.15, for TVs that cut the edges of the picture off. The site is drawn in a smaller rectangle in the middle |
 | `view.device` | Only `"tv"`. The site has an interface made for TVs and gives it to devices that say they are one. For the pages the profile matches, Longboard adds to its usual identity that it is Longboard running as a TV (one fixed wording, set in Longboard, Hard rule 3), and the site answers the remote itself: the arrows, OK, the media keys, and Back when pressed as Escape or Backspace go to the site as they are, and Longboard's highlight stays out. The menu, the pointer and the on-screen keyboard are still Longboard's |
-| `view.entry` | A plain path on the site, such as `/tv`. When the site's front page is asked for (the bare domain, typed, from Home, from a link or by the site's own redirect), Longboard opens this path instead, provided this profile is the one in use there. Any address that names a page of the site is opened as asked. Never another site, never an address with a `?` or `#` |
+| `view.entry` | A plain path on the site, such as `/tv`: where the site's interface for this kind of device lives. Every address of the profile's hosts that is not already inside the profile's own pages (`match.paths`) is opened there instead, however it was reached: typed, from Home, a link, the site's own redirect. The person gets the site in the form the profile is for and never the other one, unless they switch the profile off for the site (the site menu, "Use this site's profile"). Only this profile's own entry, and only when it is the profile in use there. Never another site |
+| `view.carry` | With `view.entry`: the names of query parameters the other interface understands, such as `["v"]`. Their values are copied from the address that was asked for; nothing else of it is kept. Only names shown to work on the live site belong here |
 | `focus.include` | Elements that can take the highlight, added to what Longboard finds itself |
 | `focus.exclude` | Elements that never take it, nor anything inside them |
 | `focus.initial` | Where the highlight starts on a page |

@@ -3,6 +3,21 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-21: with such a profile, the site is never opened in its ordinary form
+
+**Andrew, 2026-11-21:** "It should never open the ordinary site unless you
+disable the profile." This replaces "the front page only" in the entry
+below, which was the agent's caution. How is **the agent's assumption**.
+
+| Question | Choice | Why |
+|---|---|---|
+| Which addresses go to the profile's entry | Every address of the profile's hosts that is not already inside its own pages | His words |
+| A link to one video | Kept: the profile lists the query parameters the other interface understands (`view.carry`), and their values are copied over | Tried on the live site by script, 2026-11-21: the TV app opened at `/tv?v=<id>` plays that video (after "Watch as guest" in a new data folder). Only `v` is listed because only `v` was tried. A search address, a channel, a playlist land on the TV app's start |
+| How that app the agent compared with does it | By standing in for an interface the site's TV engine gives its app, inside the page (read in its source) | Longboard does not put anything into a page's own world (rule 13). The address form needs nothing of the kind |
+| Disabling the profile | A switch in the site menu, "Use this site's profile", kept per site in `sites.json`. Off: no profile of any source is used for that site, no entry, no TV statement; the site is as any browser gets it. It is offered whenever the site has a profile or has it switched off | There was no way to do it. Removing a catalogue profile by hand would be undone by the next fetch |
+| Switching it off while inside the profile's own pages | Opens the site's front page | The TV address without the TV statement is only a "not for this device" page |
+| Other sites of the same company | Untouched: the profile names two hosts and no others (the music site, the sign-in site are different hosts) | A profile applies to the hosts it names |
+
 ## 2026-11-21: a site's front page opens at its interface for TVs
 
 **Andrew, 2026-11-21:** asked whether the TV statement should go to every

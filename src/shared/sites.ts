@@ -9,6 +9,8 @@ export interface SiteSettings extends SitePermissions {
   adBlocking?: boolean;
   /** True when the person asked for this site at the width of a desk screen (zoom.ts, DESKTOP_VIEWPORT). */
   desktop?: boolean;
+  /** False when the person switched this site's profile off: the site is then driven in generic mode, as if there were none. */
+  profile?: false;
 }
 
 export const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const;
@@ -40,6 +42,7 @@ export function parseSites(raw: unknown): Record<string, SiteSettings> {
     if (typeof v['zoom'] === 'number' && v['zoom'] >= ZOOM_STEPS[0] && v['zoom'] <= ZOOM_STEPS[ZOOM_STEPS.length - 1]!) site.zoom = v['zoom'];
     if (typeof v['adBlocking'] === 'boolean') site.adBlocking = v['adBlocking'];
     if (v['desktop'] === true) site.desktop = true;
+    if (v['profile'] === false) site.profile = false;
     if (Object.keys(site).length) out[host] = site;
   }
   return out;

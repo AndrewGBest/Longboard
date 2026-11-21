@@ -419,32 +419,47 @@ describe('a site with an interface for TVs', () => {
   });
 });
 
-describe('a site whose interface for TVs starts somewhere other than its front page', () => {
-  const tv = valid({ match: { hosts: ['example.com', 'www.example.com'], paths: ['/tv'] }, view: { device: 'tv', entry: '/tv' } });
-  const stored: StoredProfile[] = [{ profile: tv, source: 'catalogue', file: 'tv.json' } as StoredProfile];
+describe('a site whose interface for TVs lives at an address of its own', () => {
+  const tv = valid({ match: { hosts: ['example.com', 'www.example.com'], paths: ['/tv'] }, view: { device: 'tv', entry: '/tv', carry: ['v'] } });
+  const stored: StoredProfile[] = [{ profile: tv, source: 'catalogue' }];
   const use = (url: string): Profile | null => {
     const c = chooseProfile(url, stored, {});
     return c.kind === 'use' ? c.profile : null;
   };
 
-  it('opens the front page there, and only the front page', () => {
+  it('opens every address of the site there, never the other interface', () => {
     expect(entryFor('https://www.example.com/', stored, use)).toBe('https://www.example.com/tv');
     expect(entryFor('https://example.com', stored, use)).toBe('https://example.com/tv');
-    expect(entryFor('https://www.example.com/watch?v=1', stored, use)).toBeNull();
-    expect(entryFor('https://www.example.com/?q=1', stored, use)).toBeNull();
+    expect(entryFor('https://www.example.com/feed/things', stored, use)).toBe('https://www.example.com/tv');
+    expect(entryFor('https://www.example.com/results?q=1', stored, use)).toBe('https://www.example.com/tv');
+  });
+
+  it('keeps what the address pointed at only as far as the profile says', () => {
+    expect(entryFor('https://www.example.com/watch?v=a-B_1&t=30&track=x', stored, use)).toBe('https://www.example.com/tv?v=a-B_1');
+    expect(entryFor('https://www.example.com/watch?v=a%26b%3Dc', stored, use)).toBe('https://www.example.com/tv?v=a%26b%3Dc');
+  });
+
+  it('leaves alone what is already there, other sites, and other kinds of address', () => {
     expect(entryFor('https://www.example.com/tv', stored, use)).toBeNull();
+    expect(entryFor('https://www.example.com/tv/more?v=1', stored, use)).toBeNull();
+    expect(entryFor('https://music.example.com/', stored, use)).toBeNull();
     expect(entryFor('https://other.example.org/', stored, use)).toBeNull();
     expect(entryFor('file:///', stored, use)).toBeNull();
+    expect(entryFor('not an address', stored, use)).toBeNull();
   });
 
   it('sends nobody anywhere when the profile is not the one in use there', () => {
     expect(entryFor('https://www.example.com/', stored, () => null)).toBeNull();
   });
 
-  it('takes a plain path on the site and nothing else', () => {
+  it('takes a plain path on the site and plain parameter names, and nothing else', () => {
     for (const entry of ['https://elsewhere.example/tv', '//elsewhere.example/tv', '/tv?x=1', '/tv#/watch', 'tv', '/', '/a b', 7]) {
       expect(validateProfile(base({ view: { entry } })).problems.join()).toContain('"view.entry" must be a plain path');
     }
     expect(valid({ view: { entry: '/tv' } }).view?.entry).toBe('/tv');
+    for (const carry of [['v=1'], ['a b'], [], 'v', [7], Array.from({ length: 11 }, (_, i) => `p${i}`)]) {
+      expect(validateProfile(base({ view: { entry: '/tv', carry } })).problems.join()).toContain('"view.carry" must be a short list');
+    }
+    expect(validateProfile(base({ view: { carry: ['v'] } })).problems.join()).toContain('"view.carry" needs "view.entry"');
   });
 });

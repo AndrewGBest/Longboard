@@ -33,7 +33,7 @@ export interface Profile {
   authors: string[];
   licence: string;
   match: { hosts: string[]; paths?: string[] };
-  view?: { canvas?: string; safeMargin?: number; device?: 'tv'; entry?: string };
+  view?: { canvas?: string; safeMargin?: number; device?: 'tv'; entry?: string; carry?: string[] };
   focus?: {
     /** Elements that can take the highlight, added to what generic mode finds. */
     include?: string[];
@@ -162,7 +162,7 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
 
   const view = section('view');
   if (view) {
-    only(view, ['canvas', 'safeMargin', 'device', 'entry'], 'view');
+    only(view, ['canvas', 'safeMargin', 'device', 'entry', 'carry'], 'view');
     profile.view = {};
     if (view['canvas'] !== undefined) {
       if (typeof view['canvas'] !== 'string' || !CANVAS.test(view['canvas'])) bad('"view.canvas" must look like 960x540');
@@ -178,6 +178,12 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
       const entry = view['entry'];
       if (!isText(entry, 200) || !/^\/[A-Za-z0-9._~\-/]*$/.test(entry) || entry.startsWith('//') || entry === '/') bad('"view.entry" must be a plain path on the site, such as "/tv"');
       else profile.view.entry = entry;
+    }
+    if (view['carry'] !== undefined) {
+      const carry = view['carry'];
+      if (!Array.isArray(carry) || carry.length === 0 || carry.length > 10 || !carry.every((n) => typeof n === 'string' && /^[A-Za-z0-9_-]{1,30}$/.test(n))) bad('"view.carry" must be a short list of plain parameter names, such as ["v"]');
+      else if (view['entry'] === undefined) bad('"view.carry" needs "view.entry"');
+      else profile.view.carry = carry.map(String);
     }
     const margin = view['safeMargin'];
     if (margin !== undefined) {
@@ -381,13 +387,19 @@ export function wantsTv(profile: Profile | null): boolean {
 }
 
 /**
- * Where a site's front page is opened instead, when a profile says the
- * site's interface for this kind of device starts somewhere else
- * (`view.entry`). Only the front page itself: an address that names a page
- * of the site is opened as asked. `use` is the profile that would be used
- * for an address (the usual choice, with its order of sources and the
- * person's answers); the profile must be the one in use at its own entry,
- * so one that is passed over or was refused sends nobody anywhere.
+ * Where an address of a site is opened instead, when a profile says the
+ * site's interface for this kind of device lives somewhere else
+ * (`view.entry`). Every address of the profile's hosts that is not already
+ * inside the profile's own pages goes there: the person asked for the site
+ * and gets it in the form the profile is for, never the other one. What
+ * the address pointed at is kept only as far as the profile says the other
+ * interface understands it: the parameters named in `view.carry` are
+ * copied across as they are, and nothing else is.
+ *
+ * `use` is the profile that would be used for an address (the usual choice,
+ * with its order of sources and the person's answers); the profile must be
+ * the one in use at its own entry, so one that is passed over or was
+ * refused sends nobody anywhere.
  */
 export function entryFor(url: string, stored: readonly StoredProfile[], use: (url: string) => Profile | null): string | null {
   let u: URL;
@@ -396,12 +408,18 @@ export function entryFor(url: string, stored: readonly StoredProfile[], use: (ur
   } catch {
     return null;
   }
-  if ((u.protocol !== 'https:' && u.protocol !== 'http:') || u.pathname !== '/' || u.search !== '') return null;
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
   for (const { profile } of stored) {
     const entry = profile.view?.entry;
     if (!entry || !profile.match.hosts.some((p) => hostMatches(p, u.hostname))) continue;
-    const there = `${u.origin}${entry}`;
-    if (use(there) === profile) return there;
+    // Already inside the profile's own pages.
+    if (matchScore(profile, url) >= 0) continue;
+    const there = new URL(`${u.origin}${entry}`);
+    for (const name of profile.view?.carry ?? []) {
+      const value = u.searchParams.get(name);
+      if (value !== null) there.searchParams.set(name, value);
+    }
+    if (use(there.href) === profile) return there.href;
   }
   return null;
 }

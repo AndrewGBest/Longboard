@@ -6,6 +6,6 @@
   "authors": ["longboard"],
   "licence": "CC0-1.0",
   "match": { "hosts": ["profile.test"], "paths": ["/tvapp.html"] },
-  "view": { "device": "tv", "entry": "/tvapp.html" },
+  "view": { "device": "tv", "entry": "/tvapp.html", "carry": ["v"] },
   "evidence": { "outline": "outline.txt" }
 }

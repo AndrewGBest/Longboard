@@ -2,6 +2,14 @@ An early build of Longboard, a web browser for the TV driven by a remote or
 game controller. It has been checked by automated tests on a headless
 machine only: nobody has yet tried it on a TV. Expect rough edges.
 
+New in 0.3.15:
+
+- **With a profile for a site's TV interface, the site always opens in
+  that interface**, whatever address was asked for; a link to one video
+  opens that video there.
+- **"Use this site's profile"** in the site menu switches a site's
+  profile off (and on again), for the site as any browser gets it.
+
 New in 0.3.14:
 
 - **A site's front page can open straight at its interface for TVs.** With
