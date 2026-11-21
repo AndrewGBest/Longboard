@@ -1,6 +1,6 @@
 {
   "name": "longboard",
-  "version": "0.3.17",
+  "version": "0.3.18",
   "description": "A web browser for the TV, driven by a remote or game controller.",
   "private": true,
   "license": "GPL-3.0-only",
@@ -56,6 +56,7 @@
         "--socket=fallback-x11",
         "--socket=pulseaudio",
         "--device=all",
+        "--filesystem=xdg-data/applications:create",
         "--talk-name=org.freedesktop.ScreenSaver",
         "--talk-name=org.freedesktop.PowerManagement",
         "--own-name=org.mpris.MediaPlayer2.chromium.*"

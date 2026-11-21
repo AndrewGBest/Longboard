@@ -3,6 +3,12 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.18:
+
+- **Sites added as apps now reach the TV's app list when Longboard is
+  installed as a Flatpak.** They were written where no desktop looks. Apps
+  you added before appear after this version has been started once.
+
 New in 0.3.17:
 
 - **Up twice opens the menu inside a site's own TV app too.** There the

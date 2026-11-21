@@ -2,6 +2,28 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-21: apps added from Longboard did not reach the TV's app list (0.3.18)
+
+Andrew, on a Fedora Kinoite box with Plasma Bigscreen: a site added as an
+app did not appear in the app list. Cause, found by reading the code and
+confirmed by test: run as a Flatpak, Longboard wrote the entry into the
+Flatpak's own data folder, which no desktop reads, with a command (a path
+inside the box) the desktop could not run; and it said the app was added.
+
+Now: as a Flatpak the entry goes to the desktop's own folder
+(`HOST_XDG_DATA_HOME`, else `~/.local/share`), started by `flatpak run
+<name> --app=<id>`; the Flatpak asks for that one folder
+(`--filesystem=xdg-data/applications:create`). With no picture of the site
+the entry used a file inside the package, unseen by the desktop from a
+Flatpak and at a new path at each start of an AppImage; a copy is now kept
+in the data folder. Entries are written again at every start, so apps
+added before this appear once 0.3.18 has been started.
+
+**Verified:** unit tests for where the entry goes and how it starts each
+kind of package; an end-to-end scenario with Longboard told it is a
+Flatpak; the whole suite in parts. **See the next lines for what was tried
+with the real Flatpak package.**
+
 ## 2026-11-21: the menu from inside a site's own TV app (0.3.17)
 
 Andrew, at the TV: pressing Up on the video site's TV app did not bring up

@@ -2125,6 +2125,29 @@ await scenario(
   },
 );
 
+// Run as a Flatpak, Longboard has a data folder of its own that no desktop
+// reads. An app's entry goes to the desktop's folder all the same, started
+// the way a Flatpak is started; and one added by a version that got this
+// wrong is written there at the next start.
+await scenario(
+  'an app in the app list when Longboard is a Flatpak',
+  {
+    url: `${site.origin}/home.html`,
+    env: (data) => ({ FLATPAK_ID: 'io.example.Boxed', HOST_XDG_DATA_HOME: join(data, 'host-share') }),
+    seed: (data) => writeFileSync(join(data, 'apps.json'), JSON.stringify({ apps: [{ id: 'made-up', url: `${site.origin}/home.html`, name: 'Made up', ownSession: false, launcher: true }] })),
+  },
+  async (app) => {
+    await app.page(`${site.origin}/home.html`);
+    const file = join(app.userData, 'host-share/applications/io.github.andrewgbest.Longboard.app-made-up.desktop');
+    await until(() => existsSync(file), (there) => there, 30);
+    const entry = existsSync(file) ? readFileSync(file, 'utf8') : '';
+    const icon = /^Icon=(.*)$/m.exec(entry)?.[1] ?? '';
+    check('at start the entry is written where the desktop looks, not in the box\'s own folder', [existsSync(file), existsSync(join(app.userData, 'xdg/applications/io.github.andrewgbest.Longboard.app-made-up.desktop'))], [true, false]);
+    check('it starts Longboard the way a Flatpak is started', /^Exec=flatpak run io\.example\.Boxed --app=made-up$/m.test(entry), true);
+    check('and its picture is a file kept in the data folder, not one inside the package', [icon.startsWith(app.userData), existsSync(icon)], [true, true]);
+  },
+);
+
 await scenario('an app that does not exist', { args: ['--app=no-such-app'] }, async (app) => {
   const chrome = await app.chrome();
   await until(() => chrome.focused(), (id) => id === 'go');

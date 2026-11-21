@@ -3,6 +3,18 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-21: the Flatpak may write to the desktop's app list folder
+
+**The agent's assumption**, from Andrew's report that an app added on his
+TV box never showed in its app list.
+
+| Question | Choice | Why |
+|---|---|---|
+| How a Flatpak puts an entry in the app list | It is let into one folder of the person's, `xdg-data/applications`, and writes its own entries there (file names beginning with Longboard's id) | The way the large browsers' Flatpaks do it for installed web apps (**from memory, not re-read**). The other way, the desktop's "dynamic launcher" service, needs a message-bus client Longboard does not have and asks the person a second question for every app |
+| The cost | The Flatpak can read and write every entry in that folder, not only its own | Least privilege (rule 13) is weakened by exactly this one folder; nothing else of the home folder is opened |
+| What starts the app | `flatpak run <name> --app=<id>` | The program's own path exists only inside the box |
+| Entries written again at each start | Yes, for every app that asked for one | How a copy is started changes (a moved AppImage, another kind of package), and entries an older version put in the wrong place are put right without the person doing anything |
+
 ## 2026-11-21: handing a Steam library back to the program that asked
 
 **Andrew, 2026-11-21: Longboard may do this.** It replaces the entry

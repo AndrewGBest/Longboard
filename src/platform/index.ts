@@ -29,15 +29,27 @@ export function removableFolders(): string[] {
   return out;
 }
 
+/** The name this copy runs under as a Flatpak, or null when it is not one. */
+export function flatpakId(env: NodeJS.ProcessEnv = process.env): string | null {
+  const id = env['FLATPAK_ID'];
+  return id && /^[A-Za-z0-9_.-]+$/.test(id) ? id : null;
+}
+
 /**
  * Where the desktop looks for entries in its app list that belong to this
  * user, or null where there is no such place. On Linux this is the
  * "applications" folder of the XDG data folder; Plasma Bigscreen and other
  * desktops read it.
+ *
+ * A Flatpak is given a data folder of its own, which no desktop reads: an
+ * entry written there shows up nowhere. So there the desktop's real folder
+ * is used, which Flatpak names in HOST_XDG_DATA_HOME and which the package
+ * asks to be let into (`--filesystem=xdg-data/applications:create`).
  */
-export function launcherFolder(): string | null {
-  if (process.platform !== 'linux') return null;
-  const data = process.env['XDG_DATA_HOME'] || (process.env['HOME'] ? join(process.env['HOME'], '.local', 'share') : '');
+export function launcherFolder(env: NodeJS.ProcessEnv = process.env, platform: string = process.platform): string | null {
+  if (platform !== 'linux') return null;
+  const home = env['HOME'] ? join(env['HOME'], '.local', 'share') : '';
+  const data = flatpakId(env) ? env['HOST_XDG_DATA_HOME'] || home : env['XDG_DATA_HOME'] || home;
   return data ? join(data, 'applications') : null;
 }
 
@@ -65,11 +77,15 @@ export function removeLauncher(fileName: string): void {
 }
 
 /**
- * How this copy of Longboard is started, as a command line. An AppImage is
- * started by its own file, not by the program unpacked from it; a copy run
- * from source needs the folder it is run from.
+ * How this copy of Longboard is started, as a command line. A Flatpak is
+ * started by Flatpak, by name; an AppImage by its own file, not by the
+ * program unpacked from it; a copy run from source needs the folder it is
+ * run from.
  */
-export function launchCommand(execPath: string, appPath: string, packaged: boolean): string[] {
-  if (process.env['APPIMAGE']) return [process.env['APPIMAGE']];
+export function launchCommand(execPath: string, appPath: string, packaged: boolean, env: NodeJS.ProcessEnv = process.env): string[] {
+  // A Flatpak's own program is a path inside its box that the desktop cannot run; Flatpak starts it by name.
+  const flatpak = flatpakId(env);
+  if (flatpak) return ['flatpak', 'run', flatpak];
+  if (env['APPIMAGE']) return [env['APPIMAGE']];
   return packaged ? [execPath] : [execPath, appPath];
 }

@@ -2556,9 +2556,26 @@ export function createBrowser(deps: BrowserDeps): Browser {
     return false;
   };
   const writeAppLauncher = (item: WebApp): boolean => {
-    const ownIcon = iconOf(item.id) ? join(iconsDir, `${item.id}.png`) : join(app.getAppPath(), 'assets', 'icon.png');
+    // With no picture of the site, Longboard's own. A copy of it is kept in
+    // the data folder: the one inside the package is at a path the desktop
+    // cannot see (a Flatpak) or one that changes at every start (an AppImage).
+    const fallbackIcon = join(iconsDir, 'longboard.png');
+    if (!iconOf(item.id)) {
+      try {
+        mkdirSync(iconsDir, { recursive: true });
+        copyFileSync(join(app.getAppPath(), 'assets', 'icon.png'), fallbackIcon);
+      } catch {
+        // The entry is written all the same; it will have no picture.
+      }
+    }
+    const ownIcon = iconOf(item.id) ? join(iconsDir, `${item.id}.png`) : fallbackIcon;
     return writeLauncher(launcherFileName(item.id), launcherEntry(item, launchCommand(process.execPath, app.getAppPath(), app.isPackaged), ownIcon));
   };
+  // Entries are written again at every start: how this copy is started can
+  // change (an AppImage moved, a different kind of package), and an entry
+  // an older version wrote where no desktop looked is put right.
+  for (const item of apps) if (item.launcher) writeAppLauncher(item);
+
   /** Adds the site in front as an app (DESIGN.md 4.2). */
   const addCurrentAsApp = async (wanted: { name: string; ownSession: boolean; launcher: boolean }): Promise<void> => {
     const url = page.getURL();
