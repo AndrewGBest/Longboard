@@ -3,7 +3,38 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
-## 2026-11-22: a profile may ask for Longboard's name to be left out
+## 2026-11-22: Longboard corrects the engine's answer about AC-3 sound; the name omission is withdrawn
+
+**The agent's decision, on Andrew's standing instruction to get Disney+
+working, and it changes two earlier ones. Andrew can reverse either.**
+
+1. **The answer about AC-3 and E-AC-3 is corrected by Longboard on Linux**
+   (option 2 of "the engine says it can play AC-3", 2026-11-18). Andrew
+   chose then to ask castLabs and wait; the agent had recommended this
+   option "only if Andrew wants the site working before castLabs answers".
+   What is new: it is no longer an expectation. Signed in by Andrew for
+   the purpose, the agent measured Disney+ failing with error 83 because
+   of this answer and playing with it corrected (STATUS.md, same date).
+   The objection recorded then was Hard rule 4, since removed. The rules
+   as they stand: nothing is exposed to the page (rule 13: one function
+   runs once in the page's world, as the extension preload already does);
+   the key-system interface, the CDM and licence traffic are untouched
+   (rule 2); the browser is made to say something true (rule 3).
+
+   | Question | Choice | Why |
+   |---|---|---|
+   | Which answers | `MediaSource.isTypeSupported` (and `ManagedMediaSource`), `canPlayType`, `mediaCapabilities.decodingInfo` | The three ways a page asks what can be decoded. Not `requestMediaKeySystemAccess`: the site measured did not ask about sound there, and it is the protected-playback interface |
+   | Where | Linux only, every site, every frame | The answer is wrong for every site there; on Windows and macOS the system has a decoder and the answer is true |
+   | When it stops | By itself when the engine says no; the code goes when castLabs' fix is taken (an end-to-end check fails that day) | It is a stopgap for their December release |
+   | Known gap | A page asking from a worker still hears the engine | Not reached from the preload; none seen doing so |
+
+2. **`view.named: false` is taken out and Hard rule 3 is as it was on
+   2026-11-21.** Andrew allowed it today on the agent's reading that the
+   name caused error 83. The measurement shows it did not: the site plays
+   with the name. With no site needing it, an exception to rule 3 that
+   does nothing is not kept. The entry below is left as the record.
+
+## 2026-11-22: a profile may ask for Longboard's name to be left out (withdrawn the same day)
 
 **Andrew, 2026-11-22**, asked by the agent after his report that Disney+
 shows error 83. Of three choices (leave the name out per site; name only

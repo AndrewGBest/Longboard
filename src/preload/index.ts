@@ -1,7 +1,8 @@
 // Sandboxed preload of the page view. The whole layer runs here, in the
 // isolated world. Nothing is exposed to the page: there is no contextBridge
 // API, so site scripts cannot call into the app.
-import { ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
+import { correctAudioAnswers } from '../shared/audio-truth';
 import { fillLogin, watchLogins } from '../layer/logins';
 import type { Action, BootData, BridgeMessage, EditView, PointerSpot } from '../shared/actions';
 import { rulesFromUntrusted } from '../layer/profile/rules';
@@ -127,6 +128,19 @@ function frameLayer(sayField: (el: Element) => void): void {
 // In a scripted run the guard goes up now, before any of the page's own
 // scripts have run, so nothing the page sets up can get in ahead of it.
 // What it says when it stops something waits for the layer to exist.
+// On Linux the engine says it can play two kinds of sound it cannot decode.
+// The answer is put right in the page's own world before the page's scripts
+// run, in every frame (shared/audio-truth.ts). Nothing is exposed to the
+// page by this: one function is run there once and nothing of Longboard's
+// stays reachable.
+if (process.platform === 'linux') {
+  try {
+    (contextBridge as unknown as { executeInMainWorld: (script: { func: () => void }) => void }).executeInMainWorld({ func: correctAudioAnswers });
+  } catch {
+    // an engine without this call: pages get the engine's own answers
+  }
+}
+
 const scripted = process.argv.includes('--longboard-automation');
 const guarded: string[] = [];
 let sayBlocked: () => void = () => undefined;

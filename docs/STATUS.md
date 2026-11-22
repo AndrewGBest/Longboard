@@ -26,6 +26,47 @@ say the name); the whole suite in six parts.
 the cause is something else (the AC-3 claim, castLabs issue 221, is the
 next suspect) and the profile should be withdrawn.
 
+## 2026-11-22, night: Disney+ plays; the cause was the AC-3 claim (0.3.22)
+
+Andrew signed in to Disney+ himself in the survey's data folder (a window
+with nothing attached, `test/scorecard/sign-in.mjs`) and chose a viewer, so
+that the agent could test.
+
+**Measured, signed in, under `--automation`,** by a probe that reads only
+the page's own calls to the browser's media interfaces, the console and
+the screen (nothing of the licence exchange):
+
+| Run | Identity | E-AC-3 answer | Result |
+|---|---|---|---|
+| 0.3.21 as released, Disney+ profile on | name left out | engine's "yes" | Error Code 83; the console says "audio decoder initialization failed" |
+| the same, answer corrected by the probe | name left out | "no" | plays (picture 854x480, sound added as AAC) |
+| the same, profile off | named | "no" | plays |
+| this version, no probe help, no profile | named | "no" (Longboard's correction) | plays |
+
+So the name was not the cause and the AC-3 claim (castLabs issue 221) was.
+The site asks `MediaSource.isTypeSupported('audio/mp4; codecs="ec-3"')`;
+it did not put sound into its key-system request.
+
+**Done:** on Linux, Longboard corrects three answers in the page's own
+world before the page's scripts run (`src/shared/audio-truth.ts`, from the
+preload): `MediaSource.isTypeSupported`, `canPlayType` and
+`mediaCapabilities.decodingInfo` say no to AC-3 and E-AC-3. It does
+nothing when the engine already says no. The key-system interface is not
+touched. `view.named` (0.3.21) is taken out again, with its rule-3
+amendment, and the Disney+ profile is withdrawn from the profiles
+repository.
+
+**Verified:** unit tests; the end-to-end check that held the wrong answers
+now holds the right ones, and a second check asks the engine itself from a
+worker, where the correction does not reach, so the day castLabs fixes it
+that check fails and the correction can go; a title played on Disney+ for
+the agent with this build; the whole suite in six parts.
+
+**Not verified:** on Andrew's TV; other sites that failed for the same
+reason (Apple TV was the first suspected); a page that asks from a worker,
+which still gets the engine's wrong answer; picture quality (the title
+played at 854x480 in a 960x540 window, which says nothing about a TV).
+
 ## 2026-11-22, later: Disney+ still shows error 83 on 0.3.21
 
 Andrew: "Error is still there." **Not known:** whether the Disney+ profile

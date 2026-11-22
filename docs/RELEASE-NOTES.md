@@ -3,7 +3,18 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
-New in 0.3.21:
+New in 0.3.22:
+
+- **Disney+ plays.** It showed error 83. The engine Longboard is built on
+  tells sites on Linux that it can play Dolby Digital sound, which it
+  cannot; the site sent that sound and its player stopped. Longboard now
+  gives sites the true answer, and the site sends ordinary sound instead.
+  Checked signed in: a title played. Other sites that failed the same way
+  should be helped too; none has been tried.
+- The profile setting added in 0.3.21 (leaving Longboard's name out for a
+  site) is taken out again: the name turned out not to be the cause.
+
+New in 0.3.21 (withdrawn in 0.3.22):
 
 - **A site's profile can ask Longboard to leave its own name out of what
   it says it is.** One streaming site is reported to refuse to play (its

@@ -293,7 +293,11 @@ await scenario('a page driven with the arrows', { url: `${site.origin}/home.html
     return out;
   })()`);
   check('ordinary (AAC) audio is supported', audio['mp4a.40.2'], [true, 'probably', true]);
-  check('KNOWN WRONG: the engine says it can play AC-3 and E-AC-3, which on Linux it cannot decode', [audio['ac-3'], audio['ec-3']], [[true, 'probably', true], [true, 'probably', true]]);
+  check('a page is told the truth about AC-3 and E-AC-3 sound, which the engine cannot decode on Linux and says it can', [audio['ac-3'], audio['ec-3']], [[false, '', false], [false, '', false]]);
+  // The engine's own answer, asked where Longboard's correction does not reach (a worker): when this
+  // turns false the engine has been put right and shared/audio-truth.ts can go (castLabs issue 221).
+  const engine = await evaluate(`new Promise((done) => { const w = new Worker(URL.createObjectURL(new Blob(['postMessage(typeof MediaSource === "undefined" ? null : MediaSource.isTypeSupported(\\'audio/mp4; codecs="ec-3"\\'))'], { type: 'text/javascript' }))); w.onmessage = (e) => done(e.data); w.onerror = () => done('error'); })`);
+  check('KNOWN WRONG, in the engine itself: it still says it can play E-AC-3', engine, true);
 
   // What a page makes up is not a key press, and a web component does not hide a purchase button.
   const before = await focused();
@@ -1109,29 +1113,6 @@ await scenario('a site with no profile, then with one', { url: profiled, args: [
 // Rule 3 as amended on 2026-11-21: a profile may say its site has an interface
 // for TVs. Longboard then adds, for that site only, that it is running as a
 // TV; and the site answers the remote itself.
-await scenario(
-  'a site that turns away a name it does not know',
-  {
-    url: `http://profile.test:${port}/article.html`,
-    args: [mapHost],
-    seed: (data) => {
-      mkdirSync(join(data, 'profiles'), { recursive: true });
-      copyFileSync(join(root, 'test/fixtures/profiles/unnamed.json'), join(data, 'profiles/unnamed.json'));
-    },
-  },
-  async (app) => {
-    const page = await app.page('http://profile.test');
-    const { evaluate } = page;
-    await sleep(800);
-    const said = await evaluate('navigator.userAgent');
-    check('where the profile says so, Longboard\'s name is left out and nothing is put in its place', /^Mozilla\/5\.0 \(X11; Linux [^)]+\) AppleWebKit\/[\d.]+ \(KHTML, like Gecko\) Chrome\/[\d.]+ Safari\/[\d.]+$/.test(said), true);
-    check('what the page fetches says the same', await evaluate('fetch("/agent").then((r) => r.json())'), said);
-    await evaluate('location.href = "/home.html"; 0');
-    await sleep(1500);
-    check('on the site\'s other pages, which the profile does not name, Longboard says its name as everywhere', / Longboard\/[\d.]+$/.test(await evaluate('navigator.userAgent')), true);
-  },
-);
-
 await scenario(
   'a site with an interface for TVs',
   {

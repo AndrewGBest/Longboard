@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { installPurchaseGuard, isSpendControl, looksLikeSpendUrl } from '../src/layer/guard/purchase-guard';
 import { buildOutline, maskIdentifier, sanitizeUrl } from '../src/layer/diagnostics/outline';
-import { browserUserAgent, identityFor, systemName, tvUserAgent, unnamedUserAgent } from '../src/main/useragent';
+import { browserUserAgent, identityFor, systemName, tvUserAgent } from '../src/main/useragent';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { aboutTitle, NOTICE } from '../src/shared/about';
@@ -245,8 +245,7 @@ describe('the guard, after an independent review', () => {
 describe('what Longboard says it is to a site with an interface for TVs (rule 3, amended 2026-11-21)', () => {
   const honest = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Longboard/1.2.3';
   const tv = tvUserAgent(honest, 'Longboard', '1.2.3', systemName(honest));
-  const unnamed = unnamedUserAgent(honest);
-  const id = identityFor(honest, tv, unnamed, (url) => (new URL(url).pathname.startsWith('/tv') ? 'tv' : new URL(url).hostname === 'strict.example' ? 'unnamed' : null));
+  const id = identityFor(honest, tv, (url) => new URL(url).pathname.startsWith('/tv'));
 
   it('adds only that it is Longboard running as a TV', () => {
     expect(tv).toBe(`${honest}, Longboard_TV/1.2.3 (Longboard, Linux)`);
@@ -265,16 +264,5 @@ describe('what Longboard says it is to a site with an interface for TVs (rule 3,
     expect(id.header({ url: 'https://pictures.example/a.png', resourceType: 'image', webContents: on('https://video.example/tv#/'), requestHeaders: headers })['User-Agent']).toBe(tv);
     expect(id.header({ url: 'https://pictures.example/a.png', resourceType: 'image', webContents: on('https://video.example/watch'), requestHeaders: headers })).toBe(headers);
     expect(id.header({ url: 'https://pictures.example/a.png', resourceType: 'image', requestHeaders: headers })).toBe(headers);
-  });
-
-  it('leaves its own name out, and puts nothing in its place, for a site whose profile says so (amended 2026-11-22)', () => {
-    expect(unnamed).toBe('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36');
-    expect(unnamedUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) longboard/0.1.0 Chrome/156.0.0.0 Electron/45.2.1 Safari/537.36')).toBe(unnamed);
-    expect(id.of('https://strict.example/watch')).toBe(unnamed);
-    expect(id.of('https://other.example/watch')).toBe(honest);
-    const headers = { 'User-Agent': honest, Accept: '*/*' };
-    expect(id.header({ url: 'https://strict.example/', resourceType: 'mainFrame', requestHeaders: headers })).toEqual({ Accept: '*/*', 'User-Agent': unnamed });
-    const on = { isDestroyed: () => false, getURL: () => 'https://strict.example/watch' } as unknown as Electron.WebContents;
-    expect(id.header({ url: 'https://media.example/part', resourceType: 'xhr', webContents: on, requestHeaders: headers })['User-Agent']).toBe(unnamed);
   });
 });

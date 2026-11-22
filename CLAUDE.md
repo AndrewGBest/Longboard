@@ -38,11 +38,7 @@ The reasoning for each is in `docs/LEGAL-GUARDRAILS.md`.
    so that the site serves the interface it made for TVs. All the wording is
    Longboard's and lives in `src/main/useragent.ts`; a profile can only say
    `"tv"`, never supply or alter an identity; the person cannot pick one
-   either. **And one omission** (Andrew, 2026-11-22): for a site whose
-   reviewed profile says `view.named: false`, Longboard leaves its own name
-   off the end and says only what the engine in it says, for a site that
-   turns away an identity with a word it does not know. Nothing is put in
-   the name's place. None of this is ever used to get past DRM, a paywall, a region
+   either. None of this is ever used to get past DRM, a paywall, a region
    limit or a resolution limit (rule 2 stands untouched).
 4. *(Removed by Andrew, 2026-11-18. Longboard is a whole browser, not a
    client for streaming services. The number is kept so the other rules keep

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { genericRules, rulesFrom, rulesFromUntrusted, rulesReport } from '../src/layer/profile/rules';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
 import { ProfileStore, sourceLabel } from '../src/main/profiles';
-import { canvasOf, wantsTv, wantsUnnamed, entryFor, chooseProfile, exportName, hostMatches, importKey, matchScore, validateProfile, type Profile, type StoredProfile } from '../src/shared/profile';
+import { canvasOf, wantsTv, entryFor, chooseProfile, exportName, hostMatches, importKey, matchScore, validateProfile, type Profile, type StoredProfile } from '../src/shared/profile';
 
 const base = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
   longboard: 1,
@@ -404,12 +404,6 @@ describe('a site with an interface for TVs', () => {
     expect(wantsTv(valid({ view: { device: 'tv' } }))).toBe(true);
     expect(wantsTv(valid())).toBe(false);
     expect(wantsTv(null)).toBe(false);
-    expect(wantsUnnamed(valid({ view: { named: false } }))).toBe(true);
-    expect(wantsUnnamed(valid())).toBe(false);
-    for (const named of [true, 'Chrome', 'false', 0, null, { name: 'Other' }]) {
-      expect(validateProfile(base({ view: { named } })).problems.join()).toContain('"view.named" can only be false');
-    }
-    expect(validateProfile(base({ view: { named: false, device: 'tv' } })).problems.join()).toContain('"view.named" cannot be used with "view.device"');
     for (const device of ['console', 'TV', 'phone', 'Mozilla/5.0 (Another Browser)', true, { tv: true }]) {
       expect(validateProfile(base({ view: { device } })).problems.join()).toContain('"view.device" can only be "tv"');
     }
