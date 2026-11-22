@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: a player with a thin progress bar</title>
+<!-- A made-up video player for testing. It imitates no real service. The picture is drawn on a canvas, so no media file is needed.
+     Its progress bar is a track three pixels high with buttons at either end, as players commonly draw one; the bar answers the arrow keys while it has focus. -->
+<style>
+  body { margin: 0; background: #111; color: #eee; font: 16px system-ui, sans-serif; }
+  #player { position: fixed; inset: 0; background: #000; }
+  #player video { width: 100%; height: 100%; }
+  #row { position: absolute; left: 0; right: 0; bottom: 30px; height: 40px; }
+  #row button { position: absolute; top: 0; width: 40px; height: 40px; }
+  #play { left: 10px; }
+  #sound { right: 10px; }
+  #bar { position: absolute; left: 70px; right: 70px; top: 18px; height: 3px; background: #888; }
+</style>
+</head>
+<body>
+<div id="player">
+  <video id="v" playsinline></video>
+  <div id="row">
+    <button id="play">p</button>
+    <div id="bar" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"></div>
+    <button id="sound">s</button>
+  </div>
+</div>
+<script>
+  const state = (window.__s = { at: 50, windowKeys: 0 });
+  const video = document.getElementById('v');
+  const canvas = document.createElement('canvas');
+  canvas.width = 320; canvas.height = 180;
+  const ctx = canvas.getContext('2d');
+  let frame = 0;
+  setInterval(() => { ctx.fillStyle = `hsl(${frame++ % 360} 60% 30%)`; ctx.fillRect(0, 0, 320, 180); }, 100);
+  video.srcObject = canvas.captureStream(10);
+  video.muted = false;
+  video.play();
+
+  const bar = document.getElementById('bar');
+  bar.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    state.at += e.key === 'ArrowRight' ? 5 : -5;
+    bar.setAttribute('aria-valuenow', String(state.at));
+  });
+  window.addEventListener('keydown', (e) => { if (e.target !== bar && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) state.windowKeys++; });
+</script>
+</body>
+</html>

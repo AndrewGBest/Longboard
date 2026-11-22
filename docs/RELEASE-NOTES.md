@@ -3,6 +3,14 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.19:
+
+- **A video's progress bar can be highlighted and moved.** A bar drawn only
+  a few pixels high was passed over as too small to aim at, so Down went to
+  a button instead. Now Down while watching lands on the bar, Left and
+  Right move it, and Down again goes on to the buttons. Checked on a public
+  video site; not yet tried on a subscription service's player.
+
 New in 0.3.18:
 
 - **Sites added as apps now reach the TV's app list when Longboard is

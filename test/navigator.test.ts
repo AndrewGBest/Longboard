@@ -504,6 +504,50 @@ describe('moving from a point', () => {
   });
 });
 
+describe('a thin slider', () => {
+  const row = `
+    <button id="play" data-rect="6,503,60,26">p</button>
+    <div id="bar" role="slider" tabindex="0" data-rect="84,514,597,4"></div>
+    <button id="sound" data-rect="688,503,26,26">s</button>
+    <div id="dot" role="slider" tabindex="0" data-rect="300,300,6,6"></div>
+    <button id="line" data-rect="100,100,597,4">l</button>`;
+
+  it('is a target when its track is long, however thin; a thin button or a dot is not', () => {
+    document.body.innerHTML = row;
+    const nav = new SpatialNavigator(document);
+    expect(ids(nav.candidates())).toEqual(['bar', 'play', 'sound']);
+  });
+
+  it('is what down from the middle of the picture lands on', () => {
+    document.body.innerHTML = row;
+    const nav = new SpatialNavigator(document);
+    nav.moveFrom({ x: 480, y: 270 }, 'down');
+    expect(nav.focused?.id).toBe('bar');
+  });
+
+  it('hands on to the nearest control in its own row when down is pressed again', () => {
+    document.body.innerHTML = row;
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('bar'));
+    expect(nav.move('down')).toBe(true);
+    expect(nav.focused?.id).toBe('sound');
+    nav.move('left');
+    expect(nav.focused?.id).toBe('bar');
+  });
+
+  it('moves down as anything does when nothing shares its row', () => {
+    document.body.innerHTML = `
+      <div id="bar" role="slider" tabindex="0" data-rect="40,440,880,3"></div>
+      <button id="play" data-rect="40,470,40,40">p</button><button id="next" data-rect="100,470,40,40">n</button>`;
+    const nav = new SpatialNavigator(document);
+    nav.focus(document.getElementById('bar'));
+    nav.move('down');
+    expect(nav.focused?.id).toBe('play');
+    nav.move('up');
+    expect(nav.focused?.id).toBe('bar');
+  });
+});
+
 describe('transparent hit areas', () => {
   it('keeps one target where a link and a transparent button share a box', () => {
     document.body.innerHTML = `

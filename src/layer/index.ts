@@ -16,7 +16,7 @@ import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
 import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo, type PlayerKey, type TextKey } from '../shared/player-keys';
 import { findMainVideo, GENERIC_PLAYER_SHARE, isPlayerActive, isSeekBar, playerIsOwnPage, playerScope } from './player';
-import { coveredByScreen, coveringLayer, edgeControl, isVisible, MENU_ENTRY, openDialog, press, SpatialNavigator, type NavigatorOptions } from './spatial/navigator';
+import { coveredByScreen, coveringLayer, edgeControl, isSidewaysSlider, isVisible, MENU_ENTRY, openDialog, press, SpatialNavigator, type NavigatorOptions } from './spatial/navigator';
 import { HOST_TAG, Overlay } from './ui/overlay';
 
 export interface LayerDeps {
@@ -231,7 +231,7 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   const moveInPage = (dir: Direction): void => {
     // A slider takes left and right itself, as the keys they are.
     const slider = nav.focused;
-    if (slider instanceof HTMLInputElement && slider.type === 'range' && (dir === 'left' || dir === 'right') && deepActiveElement(doc) === slider) {
+    if (slider && isSidewaysSlider(slider) && (dir === 'left' || dir === 'right') && deepActiveElement(doc) === slider) {
       pressKey(dir === 'left' ? 'seekBack' : 'seekForward');
       return;
     }
@@ -584,6 +584,11 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       const f = nav.focused;
       if (f && (dir === 'left' || dir === 'right') && isSeekBar(f, view)) {
         pressPlayerKey(dir === 'left' ? 'seekBack' : 'seekForward');
+        return;
+      }
+      // Any other slider that lies sideways (a volume track) takes them as the keys they are.
+      if (f && (dir === 'left' || dir === 'right') && isSidewaysSlider(f) && deepActiveElement(doc) === f) {
+        pressKey(dir === 'left' ? 'seekBack' : 'seekForward');
         return;
       }
       if (!nav.move(dir)) overlay.feedback(dir);

@@ -644,6 +644,28 @@ await scenario('a full-screen video', { url: `${site.origin}/player.html`, confi
   check('third Back closes the player and stays on the page', await evaluate('[__p.closed, location.pathname.endsWith("player.html")]'), [1, true]);
 });
 
+// A made-up player whose progress bar is a track three pixels high with
+// buttons at either end. The bar must be reachable and movable with a remote.
+await scenario('a thin progress bar in a player', { url: `${site.origin}/scrub.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const { evaluate, focused } = page;
+  const press = (key, wait = 500) => page.press(key, wait);
+  await sleep(1500);
+  await press('ArrowRight');
+  check('with nothing highlighted, right is the player\'s own key', [await focused(), await evaluate('__s.windowKeys')], [null, 1]);
+  await press('ArrowDown', 900);
+  check('down lands on the progress bar, thin as it is', await focused(), 'bar');
+  await press('ArrowRight');
+  await press('ArrowRight');
+  await press('ArrowLeft');
+  check('left and right move the bar, once each, and the highlight stays on it', [await focused(), await evaluate('__s.at'), await evaluate('__s.windowKeys')], ['bar', 55, 1]);
+  await press('ArrowDown');
+  check('down again goes to a button in the bar\'s row', ['play', 'sound'].includes(await focused()), true);
+  const first = await focused();
+  await press(first === 'play' ? 'ArrowRight' : 'ArrowLeft');
+  check('and from there the arrows come back to the bar', await focused(), 'bar');
+});
+
 await scenario('a long article: reading with the arrows', { url: `${site.origin}/article.html` }, async (app) => {
   const page = await app.page(site.origin);
   const { evaluate, press, focused } = page;

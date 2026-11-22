@@ -2,6 +2,38 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-22: a player's progress bar could not be highlighted (0.3.19)
+
+Andrew, at the TV: on Netflix the timeline could not be selected and moved
+while a video played; is it so on other sites?
+
+**Found on a public video site** (Vimeo's own player page, signed out):
+yes. Its progress bar is a `role="slider"` four pixels high. Longboard drops
+anything under ten pixels as too small to aim at, and counts anything under
+four as not visible, so Down from the picture skipped the bar and landed on
+the sound button. Left and Right with nothing highlighted did seek all
+along (they are sent to the site as its own keys).
+
+Now: a slider with a track at least 100 pixels long is a target however
+thin. On it Left and Right are the slider's own keys (before, only for the
+browser's own range input, or a bar half the screen wide in a player). Down
+from such a slider goes first to the nearest control in its own row, since
+Left and Right no longer lead to the buttons a player puts at the bar's
+ends.
+
+**Verified:** unit tests; a new invented fixture (`scrub.html`, a bar three
+pixels high with a button at each end) and scenario; the whole suite in six
+parts, all passed. On Vimeo's player page: Down lands on the bar, Right
+moved the picture on by about five seconds a press and Left back, Down went
+to the sound button, Left from there back to the bar.
+
+**Not verified:** Netflix. Playing a title needs a viewer chosen on
+Andrew's account and adds to its watch history, so the agent did not. The
+fix helps there only if Netflix's bar is a `role="slider"` or a range
+input; that is a guess from memory, not from an outline. If the bar still
+cannot be reached in 0.3.19, a page outline saved while the controls are
+showing will say what the bar is.
+
 ## 2026-11-21: apps added from Longboard did not reach the TV's app list (0.3.18)
 
 Andrew, on a Fedora Kinoite box with Plasma Bigscreen: a site added as an

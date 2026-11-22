@@ -3,6 +3,18 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-22: a thin slider is a target
+
+**The agent's assumption**, from Andrew's report that a player's timeline
+could not be selected and moved, and from what a public video site's player
+showed (a `role="slider"` progress bar four pixels high).
+
+| Question | Choice | Why |
+|---|---|---|
+| What is let past the "too small to aim at" rule | Only a slider (`role="slider"` or a range input) whose track is at least 100 pixels long | The rule exists for dots and slivers that nobody means to press; a progress bar is thin by design and is the control wanted most while watching. Nothing else thin is let in |
+| Left and Right on a slider lying sideways | Sent to the site as the arrow keys, when the slider has the keyboard | A slider's own keys by the web's convention; the site decides what a step is (rule 2 untouched: nothing moves the video but the site) |
+| Reaching buttons at the bar's ends | Down from the bar goes first to the nearest control in the bar's own row | Left and Right are now the bar's, so there was no other way to them |
+
 ## 2026-11-21: the Flatpak may write to the desktop's app list folder
 
 **The agent's assumption**, from Andrew's report that an app added on his

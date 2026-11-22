@@ -61,6 +61,28 @@ function labelledToggle(label: Element): HTMLInputElement | null {
 }
 
 export const FOCUS_ATTR = 'data-longboard-focus';
+/** A control with a value on a track: the page's own slider or the browser's. */
+export function isSlider(el: Element): boolean {
+  return el.getAttribute('role') === 'slider' || (el instanceof HTMLInputElement && el.type === 'range');
+}
+
+/** How long a slider's track must be to be worth landing on however thin it is drawn. */
+export const LONG_SLIDER_PX = 100;
+
+/** A slider with a real track: long one way, and at least a line the other. */
+export function isLongSlider(el: Element): boolean {
+  if (!isSlider(el)) return false;
+  const r = el.getBoundingClientRect();
+  return Math.max(r.width, r.height) >= LONG_SLIDER_PX && Math.min(r.width, r.height) >= 1;
+}
+
+/** A slider that lies across the screen: left and right are its own keys. */
+export function isSidewaysSlider(el: Element): boolean {
+  if (!isSlider(el)) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > r.height;
+}
+
 /** Set on a focused element small enough to grow, as focused cards do on a TV. */
 export const ZOOM_ATTR = 'data-longboard-zoom';
 
@@ -158,7 +180,8 @@ export interface NavigatorOptions {
  */
 export function isVisible(el: Element, view: Window, faded?: Map<Element, boolean>): boolean {
   const r = el.getBoundingClientRect();
-  if (r.width < 4 || r.height < 4) return false;
+  // A slider's track is the one thing drawn thinner than that and still meant to be used.
+  if ((r.width < 4 || r.height < 4) && !isLongSlider(el)) return false;
   const style = view.getComputedStyle(el);
   if (style.visibility === 'hidden' || style.display === 'none') return false;
   if (style.opacity === '0') {
@@ -621,8 +644,11 @@ export class SpatialNavigator {
       if (outOfReach(el, view)) continue;
       // Too small to aim at or to see a ring on from a couch (a carousel's
       // row of dots, six to nine pixels high on Steamboat's service).
+      // A slider is the exception: it is as thin as its track (a player's
+      // progress bar is three or four pixels high on a public video site, and
+      // it is the control someone watching wants most).
       const size = el.getBoundingClientRect();
-      if (Math.min(size.width, size.height) < 10) continue;
+      if (Math.min(size.width, size.height) < 10 && !isLongSlider(el)) continue;
       seen.add(el);
     }
     // A label tied to a toggle by `for` stands in for it only when the toggle
@@ -901,6 +927,32 @@ export class SpatialNavigator {
     return this.focus(inside[pickInitial(inside.map(toRect))] ?? null);
   }
 
+  /**
+   * Down from a slider that lies sideways goes to the nearest control in its
+   * own row first. Left and right on it are the slider's keys, so the buttons
+   * a player puts at either end of its progress bar could be reached no other
+   * way. (Seen on a public video site: play to the left of the bar, sound and
+   * settings to the right, all in one row.)
+   */
+  private besideSlider(dir: Direction, pool: readonly Element[]): boolean | null {
+    const from = this.focused;
+    if (dir !== 'down' || !from || !isSidewaysSlider(from) || !isLongSlider(from)) return null;
+    const r = from.getBoundingClientRect();
+    const mid = (r.top + r.bottom) / 2;
+    let best: Element | null = null;
+    let bestGap = Infinity;
+    for (const el of pool) {
+      if (el === from || isSlider(el)) continue;
+      const b = el.getBoundingClientRect();
+      if (b.top > mid || b.bottom < mid) continue;
+      const gap = b.left >= r.right ? b.left - r.right : r.left >= b.right ? r.left - b.right : -1;
+      if (gap < 0 || gap >= bestGap) continue;
+      best = el;
+      bestGap = gap;
+    }
+    return best ? this.focus(best) : null;
+  }
+
   move(dir: Direction): boolean {
     // Measured from the end of the last move: on a long page a move takes
     // time itself, and that must not make a held key look like single presses.
@@ -914,7 +966,7 @@ export class SpatialNavigator {
     // What came up only because the highlight rested here, and closed when
     // the highlight stepped into it, is passed over.
     const few = this.withoutFleeting(near);
-    const moved = (few ? this.step(dir, few) : null) ?? this.step(dir, near) ?? this.step(dir, this.candidates()) ?? false;
+    const moved = this.besideSlider(dir, near) ?? (few ? this.step(dir, few) : null) ?? this.step(dir, near) ?? this.step(dir, this.candidates()) ?? false;
     const now = this.focused;
     if (now && now !== before) {
       this.arrival = before && beforeBox ? { from: before, fromBox: beforeBox, known: this.knownHere } : null;
