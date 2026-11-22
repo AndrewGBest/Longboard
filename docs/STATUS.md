@@ -2,6 +2,38 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-22: cursor keys on the keyboard; Up in a player (0.3.20)
+
+Three reports from Andrew at the TV.
+
+- **"There needs to be arrows on the keyboard to move the cursor."** The
+  bottom row of every face now has a left and a right key between the face
+  keys and space; each is one real arrow-key press in the field. Shift, the
+  symbols key and "abc" are one column wide to make room (space too, on the
+  symbols face). **Verified:** unit tests; end to end on the form fixture
+  (left, a letter typed in the middle, right); the look, from a screenshot.
+  **Not verified:** fields a site handles in its own way (a search box that
+  takes the arrows for its suggestions), or a text box of several lines.
+- **On Netflix, Up with no controls showing "selects the whole video".**
+  Not seen by the agent (see 0.3.19 for why Netflix is not played). The
+  likely cause, **a guess**: something pressable laid over the whole
+  picture. Anything pressable that covers four fifths of the screen's width
+  and seven tenths of its height is now passed over while a video is
+  watched.
+- **"It should put the selection on the play button not the x button."**
+  Up from the bare picture now goes to the play button: a button in the
+  lower part of the screen named Play or Pause, else the first button of
+  the lowest row. Down still goes to the progress bar.
+  **Verified:** unit tests; the `scrub.html` fixture (now with a button
+  over the whole picture and a close button in the corner); Vimeo's player
+  page, where Up landed on the play button. **Not verified:** Netflix.
+- **Disney+ does not play.** Not looked into: nothing is known here about
+  what it shows. The open request to castLabs (issue 221: the Linux engine
+  says it can play AC-3 sound and cannot) is one possible cause and is not
+  established as this one. Asked Andrew what the screen says.
+
+The whole suite in six parts, all passed.
+
 ## 2026-11-22: a player's progress bar could not be highlighted (0.3.19)
 
 Andrew, at the TV: on Netflix the timeline could not be selected and moved

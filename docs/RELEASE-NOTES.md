@@ -3,6 +3,16 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.20:
+
+- **The on-screen keyboard has two arrow keys that move the cursor in the
+  field,** so a letter in the middle can be put right, and the cursor
+  brought back when a site moves it.
+- **Up while watching brings the controls up with the highlight on the play
+  button,** not on the close button. A layer some players lay over the
+  whole picture is no longer highlighted as if it were a control. Checked
+  on a public video site; not yet tried on a subscription service's player.
+
 New in 0.3.19:
 
 - **A video's progress bar can be highlighted and moved.** A bar drawn only

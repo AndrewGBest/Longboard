@@ -222,9 +222,8 @@ await scenario('a page driven with the arrows', { url: `${site.origin}/home.html
   await press('Enter'); // "l", under "b"
   await sleep(300);
   check('the on-screen keyboard types into the field', await evaluate('document.getElementById("search").value'), 'al');
-  for (let i = 0; i < 3; i++) await press('ArrowDown'); // bottom row: shift
-  await press('ArrowRight');
-  await press('ArrowRight');
+  for (let i = 0; i < 3; i++) await press('ArrowDown'); // bottom row: the symbols key, under "l"
+  for (let i = 0; i < 3; i++) await press('ArrowRight'); // past the two cursor keys
   await press('Enter'); // "space"
   await press('ArrowRight');
   await press('Enter'); // "delete"
@@ -232,14 +231,15 @@ await scenario('a page driven with the arrows', { url: `${site.origin}/home.html
   await sleep(300);
   check('space and delete work', await evaluate('document.getElementById("search").value'), 'a');
   // Capitals and symbols: shift then "a", then the symbols face and "@".
-  for (let i = 0; i < 3; i++) await press('ArrowLeft');
+  for (let i = 0; i < 5; i++) await press('ArrowLeft');
   await press('Enter'); // shift
   for (let i = 0; i < 4; i++) await press('ArrowUp');
-  await press('Enter'); // "B": shift is two columns wide and up goes from its middle
-  for (let i = 0; i < 4; i++) await press('ArrowDown');
   await press('ArrowRight');
+  await press('Enter'); // "B"
+  for (let i = 0; i < 4; i++) await press('ArrowDown'); // the symbols key, under "B"
   await press('Enter'); // symbols face; highlight is on "abc"
   for (let i = 0; i < 3; i++) await press('ArrowUp');
+  await press('ArrowRight');
   await press('Enter'); // "@", second key of the second row
   await sleep(300);
   check('capitals and symbols can be typed', await evaluate('document.getElementById("search").value'), 'aB@');
@@ -825,6 +825,20 @@ await scenario('a form, and things that only look clickable', { url: `${site.ori
   check('OK on it brings the keyboard up', await page.keyboardShown(), true);
   await press('Enter', 300);
   check('and it types', await value('name'), 'a');
+  await press('ArrowRight', 200);
+  await press('Enter', 300);
+  for (let i = 0; i < 4; i++) await press('ArrowDown', 200);
+  await press('ArrowRight', 200);
+  await press('Enter', 300);
+  check('the keyboard\'s left arrow moves the cursor in the field, and the keyboard stays', [await value('name'), await evaluate('document.getElementById("name").selectionStart'), await page.keyboardShown()], ['ab', 1, true]);
+  for (let i = 0; i < 4; i++) await press('ArrowUp', 200);
+  await press('Enter', 300);
+  check('what is typed next goes in where the cursor is', await value('name'), 'acb');
+  for (let i = 0; i < 4; i++) await press('ArrowDown', 200);
+  await press('ArrowRight', 200);
+  await press('Enter', 300);
+  check('and the right arrow moves it on', await evaluate('document.getElementById("name").selectionStart'), 3);
+  if (process.env.OSK_SHOT) { const { data } = await page.cdp.send('Page.captureScreenshot', { format: 'png' }); (await import('node:fs')).writeFileSync(process.env.OSK_SHOT, Buffer.from(data, 'base64')); }
   await press('Escape');
   check('Back puts the keyboard away', await page.keyboardShown(), false);
   await press('ArrowDown');

@@ -480,7 +480,8 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       send({ kind: 'typeText', text: key.text ?? '' });
       return;
     }
-    const name = key.kind === 'backspace' ? 'backspace' : 'enter';
+    // Delete, enter and the two cursor keys are real key presses in the field.
+    const name = key.kind === 'backspace' ? 'backspace' : key.kind === 'left' ? 'left' : key.kind === 'right' ? 'right' : 'enter';
     const info = playerKeyInfo(name);
     if (!info) return;
     injected.expect(info.domKey, Date.now());

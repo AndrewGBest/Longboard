@@ -55,7 +55,7 @@ describe('OskModel', () => {
     m.index = 4; // "5", fifth column
     m.move('down');
     expect(m.key.kind).toBe('space');
-    m.index = 4; // "enter", the last two columns
+    m.index = 6; // "enter", the last two columns
     expect(m.move('down')).toBe(false);
     m.move('up');
     expect(m.key.text).toBe('0');
@@ -63,6 +63,22 @@ describe('OskModel', () => {
     m.index = 6; // "7", seventh column, above "delete"
     m.move('down');
     expect(m.key.kind).toBe('backspace');
+  });
+
+  it('has the two cursor keys on every face, between the face keys and space', () => {
+    for (const page of ['lower', 'upper', 'symbols'] as const) {
+      const kinds = OSK_PAGES[page][4]!.map((k) => k.kind);
+      expect(kinds.indexOf('right') - kinds.indexOf('left')).toBe(1);
+      expect(kinds.indexOf('left')).toBeGreaterThan(0);
+      expect(kinds.indexOf('right')).toBeLessThan(kinds.indexOf('space'));
+    }
+    const m = new OskModel();
+    m.row = 3;
+    m.index = 2; // "3", third column
+    m.move('down');
+    expect(m.key.kind).toBe('left');
+    m.move('right');
+    expect(m.key.kind).toBe('right');
   });
 
   it('reports the top edge', () => {

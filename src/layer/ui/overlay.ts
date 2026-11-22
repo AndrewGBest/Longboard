@@ -271,7 +271,7 @@ export class Overlay {
     rows.forEach((row, r) =>
       row.forEach((key, i) => {
         const el = this.doc.createElement('div');
-        el.className = `key${key.span > 1 ? ' wide' : ''}${key.kind === 'submit' ? ' go' : ''}${active && active.row === r && active.index === i ? ' on' : ''}`;
+        el.className = `key${key.kind !== 'char' ? ' wide' : ''}${key.kind === 'submit' ? ' go' : ''}${active && active.row === r && active.index === i ? ' on' : ''}`;
         el.style.gridColumn = `span ${key.span}`;
         el.textContent = key.kind === 'submit' && submitLabel ? submitLabel : key.label;
         keys.push(el);

@@ -3,6 +3,17 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-22: cursor keys on the keyboard; where Up lands in a player
+
+**Andrew asked for both; the details are the agent's assumptions.**
+
+| Question | Choice | Why |
+|---|---|---|
+| Where the cursor keys go | Bottom row of every face, between the face keys and space; shift, "!#?" and "abc" narrowed to one column | Space, delete and enter stay where they were, under the same columns |
+| What they do | One real Left or Right key press in the field | The field, or the site, decides what that means, as with a plugged-in keyboard |
+| How the play button is found with no profile | A button in the lower part of the screen whose name begins with Play or Pause; else the first button of the lowest row | No selector is guessed (rule 8). The name is English only; the position is where the players looked at put it. A profile can do better for a site once there is an outline |
+| What counts as "the whole video" | Anything pressable, not a video, at least 80% of the screen wide and 70% high, while a video is being watched | OK on the bare picture already plays and pauses; a ring round the screen says nothing |
+
 ## 2026-11-22: a thin slider is a target
 
 **The agent's assumption**, from Andrew's report that a player's timeline

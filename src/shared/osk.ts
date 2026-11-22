@@ -3,7 +3,7 @@
 // shell as ordinary text input.
 import type { Direction } from './actions';
 
-export type OskKind = 'char' | 'space' | 'backspace' | 'submit' | 'shift' | 'symbols' | 'letters';
+export type OskKind = 'char' | 'space' | 'backspace' | 'submit' | 'shift' | 'symbols' | 'letters' | 'left' | 'right';
 
 export interface OskKey {
   kind: OskKind;
@@ -24,6 +24,13 @@ const chars = (s: string): OskKey[] => [...s].map((c) => ({ kind: 'char', label:
 const SPACE: OskKey = { kind: 'space', label: 'space', text: ' ', span: 2 };
 const DELETE: OskKey = { kind: 'backspace', label: 'delete', span: 2 };
 const SUBMIT: OskKey = { kind: 'submit', label: 'enter', span: 2 };
+// These move the cursor in the field being typed into, one place a press: the
+// only way to put right a letter in the middle, or to bring the cursor back
+// when a site has moved it. (Asked for by Andrew at the TV, 2026-11-22.)
+const CURSOR: OskKey[] = [
+  { kind: 'left', label: '\u25C0', span: 1 },
+  { kind: 'right', label: '\u25B6', span: 1 },
+];
 
 // Letters are in alphabetical order (see DECISIONS.md). The third row ends
 // with what an email address needs, so signing in does not need the symbols face.
@@ -34,7 +41,7 @@ const letters = (shift: boolean): readonly (readonly OskKey[])[] => {
     c('klmnopqrst'),
     [...c('uvwxyz'), ...chars('@.-_')],
     chars('1234567890'),
-    [{ kind: 'shift', label: shift ? 'SHIFT' : 'shift', span: 2 }, { kind: 'symbols', label: '!#?', span: 2 }, SPACE, DELETE, SUBMIT],
+    [{ kind: 'shift', label: shift ? 'SHIFT' : 'shift', span: 1 }, { kind: 'symbols', label: '!#?', span: 1 }, ...CURSOR, SPACE, DELETE, SUBMIT],
   ];
 };
 
@@ -44,7 +51,7 @@ const SYMBOLS: readonly (readonly OskKey[])[] = [
   chars('!@#$%^&*()'),
   chars('-_=+[]{}\\|'),
   chars(';:\'",.<>/?'),
-  [{ kind: 'letters', label: 'abc', span: 2 }, ...chars('`~'), SPACE, DELETE, SUBMIT],
+  [{ kind: 'letters', label: 'abc', span: 1 }, ...chars('`~'), ...CURSOR, { ...SPACE, span: 1 }, DELETE, SUBMIT],
 ];
 
 export const OSK_PAGES: Readonly<Record<OskPage, readonly (readonly OskKey[])[]>> = {

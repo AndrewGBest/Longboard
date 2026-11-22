@@ -11,7 +11,7 @@ export type PlayerKey = 'playPause' | 'seekBack' | 'seekForward' | 'close';
  * and enter, and what a controller's buttons stand for while one of the
  * browser's own lists (a drop-down) is open.
  */
-export type TextKey = 'backspace' | 'enter' | 'up' | 'down' | 'space';
+export type TextKey = 'backspace' | 'enter' | 'up' | 'down' | 'left' | 'right' | 'space';
 
 interface KeyInfo {
   /** Electron accelerator-style key code for `webContents.sendInputEvent`. */
@@ -31,6 +31,8 @@ const KEYS: Record<PlayerKey | TextKey | PlayerKeyName, KeyInfo> = {
   enter: { code: 'Enter', domKey: 'Enter', char: '\r' },
   up: { code: 'Up', domKey: 'ArrowUp' },
   down: { code: 'Down', domKey: 'ArrowDown' },
+  left: { code: 'Left', domKey: 'ArrowLeft' },
+  right: { code: 'Right', domKey: 'ArrowRight' },
   space: { code: 'Space', domKey: ' ', char: ' ' },
   // The keys a profile may name for a site's player (shared/profile.ts).
   Space: { code: 'Space', domKey: ' ' },
