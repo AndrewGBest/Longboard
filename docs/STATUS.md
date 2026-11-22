@@ -67,6 +67,22 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-22, night: Apple TV with the same correction (0.3.22)
+
+Andrew asked whether the AC-3 correction helps Apple TV too. **Measured,
+signed in (his sign-in from an earlier pass), under `--automation`, with
+the same probe:** the site asks about AC-3 and E-AC-3 through
+`MediaSource.isTypeSupported` and is now told no; on its Canadian
+storefront a title he had started resumed and played (picture running,
+sound added as AAC, no media error).
+
+**Not measured:** the same title on 0.3.21, so that it failed before
+because of AC-3 is still the expectation from 2026-11-18, not something
+seen here. On the US storefront, where this machine lands, the front page
+and Resume both answer "An Error Occurred. Please try again."; the account
+is a Canadian one, and the agent's reading (not established) is that the
+storefront is the reason.
+
 ## 2026-11-22, later: Disney+ still shows error 83 on 0.3.21
 
 Andrew: "Error is still there." **Not known:** whether the Disney+ profile
