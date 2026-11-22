@@ -26,6 +26,31 @@ say the name); the whole suite in six parts.
 the cause is something else (the AC-3 claim, castLabs issue 221, is the
 next suspect) and the profile should be withdrawn.
 
+## 2026-11-22, later: Disney+ still shows error 83 on 0.3.21
+
+Andrew: "Error is still there." **Not known:** whether the Disney+ profile
+was in use on the TV when he tried (it arrives with the daily look for
+reviewed profiles, or from Settings, "Look for reviewed profiles now").
+Asked him to look at the menu, "This page", for the profile's row.
+
+What was read since:
+
+- **Sourced:** castLabs' wiki (VMP page) says that on Linux the engine
+  reports `PLATFORM_UNVERIFIED` to a licence server, "Expected on Linux";
+  their signing that makes a platform "verified" exists for Windows and
+  macOS only.
+- **Sourced, old (2019, a Dutch forum quoted by news sites):** the answer
+  behind error 83 was "platform verification status is incompatible with
+  the security level".
+- **The agent's reading, not established:** if the profile was in use,
+  the likelier cause is the service's own licence rule refusing an
+  unverified platform. That is the service's protected-playback decision;
+  Longboard does not work round it (rule 2), and does not say it is
+  another browser or system to be let in (rule 3).
+
+Open: withdraw the Disney+ profile once it is known it was in use and did
+not help.
+
 ## 2026-11-22: cursor keys on the keyboard; Up in a player (0.3.20)
 
 Three reports from Andrew at the TV.
