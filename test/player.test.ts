@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { findMainVideo, isPlayerActive, playerScope, isSeekBar, playerIsOwnPage } from '../src/layer/player';
+import { coversPicture, findMainVideo, isPlayerActive, playControl, playerScope, isSeekBar, playerIsOwnPage } from '../src/layer/player';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
 import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo } from '../src/shared/player-keys';
 import { PLAYER_KEY_NAMES } from '../src/shared/profile';
@@ -180,5 +180,45 @@ describe('isSeekBar', () => {
     Object.defineProperty(window, 'innerWidth', { value: 960, configurable: true });
     expect(isSeekBar(sized('<div role="slider"></div>', 80), window)).toBe(false);
     expect(isSeekBar(sized('<button></button>', 900), window)).toBe(false);
+  });
+});
+
+describe('landing in a player', () => {
+  const at = (html: string, rect: [number, number, number, number]): Element => {
+    const holder = document.createElement('div');
+    holder.innerHTML = html;
+    const el = holder.firstElementChild as Element;
+    const [left, top, width, height] = rect;
+    el.getBoundingClientRect = () => ({ left, top, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON: () => ({}) });
+    return el;
+  };
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  it('does not count a button laid over the whole picture as a control', () => {
+    expect(coversPicture(at('<button></button>', [0, 0, w, h]), window)).toBe(true);
+    expect(coversPicture(at('<button></button>', [0, h - 80, w, 60]), window)).toBe(false);
+    expect(coversPicture(at('<video controls></video>', [0, 0, w, h]), window)).toBe(false);
+  });
+
+  it('takes the button named Play or Pause in the lower part of the screen', () => {
+    const close = at('<button aria-label="Close"></button>', [20, 20, 40, 40]);
+    const back = at('<button aria-label="Back 10 seconds"></button>', [20, h - 60, 40, 40]);
+    const next = at('<button aria-label="Play next episode"></button>', [80, h - 60, 40, 40]);
+    const pause = at('<button aria-label="Pause"></button>', [w / 2, h - 60, 40, 40]);
+    expect(playControl([close, back, next, pause], window)).toBe(pause);
+  });
+
+  it('with no name to go by takes the first button of the lowest row, never a slider', () => {
+    const close = at('<button></button>', [20, 20, 40, 40]);
+    const bar = at('<div role="slider"></div>', [0, h - 50, w, 4]);
+    const first = at('<button></button>', [30, h - 40, 40, 40]);
+    const second = at('<button></button>', [90, h - 40, 40, 40]);
+    const above = at('<button></button>', [10, h - 120, 40, 40]);
+    expect(playControl([close, bar, second, first, above], window)).toBe(first);
+  });
+
+  it('is nothing when the lower part of the screen has no buttons', () => {
+    expect(playControl([at('<button></button>', [20, 20, 40, 40])], window)).toBe(null);
   });
 });

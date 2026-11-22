@@ -15,7 +15,7 @@ import { keyToAction, ownRemoteKey, type Mode } from './input/keys';
 import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
 import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo, type PlayerKey, type TextKey } from '../shared/player-keys';
-import { findMainVideo, GENERIC_PLAYER_SHARE, isPlayerActive, isSeekBar, playerIsOwnPage, playerScope } from './player';
+import { findMainVideo, GENERIC_PLAYER_SHARE, isPlayerActive, coversPicture, isSeekBar, playControl, playerIsOwnPage, playerScope } from './player';
 import { coveredByScreen, coveringLayer, edgeControl, isSidewaysSlider, isVisible, MENU_ENTRY, openDialog, press, SpatialNavigator, type NavigatorOptions } from './spatial/navigator';
 import { HOST_TAG, Overlay } from './ui/overlay';
 
@@ -143,7 +143,7 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   const navOptions: NavigatorOptions = {
     extraFocusable: rules.selectors.extraFocusable,
     ignoreWithin: HOST_TAG,
-    avoid: (el) => jumpers.has(el),
+    avoid: (el) => jumpers.has(el) || (coversPicture(el, view) && inPlayer()),
     onFocusChange: (el) => {
       overlay.track(el);
       // The highlight passing over a text field does not bring the keyboard
@@ -598,7 +598,12 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     let tries = 0;
     view.clearInterval(controlsTimer);
     controlsTimer = view.setInterval(() => {
-      const done = !inPlayer() || (nav.candidates().length > 0 && nav.moveFrom({ x: view.innerWidth / 2, y: view.innerHeight / 2 }, dir));
+      // Up brings the controls up with the highlight on the play button;
+      // the nearest thing above the middle is the player's Close. Down goes
+      // to what is below the middle, the progress bar first where there is one.
+      const all = inPlayer() ? nav.candidates() : [];
+      const play = dir === 'up' ? playControl(all, view) : null;
+      const done = !inPlayer() || (all.length > 0 && (play ? nav.focus(play) : nav.moveFrom({ x: view.innerWidth / 2, y: view.innerHeight / 2 }, dir)));
       if (done || ++tries >= 15) view.clearInterval(controlsTimer);
     }, 100);
   };

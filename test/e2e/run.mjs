@@ -664,6 +664,13 @@ await scenario('a thin progress bar in a player', { url: `${site.origin}/scrub.h
   const first = await focused();
   await press(first === 'play' ? 'ArrowRight' : 'ArrowLeft');
   check('and from there the arrows come back to the bar', await focused(), 'bar');
+  await press('Escape', 700);
+  check('Back returns to the bare picture', await focused(), null);
+  await press('ArrowUp', 900);
+  check('up brings the highlight to the play button, not the close button or the whole picture', await focused(), 'play');
+  await press('ArrowUp');
+  await press('ArrowUp');
+  check('the button laid over the whole picture is never landed on', await focused(), 'x');
 });
 
 await scenario('a long article: reading with the arrows', { url: `${site.origin}/article.html` }, async (app) => {

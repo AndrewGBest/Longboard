@@ -123,3 +123,42 @@ export function isSeekBar(el: Element, view: Window): boolean {
   const slider = el.getAttribute('role') === 'slider' || (el instanceof HTMLInputElement && el.type === 'range');
   return slider && el.getBoundingClientRect().width >= view.innerWidth / 2;
 }
+
+/**
+ * A full-picture hit area: something pressable laid over the whole player so
+ * that a click anywhere on the picture plays or pauses. It is not a control
+ * to land on (OK on the bare picture already plays and pauses), and a ring
+ * round the whole screen says nothing.
+ */
+export function coversPicture(el: Element, view: Window): boolean {
+  if (el instanceof HTMLMediaElement) return false;
+  const r = el.getBoundingClientRect();
+  return r.width >= view.innerWidth * 0.8 && r.height >= view.innerHeight * 0.7;
+}
+
+const PLAY_WORD = /^\s*(play|pause)\b/i;
+const NOT_PLAY = /next|previous|speed|rate|list|episode|trailer|from|all/i;
+
+/**
+ * The control to land on when the controls are brought up from the bare
+ * picture: the play button. By its name where the player gives one in
+ * English; otherwise by where players put it, first in the lowest row of
+ * buttons. Null when the lower part of the screen has no buttons.
+ */
+export function playControl(controls: readonly Element[], view: Window): Element | null {
+  const low = controls.filter((el) => {
+    if (el.getAttribute('role') === 'slider' || el instanceof HTMLInputElement) return false;
+    const r = el.getBoundingClientRect();
+    return (r.top + r.bottom) / 2 >= view.innerHeight * 0.6;
+  });
+  if (low.length === 0) return null;
+  const named = low.find((el) => {
+    const name = el.getAttribute('aria-label') ?? el.getAttribute('title') ?? '';
+    return PLAY_WORD.test(name) && !NOT_PLAY.test(name);
+  });
+  if (named) return named;
+  const mid = (el: Element): number => (el.getBoundingClientRect().top + el.getBoundingClientRect().bottom) / 2;
+  const lowest = Math.max(...low.map(mid));
+  const row = low.filter((el) => lowest - mid(el) <= 24);
+  return row.reduce((a, b) => (b.getBoundingClientRect().left < a.getBoundingClientRect().left ? b : a));
+}
