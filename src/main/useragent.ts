@@ -45,27 +45,45 @@ export function systemName(honest: string): string {
 }
 
 /**
- * Keeps what each website view says it is in step with where it is going.
- * `tvFor` says whether an address has a profile asking for the TV
- * interface. This is the one place a view's identity is set; the checker
- * (scripts/check-rules.mjs) refuses it anywhere else.
+ * What Longboard says to a site whose profile says `view.named: false`: the
+ * embedded Chromium's own identity and nothing after it, which is what
+ * Longboard said everywhere until 2026-11-21. For a site that turns away
+ * any identity with a word in it that it does not know (Andrew, 2026-11-22;
+ * docs/DECISIONS.md). Every word of it is still true, and a profile cannot
+ * put anything in the name's place: all it can say is "leave it out".
  */
-export function identityFor(honest: string, tv: string, tvFor: (url: string) => boolean): {
+export function unnamedUserAgent(defaultUa: string): string {
+  return browserUserAgent(defaultUa, PRODUCT.name, '');
+}
+
+/** What a site's profile asks of the identity: the TV statement added, the name left out, or nothing. */
+export type IdentityKind = 'tv' | 'unnamed' | null;
+
+/**
+ * Keeps what each website view says it is in step with where it is going.
+ * `kindFor` says what the profile for an address asks. This is the one
+ * place a view's identity is set; the checker (scripts/check-rules.mjs)
+ * refuses it anywhere else.
+ */
+export function identityFor(honest: string, tv: string, unnamed: string, kindFor: (url: string) => IdentityKind): {
   of: (url: string) => string;
   header: (details: { url: string; resourceType: string; webContents?: Electron.WebContents | undefined; requestHeaders: Record<string, string> }) => Record<string, string>;
   follow: (wc: Electron.WebContents, url: string) => void;
 } {
-  const of = (url: string): string => (tvFor(url) ? tv : honest);
+  const of = (url: string): string => {
+    const kind = kindFor(url);
+    return kind === 'tv' ? tv : kind === 'unnamed' ? unnamed : honest;
+  };
   return {
     of,
-    // What a request says: the page it is for decides, so everything a TV
+    // What a request says: the page it is for decides, so everything such a
     // page fetches says the same as the page did.
     header: (details) => {
       const page = details.resourceType === 'mainFrame' ? details.url : details.webContents && !details.webContents.isDestroyed() ? details.webContents.getURL() : '';
-      if (!page || !tvFor(page)) return details.requestHeaders;
+      if (!page || kindFor(page) === null) return details.requestHeaders;
       const out: Record<string, string> = {};
       for (const [name, value] of Object.entries(details.requestHeaders)) if (name.toLowerCase() !== 'user-agent') out[name] = value;
-      out['User-Agent'] = tv;
+      out['User-Agent'] = of(page);
       return out;
     },
     // What the page's own scripts are told.

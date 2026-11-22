@@ -78,6 +78,7 @@ for (const file of files) {
   const format = readFileSync('src/shared/profile.ts', 'utf8');
   if (/userAgent|user_agent|['"]identity['"]/.test(format)) fail(3, 'src/shared/profile.ts', 'the profile format must not carry a user agent or an identity of its own');
   if (!/view\['device'\] !== 'tv'/.test(format)) fail(3, 'src/shared/profile.ts', '"view.device" must be checked to be exactly "tv"');
+  if (!/view\['named'\] !== false/.test(format)) fail(3, 'src/shared/profile.ts', '"view.named" must be checked to be exactly false');
 }
 
 // Rule 6: branding.

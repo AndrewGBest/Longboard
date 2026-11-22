@@ -1110,6 +1110,29 @@ await scenario('a site with no profile, then with one', { url: profiled, args: [
 // for TVs. Longboard then adds, for that site only, that it is running as a
 // TV; and the site answers the remote itself.
 await scenario(
+  'a site that turns away a name it does not know',
+  {
+    url: `http://profile.test:${port}/article.html`,
+    args: [mapHost],
+    seed: (data) => {
+      mkdirSync(join(data, 'profiles'), { recursive: true });
+      copyFileSync(join(root, 'test/fixtures/profiles/unnamed.json'), join(data, 'profiles/unnamed.json'));
+    },
+  },
+  async (app) => {
+    const page = await app.page('http://profile.test');
+    const { evaluate } = page;
+    await sleep(800);
+    const said = await evaluate('navigator.userAgent');
+    check('where the profile says so, Longboard\'s name is left out and nothing is put in its place', /^Mozilla\/5\.0 \(X11; Linux [^)]+\) AppleWebKit\/[\d.]+ \(KHTML, like Gecko\) Chrome\/[\d.]+ Safari\/[\d.]+$/.test(said), true);
+    check('what the page fetches says the same', await evaluate('fetch("/agent").then((r) => r.json())'), said);
+    await evaluate('location.href = "/home.html"; 0');
+    await sleep(1500);
+    check('on the site\'s other pages, which the profile does not name, Longboard says its name as everywhere', / Longboard\/[\d.]+$/.test(await evaluate('navigator.userAgent')), true);
+  },
+);
+
+await scenario(
   'a site with an interface for TVs',
   {
     // The site's front page is asked for; the profile says its TV interface starts elsewhere.

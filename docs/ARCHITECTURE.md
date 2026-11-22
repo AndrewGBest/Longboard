@@ -42,7 +42,9 @@ Carried over from Tropic Video and kept:
 - the user agent is Chromium's own, without the toolkit's tokens and with
   `Longboard/<version>` at the end; for a site
   whose profile says `view.device: "tv"` it is followed by the one statement
-  that Longboard is running as a TV (`src/main/useragent.ts`, Hard rule 3).
+  that Longboard is running as a TV; for a site whose profile says
+  `view.named: false` the name at the end is left out
+  (`src/main/useragent.ts`, Hard rule 3).
 
 These match Electron's own security checklist [Sourced: Electron].
 

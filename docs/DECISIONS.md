@@ -3,6 +3,20 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-22: a profile may ask for Longboard's name to be left out
+
+**Andrew, 2026-11-22**, asked by the agent after his report that Disney+
+shows error 83. Of three choices (leave the name out per site; name only
+where needed; keep naming everywhere) he took the first. Hard rule 3 is
+amended to say so.
+
+| Question | Choice | Why |
+|---|---|---|
+| How a site is marked | `view.named: false` in its profile; nothing else is accepted, and not with `view.device` | The same shape as `"tv"`: a profile can ask, never supply. The checker holds the format to it |
+| What is said there | The engine's own identity, exactly what Longboard said everywhere until 2026-11-21 | Every word is true; nothing stands in for the name |
+| Evidence asked for | A source or a test that the name is the reason | For Disney+: castLabs issue 142 (2022, open). **Not confirmed on the live site**; the agent's assumption is that the report still holds |
+| If it does not help | Withdraw the profile | An omission that does nothing is not worth having |
+
 ## 2026-11-22: cursor keys on the keyboard; where Up lands in a player
 
 **Andrew asked for both; the details are the agent's assumptions.**

@@ -33,7 +33,7 @@ export interface Profile {
   authors: string[];
   licence: string;
   match: { hosts: string[]; paths?: string[] };
-  view?: { canvas?: string; safeMargin?: number; device?: 'tv'; entry?: string; carry?: string[] };
+  view?: { canvas?: string; safeMargin?: number; device?: 'tv'; named?: false; entry?: string; carry?: string[] };
   focus?: {
     /** Elements that can take the highlight, added to what generic mode finds. */
     include?: string[];
@@ -162,7 +162,7 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
 
   const view = section('view');
   if (view) {
-    only(view, ['canvas', 'safeMargin', 'device', 'entry', 'carry'], 'view');
+    only(view, ['canvas', 'safeMargin', 'device', 'named', 'entry', 'carry'], 'view');
     profile.view = {};
     if (view['canvas'] !== undefined) {
       if (typeof view['canvas'] !== 'string' || !CANVAS.test(view['canvas'])) bad('"view.canvas" must look like 960x540');
@@ -172,6 +172,12 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
       // One word and nothing else: a profile cannot say what Longboard calls itself (Hard rule 3).
       if (view['device'] !== 'tv') bad('"view.device" can only be "tv"');
       else profile.view.device = 'tv';
+    }
+    if (view['named'] !== undefined) {
+      // Only "leave Longboard's name out": nothing can be put in its place (Hard rule 3).
+      if (view['named'] !== false) bad('"view.named" can only be false');
+      else if (view['device'] !== undefined) bad('"view.named" cannot be used with "view.device"');
+      else profile.view.named = false;
     }
     if (view['entry'] !== undefined) {
       // A path on the site itself and nothing more: never another site, never an address with a question in it.
@@ -384,6 +390,15 @@ export function canvasOf(profile: Profile | null): { width: number; height: numb
  */
 export function wantsTv(profile: Profile | null): boolean {
   return profile?.view?.device === 'tv';
+}
+
+/**
+ * True when a profile says its site turns Longboard away for the name at the
+ * end of what it says it is. Longboard then leaves the name out for that
+ * site and says only what the engine in it says (main/useragent.ts).
+ */
+export function wantsUnnamed(profile: Profile | null): boolean {
+  return profile?.view?.named === false;
 }
 
 /**

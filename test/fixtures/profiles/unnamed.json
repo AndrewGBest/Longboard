@@ -1,0 +1,11 @@
+{
+  "longboard": 1,
+  "id": "fixture-unnamed",
+  "name": "A made-up site that turns away names it does not know",
+  "version": "1.0.0",
+  "authors": ["longboard"],
+  "licence": "CC0-1.0",
+  "match": { "hosts": ["profile.test"], "paths": ["/article.html"] },
+  "view": { "named": false },
+  "evidence": { "outline": "outline.txt" }
+}

@@ -44,8 +44,8 @@ import { readJson, writeJson } from './store';
 import { MENU_TIP } from '../shared/about';
 import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeLauncher } from '../platform';
 import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
-import { canvasOf, wantsTv, type Profile, type ProfileSource } from '../shared/profile';
-import { identityFor, systemName, tvUserAgent } from './useragent';
+import { canvasOf, wantsTv, wantsUnnamed, type Profile, type ProfileSource } from '../shared/profile';
+import { identityFor, systemName, tvUserAgent, unnamedUserAgent } from './useragent';
 import { desktopZoom, hoverPoint, pageBounds, tvZoom } from './zoom';
 import { filterSession, type FilterSet } from './adblock';
 import { privacySignals } from './signals';
@@ -1810,9 +1810,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // home network from sites that set up calls.
   // What a view says it is: Longboard's honest identity, and for a site
   // whose profile asks for its TV interface, that plus "running as a TV"
-  // (main/useragent.ts; rule 3 as amended 2026-11-21).
+  // (main/useragent.ts; rule 3 as amended 2026-11-21). For a site whose
+  // profile says the name must be left out, the same without the name
+  // (amended 2026-11-22).
   const honestAgent = app.userAgentFallback;
-  const identity = identityFor(honestAgent, tvUserAgent(honestAgent, PRODUCT.name, app.getVersion(), systemName(honestAgent)), (url) => wantsTv(profileFor(url)?.profile ?? null));
+  const identity = identityFor(honestAgent, tvUserAgent(honestAgent, PRODUCT.name, app.getVersion(), systemName(honestAgent)), unnamedUserAgent(honestAgent), (url) => {
+    const profile = profileFor(url)?.profile ?? null;
+    return wantsTv(profile) ? 'tv' : wantsUnnamed(profile) ? 'unnamed' : null;
+  });
   eachPage((wc) => wc.on('did-start-navigation', (details) => {
     if (details.isMainFrame && !details.isSameDocument) identity.follow(wc, details.url);
   }));

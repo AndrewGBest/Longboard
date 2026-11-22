@@ -2,6 +2,30 @@
 
 Update this at the end of every working session. Newest first.
 
+## 2026-11-22: Disney+ error 83, and leaving the name out for one site (0.3.21)
+
+Andrew: Disney+ does not play; it shows error 83.
+
+**Sourced:** the engine maker's tracker has an open report from 2022
+(castlabs/electron-releases issue 142) that the site answers 83 unless the
+identity is exactly Chrome's. Since 0.3.16 Longboard ends its identity
+with its name. **A likely cause, not an established one**: the agent
+cannot play anything there (it would need Andrew's account).
+
+Andrew chose: keep naming Longboard everywhere, except where a site's
+reviewed profile says to leave the name out. Done as `view.named: false`
+(only `false`; not with `view.device`); the wording stays in
+`src/main/useragent.ts`. A Disney+ profile (hosts only, no selectors) is in
+the profiles repository with an outline of the public front page.
+
+**Verified:** unit tests; an end-to-end scenario on a made-up site (the
+page and what it fetches say the unnamed identity; the site's other pages
+say the name); the whole suite in six parts.
+
+**Not verified:** that Disney+ plays with it. If error 83 stays in 0.3.21,
+the cause is something else (the AC-3 claim, castLabs issue 221, is the
+next suspect) and the profile should be withdrawn.
+
 ## 2026-11-22: cursor keys on the keyboard; Up in a player (0.3.20)
 
 Three reports from Andrew at the TV.

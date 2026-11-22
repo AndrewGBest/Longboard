@@ -3,6 +3,13 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.21:
+
+- **A site's profile can ask Longboard to leave its own name out of what
+  it says it is.** One streaming site is reported to refuse to play (its
+  error 83) for any identity but the engine's own; a profile for it now
+  exists. Whether that makes it play has not been tried yet.
+
 New in 0.3.20:
 
 - **The on-screen keyboard has two arrow keys that move the cursor in the
