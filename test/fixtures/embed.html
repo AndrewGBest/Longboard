@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: a page that embeds a player from another site</title>
+<!-- A made-up page for testing. It imitates no real service. The player is a frame from another origin, and a bar of
+     the page's own buttons is pinned across the bottom of the screen, over the frame's lower edge. -->
+<style>
+  body { margin: 0; background: #111; color: #eee; font: 16px system-ui, sans-serif; }
+  a { color: #9cf; display: block; padding: 8px; }
+  iframe { display: block; width: 100%; height: 86vh; border: 0; }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; height: 70px; background: #222; display: flex; gap: 20px; padding: 10px; box-sizing: border-box; }
+  #bar button { width: 120px; height: 50px; }
+  #more { height: 900px; }
+</style>
+</head>
+<body>
+<a href="#above" id="above">A link above the player</a>
+<iframe id="frame" title="Embedded player" allowfullscreen allow="fullscreen; autoplay"></iframe>
+<div id="more"><a href="#below" id="below">A link below the player</a></div>
+<div id="bar"><button id="one">one</button><button id="two">two</button><button id="three">three</button></div>
+<script>
+  window.__frame = { state: null };
+  window.addEventListener('message', (e) => { if (e.data && typeof e.data === 'object') window.__frame.state = e.data; });
+  // Another origin: this machine under its other name, same port.
+  document.getElementById('frame').src = `http://localhost:${location.port}/inner-player.html`;
+</script>
+</body>
+</html>

@@ -61,8 +61,10 @@ export type BridgeMessage =
   | { kind: 'pointerOff' }
   /** The on-screen keyboard that was up for a field inside an embedded frame has been put away. */
   | { kind: 'frameFieldDone' }
-  /** The highlight is asked into the frame that now has the cursor. `stay`: it carries on where it was in there. */
-  | { kind: 'frameEnter'; stay: boolean }
+  /** The highlight is asked into the frame that now has the cursor. `stay`: it carries on where it was in there. `at`: the middle of the frame, in page pixels, for a player inside it whose controls come up when the pointer moves. */
+  | { kind: 'frameEnter'; stay: boolean; at?: { x: number; y: number } }
+  /** From a frame that is a player: its play key did nothing, so the picture is clicked instead (an ordinary click in the middle of the frame). */
+  | { kind: 'pictureClick' }
   /** Directions held on a game controller while pointer mode is on. */
   | { kind: 'pointerHeld'; dirs: Direction[] }
   /**

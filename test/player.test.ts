@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { coversPicture, findMainVideo, isPlayerActive, playControl, playerScope, isSeekBar, playerIsOwnPage } from '../src/layer/player';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
-import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo } from '../src/shared/player-keys';
+import { cdpKey, InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo } from '../src/shared/player-keys';
 import { PLAYER_KEY_NAMES } from '../src/shared/profile';
 
 // jsdom has no layout, so each test gives its videos a size by hand.
@@ -181,6 +181,14 @@ describe('isSeekBar', () => {
     expect(isSeekBar(sized('<div role="slider"></div>', 80), window)).toBe(false);
     expect(isSeekBar(sized('<button></button>', 900), window)).toBe(false);
   });
+  it('is a thin strip across most of the screen that does not say what it is, and nothing shorter or plainly something else', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 960, configurable: true });
+    expect(isSeekBar(sized('<div class="progress"></div>', 924), window)).toBe(true);
+    expect(isSeekBar(sized('<div class="progress"></div>', 500), window)).toBe(false);
+    expect(isSeekBar(sized('<a href="#"></a>', 924), window)).toBe(false);
+    expect(isSeekBar(sized('<input type="text">', 924), window)).toBe(false);
+    expect(isSeekBar(sized('<div role="button"></div>', 924), window)).toBe(false);
+  });
 });
 
 describe('landing in a player', () => {
@@ -220,5 +228,18 @@ describe('landing in a player', () => {
 
   it('is nothing when the lower part of the screen has no buttons', () => {
     expect(playControl([at('<button></button>', [20, 20, 40, 40])], window)).toBe(null);
+  });
+});
+
+describe('a player key for the channel that reaches frames', () => {
+  it('names the key, its code and its number, with the character where the browser acts on one', () => {
+    expect(cdpKey(playerKeyInfo('playPause'))).toEqual({ key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32, text: ' ' });
+    expect(cdpKey(playerKeyInfo('seekBack'))).toEqual({ key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37, nativeVirtualKeyCode: 37 });
+    expect(cdpKey(playerKeyInfo('close'))).toEqual({ key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+    expect(cdpKey({ domKey: 'k' })).toEqual({ key: 'k', code: 'KeyK', windowsVirtualKeyCode: 75, nativeVirtualKeyCode: 75, text: 'k' });
+  });
+  it('is nothing for no key or one it does not know', () => {
+    expect(cdpKey(null)).toBe(null);
+    expect(cdpKey({ domKey: 'F13' })).toBe(null);
   });
 });

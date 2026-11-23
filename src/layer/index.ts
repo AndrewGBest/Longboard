@@ -67,7 +67,11 @@ function isTextEntry(el: Element | null): boolean {
 export interface Layer {
   dispatch: (a: Action) => void;
   /** The shell's answer after the highlight was asked into a frame: taken (`in`), nothing there to take it (`none`), or what had it is gone (`lost`). */
-  frameIn: (state: 'in' | 'none' | 'lost') => void;
+  frameIn: (state: 'in' | 'none' | 'lost', player?: boolean) => void;
+  /** In a frame's own layer: the highlight has gone back to the page round the frame. */
+  dropHighlight: () => void;
+  /** In a frame's own layer: the frame is a player (a video fills it). */
+  framePlayer: () => boolean;
   /** The highlight has left a frame of this page, by a direction or by Back. */
   frameExit: (how: 'up' | 'down' | 'left' | 'right' | 'back') => void;
   /** In a frame's own layer: take the highlight (the frame was entered). False when nothing here can. `stay`: keep it where it was. */
@@ -112,7 +116,9 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   // itself. Read each time: the profile can change while the page stays (setRules).
   const playerShare = (): number => (rules.generic ? GENERIC_PLAYER_SHARE : 0.5);
   const mainVideo = (): HTMLVideoElement | null => findMainVideo(doc, playerRoots, playerShare());
-  const inPlayer = (): boolean => isPlayerActive(doc, playerRoots, playerShare());
+  // An embedded frame that a video fills is a player whether or not the
+  // video has started: the frame is there for nothing else.
+  const inPlayer = (): boolean => isPlayerActive(doc, playerRoots, playerShare()) || (!!frame && mainVideo() !== null);
   /** The pop-up or covering layer in front, when it is pinned to the screen and so does not move with the page. */
   const pinnedLayer = (): Element | null => {
     const layer = openDialog(doc) ?? (inPlayer() ? null : coveringLayer(doc));
@@ -376,17 +382,62 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     } catch {
       // A frame from another site may refuse; the shell's answer decides.
     }
-    send({ kind: 'frameEnter', stay });
+    const box = el.getBoundingClientRect();
+    send({ kind: 'frameEnter', stay, at: { x: (Math.max(box.left, 0) + Math.min(box.right, view.innerWidth)) / 2, y: (Math.max(box.top, 0) + Math.min(box.bottom, view.innerHeight)) / 2 } });
   };
   /** The shell's answer: something in the frame took the highlight, nothing did, or what had it is gone. */
-  const frameIn = (state: 'in' | 'none' | 'lost'): void => {
+  /** The frame this page has put in full screen because a player in it took the keys. */
+  let frameFull: HTMLIFrameElement | null = null;
+  const leaveFull = (): void => {
+    const el = frameFull;
+    frameFull = null;
+    if (!el || doc.fullscreenElement !== el) return;
+    // Leaving full screen can hand the cursor back to the frame; the keys
+    // are the page's again, so it is taken back once the screen has changed.
+    doc.addEventListener('fullscreenchange', () => {
+      if (!frameInside && !frameAsked && doc.activeElement === el) {
+        el.blur();
+        view.focus();
+      }
+    }, { once: true });
+    void doc.exitFullscreen().catch(() => undefined);
+  };
+  // Full screen can also end without this layer asking: the browser itself
+  // ends it on Escape, which is Back on many remotes, and the key never
+  // reaches a page. That is leaving the player all the same: the keys come
+  // back to the page and the highlight to the frame.
+  doc.addEventListener('fullscreenchange', () => {
+    const el = frameFull;
+    if (!el || doc.fullscreenElement === el) return;
+    frameFull = null;
+    if (frameInside !== el) return;
+    frameInside = null;
+    el.blur();
+    view.focus();
+    nav.focus(el);
+  });
+  const frameIn = (state: 'in' | 'none' | 'lost', player = false): void => {
     const el = frameAsked ?? frameInside;
     if (state === 'in') {
       frameInside = frameAsked ?? frameInside;
       frameAsked = null;
       overlay.track(null);
+      // A player in a frame is watched full screen, as a TV shows anything:
+      // inside a page its controls are small and may lie under the page's
+      // own bars. (Seen on a video site: a bar pinned to the bottom of the
+      // screen covered the embedded player's whole control row.) This is
+      // the browser's own full screen for the frame, which the page allows
+      // or refuses; Back leaves the frame and the full screen with it.
+      if (player && !frame && frameInside && !doc.fullscreenElement && doc.fullscreenEnabled) {
+        const into = frameInside;
+        frameFull = into;
+        void into.requestFullscreen().catch(() => {
+          if (frameFull === into) frameFull = null;
+        });
+      }
       return;
     }
+    leaveFull();
     frameAsked = null;
     frameInside = null;
     if (!el?.isConnected) return;
@@ -406,6 +457,7 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   const frameExit = (how: Direction | 'back'): void => {
     const el = frameInside ?? (doc.activeElement instanceof HTMLIFrameElement ? doc.activeElement : null);
     frameInside = null;
+    leaveFull();
     if (!el) return;
     el.blur();
     view.focus();
@@ -657,6 +709,12 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       // First Back leaves the controls and returns to the picture.
       if (onPlayerControl()) {
         nav.clear();
+        return;
+      }
+      // A player in an embedded frame is left by leaving the frame: the page
+      // round it is still there, and the highlight goes back to the frame.
+      if (frame) {
+        frame.exit('back');
         return;
       }
       const close = firstMatch(doc, rules.selectors.playerClose);
@@ -911,6 +969,19 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       case 'seek': {
         const key = playerKeyFor(a);
         if (key) pressPlayerKey(key);
+        // A player in a frame may not answer its keys until it has been
+        // clicked (seen on an open-source player embedded by a video site:
+        // its shortcuts work only once it has "focus", which a click
+        // gives). OK that changed nothing is followed by one ordinary click
+        // on the picture, which every player takes as play or pause.
+        // Whether it changed is only looked at; the video is not touched.
+        const v = frame && a.type === 'playPause' ? mainVideo() : null;
+        if (v) {
+          const was = v.paused;
+          view.setTimeout(() => {
+            if (v.isConnected && v.paused === was && inPlayer() && !onPlayerControl()) send({ kind: 'pictureClick' });
+          }, 400);
+        }
         break;
       }
       case 'search':
@@ -1120,9 +1191,18 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     frameField,
     frameIn,
     frameExit,
+    framePlayer: () => !!frame && mainVideo() !== null,
+    dropHighlight: () => nav.clear(),
     takeHighlight: (stay) => {
       if (stay && nav.focused?.isConnected) return nav.focus(nav.focused);
-      return nav.focusFirstOnScreen() || nav.focusFirstIn(doc.documentElement);
+      // A player that is running takes the keys with nothing highlighted,
+      // as a player that fills the page does: OK plays and pauses, left and
+      // right seek, up and down bring its controls up.
+      if (frame && isPlayerActive(doc, playerRoots, playerShare())) {
+        nav.clear();
+        return true;
+      }
+      return nav.focusFirstOnScreen() || nav.focusFirstIn(doc.documentElement) || (!!frame && mainVideo() !== null);
     },
     phoneText: (id) => {
       const into = deepActiveElement(doc);

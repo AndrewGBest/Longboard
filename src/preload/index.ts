@@ -106,6 +106,11 @@ function frameLayer(sayField: (el: Element) => void): void {
         if (msg.kind === 'frameEnter') tell({ enter: true, stay: msg.stay === true });
         else if (msg.kind === 'menu') tell({ menu: true });
         else if (msg.kind === 'pointer' && msg.x === undefined) tell({ pointer: true });
+        // A player inside the frame: its keys are pressed by the shell, as on
+        // any page, and its controls are brought up by a pointer movement.
+        else if (msg.kind === 'playerKey') tell({ playerKey: msg.key });
+        else if (msg.kind === 'revealControls') tell({ reveal: true });
+        else if (msg.kind === 'pictureClick') tell({ click: true });
       },
       frame: {
         exit: (how) => tell({ exit: how }),
@@ -115,8 +120,10 @@ function frameLayer(sayField: (el: Element) => void): void {
   // The shell asks every frame; the one that has the cursor answers.
   ipcRenderer.on('longboard:frame-enter', (_event, stay: unknown) => {
     if (!document.hasFocus() || document.activeElement instanceof HTMLIFrameElement) return;
-    tell({ entered: begin().takeHighlight(stay === true) });
+    const taken = begin().takeHighlight(stay === true);
+    tell({ entered: taken, player: taken && begin().framePlayer() });
   });
+  ipcRenderer.on('longboard:frame-out', () => layer?.dropHighlight());
   ipcRenderer.on('longboard:frame-in', (_event, state: unknown) => {
     if (state === 'in' || state === 'none' || state === 'lost') layer?.frameIn(state);
   });
@@ -211,8 +218,8 @@ const start = (): void => {
     layer.frameField(f && typeof f === 'object' ? { hint: typeof f.hint === 'string' ? f.hint : '', top: Number(f.top) || 0, bottom: Number(f.bottom) || 0 } : null);
   });
   // The highlight was asked into a frame, or has come out of one.
-  ipcRenderer.on('longboard:frame-in', (_event, state: unknown) => {
-    if (state === 'in' || state === 'none' || state === 'lost') layer.frameIn(state);
+  ipcRenderer.on('longboard:frame-in', (_event, state: unknown, player: unknown) => {
+    if (state === 'in' || state === 'none' || state === 'lost') layer.frameIn(state, player === true);
   });
   ipcRenderer.on('longboard:frame-exit', (_event, how: unknown) => {
     if (how === 'up' || how === 'down' || how === 'left' || how === 'right' || how === 'back') layer.frameExit(how);

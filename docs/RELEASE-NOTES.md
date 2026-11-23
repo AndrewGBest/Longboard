@@ -3,6 +3,19 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.23:
+
+- **A video player embedded in a page can be watched with the remote.**
+  Many video sites show their player inside a frame from another site.
+  The highlight now lands on it (it was skipped when the site's own bar
+  overlapped it); OK shows it full screen and hands it the remote: OK
+  plays and pauses, Left and Right seek, Down brings up its controls,
+  with the progress bar first and the buttons after, and Back returns to
+  the page. Before, such a player could only be used with the pointer.
+  Checked on one video site's embedded player and an invented one.
+- A player whose page has no height of its own (everything in it pinned to
+  the window) no longer has all its controls taken for hidden.
+
 New in 0.3.22:
 
 - **Disney+ plays.** It showed error 83. The engine Longboard is built on

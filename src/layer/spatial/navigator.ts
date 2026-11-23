@@ -225,6 +225,13 @@ export function isVisible(el: Element, view: Window, faded?: Map<Element, boolea
  * and Down went to a button in it that nobody could see.)
  */
 function collapsed(node: Element, style: CSSStyleDeclaration): boolean {
+  // Not the page itself: clipping set on the body or the root is the
+  // window's, and a body with nothing in the flow is no height at all while
+  // everything pinned inside it shows. (Seen in a player made for a frame:
+  // the body clipped, the player pinned to the window, and every control of
+  // it taken for hidden.)
+  const page = node.ownerDocument;
+  if (node === page.body || node === page.documentElement) return false;
   const cuts = (o: string): boolean => o === 'hidden' || o === 'clip';
   if (!cuts(style.overflowY) && !cuts(style.overflowX)) return false;
   if (style.display === 'contents' || style.display.startsWith('inline')) return false;
@@ -706,6 +713,12 @@ export class SpatialNavigator {
       // them, but the link itself does not lie under them. Found by the
       // referee on an encyclopedia's article: every such link was dropped.
       if (el.getClientRects().length > 1) return true;
+      // Nor is an embedded frame or a video: what is in it is another
+      // document or a picture, and the page's controls that pass over its
+      // box (a menu bar pinned to the bottom of the screen) are not "on" it.
+      // Seen on a video site whose player is a frame from elsewhere: the bar
+      // lay over the frame's lower edge and the player could not be reached.
+      if (el instanceof HTMLIFrameElement || el instanceof HTMLMediaElement) return true;
       const mine = rects[i]!;
       const onTop = rects.filter((other, j) => j !== i && covers(mine, other)).length;
       if (onTop === 0) return true;
@@ -763,11 +776,15 @@ export class SpatialNavigator {
     if (!view || this.lookWaiting) return;
     this.lookWaiting = true;
     const run = (): void => {
+      if (!this.lookWaiting) return;
       this.lookWaiting = false;
       this.lookForHands();
     };
+    // In an idle moment, and in any case soon: the idle call was seen never
+    // to come in a frame showing a video full screen (2026-11-22), which
+    // left controls made after the first look unseen for good.
     if (typeof view.requestIdleCallback === 'function') view.requestIdleCallback(run, { timeout: 400 });
-    else view.setTimeout(run, 120);
+    view.setTimeout(run, typeof view.requestIdleCallback === 'function' ? 450 : 120);
   }
 
   /**

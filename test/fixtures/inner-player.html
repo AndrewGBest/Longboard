@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Longboard fixture: a player inside a frame</title>
+<!-- A made-up video player for testing, shown inside another page's frame. It imitates no real service. The picture is
+     drawn on a canvas. Like players commonly do, it shows its controls when the pointer moves and hides them soon after;
+     and like some, it answers its keys only once it has been clicked. Its progress bar is a plain box, not a slider. -->
+<style>
+  body { margin: 0; background: #000; overflow: hidden; }
+  #player { position: fixed; inset: 0; }
+  video { width: 100%; height: 100%; }
+  #controls { position: absolute; left: 0; right: 0; bottom: 0; height: 70px; }
+  #progress { position: absolute; left: 2%; width: 96%; top: 0; height: 16px; background: #888; cursor: pointer; }
+  #controls .b { position: absolute; top: 24px; width: 40px; height: 40px; background: #444; cursor: pointer; }
+  #pp { left: 2%; }
+  #full { right: 2%; }
+</style>
+</head>
+<body>
+<div id="player"><video id="v" playsinline></video></div>
+<script>
+  const state = { space: 0, left: 0, right: 0, moves: 0, clicks: 0, paused: false, ring: null, pressed: [] };
+  const say = () => parent.postMessage({ ...state, ring: document.querySelector('[data-longboard-focus]')?.id ?? null, paused: video.paused }, '*');
+  const player = document.getElementById('player');
+  const video = document.getElementById('v');
+  const canvas = document.createElement('canvas');
+  canvas.width = 320; canvas.height = 180;
+  const ctx = canvas.getContext('2d');
+  let frame = 0;
+  setInterval(() => { ctx.fillStyle = `hsl(${frame++ % 360} 60% 30%)`; ctx.fillRect(0, 0, 320, 180); }, 100);
+  video.srcObject = canvas.captureStream(10);
+  video.muted = false;
+  video.play();
+
+  let controls = null;
+  let hideTimer;
+  const show = () => {
+    if (!controls) {
+      controls = document.createElement('div');
+      controls.id = 'controls';
+      controls.innerHTML = '<div id="progress"></div><div class="b" id="pp"></div><div class="b" id="full"></div>';
+      for (const el of controls.children) el.addEventListener('click', (e) => { e.stopPropagation(); focused = true; state.pressed.push(el.id); });
+      player.append(controls);
+    }
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => { controls?.remove(); controls = null; }, 1500);
+  };
+  player.addEventListener('mousemove', () => { state.moves++; show(); });
+  // The keys are answered only after a click on the player.
+  let focused = false;
+  player.addEventListener('click', () => { focused = true; state.clicks++; video.paused ? video.play() : video.pause(); });
+  window.addEventListener('keydown', (e) => {
+    if (!focused) return;
+    if (e.key === ' ') { state.space++; video.paused ? video.play() : video.pause(); }
+    if (e.key === 'ArrowLeft') state.left++;
+    if (e.key === 'ArrowRight') state.right++;
+  });
+  setInterval(say, 150);
+</script>
+</body>
+</html>

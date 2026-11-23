@@ -67,6 +67,42 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-23: players embedded in a frame from another site (0.3.23)
+
+Andrew: on general media players "there's no way to get to the media
+player's controls to full-screen or anything", naming one video site.
+
+**Found on that site** (signed out, under `--automation`; no profile made
+for it, nothing of it committed): its player is a frame from another host
+(an open-source player), nearly as tall as the screen, and the site pins a
+header and a bar of its own over the frame's top and bottom.
+
+| What went wrong | Why | Now |
+|---|---|---|
+| Down passed over the player | The pinned bar's buttons lie inside the frame's box, so the frame was taken for a backdrop with controls on it and dropped | A frame or a video is never a backdrop |
+| OK on the frame fell back to pointer mode | A playing player has nothing to highlight, and that counted as "nothing here" | A frame that a video fills is a player: its layer takes the keys with nothing highlighted |
+| The player's control row lay under the site's bar | It is at the frame's bottom edge | The page puts such a frame in the browser's own full screen when the highlight goes in, and takes it out on the way back |
+| The player's keys and the pointer movement that shows its controls never arrived | Electron's own input events do not reach a frame served by another site (known since 2026-11-18 for clicks) | For a player in a frame they go through the DevTools input channel, as pointer mode's do |
+| The player ignored its keys until clicked | Its own behaviour | OK that changes nothing is followed by one ordinary click on the picture |
+| Left and Right did nothing on its progress bar | The bar is plain boxes, not a slider | Inside a player a thin strip across most of the screen is the progress bar |
+| (the invented player) no control was ever a target | Its body clips and has no height, everything being pinned; that read as "all hidden" | Clipping on the body or root never hides |
+| Escape left full screen but not the frame | The browser ends full screen on Escape itself and no page sees the key | The end of that full screen is taken as leaving the player |
+
+**Verified:** unit tests; a new scenario with two invented fixtures
+(`embed.html`, `inner-player.html`): landing on the frame under a pinned
+bar, full screen, OK by click then by key, seek keys, controls by pointer
+movement, the bar, a button pressed, Back; the whole suite in six parts,
+all passed. On the live site: full screen, OK paused and resumed, Right
+moved on by about five seconds, Down landed on the progress bar and Right
+there moved on, Down then Right walked the buttons, Escape ended it.
+
+**Not verified:** on a TV; a remote whose Back is not Escape (the layer's
+own path, exercised only by reading); a player in a frame inside another
+frame; a frame the page does not allow to go full screen (it then stays in
+the page, driven the same way); other embedded players. **Known gap:**
+on the player seen, Left and Right before the first OK do nothing, since
+it ignores keys until clicked and only OK clicks.
+
 ## 2026-11-22, night: Apple TV with the same correction (0.3.22)
 
 Andrew asked whether the AC-3 correction helps Apple TV too. **Measured,

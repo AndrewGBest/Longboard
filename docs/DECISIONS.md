@@ -3,6 +3,20 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-23: a player in a frame is watched full screen and driven by the remote
+
+**The agent's assumptions**, from Andrew's report that embedded players
+could not be controlled.
+
+| Question | Choice | Why |
+|---|---|---|
+| What counts as a player in a frame | A frame's document in which a video fills the window (the same share as on a page with no profile), started or not | The frame is there for nothing else |
+| What OK on such a frame does | Hands it the remote and asks the browser to show the frame full screen | A TV shows one thing; in the page the player is small and its controls can lie under the page's own bars. It is the browser's own full screen for that element: the page may refuse it (no `allowfullscreen`), and then the player is driven where it is |
+| How its keys and pointer movement are sent | Through the DevTools input channel, attached only while the highlight is in such a frame | The only channel that reaches a frame from another site; already used for pointer mode. Ordinary trusted events |
+| A player that ignores its key | One ordinary click on the middle of the picture, 0.4 s after an OK that changed nothing | Every player takes a click on the picture as play or pause. Whether the video paused is looked at; the video is never set by Longboard |
+| What an unlabelled progress bar is | In a player only: a strip at least 60% of the screen wide and at most 48 pixels high that is not a link, a button or a field | Players draw bars from plain boxes. Left and Right there are the player's seek keys, which do nothing worse than seek |
+| Under `--automation` | Unchanged: the purchase guard is up in every frame before its scripts run, and the click on the picture goes through it like any click | Rule 11 |
+
 ## 2026-11-22: Longboard corrects the engine's answer about AC-3 sound; the name omission is withdrawn
 
 **The agent's decision, on Andrew's standing instruction to get Disney+

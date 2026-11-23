@@ -47,6 +47,7 @@ import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApp
 import { canvasOf, wantsTv, type Profile, type ProfileSource } from '../shared/profile';
 import { identityFor, systemName, tvUserAgent } from './useragent';
 import { desktopZoom, hoverPoint, pageBounds, tvZoom } from './zoom';
+import { cdpKey } from '../shared/player-keys';
 import { filterSession, type FilterSet } from './adblock';
 import { privacySignals } from './signals';
 import { parseArticle, type Article } from '../shared/reader';
@@ -1290,6 +1291,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (isMainFrame && !isInPlace) thaw(wc);
   }));
 
+  /** The highlight is in a frame that is a player (see onFrame). */
+  let playerInFrame = false;
   let attached = false;
   const attach = (): void => {
     if (attached || page.isDestroyed()) return;
@@ -1302,7 +1305,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
   const detach = (): void => {
     // Kept while the on-screen keyboard is typing into a frame: its letters go this way too.
-    if (!attached || frameField) return;
+    // And while a player in a frame has the keys: its keys and the pointer movement that brings its controls up do.
+    if (!attached || frameField || playerInFrame) return;
     attached = false;
     try {
       // Left attached while the page is frozen: letting go would wake it.
@@ -1936,6 +1940,25 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   let blocker: number | undefined;
   let nudge = false;
+  // An ordinary pointer movement across a point of the picture, which is
+  // what brings a player's controls up. One step is not enough on some
+  // players, and steps sent together are merged into one, so it is a short
+  // sweep spread over time, in alternating directions so every call is a
+  // real movement.
+  const sweep = (wc: WebContents, cx: number, cy: number): void => {
+    nudge = !nudge;
+    const forward = nudge;
+    const steps = forward ? [0, 20, 40, 60] : [60, 40, 20, 0];
+    steps.forEach((dx, i) => {
+      setTimeout(() => {
+        if (wc.isDestroyed()) return;
+        const x = Math.round(cx) + dx;
+        const y = Math.round(cy);
+        // A real pointer reports how far it moved; some players ignore a move that reports zero.
+        wc.sendInputEvent({ type: 'mouseMove', x, y, globalX: x, globalY: y, movementX: forward ? 20 : -20, movementY: 0 });
+      }, i * 40);
+    });
+  };
   const viewSize = (wc: WebContents): [number, number] => {
     const b = (wc === page ? pageView : chromeView).getBounds();
     return [b.width, b.height];
@@ -2070,23 +2093,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       }
       case 'revealControls': {
-        // An ordinary pointer movement across the middle of the picture. One
-        // step is not enough on some players, and steps sent together are
-        // merged into one, so it is a short sweep spread over time, in
-        // alternating directions so every call is a real movement.
         const [w, h] = viewSize(wc);
-        nudge = !nudge;
-        const forward = nudge;
-        const steps = forward ? [0, 20, 40, 60] : [60, 40, 20, 0];
-        steps.forEach((dx, i) => {
-          setTimeout(() => {
-            if (wc.isDestroyed()) return;
-            const x = Math.round(w / 2) + dx;
-            const y = Math.round(h / 2);
-            // A real pointer reports how far it moved; some players ignore a move that reports zero.
-            wc.sendInputEvent({ type: 'mouseMove', x, y, globalX: x, globalY: y, movementX: forward ? 20 : -20, movementY: 0 });
-          }, i * 40);
-        });
+        sweep(wc, w / 2, h / 2);
         break;
       }
       case 'hover': {
@@ -2158,7 +2166,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
         else setPointer(true, startPoint(msg, page.getZoomFactor(), pageSize()));
         break;
       case 'frameEnter':
-        if (wc === page && active() === page) askIntoFrame(page.mainFrame, msg.stay === true);
+        if (wc === page && active() === page) {
+          // Where the frame is, for a player inside it (see onFrame, `reveal`).
+          frameAt = hoverPoint({ x: msg.at?.x, y: msg.at?.y }, page.getZoomFactor(), viewSize(page));
+          askIntoFrame(page.mainFrame, msg.stay === true);
+        }
         break;
       case 'frameFieldDone': {
         // The person put the keyboard away: back to the pointer, where it was, if that is how they got there.
@@ -2226,14 +2238,38 @@ export function createBrowser(deps: BrowserDeps): Browser {
   let askTimer: NodeJS.Timeout | undefined;
   /** The highlight is inside some frame of the page. */
   let inFrame = false;
+  /** Pages that have something in the browser's own full screen. */
+  const fullPages = new WeakSet<WebContents>();
+  eachPage((wc) => {
+    wc.on('enter-html-full-screen', () => fullPages.add(wc));
+    wc.on('leave-html-full-screen', () => {
+      fullPages.delete(wc);
+      // The full screen a player's frame was given has ended (the browser
+      // ends it itself on Escape): the highlight is the page's again.
+      if (wc === page && playerInFrame) {
+        inFrame = false;
+        playerInFrame = false;
+        detach();
+        // The frames are told, so no highlight is left showing inside one.
+        for (const f of page.mainFrame.framesInSubtree) if (f !== page.mainFrame && !f.isDestroyed()) f.send('longboard:frame-out');
+      }
+    });
+  });
+  /** The middle of the frame the highlight was asked into from the page itself, in view pixels. */
+  let frameAt: { x: number; y: number } | null = null;
   /** The frame that had the highlight went to a new page: its new layer is asked to take it again. */
   let reasking = false;
-  const frameAnswered = (taken: boolean): void => {
+  const frameAnswered = (taken: boolean, player = false): void => {
     clearTimeout(askTimer);
     const to = asker;
     asker = null;
     if (to === page.mainFrame || taken) inFrame = taken;
-    if (to && !to.isDestroyed()) to.send('longboard:frame-in', taken ? 'in' : reasking ? 'lost' : 'none');
+    // A player in the frame: the DevTools input channel is kept while the highlight is in there.
+    const wasPlayer = playerInFrame;
+    playerInFrame = taken && player;
+    if (playerInFrame) attach();
+    else if (wasPlayer) detach();
+    if (to && !to.isDestroyed()) to.send('longboard:frame-in', taken ? 'in' : reasking ? 'lost' : 'none', taken && player);
     reasking = false;
   };
   const askIntoFrame = (from: Electron.WebFrameMain, stay: boolean, again = false): void => {
@@ -2251,7 +2287,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     const frame = event.senderFrame;
     if (!isPageView(event.sender) || !frame || frame === event.sender.mainFrame) return;
     if (what && typeof what === 'object') {
-      const said = what as { field?: unknown; secret?: unknown; hint?: unknown; top?: unknown; bottom?: unknown; enter?: unknown; stay?: unknown; entered?: unknown; exit?: unknown; menu?: unknown; pointer?: unknown };
+      const said = what as { field?: unknown; secret?: unknown; hint?: unknown; top?: unknown; bottom?: unknown; enter?: unknown; stay?: unknown; entered?: unknown; exit?: unknown; menu?: unknown; pointer?: unknown; playerKey?: unknown; reveal?: unknown; player?: unknown; click?: unknown };
       if (event.sender !== page || active() !== page) return;
       // The highlight inside frames: asked in, taken or not, and out again.
       if (said.enter === true) {
@@ -2259,17 +2295,55 @@ export function createBrowser(deps: BrowserDeps): Browser {
         return;
       }
       if (typeof said.entered === 'boolean') {
-        frameAnswered(said.entered);
+        frameAnswered(said.entered, said.player === true);
         return;
       }
       if (said.exit === 'up' || said.exit === 'down' || said.exit === 'left' || said.exit === 'right' || said.exit === 'back') {
         const to = frame.parent;
-        if (to === page.mainFrame) inFrame = false;
+        if (to === page.mainFrame) {
+          inFrame = false;
+          if (playerInFrame) {
+            playerInFrame = false;
+            detach();
+          }
+        }
         if (to && !to.isDestroyed()) to.send('longboard:frame-exit', said.exit);
         return;
       }
       if (said.menu === true) {
         toggleMenu();
+        return;
+      }
+      // A player inside the frame, while the highlight is in there: one of
+      // the player's keys, pressed as on any page (it goes to the frame,
+      // which has the cursor), or its controls brought up by a pointer
+      // movement over the frame.
+      // Both go through the DevTools input channel, as pointer mode's
+      // clicks do: Electron's own input events do not reach a frame served
+      // by another site. They are ordinary, trusted events either way.
+      if (inFrame && playerInFrame && typeof said.playerKey === 'string') {
+        const key = cdpKey(playerKeyInfo(said.playerKey));
+        if (key && attached) {
+          void page.debugger.sendCommand('Input.dispatchKeyEvent', { type: key.text ? 'keyDown' : 'rawKeyDown', ...key })
+            .then(() => page.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', ...key, text: undefined }))
+            .catch(() => undefined);
+        }
+        return;
+      }
+      if (inFrame && playerInFrame && (said.reveal === true || said.click === true)) {
+        const [w, h] = viewSize(page);
+        // A frame shown full screen has its middle at the screen's.
+        const at = (fullPages.has(page) ? null : frameAt) ?? { x: Math.round(w / 2), y: Math.round(h / 2) };
+        if (said.click === true) {
+          // OK on the bare picture of a player that does not answer its key until it has been clicked.
+          mouse(at.x, at.y, { type: 'move' });
+          mouse(at.x, at.y, { type: 'down' });
+          mouse(at.x, at.y, { type: 'up' });
+          return;
+        }
+        nudge = !nudge;
+        const steps = nudge ? [0, 20, 40, 60] : [60, 40, 20, 0];
+        steps.forEach((dx, i) => setTimeout(() => mouse(at.x + dx, at.y, { type: 'move' }), i * 40));
         return;
       }
       if (said.pointer === true) {

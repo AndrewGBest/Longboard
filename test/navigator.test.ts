@@ -504,6 +504,45 @@ describe('moving from a point', () => {
   });
 });
 
+describe('a body with no height that clips', () => {
+  it('hides nothing: what is pinned inside it shows', () => {
+    document.body.setAttribute('style', 'overflow-y: hidden');
+    document.body.setAttribute('data-rect', '0,0,960,0');
+    document.body.innerHTML = '<div style="position: fixed" data-rect="0,0,960,540"><button id="play" data-rect="20,480,40,40">p</button></div>';
+    const nav = new SpatialNavigator(document);
+    expect(ids(nav.candidates())).toEqual(['play']);
+    document.body.removeAttribute('style');
+    document.body.removeAttribute('data-rect');
+  });
+
+  it('while a clipped box of no height inside the page still hides what is in it', () => {
+    document.body.innerHTML = '<div style="overflow-y: hidden" data-rect="0,0,960,0"><button id="gone" data-rect="20,480,40,40">p</button></div><button id="here" data-rect="20,20,40,40">h</button>';
+    const nav = new SpatialNavigator(document);
+    expect(ids(nav.candidates())).toEqual(['here']);
+  });
+});
+
+describe('an embedded frame under a pinned bar', () => {
+  it('stays a target when the page\'s controls pass over its box', () => {
+    document.body.innerHTML = `
+      <iframe id="player" src="about:blank" data-rect="8,107,939,528"></iframe>
+      <button id="one" data-rect="194,479,189,54">1</button>
+      <button id="two" data-rect="383,479,189,54">2</button>
+      <button id="three" data-rect="572,479,189,54">3</button>`;
+    const nav = new SpatialNavigator(document);
+    expect(ids(nav.candidates())).toEqual(['one', 'player', 'three', 'two']);
+  });
+
+  it('while a link stretched under several controls is still dropped', () => {
+    document.body.innerHTML = `
+      <a href="#" id="banner" data-rect="8,107,939,528">x</a>
+      <button id="one" data-rect="194,479,189,54">1</button>
+      <button id="two" data-rect="383,479,189,54">2</button>`;
+    const nav = new SpatialNavigator(document);
+    expect(ids(nav.candidates())).toEqual(['one', 'two']);
+  });
+});
+
 describe('a thin slider', () => {
   const row = `
     <button id="play" data-rect="6,503,60,26">p</button>

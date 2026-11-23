@@ -952,6 +952,45 @@ await scenario('the highlight inside a frame from another site', { url: `${site.
   check('and the page is walked as before', await focused(), 'above');
 });
 
+// A made-up page that embeds a player from another origin, with the page's
+// own bar pinned over the frame's lower edge. The player is watched full
+// screen and driven with the remote, without the pointer.
+await scenario('a player in a frame from another site', { url: `${site.origin}/embed.html` }, async (app) => {
+  const page = await app.page(`${site.origin}/embed.html`);
+  const { evaluate, focused } = page;
+  const press = (key, wait = 700) => page.press(key, wait);
+  const inner = () => evaluate('__frame.state');
+  const full = () => evaluate('document.fullscreenElement?.id ?? null');
+  await sleep(1500);
+  await press('ArrowDown');
+  await press('ArrowDown');
+  check('the highlight lands on the frame, though the page\'s pinned bar lies over its lower edge', await focused(), 'frame');
+  await press('Enter', 1500);
+  check('OK on it shows the player full screen and hands it the keys, with no pointer', [await full(), await evaluate('document.activeElement?.id'), await page.pointerAt()], ['frame', 'frame', null]);
+  await press('Enter', 1200);
+  const first = await inner();
+  check('OK pauses: this player ignores its key until it has been clicked, so the picture is clicked once', [first.paused, first.space, first.clicks], [true, 0, 1]);
+  await press('Enter', 1200);
+  const second = await inner();
+  check('OK again plays, by the player\'s own key now that it answers it', [second.paused, second.space, second.clicks], [false, 1, 1]);
+  await press('ArrowRight');
+  await press('ArrowLeft');
+  check('left and right reach the player as its seek keys', [(await inner()).left, (await inner()).right], [1, 1]);
+  await press('ArrowDown', 1200);
+  const shown = await inner();
+  check('down brings the player\'s controls up, by a pointer movement, and lands on its progress bar', [shown.moves > 0, shown.ring], [true, 'progress']);
+  await press('ArrowRight');
+  check('right on the bar is the seek key again, though the bar never says it is a slider', [(await inner()).right, (await inner()).ring], [2, 'progress']);
+  await press('ArrowDown');
+  await press('Enter', 900);
+  const pressed = await inner();
+  check('down goes on to the buttons, and OK presses one', [['pp', 'full'].includes(pressed.ring), pressed.pressed.length], [true, 1]);
+  await press('Escape', 1500);
+  check('Back leaves the player: the full screen ends, the keys are the page\'s again and the highlight is on the frame', [await full(), await focused(), await evaluate('document.activeElement?.id ?? ""')], [null, 'frame', '']);
+  await press('ArrowDown');
+  check('and the page goes on below it', (await focused()) !== 'frame', true);
+});
+
 await scenario('a frame with nothing in it to select', { url: `${site.origin}/frames.html?inner=inner-picture.html` }, async (app) => {
   const page = await app.page(`${site.origin}/frames.html`);
   const { evaluate, press, focused } = page;

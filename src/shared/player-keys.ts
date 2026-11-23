@@ -78,6 +78,25 @@ export function playerKeyInfo(key: unknown): KeyInfo | null {
 }
 
 /**
+ * The same key as the DevTools input channel wants it said (the channel that
+ * reaches a frame served by another site). Null for no key.
+ */
+export function cdpKey(info: { domKey: string; char?: string } | null): { key: string; code: string; windowsVirtualKeyCode: number; nativeVirtualKeyCode: number; text?: string } | null {
+  if (!info) return null;
+  const named: Record<string, [string, number]> = {
+    ' ': ['Space', 32], ArrowLeft: ['ArrowLeft', 37], ArrowUp: ['ArrowUp', 38], ArrowRight: ['ArrowRight', 39], ArrowDown: ['ArrowDown', 40],
+    Escape: ['Escape', 27], Enter: ['Enter', 13], Backspace: ['Backspace', 8],
+  };
+  const key = info.domKey;
+  const known = named[key];
+  const letter = /^[a-z0-9]$/i.test(key);
+  if (!known && !letter) return null;
+  const [code, vk] = known ?? [(/[0-9]/.test(key) ? 'Digit' : 'Key') + key.toUpperCase(), key.toUpperCase().charCodeAt(0)];
+  const text = key === ' ' ? ' ' : key === 'Enter' ? '\r' : letter ? key : undefined;
+  return { key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, ...(text ? { text } : {}) };
+}
+
+/**
  * Remembers which key presses the layer itself asked for, so that when they
  * arrive as real key events the layer lets them through to the site instead
  * of handling them again. Time is passed in to keep this testable.

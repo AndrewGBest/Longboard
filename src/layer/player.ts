@@ -118,10 +118,19 @@ export function playerIsOwnPage(browseUrl: string | null, currentUrl: string): b
   }
 }
 
-/** A slider at least half as wide as the screen: the player's progress bar, not a volume control. */
+/**
+ * The player's progress bar, not a volume control: a slider at least half as
+ * wide as the screen. Many players draw the bar from plain boxes and never
+ * say it is a slider (seen on an open-source player a video site embeds), so
+ * inside a player a thin strip across most of the screen counts as well,
+ * unless it is plainly something else.
+ */
 export function isSeekBar(el: Element, view: Window): boolean {
+  const r = el.getBoundingClientRect();
   const slider = el.getAttribute('role') === 'slider' || (el instanceof HTMLInputElement && el.type === 'range');
-  return slider && el.getBoundingClientRect().width >= view.innerWidth / 2;
+  if (slider) return r.width >= view.innerWidth / 2;
+  if (el.matches('a[href], button, input, select, textarea, [role="button"], [role="link"], [role="tab"], [role="menuitem"]')) return false;
+  return r.width >= view.innerWidth * 0.6 && r.height > 0 && r.height <= 48;
 }
 
 /**
