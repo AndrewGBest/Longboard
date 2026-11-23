@@ -67,6 +67,17 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-23: 0.3.24 is released
+
+Andrew, asked: "Release it". Tagged and published 2026-11-23; both builds
+and the publish step passed. Everything in the entries below marked "not
+released" is in it. Still asked for before any later release.
+
+To hear back from Andrew, on a TV: YouTube's animation and previews signed
+in; embedded players; whether the menu is ever stranded again (if it is,
+the log now says once that a key reached the page behind it); Disney+ and
+Apple TV on 0.3.22 or later.
+
 ## 2026-11-23, late: to a TV site Longboard says the TV engine (0.3.24, not released)
 
 **Andrew, 2026-11-23:** "If reporting as a different browser enhances the
