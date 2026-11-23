@@ -8,6 +8,11 @@ New in 0.3.24 (not yet released; it takes in 0.3.23, which was never released):
 - **YouTube's TV app plays video previews.** Longboard's statement that it
   is running as a TV now also says the kind of chip and the year, as TV
   devices do. With those left out the site held previews back.
+- **YouTube's TV app plays at full size and frame rate.** It was held at
+  1280x720 and 30 pictures a second: the app asks a browser impossible
+  questions to see whether its answers can be trusted, and the engine
+  said yes to all of them. Longboard now says no to what it cannot play.
+  Measured in a 1920x1080 window: 1920x1080 at 60 for the same video.
 - **The menu cannot be left stranded.** A key that reaches the page while
   the menu (or Settings, or Home) is in front is passed on to it, and a
   game controller is read only by the screen in front.

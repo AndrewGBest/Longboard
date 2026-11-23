@@ -67,6 +67,27 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-23, night: what VacuumTube does, read from its source (0.3.24, not released)
+
+Andrew: "VacuumTube has previews working, make sure to study what they're
+doing." Its source (github.com/shy1132/VacuumTube, MIT) was read; none of
+it is used.
+
+| What it does | Its stated reason | Longboard |
+|---|---|---|
+| Says it is the TV engine, Cobalt, with its own name in the device part: `..., VacuumTube_DESKTOP_<chip>_<year>/<version> (VacuumTube, <system>)`, and sets the browser's brand hints to match | "leanback only lets you in with a user agent from one of the tv/console apps, and it decides a lot based on it (ui quality, thumbnails, player build, etc)" | Does not say it is Cobalt (rule 3). **Does** write its own TV statement in that device layout since this version; the site let Longboard in without the engine claim all along |
+| Nothing at all for previews | (none) | Previews came with the device layout: measured playing on 2026-11-23 |
+| Makes `MediaSource.isTypeSupported` say no to impossible sizes and rates | The player tests that "absurd" values are refused; when they are not it "falls back to assuming no hfr (capping videos at 720p30) and no hdr" | **Taken, written afresh** (`src/shared/video-truth.ts`). **Measured**, signed out, 1920x1080 window, one 4K 60 video: 1280x720 at 30 before; 1920x1080 at 60 after, in the built app |
+| Gives the page a `window.h5vcc` object, the TV engine's own interface (casting discovery, deep links, "container size override" to unlock sizes above the screen's) | Features that need it | Not done: it is another engine's interface, and saying a bigger screen than there is would be untrue |
+| Overrides entries of the site's own configuration in the page (webp pictures, no "sign in with your remote", memory saving) | Fixes for its own shell | Not done: Longboard does not rewrite a site's data |
+| Loosens the site's content-security policy, blocks ads and sponsors, adds its own settings page inside the site's | Its features | Not done (rules 5, 7 and the profile format) |
+
+**Still open:** animation. The site's configuration still says
+`steel_limited_animation: true` and `receiver_tier: 3` for Longboard. Not
+measured: what VacuumTube is given; whether the tier follows the engine
+claim. **Not verified:** any of this signed in, on a TV, or above
+1920x1080 (the test machine has no bigger screen and no graphics card).
+
 ## 2026-11-23, later: the stranded menu, the ring over full screen, YouTube's tier (0.3.24, not released)
 
 **Nothing here is released.** 0.3.24 is committed, not tagged; it takes in

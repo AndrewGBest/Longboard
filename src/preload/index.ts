@@ -3,6 +3,7 @@
 // API, so site scripts cannot call into the app.
 import { contextBridge, ipcRenderer } from 'electron';
 import { correctAudioAnswers } from '../shared/audio-truth';
+import { correctVideoAnswers } from '../shared/video-truth';
 import { fillLogin, watchLogins } from '../layer/logins';
 import type { Action, BootData, BridgeMessage, EditView, PointerSpot } from '../shared/actions';
 import { rulesFromUntrusted } from '../layer/profile/rules';
@@ -149,12 +150,14 @@ function frameLayer(sayField: (el: Element) => void): void {
 // run, in every frame (shared/audio-truth.ts). Nothing is exposed to the
 // page by this: one function is run there once and nothing of Longboard's
 // stays reachable.
-if (process.platform === 'linux') {
-  try {
-    (contextBridge as unknown as { executeInMainWorld: (script: { func: () => void }) => void }).executeInMainWorld({ func: correctAudioAnswers });
-  } catch {
-    // an engine without this call: pages get the engine's own answers
-  }
+// And on every system it says yes to any picture size or frame rate a page
+// names, the impossible included (shared/video-truth.ts).
+try {
+  const inPage = (func: () => void): void => (contextBridge as unknown as { executeInMainWorld: (script: { func: () => void }) => void }).executeInMainWorld({ func });
+  if (process.platform === 'linux') inPage(correctAudioAnswers);
+  inPage(correctVideoAnswers);
+} catch {
+  // an engine without this call: pages get the engine's own answers
 }
 
 const scripted = process.argv.includes('--longboard-automation');

@@ -3,6 +3,19 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-23: Longboard says no to picture sizes and frame rates it cannot play
+
+**The agent's assumption**, after Andrew asked that VacuumTube be studied.
+The same kind of correction as the one for AC-3 sound (2026-11-22), for
+the same kind of fault: the engine says yes to anything.
+
+| Question | Choice | Why |
+|---|---|---|
+| Which answer | `MediaSource.isTypeSupported` (and `ManagedMediaSource`), when the media type carries a width, height, frame rate, bit rate, channel count, transfer function, encryption block format or decode-to-texture value | These are the additions the TV engine understands; the engine in Longboard ignores them. Others are left to the engine |
+| The limits | 7680x4320, 120 pictures a second, 200 Mbit/s, 8 channels; a bright-range picture only on a bright-range screen | Taken from VacuumTube's module of the same purpose, as numbers, not code. **Not measured** against what this engine can in fact decode on a given box; a slow box may be offered more than it plays smoothly, which the site's player then steps down from, as on any device |
+| Where | Every site, every system | The answer is untrue everywhere; only sites that ask this way are affected |
+| Is this "getting past a resolution limit" (rules 2 and 3) | No, in the agent's reading; **Andrew should say if he reads it otherwise** | The site sets no limit for Longboard here. Its player falls back to 720p30 when a browser's answers cannot be trusted, and Longboard's could not. Nothing is claimed that is not so, protected playback is not touched, and a title the site restricts stays restricted |
+
 ## 2026-11-23: the TV statement also says the chip and the year
 
 **The agent's assumption, inside Hard rule 3 as Andrew amended it on

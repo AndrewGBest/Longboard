@@ -294,6 +294,8 @@ await scenario('a page driven with the arrows', { url: `${site.origin}/home.html
   })()`);
   check('ordinary (AAC) audio is supported', audio['mp4a.40.2'], [true, 'probably', true]);
   check('a page is told the truth about AC-3 and E-AC-3 sound, which the engine cannot decode on Linux and says it can', [audio['ac-3'], audio['ec-3']], [[false, '', false], [false, '', false]]);
+  const picture = await evaluate(`['width=640', 'width=99999', 'framerate=60', 'framerate=9999', 'width=3840; height=2160; framerate=60; bitrate=20000000'].map((more) => MediaSource.isTypeSupported('video/webm; codecs="vp9"; ' + more))`);
+  check('a page is told the truth about picture sizes and frame rates the engine cannot play, and says yes to those it can', picture, [true, false, true, false, true]);
   // The engine's own answer, asked where Longboard's correction does not reach (a worker): when this
   // turns false the engine has been put right and shared/audio-truth.ts can go (castLabs issue 221).
   const engine = await evaluate(`new Promise((done) => { const w = new Worker(URL.createObjectURL(new Blob(['postMessage(typeof MediaSource === "undefined" ? null : MediaSource.isTypeSupported(\\'audio/mp4; codecs="ec-3"\\'))'], { type: 'text/javascript' }))); w.onmessage = (e) => done(e.data); w.onerror = () => done('error'); })`);

@@ -41,7 +41,9 @@ Carried over from Tropic Video and kept:
 - nothing exposed to the page through `contextBridge`;
 - one function is run in the page's own world, on Linux only: it corrects
   the engine's wrong answer that it can play AC-3 and E-AC-3 sound
-  (`src/shared/audio-truth.ts`; a stopgap until the engine is fixed);
+  (`src/shared/audio-truth.ts`; a stopgap until the engine is fixed), and
+  another, on every system, makes it say no to picture sizes and frame
+  rates it cannot play (`src/shared/video-truth.ts`);
 - the user agent is Chromium's own, without the toolkit's tokens and with
   `Longboard/<version>` at the end; for a site
   whose profile says `view.device: "tv"` it is followed by the one statement
