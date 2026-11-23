@@ -67,6 +67,31 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-23, late night: Netflix's search bar stayed open; the Rogers issue (0.3.26, not released)
+
+- **Rogers is an open issue on GitHub**, at Andrew's word: issue 1,
+  "does not play: its licence server refuses Longboard on Linux". It says
+  what was ruled out, why it stays unresolved and what would change it.
+- **Andrew: on Netflix, opening search and then not searching leaves the
+  wide search bar over the menu.** **Reproduced**, signed in with his
+  sign-in and (the agent's choice, browsing only, nothing played) the
+  viewer named Andrew: OK on the magnifier spreads the box over two menu
+  entries; Back put the keyboard away and nothing closed the box.
+  **Measured, what closes it:** a real click elsewhere; a real Escape
+  reaching the page while the cursor is in the box. **What does not:** the
+  cursor leaving the box, a Tab, Escape after the cursor has left.
+  **Done:** Back that puts the on-screen keyboard away on a search box
+  with nothing typed also sends the site its own Escape key. A search box
+  is known by its markup (`src/layer/search-field.ts`): its type or role,
+  or the word "search" in any of its attributes (this one says it only in
+  a test hook). Not inside a pop-up, where Escape would close the pop-up;
+  not in a frame; not once something is typed.
+  **Verified:** unit tests; a scenario on the home fixture; on the live
+  site the bar closed, the menu entries came back and the highlight went
+  on along them.
+  **Not verified:** other sites' search boxes; a search box that is the
+  page's only purpose, where Escape may do something unwanted (none seen).
+
 ## 2026-11-23, night: 0.3.25 released; Rogers checked again
 
 **0.3.25 is released** (Andrew: "Release it"): OK on a player that ignores

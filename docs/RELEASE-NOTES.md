@@ -3,6 +3,13 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.26 (not yet released):
+
+- **Backing out of a search box closes it.** On a site whose search box
+  spreads over the menu when opened, Back with nothing typed now also
+  tells the site "Escape", which is what closes such a box. Before, it
+  stayed open over the menu. Checked on a film service.
+
 New in 0.3.25:
 
 - **OK pauses and plays on players that ignore the remote until they have

@@ -43,6 +43,10 @@
 </div>
 <div id="log"></div>
 <script>
+  // What a search box that closes itself on Escape would see (counted for the tests).
+  window.__searchEscapes = 0;
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && e.target && e.target.id === 'search') window.__searchEscapes++; });
+
   // Records what the page itself received, so tests can tell a blocked click from a delivered one.
   window.__clicks = [];
   document.addEventListener('click', (e) => {

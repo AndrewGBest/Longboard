@@ -3,6 +3,17 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-23: Back out of an empty search box tells the site Escape
+
+**The agent's assumption**, from Andrew's report on a film service.
+
+| Question | Choice | Why |
+|---|---|---|
+| When | Back while the on-screen keyboard is up for a search box that has nothing typed in it | That is "not searching after all". With something typed, the person may still want the search |
+| What | The keyboard is put away and the site is sent one real Escape key, the cursor still being in the box | Measured on the live site: that closes the spread-out box; the cursor merely leaving does not |
+| What counts as a search box | Its type or role, where it sits (`role="search"`), a profile's selector, or the word "search" in one of its attributes (never in what was typed) | Sites name the box in whatever attribute their own code uses. Nothing site-specific is written down |
+| Where not | Inside an open pop-up; in a frame's field | Escape there closes the pop-up, which nobody asked for |
+
 ## 2026-11-23: where it is measured to be better, Longboard may say it is another browser (Andrew)
 
 **Andrew, 2026-11-23, verbatim:** "If reporting as a different browser

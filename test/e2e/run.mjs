@@ -692,6 +692,23 @@ await scenario('a player that answers its keys only once clicked', { url: `${sit
   check('no pointer was left on screen and nothing is highlighted', [await page.pointerAt(), await focused()], [null, null]);
 });
 
+// Seen on a film service: its search box spreads over the menu when opened
+// and closes only on Escape with the cursor in it.
+await scenario('backing out of a search box without searching', { url: `${site.origin}/home.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const { evaluate } = page;
+  await sleep(800);
+  await page.press('/', 700);
+  check('the search key puts the cursor in the search box, with the keyboard', [await evaluate('document.activeElement?.id'), await page.keyboardShown()], ['search', true]);
+  await page.press('Escape', 900);
+  check('Back puts the keyboard away and, nothing having been typed, tells the site Escape once, in the box', [await page.keyboardShown(), await evaluate('__searchEscapes'), await evaluate('location.pathname')], [false, 1, '/home.html']);
+  await page.press('Enter', 700);
+  await page.press('Enter', 700);
+  check('with something typed', await evaluate('document.getElementById("search").value.length > 0'), true);
+  await page.press('Escape', 900);
+  check('Back only puts the keyboard away: what was typed is a search someone may still want', [await page.keyboardShown(), await evaluate('__searchEscapes'), await evaluate('document.getElementById("search").value.length > 0')], [false, 1, true]);
+});
+
 await scenario('a long article: reading with the arrows', { url: `${site.origin}/article.html` }, async (app) => {
   const page = await app.page(site.origin);
   const { evaluate, press, focused } = page;

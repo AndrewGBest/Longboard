@@ -9,6 +9,7 @@ import { elementAt, matchesOf, pickChain } from './edit/selector';
 import { scrollBy } from './generic/scroll';
 import { installPurchaseGuard, isSpendControl } from './guard/purchase-guard';
 import { startPolling } from './input/gamepad';
+import { isEmptyField, looksLikeSearch } from './search-field';
 import { TopEdge } from './input/top-edge';
 import { activeOption, openCombo } from './combobox';
 import { keyToAction, ownRemoteKey, type Mode } from './input/keys';
@@ -363,10 +364,11 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   const drawOsk = (): void => overlay.keyboard(oskOpen ? osk.rows : null, { row: osk.row, index: osk.index }, oskSubmit, oskSide);
   const isSearchField = (el: Element): boolean => {
     try {
-      return el.matches([...rules.selectors.searchInput, ...GENERIC_SEARCH].join(','));
+      if (el.matches([...rules.selectors.searchInput, ...GENERIC_SEARCH].join(','))) return true;
     } catch {
-      return false;
+      // a profile's selector the browser cannot read: go by the field itself
     }
+    return looksLikeSearch(el);
   };
   /** The highlight is inside this frame of the page (the frame has the keys and its own layer). */
   let frameInside: HTMLIFrameElement | null = null;
@@ -863,7 +865,18 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
         return;
       }
       if (a.type === 'back') {
+        // Back out of a search box with nothing typed is "not searching
+        // after all". The site is told so with its own Escape key, while the
+        // cursor is still in the box: a search box that has spread over the
+        // page's menu closes on that, and on nothing Longboard does
+        // otherwise. (Seen on a film service: left open, the box covered
+        // half the menu for good; moving the highlight away did not close
+        // it, Escape with the cursor in it did.) Not inside a pop-up, where
+        // Escape would close the pop-up, and not for a field in a frame.
+        const field = deepActiveElement(doc);
+        const dropSearch = !frameTyping && !!field && isTextEntry(field) && isSearchField(field) && isEmptyField(field) && !openDialog(doc);
         closeOsk();
+        if (dropSearch) pressKey('close');
         return;
       }
       closeOsk();
