@@ -3,6 +3,57 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-23, evening: the second use of rule 3's exception, a larger layout for browsers on TVs
+
+Andrew signed in to the cloud-gaming site in the test window so that the
+layout found earlier today could be measured properly. All of what follows
+is the agent's choice, made under his standing decision of this morning
+("If reporting as a different browser enhances the experience then you can
+do that. Otherwise report truthfully."), and is **an assumption for him to
+confirm**. It is built and not released.
+
+**The measurement** (signed in, 1920x1080, arrow keys sent by script under
+`--automation`; the detail is in the profile's NOTES.md in the profiles
+repository):
+
+| | As Longboard always says it is | With the words added |
+|---|---|---|
+| Layout | A side bar of small icons, controls about 53 by 56 on screen | No side bar, controls about 163 by 64 |
+| Arrow keys | The site's side bar keeps them: Down enters it, Right does not leave it, the games cannot be reached | Every row reached, along and between; OK opens a game's panel; Back closes it |
+
+That is a better experience by the rule's own test, and by a wide margin:
+without it the site cannot be used with a remote at all.
+
+**What is said.** Longboard's whole honest identity, unchanged, and at the
+end the generic term for a television with a browser. Seven endings were
+tried to find the least that works: "TV", "(TV)", "Large Screen" and a
+TV word before the last token did nothing; only that term did, hyphenated
+or not, in any case. The identity used for `"tv"` (the TV engine) did not
+change this site's layout either, so a second wording was needed.
+
+**Against the rule's conditions.** Measured and written here: yes. Wording
+fixed in `src/main/useragent.ts` and nowhere else: yes, one constant; the
+rule checker refuses the term anywhere else. Chosen by a profile's keyword
+only: `view.device: "tv-browser"`, and the validator accepts nothing but
+the two words. Longboard's name stays: yes, untouched. No other maker's
+device named, no ID invented: the term is generic; several makers' TV
+browsers use it, and none owns it (the agent's reading). Not used to get
+past DRM, a paywall or a region limit: it changes which layout of the
+same pages is served; what the account may play is the site's decision
+either way, and no stream was started in testing.
+
+**How it differs from "tv".** Nothing about the engine is said that is not
+so. And Longboard goes on driving the page with its own highlight: the
+keys are not handed to the site, because this layout is ordinary buttons,
+which the generic mode reaches.
+
+**Not known.** Whether a game stream starts and plays in this layout: the
+test machine has no controller and the site asks for one. The profile is
+written (profiles repository, `play.xbox.com`) and **not pushed**: it
+reaches every copy within a day, so it waits for Andrew with the release.
+Versions before 0.3.28 do not know the word; they leave such a profile out
+and show the site as before (`src/main/catalogue.ts`).
+
 ## 2026-11-23: the front page, the website, and a second TV layout found but not built
 
 Andrew, at the 0.3.27 milestone: test the top sites and media apps, make

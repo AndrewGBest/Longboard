@@ -31,6 +31,38 @@ calendar in places** (the agent's slip; the commit dates are right).
 - **Waiting on others:** castLabs' December release (then the AC-3
   stopgap goes).
 
+## 2026-11-23, evening: the cloud-gaming site's TV layout (0.3.28, not released)
+
+Andrew signed in to the site in the sign-in window (nothing attached to
+it), and the layout found this afternoon was measured and then built.
+
+- **Built:** a second word for `view.device`, `"tv-browser"`: Longboard's
+  usual identity with the words for a television with a browser at the
+  end (`src/main/useragent.ts`, the one place). Reasons and the
+  measurement: DECISIONS.md of this date. Unit tests for the wording, for
+  which pages get it, and for the validator; the rule checker refuses the
+  term anywhere else.
+- **Verified in the real app,** signed in, under `--automation`, with the
+  profile as one of the person's own: the site serves the TV layout; the
+  arrows reach the top bar and every row tried; OK on a game opens the
+  site's panel and Back closes it; Up twice at the top opens the menu;
+  another site, in a second run with the profile loaded, is told the
+  usual identity.
+- **Not verified:** playing a game (no controller on this machine; the
+  site asks for one); a real controller on the site's pages; anything at
+  a TV.
+- **Tests:** 637 unit tests and the rule check pass; the whole end-to-end
+  suite passes locally (615 checks), with a new scenario for the word on
+  a made-up site: what the page is told, that the highlight stays
+  Longboard's, and that a page the profile does not name is told the
+  usual.
+- **Waiting for Andrew:** the release, and the profile
+  (`play.xbox.com` in the profiles repository, committed locally, not
+  pushed). Until both are out nobody sees any change.
+- **Seen on the way:** in the site's ordinary layout Right does not leave
+  the side bar. That is the site keeping the keys for its own list; with
+  the profile the side bar is not there. Not looked into further.
+
 ## 2026-11-23, afternoon: the milestone pass (0.3.28, not released)
 
 Andrew: test the top sites and media apps, make sure no TV interface is

@@ -58,6 +58,32 @@ export function tvUserAgent(honest: string, product: string, version: string, sy
 }
 
 /**
+ * What Longboard says to a site whose profile asks for the layout it gives
+ * browsers on TVs (`view.device: "tv-browser"`): everything it always says,
+ * with the plain words for a television that has a browser added at the end.
+ *
+ * The second use of rule 3's exception, and a smaller one than the first:
+ * the engine, its version, the system and Longboard's name all stay as
+ * they are. What is added is a description of the kind of device, which is
+ * true where Longboard is used as intended and not on a desk. The words
+ * are a generic term, no maker's product; several makers' TV browsers
+ * happen to use them too.
+ *
+ * Why, measured signed in on a cloud-gaming site on 2026-11-23
+ * (docs/DECISIONS.md): without the words the site's side bar keeps the
+ * arrow keys and the highlight cannot reach the games; with them the site
+ * serves a layout with larger controls, no side bar, and every row in
+ * reach. Of seven endings tried only this term, hyphenated or not, did it.
+ *
+ * A profile cannot change a letter of it, and it is never used to get past
+ * DRM, a paywall or a region limit (rule 2).
+ */
+export function tvBrowserUserAgent(honest: string): string {
+  return `${honest} ${TV_BROWSER_WORDS}`;
+}
+export const TV_BROWSER_WORDS = 'Smart-TV';
+
+/**
  * The TV engine's name and version, and the number of its system interface,
  * as a current TV app states them (the values the open-source program
  * VacuumTube gives, read 2026-11-23). They age: when the video site stops
@@ -85,26 +111,30 @@ export function systemName(honest: string): string {
 
 /**
  * Keeps what each website view says it is in step with where it is going.
- * `tvFor` says whether an address has a profile asking for the TV
- * interface. This is the one place a view's identity is set; the checker
+ * `deviceFor` says which of the two identities an address's profile asks
+ * for, if either ("tv": `tv`; "tv-browser": `tvBrowser`). This is the one place a view's identity is set; the checker
  * (scripts/check-rules.mjs) refuses it anywhere else.
  */
-export function identityFor(honest: string, tv: string, tvFor: (url: string) => boolean): {
+export function identityFor(honest: string, tv: string, tvBrowser: string, deviceFor: (url: string) => 'tv' | 'tv-browser' | null): {
   of: (url: string) => string;
   header: (details: { url: string; resourceType: string; webContents?: Electron.WebContents | undefined; requestHeaders: Record<string, string> }) => Record<string, string>;
   follow: (wc: Electron.WebContents, url: string) => void;
 } {
-  const of = (url: string): string => (tvFor(url) ? tv : honest);
+  const of = (url: string): string => {
+    const device = deviceFor(url);
+    return device === 'tv' ? tv : device === 'tv-browser' ? tvBrowser : honest;
+  };
   return {
     of,
-    // What a request says: the page it is for decides, so everything a TV
+    // What a request says: the page it is for decides, so everything such a
     // page fetches says the same as the page did.
     header: (details) => {
       const page = details.resourceType === 'mainFrame' ? details.url : details.webContents && !details.webContents.isDestroyed() ? details.webContents.getURL() : '';
-      if (!page || !tvFor(page)) return details.requestHeaders;
+      const want = page ? of(page) : honest;
+      if (want === honest) return details.requestHeaders;
       const out: Record<string, string> = {};
       for (const [name, value] of Object.entries(details.requestHeaders)) if (name.toLowerCase() !== 'user-agent') out[name] = value;
-      out['User-Agent'] = tv;
+      out['User-Agent'] = want;
       return out;
     },
     // What the page's own scripts are told.

@@ -40,8 +40,11 @@ The reasoning for each is in `docs/LEGAL-GUARDRAILS.md`.
    can the person (no user-agent switcher); Longboard's own name stays in
    it wherever the format has a place for one; no other maker's device,
    console or phone is named and no device ID or serial is invented. The
-   one use so far: a site whose profile says `view.device: "tv"` is told
-   the engine TV apps run on, with Longboard as the device. It is never
+   two uses so far: a site whose profile says `view.device: "tv"` is told
+   the engine TV apps run on, with Longboard as the device; a site whose
+   profile says `view.device: "tv-browser"` is told what every site is
+   told, with the plain words for a television with a browser added at
+   the end. It is never
    used to get past DRM, a paywall or a region limit (rule 2 stands
    untouched).
 4. *(Removed by Andrew, 2026-11-18. Longboard is a whole browser, not a

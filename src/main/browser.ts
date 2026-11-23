@@ -44,8 +44,8 @@ import { readJson, writeJson } from './store';
 import { MENU_TIP } from '../shared/about';
 import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeLauncher } from '../platform';
 import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
-import { canvasOf, wantsTv, type Profile, type ProfileSource } from '../shared/profile';
-import { buildYear, chipName, identityFor, systemName, tvUserAgent } from './useragent';
+import { canvasOf, deviceOf, type Profile, type ProfileSource } from '../shared/profile';
+import { buildYear, chipName, identityFor, systemName, tvBrowserUserAgent, tvUserAgent } from './useragent';
 import { desktopZoom, hoverPoint, pageBounds, tvZoom } from './zoom';
 import { cdpKey, strayKeyCode } from '../shared/player-keys';
 import { filterSession, type FilterSet } from './adblock';
@@ -1928,7 +1928,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // whose profile asks for its TV interface, that plus "running as a TV"
   // (main/useragent.ts; rule 3 as amended 2026-11-21).
   const honestAgent = app.userAgentFallback;
-  const identity = identityFor(honestAgent, tvUserAgent(honestAgent, PRODUCT.name, app.getVersion(), systemName(honestAgent), chipName(process.arch), buildYear(), process.versions.v8.replace(/-.*$/, '')), (url) => wantsTv(profileFor(url)?.profile ?? null));
+  const identity = identityFor(honestAgent, tvUserAgent(honestAgent, PRODUCT.name, app.getVersion(), systemName(honestAgent), chipName(process.arch), buildYear(), process.versions.v8.replace(/-.*$/, '')), tvBrowserUserAgent(honestAgent), (url) => deviceOf(profileFor(url)?.profile ?? null));
   eachPage((wc) => wc.on('did-start-navigation', (details) => {
     if (details.isMainFrame && !details.isSameDocument) identity.follow(wc, details.url);
   }));

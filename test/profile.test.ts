@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { genericRules, rulesFrom, rulesFromUntrusted, rulesReport } from '../src/layer/profile/rules';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
 import { ProfileStore, sourceLabel } from '../src/main/profiles';
-import { canvasOf, wantsTv, entryFor, chooseProfile, exportName, hostMatches, importKey, matchScore, validateProfile, type Profile, type StoredProfile } from '../src/shared/profile';
+import { canvasOf, deviceOf, wantsTv, entryFor, chooseProfile, exportName, hostMatches, importKey, matchScore, validateProfile, type Profile, type StoredProfile } from '../src/shared/profile';
 
 const base = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
   longboard: 1,
@@ -405,8 +405,14 @@ describe('a site with an interface for TVs', () => {
     expect(wantsTv(valid())).toBe(false);
     expect(wantsTv(null)).toBe(false);
     for (const device of ['console', 'TV', 'phone', 'Mozilla/5.0 (Another Browser)', true, { tv: true }]) {
-      expect(validateProfile(base({ view: { device } })).problems.join()).toContain('"view.device" can only be "tv"');
+      expect(validateProfile(base({ view: { device } })).problems.join()).toContain('"view.device" can only be "tv" or "tv-browser"');
     }
+    // The second word: a larger layout of the ordinary pages. Longboard goes on driving those itself.
+    expect(deviceOf(valid({ view: { device: 'tv-browser' } }))).toBe('tv-browser');
+    expect(deviceOf(valid({ view: { device: 'tv' } }))).toBe('tv');
+    expect(deviceOf(valid())).toBeNull();
+    expect(wantsTv(valid({ view: { device: 'tv-browser' } }))).toBe(false);
+    expect(rulesFrom(valid({ view: { device: 'tv-browser' } })).ownRemote).toBe(false);
     // No way to hand over a user agent of the profile's own.
     expect(validateProfile(base({ view: { userAgent: 'x' } })).profile).toBeNull();
     expect(validateProfile(base({ identity: 'x' })).profile).toBeNull();

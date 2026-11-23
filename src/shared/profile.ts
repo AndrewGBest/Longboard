@@ -33,7 +33,7 @@ export interface Profile {
   authors: string[];
   licence: string;
   match: { hosts: string[]; paths?: string[] };
-  view?: { canvas?: string; safeMargin?: number; device?: 'tv'; entry?: string; carry?: string[] };
+  view?: { canvas?: string; safeMargin?: number; device?: 'tv' | 'tv-browser'; entry?: string; carry?: string[] };
   focus?: {
     /** Elements that can take the highlight, added to what generic mode finds. */
     include?: string[];
@@ -169,9 +169,9 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
       else profile.view.canvas = view['canvas'];
     }
     if (view['device'] !== undefined) {
-      // One word and nothing else: a profile cannot say what Longboard calls itself (Hard rule 3).
-      if (view['device'] !== 'tv') bad('"view.device" can only be "tv"');
-      else profile.view.device = 'tv';
+      // One of two words and nothing else: a profile cannot say what Longboard calls itself (Hard rule 3).
+      if (view['device'] !== 'tv' && view['device'] !== 'tv-browser') bad('"view.device" can only be "tv" or "tv-browser"');
+      else profile.view.device = view['device'];
     }
     if (view['entry'] !== undefined) {
       // A path on the site itself and nothing more: never another site, never an address with a question in it.
@@ -384,6 +384,17 @@ export function canvasOf(profile: Profile | null): { width: number; height: numb
  */
 export function wantsTv(profile: Profile | null): boolean {
   return profile?.view?.device === 'tv';
+}
+
+/**
+ * Which of the two things a profile can ask Longboard to say it is, or
+ * null for neither. "tv" is the one above. "tv-browser" is for a site that
+ * gives browsers on TVs a larger layout of its ordinary pages: Longboard
+ * says what it always says and adds that it is on a TV, and goes on
+ * driving the page itself.
+ */
+export function deviceOf(profile: Profile | null): 'tv' | 'tv-browser' | null {
+  return profile?.view?.device ?? null;
 }
 
 /**

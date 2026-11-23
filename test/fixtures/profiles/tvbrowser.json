@@ -1,0 +1,11 @@
+{
+  "longboard": 1,
+  "id": "fixture-tv-browser",
+  "name": "A made-up site with a layout for browsers on TVs",
+  "version": "1.0.0",
+  "authors": ["longboard"],
+  "licence": "CC0-1.0",
+  "match": { "hosts": ["profile.test"], "paths": ["/article.html"] },
+  "view": { "device": "tv-browser" },
+  "evidence": { "outline": "outline.txt" }
+}

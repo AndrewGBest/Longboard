@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { installPurchaseGuard, isSpendControl, looksLikeSpendUrl } from '../src/layer/guard/purchase-guard';
 import { buildOutline, maskIdentifier, sanitizeUrl } from '../src/layer/diagnostics/outline';
-import { browserUserAgent, buildYear, chipName, identityFor, systemName, tvUserAgent } from '../src/main/useragent';
+import { browserUserAgent, buildYear, chipName, identityFor, systemName, tvBrowserUserAgent, tvUserAgent } from '../src/main/useragent';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { aboutTitle, NOTICE } from '../src/shared/about';
@@ -245,7 +245,8 @@ describe('the guard, after an independent review', () => {
 describe('what Longboard says it is to a site with an interface for TVs (rule 3, amended 2026-11-21 and 2026-11-23)', () => {
   const honest = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Longboard/1.2.3';
   const tv = tvUserAgent(honest, 'Longboard', '1.2.3', systemName(honest), chipName('x64'), '2026', '15.6.1');
-  const id = identityFor(honest, tv, (url) => new URL(url).pathname.startsWith('/tv'));
+  const big = tvBrowserUserAgent(honest);
+  const id = identityFor(honest, tv, big, (url) => (new URL(url).pathname.startsWith('/tv') ? 'tv' : new URL(url).hostname === 'games.example' ? 'tv-browser' : null));
 
   it('adds only that it is Longboard running as a TV', () => {
     expect(tv).toBe('Mozilla/5.0 (X11; Linux x86_64) Cobalt/27.lts.3.1040976-gold (unlike Gecko) v8/15.6.1-jit gles Starboard/18, Longboard_TV_x8664_2026/1.2.3 (Longboard, Linux)');
@@ -256,6 +257,17 @@ describe('what Longboard says it is to a site with an interface for TVs (rule 3,
     expect(tv.endsWith(', Longboard_TV_x8664_2026/1.2.3 (Longboard, Linux)')).toBe(true);
     expect(browserUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Electron/45.2.1 Safari/537.36', 'Longboard', '1.2.3')).toBe(honest);
     expect(systemName('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBe('macOS');
+  });
+
+  it('adds only the words for a browser on a TV where a profile asks for that layout', () => {
+    // Engine, version, system and name untouched; no maker's device named.
+    expect(big).toBe(`${honest} Smart-TV`);
+    expect(big).not.toMatch(/Tizen|Web0S|PlayStation|Xbox|Android|Cobalt/i);
+    expect(id.of('https://games.example/play')).toBe(big);
+    const headers = { 'user-agent': honest, Accept: '*/*' };
+    expect(id.header({ url: 'https://games.example/', resourceType: 'mainFrame', requestHeaders: headers })).toEqual({ Accept: '*/*', 'User-Agent': big });
+    const on = (url: string): Electron.WebContents => ({ isDestroyed: () => false, getURL: () => url }) as unknown as Electron.WebContents;
+    expect(id.header({ url: 'https://pictures.example/a.png', resourceType: 'image', webContents: on('https://games.example/x'), requestHeaders: headers })['User-Agent']).toBe(big);
   });
 
   it('says so only for the pages a profile names, and for what those pages fetch', () => {

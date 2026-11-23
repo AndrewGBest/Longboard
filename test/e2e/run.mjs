@@ -1357,6 +1357,35 @@ await scenario(
   },
 );
 
+// The second thing a profile can ask Longboard to say: that it is a browser
+// on a TV, added to what it always says. The page stays Longboard's to drive.
+await scenario(
+  'a site with a layout for browsers on TVs',
+  {
+    url: `http://profile.test:${port}/article.html`,
+    args: [mapHost],
+    seed: (data) => {
+      mkdirSync(join(data, 'profiles'), { recursive: true });
+      copyFileSync(join(root, 'test/fixtures/profiles/tvbrowser.json'), join(data, 'profiles/tvbrowser.json'));
+    },
+  },
+  async (app) => {
+    const page = await app.page('http://profile.test');
+    const { evaluate, press } = page;
+    await sleep(800);
+    const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+    const said = await evaluate('navigator.userAgent');
+    check('the page is told what every page is told, and at the end that this is a TV', [/^Mozilla\/5\.0 \(X11; Linux [^)]+\) AppleWebKit\/\S+ \(KHTML, like Gecko\) Chrome\/\S+ Safari\/\S+ Longboard\/\S+ Smart-TV$/.test(said), said.endsWith(` Longboard/${version} Smart-TV`)], [true, true]);
+    check('no maker\'s device or other engine is named', /Tizen|Web0S|PlayStation|Xbox|Android|Windows|Macintosh|Cobalt/i.test(said), false);
+    await press('ArrowDown', 300);
+    check('the highlight is still Longboard\'s to move', await evaluate('!!document.querySelector("[data-longboard-focus]")'), true);
+    await evaluate(`location.href = 'http://profile.test:${port}/home.html'; 0`);
+    await until(() => evaluate('location.pathname'), (at) => at === '/home.html', 40);
+    await sleep(500);
+    check('a page the profile does not name is told the usual', (await evaluate('navigator.userAgent')).endsWith(` Longboard/${version}`), true);
+  },
+);
+
 await scenario(
   'a profile of your own',
   {

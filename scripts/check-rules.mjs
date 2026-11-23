@@ -19,14 +19,15 @@ const BANNED_NAMES = /(^|\/)(cookies?(\.txt|\.json|\.sqlite)?|Login Data|Local S
 const TEXT_EXT = new Set(['.ts', '.mjs', '.js', '.json', '.css', '.html', '.yml', '.yaml']);
 const SELF = 'scripts/check-rules.mjs';
 // Rule 3, as amended 2026-11-21: Longboard's honest identity, and for a site
-// whose profile says "tv", the same identity plus "Longboard running as a TV".
+// whose profile says "tv", the same identity plus "Longboard running as a TV";
+// as amended 2026-11-23, the two measured exceptions written in that module.
 const IDENTITY_MODULE = 'src/main/useragent.ts';
 
 const CODE_CHECKS = [
   // Rule 2
   [2, /libwidevine|widevinecdm|content_decryption_module|pywidevine|license_?server|getLicense|keyStatuses|MediaKeySession\b.*\.update/i, 'touches the CDM or licence exchange'],
   // Rule 3
-  [3, /SMART-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|AFT[A-Z]|Android TV|PlayStation|Xbox|Windows NT|Macintosh|CrOS/, 'looks like a spoofed device or OS identity'],
+  [3, /SMART-TV|Smart-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|AFT[A-Z]|Android TV|PlayStation|Xbox|Windows NT|Macintosh|CrOS/, 'looks like a spoofed device or OS identity'],
   // Rule 3 as amended 2026-11-23: the TV engine may be named, in the one identity module and nowhere else.
   [3, /Cobalt\/|Starboard\//, 'names the TV engine outside the one module that may'],
   // Rule 3: what a view says it is, is decided in one module (see IDENTITY_MODULE below).
@@ -53,7 +54,9 @@ for (const file of files) {
     // The one module that may say what a view is. It is still held to the
     // other rule-3 check: no other maker's device, system or browser is named in it.
     if (file === IDENTITY_MODULE && (pattern.source.startsWith('setUserAgent') || pattern.source.startsWith('Cobalt'))) continue;
-    const m = pattern.exec(text);
+    // The words for a browser on a TV: once, in that module, as a named constant (rule 3's second measured use).
+    const own = file === IDENTITY_MODULE && pattern.source.startsWith('SMART-TV') ? text.replace("TV_BROWSER_WORDS = 'Smart-TV'", '') : text;
+    const m = pattern.exec(own);
     if (m) fail(rule, file, `${why} (matched "${m[0]}")`);
   }
 }
@@ -79,7 +82,7 @@ for (const file of files) {
 {
   const format = readFileSync('src/shared/profile.ts', 'utf8');
   if (/userAgent|user_agent|['"]identity['"]/.test(format)) fail(3, 'src/shared/profile.ts', 'the profile format must not carry a user agent or an identity of its own');
-  if (!/view\['device'\] !== 'tv'/.test(format)) fail(3, 'src/shared/profile.ts', '"view.device" must be checked to be exactly "tv"');
+  if (!/view\['device'\] !== 'tv' && view\['device'\] !== 'tv-browser'\) bad/.test(format)) fail(3, 'src/shared/profile.ts', '"view.device" must be checked to be exactly "tv" or "tv-browser"');
 }
 
 // Rule 6: branding.

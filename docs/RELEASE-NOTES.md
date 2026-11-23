@@ -10,6 +10,14 @@ New in 0.3.28 (not released yet):
   and the frame and the menu could not be opened with Up twice. Now Up out
   of such a frame is Up at the top of the page, and a frame as big as the
   screen is scrolled past like anything else.
+- **A profile can ask for the layout a site gives browsers on TVs**
+  (`view.device: "tv-browser"`). Longboard then adds, after everything it
+  always says about itself, that it is on a TV, and goes on moving the
+  highlight itself. The first profile to use it is for a cloud-gaming
+  site, where the ordinary layout's side bar kept the arrow keys and the
+  games could not be reached; in the TV layout every row can. Checked by
+  script, signed in, as far as a game's own panel. Playing a game has not
+  been tried.
 
 New in 0.3.27:
 

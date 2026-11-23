@@ -38,7 +38,7 @@ up per site.
   for the rare page the highlight cannot handle.
 - **Profiles for the finishing touches.** A profile is a small settings
   file for one website: where the highlight starts, or that the site has an
-  interface made for TVs, which Longboard then opens instead. Profiles are
+  interface or a layout made for TVs, which Longboard then asks for. Profiles are
   data, not programs; anyone can
   [write one](https://github.com/AndrewGBest/Longboard-Profiles).
 - **Ad blocking you control**, per site, and **no telemetry** at all.
@@ -158,9 +158,11 @@ Compared with a mainstream browser, today:
   itself in the background is listed in Settings and can be turned off.
 - **Pretend to be something it is not, except where that is measured to
   help.** Longboard tells sites what it is: the engine it is built on, and
-  its own name. The one exception today: a site with an interface made for
-  TVs is told the engine TV apps run on, with Longboard as the device,
-  because that is what makes the site serve its TV interface. It never
+  its own name. The two exceptions today: a site with an interface made
+  for TVs is told the engine TV apps run on, with Longboard as the device,
+  because that is what makes the site serve its TV interface; and a site
+  with a larger layout for browsers on TVs is told, after everything
+  Longboard always says, that it is on one. It never
   claims to be another maker's device, and never does this to get past DRM,
   a paywall or a region limit.
 
