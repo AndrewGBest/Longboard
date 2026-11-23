@@ -731,6 +731,39 @@ await scenario('the whole window is covered while another site arrives', { url: 
   check('a page of the same site is not covered', await cover(), null);
 });
 
+// A made-up page shaped like a sports network's live page: tabs, a player
+// nearly as big as the window, and under it the row of channels people come
+// for. The player is one stop on the way down the page, not a trap.
+await scenario('a big player in the middle of a long page', { url: `${site.origin}/pageplayer.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const { evaluate, focused } = page;
+  const press = (key, wait = 900) => page.press(key, wait);
+  const pictureShown = () => evaluate('(() => { const r = document.getElementById("v").getBoundingClientRect(); return r.top >= -2 && r.bottom <= innerHeight + 2; })()');
+  await sleep(1500);
+  await press('ArrowDown');
+  check('the first press lands on the page\'s tabs: with the picture half off the screen this is a page', ['tab-live', 'tab-schedule'].includes(await focused()), true);
+  await press('ArrowDown');
+  check('down stops at the picture: nothing is highlighted and the whole picture is brought on screen', [await focused(), await pictureShown()], [null, true]);
+  await press('Enter', 1200);
+  check('there OK plays and pauses, and left and right are the player\'s', [await evaluate('document.getElementById("v").paused'), await evaluate('__pp.space')], [true, 1]);
+  await press('Enter', 1200);
+  await press('ArrowRight');
+  check('the player\'s own keys reach it once each', await evaluate('[__pp.space, __pp.right, document.getElementById("v").paused]'), [2, 1, false]);
+  await press('ArrowDown', 1300);
+  check('down brings the player\'s controls up and lands on one', ['pp', 'full'].includes(await focused()), true);
+  await press('ArrowDown', 1300);
+  check('down again leaves the player for the page below it', await focused(), 'more');
+  await press('ArrowDown');
+  await press('ArrowRight');
+  check('and reaches the row of channels, where left and right choose', await focused(), 'ch2');
+  await press('Enter', 1800);
+  check('OK on a channel chooses it; the page goes back to the picture and the highlight with it', [await evaluate('__pp.channel'), await focused(), await pictureShown()], [2, null, true]);
+  await press('ArrowUp', 1300);
+  check('up from the picture brings its controls up, on the play button', await focused(), 'pp');
+  await press('ArrowUp', 1300);
+  check('and up again goes on to the tabs above', ['tab-live', 'tab-schedule'].includes(await focused()), true);
+});
+
 await scenario('a long article: reading with the arrows', { url: `${site.origin}/article.html` }, async (app) => {
   const page = await app.page(site.origin);
   const { evaluate, press, focused } = page;

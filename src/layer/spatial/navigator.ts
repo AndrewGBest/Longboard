@@ -210,6 +210,10 @@ export function isVisible(el: Element, view: Window, faded?: Map<Element, boolea
     // picture-sized ones count; small transparent controls stay hidden.
     const hitArea = el.matches('a[href], button, [role="button"], [role="link"]');
     if (!hitArea || r.width < 48 || r.height < 48) return false;
+    // Not one put behind the page as well: that is a link kept out of sight
+    // until a keyboard's Tab reaches it ("skip to main content"), not
+    // something laid over a picture. (Seen on a sports network's site.)
+    if (Number(style.zIndex) < 0) return false;
   }
   if (deepClosest(el, '[aria-hidden="true"], [inert]')) return false;
   // Opacity is not inherited in the computed style, but a transparent ancestor
@@ -580,6 +584,8 @@ export class SpatialNavigator {
   /** Elements already looked at for the hand cursor. */
   private readonly looked = new WeakSet<Element>();
   private handsLooked = false;
+  /** The move being made goes straight to its target (see `move`). */
+  private straight = false;
   private lookWaiting = false;
   /** When the last move was made, to tell a held key from single presses. */
   private lastMoveAt = 0;
@@ -988,10 +994,16 @@ export class SpatialNavigator {
     return best ? this.focus(best) : null;
   }
 
-  move(dir: Direction): boolean {
+  /**
+   * `straight`: go to the next thing that way however far it is, without the
+   * step-at-a-time scrolling of a page being read or of a held key (leaving
+   * a player for the page round it).
+   */
+  move(dir: Direction, straight = false): boolean {
     // Measured from the end of the last move: on a long page a move takes
     // time itself, and that must not make a held key look like single presses.
-    this.rapid = Date.now() - this.lastMoveAt < RAPID_MS;
+    this.rapid = !straight && Date.now() - this.lastMoveAt < RAPID_MS;
+    this.straight = straight;
     // First among what is near the screen, which is quick; the whole page
     // only when nothing near lies that way.
     const before = this.focused;
@@ -1344,7 +1356,7 @@ export class SpatialNavigator {
     // a target far outside the screen may only be the next thing loaded so
     // far (the footer, with rows still to come before it). Scroll toward it
     // and let the next repeat decide again.
-    if (target && view && (this.rapid || this.opts.readingScroll) && (dir === 'up' || dir === 'down')) {
+    if (target && view && !this.straight && (this.rapid || this.opts.readingScroll) && (dir === 'up' || dir === 'down')) {
       const r = target.getBoundingClientRect();
       // A single press on a page being read jumps to what is just past the
       // edge: bringing it to the middle then moves the page by less than a

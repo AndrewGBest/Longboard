@@ -617,6 +617,12 @@ describe('a thin slider', () => {
 });
 
 describe('transparent hit areas', () => {
+  it('does not take a transparent link put behind the page (a hidden "skip" link) for one', () => {
+    document.body.innerHTML = '<a href="#main" id="skip" style="opacity: 0; z-index: -1; position: absolute" data-rect="24,14,193,52">s</a><a href="#" id="real" data-rect="24,100,193,52">r</a>';
+    const nav = new SpatialNavigator(document);
+    expect(ids(nav.candidates())).toEqual(['real']);
+  });
+
   it('keeps one target where a link and a transparent button share a box', () => {
     document.body.innerHTML = `
       <div><a href="#" id="cardLink" data-rect="10,10,217,122">x</a><button id="ghostButton" style="opacity: 0" data-rect="10,11,217,122">x</button></div>

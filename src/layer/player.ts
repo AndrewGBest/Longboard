@@ -2,14 +2,59 @@
 // element or touches the media pipeline or DRM. Control is sent as ordinary
 // key presses (see shared/player-keys.ts).
 
+/** The part of an element's box that lies inside the window, in square pixels. */
+function shownArea(el: Element): number {
+  const view = el.ownerDocument.defaultView;
+  const r = el.getBoundingClientRect();
+  if (!view) return r.width * r.height;
+  const w = Math.min(r.right, view.innerWidth) - Math.max(r.left, 0);
+  const h = Math.min(r.bottom, view.innerHeight) - Math.max(r.top, 0);
+  return Math.max(0, w) * Math.max(0, h);
+}
+
+/**
+ * The big video of a page that is longer than the screen: the largest
+ * unmuted one whose whole box, on screen or scrolled away, is at least
+ * `minShare` of the window. Null when there is none. For a page where the
+ * player is one stop among others (a row of channels below it, the site's
+ * tabs above), so that the arrows can come back to the picture.
+ */
+export function pageVideo(doc: Document, minShare = 0.5): HTMLVideoElement | null {
+  const view = doc.defaultView;
+  if (!view) return null;
+  let best: HTMLVideoElement | null = null;
+  let bestArea = 0;
+  for (const v of doc.querySelectorAll('video')) {
+    if (v.muted) continue;
+    const r = v.getBoundingClientRect();
+    const area = r.width * r.height;
+    if (area > bestArea) {
+      best = v;
+      bestArea = area;
+    }
+  }
+  return best && bestArea >= minShare * view.innerWidth * view.innerHeight ? best : null;
+}
+
+/**
+ * True when a move up or down went from one side of a box to the other
+ * without stopping in it: `from` and `to` are where the highlight was and
+ * is, `box` is the picture's. All in the same coordinates.
+ */
+export function passedOver(from: { top: number; bottom: number }, to: { top: number; bottom: number }, box: { top: number; bottom: number }, dir: 'up' | 'down'): boolean {
+  const slack = 4;
+  return dir === 'up' ? from.top >= box.bottom - slack && to.bottom <= box.top + slack : from.bottom <= box.top + slack && to.top >= box.bottom - slack;
+}
+
 function largestVideo(scope: ParentNode, skipMuted: boolean): { video: HTMLVideoElement; area: number } | null {
   let best: HTMLVideoElement | null = null;
   let bestArea = 0;
   for (const v of scope.querySelectorAll('video')) {
     // Background trailers on browse and title pages start muted; the player does not.
     if (skipMuted && v.muted) continue;
-    const r = v.getBoundingClientRect();
-    const area = r.width * r.height;
+    // What of it is on screen: a video the page has scrolled half away is
+    // not "being watched" over the page that is now showing beside it.
+    const area = shownArea(v);
     if (area > bestArea) {
       best = v;
       bestArea = area;

@@ -16,7 +16,7 @@ import { keyToAction, ownRemoteKey, type Mode } from './input/keys';
 import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
 import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo, type PlayerKey, type TextKey } from '../shared/player-keys';
-import { findMainVideo, GENERIC_PLAYER_SHARE, isPlayerActive, coversPicture, isSeekBar, playControl, playerIsOwnPage, playerScope } from './player';
+import { findMainVideo, GENERIC_PLAYER_SHARE, isPlayerActive, coversPicture, isSeekBar, pageVideo, passedOver, playControl, playerIsOwnPage, playerScope } from './player';
 import { coveredByScreen, coveringLayer, edgeControl, isSidewaysSlider, isVisible, MENU_ENTRY, openDialog, press, SpatialNavigator, type NavigatorOptions } from './spatial/navigator';
 import { HOST_TAG, Overlay } from './ui/overlay';
 
@@ -118,10 +118,38 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   // With no profile for this page everything is worked out from the page
   // itself. Read each time: the profile can change while the page stays (setRules).
   const playerShare = (): number => (rules.generic ? GENERIC_PLAYER_SHARE : 0.5);
-  const mainVideo = (): HTMLVideoElement | null => findMainVideo(doc, playerRoots, playerShare());
-  // An embedded frame that a video fills is a player whether or not the
-  // video has started: the frame is there for nothing else.
-  const inPlayer = (): boolean => isPlayerActive(doc, playerRoots, playerShare()) || (!!frame && mainVideo() !== null);
+  // A player that is one part of a longer page (a sports network's live
+  // page: its tabs above the picture, a row of channels below). It is a
+  // player while the highlight is in it or nowhere; with the highlight on
+  // something else of the page, the page is being browsed. Sites with no
+  // profile only, and not in a frame or full screen, where the player is all
+  // there is.
+  const playerInPage = (): boolean =>
+    rules.generic && !frame && !doc.fullscreenElement && (doc.scrollingElement?.scrollHeight ?? 0) > view.innerHeight * 1.25;
+  /** The highlight is on something inside that page's big video's own player. */
+  const onPagePlayer = (): HTMLVideoElement | null => {
+    const on = nav.focused;
+    if (!on || !playerInPage()) return null;
+    const v = pageVideo(doc);
+    return v && deepContains(playerScope(v, playerRoots), on) ? v : null;
+  };
+  // The video being watched: the one that fills the window. In a longer
+  // page it is also the big one whose controls the highlight is on, though
+  // bringing a control at its bottom edge on screen has scrolled part of
+  // the picture away.
+  const mainVideo = (): HTMLVideoElement | null => findMainVideo(doc, playerRoots, playerShare()) ?? onPagePlayer();
+  /** True for the length of one move out of such a player: the whole page is in reach. */
+  let leavingPlayer = false;
+  const inPlayer = (): boolean => {
+    if (leavingPlayer) return false;
+    const v = mainVideo();
+    // An embedded frame that a video fills is a player whether or not the
+    // video has started: the frame is there for nothing else.
+    if (!v || !(frame || ((!v.paused || v.currentTime > 0) && v.readyState > 0))) return false;
+    if (!playerInPage()) return true;
+    const on = nav.focused;
+    return !on || deepContains(playerScope(v, playerRoots), on);
+  };
   /** The pop-up or covering layer in front, when it is pinned to the screen and so does not move with the page. */
   const pinnedLayer = (): Element | null => {
     const layer = openDialog(doc) ?? (inPlayer() ? null : coveringLayer(doc));
@@ -248,7 +276,46 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     if (dir !== 'up') topEdge.reset();
     const cameFrom = nav.focused;
     const wasAt = cameFrom ? cameFrom.getBoundingClientRect().top + view.scrollY : 0;
+    const wasTo = cameFrom ? cameFrom.getBoundingClientRect().bottom + view.scrollY : 0;
+    const inPage = (el: Element): { top: number; bottom: number } => ({ top: el.getBoundingClientRect().top + view.scrollY, bottom: el.getBoundingClientRect().bottom + view.scrollY });
+    const stopAtPicture = (picture: Element): void => {
+      nav.clear();
+      picture.scrollIntoView({ block: 'center', behavior: 'instant' });
+    };
+    // On a long page with a big player in it, the picture is the next stop
+    // when it is the next thing that way and nothing of it can be landed on
+    // (its controls are hidden most of the time). Nothing is highlighted,
+    // the picture is brought to the middle, and the keys are the player's:
+    // OK, left and right; up and down bring its controls up.
+    if ((dir === 'up' || dir === 'down') && cameFrom && playerInPage()) {
+      const picture = pageVideo(doc);
+      if (picture) {
+        const p = inPage(picture);
+        const ahead = dir === 'down' ? p.top >= wasTo - 4 : p.bottom <= wasAt + 4;
+        // Is anything of the page between here and the picture's nearer edge?
+        const nearEdge = dir === 'down' ? p.top : p.bottom;
+        const before = (el: Element): boolean => {
+          if (el === cameFrom) return false;
+          const b = inPage(el);
+          const mid = (b.top + b.bottom) / 2;
+          return dir === 'down' ? mid > wasTo && mid < nearEdge : mid < wasAt && mid > nearEdge;
+        };
+        if (ahead && !nav.candidates(true).some(before)) {
+          stopAtPicture(picture);
+          return;
+        }
+      }
+    }
     let moved = nav.move(dir);
+    // And a move that went from one side of the picture to the other
+    // without stopping is taken back to the picture.
+    if (moved && (dir === 'up' || dir === 'down') && cameFrom && nav.focused && nav.focused !== cameFrom && playerInPage()) {
+      const picture = pageVideo(doc);
+      if (picture && passedOver({ top: wasAt, bottom: wasTo }, inPage(nav.focused), inPage(picture), dir)) {
+        stopAtPicture(picture);
+        return;
+      }
+    }
     // Up that does not end higher is not up. (Seen on a meetings site: a
     // "skip" link hidden in the top bar moves to a place lower down when it
     // gets the cursor; Up went to it and back without end, and the top was
@@ -664,7 +731,20 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
         pressKey(dir === 'left' ? 'seekBack' : 'seekForward');
         return;
       }
-      if (!nav.move(dir)) overlay.feedback(dir);
+      if (nav.move(dir)) return;
+      // At the top or bottom of a player that is part of a longer page, up
+      // and down go on into the page: for this one move everything is in reach.
+      if ((dir === 'up' || dir === 'down') && playerInPage()) {
+        // What comes next may be more than a screen away. A page being read
+        // is scrolled toward something that far, a step at a time; out of a
+        // player the highlight goes straight to it.
+        const from = nav.focused;
+        leavingPlayer = true;
+        const out = nav.move(dir, true);
+        leavingPlayer = false;
+        if (out && nav.focused !== from) return;
+      }
+      overlay.feedback(dir);
       return;
     }
     // The controls are created and faded in after the pointer moves; wait for them.
@@ -979,7 +1059,20 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
           view.clearTimeout(followTimer);
           followTimer = view.setTimeout(() => {
             if (enterDialog()) return;
-            if (!inPlayer() && nav.focused === target && nav.focusIsOffScreen()) nav.focusFirstOnScreen();
+            if (inPlayer() || nav.focused !== target || !nav.focusIsOffScreen()) return;
+            // On a long page with a big player in it, a press that left the
+            // pressed thing off screen with the picture now in view has
+            // chosen what to watch (a channel in the row below the player,
+            // and the page went back up to the picture). The picture is the
+            // place to be: nothing highlighted, the keys the player's.
+            const picture = playerInPage() ? pageVideo(doc) : null;
+            const box = picture?.getBoundingClientRect();
+            if (picture && box && Math.min(box.bottom, view.innerHeight) - Math.max(box.top, 0) >= box.height / 2) {
+              nav.clear();
+              picture.scrollIntoView({ block: 'center', behavior: 'instant' });
+              return;
+            }
+            nav.focusFirstOnScreen();
           }, 900);
         }
         // Activating a player control can replace it (a menu opens, a list

@@ -3,6 +3,18 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.27 (not yet released):
+
+- **A big player in the middle of a long page is a stop, not a trap.** On
+  a page with tabs above the picture and a row of channels below it (a
+  sports network's live page), the highlight was shut inside the player.
+  Now Down goes from the tabs to the picture, through the player's
+  controls and on to the channels; Left and Right choose a channel; OK on
+  one takes you back to the picture; Up goes back the same way. At the
+  picture nothing is highlighted and OK, Left and Right are the player's.
+- A link a site hides until a keyboard's Tab reaches it ("skip to main
+  content") is no longer the first thing landed on.
+
 New in 0.3.26:
 
 - **A site arriving in place of another is covered.** While an app or

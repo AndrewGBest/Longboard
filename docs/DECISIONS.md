@@ -3,6 +3,19 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-24: a big player in a long page is a stop on the way, not the whole page
+
+**The agent's assumptions**, from Andrew's report on a sports network's
+live page. Sites with no profile only; not in a frame, not full screen.
+
+| Question | Choice | Why |
+|---|---|---|
+| When is a video "being watched" | When at least 85% of the window is covered by the part of it that is on screen (before: by its size on the page) | A player half scrolled away has a page showing beside it |
+| What a long page with a big video is | A page, with the picture as one stop in it. The player's rules hold while the highlight is on one of its controls or nowhere; with the highlight on anything else, the page is browsed | The page has things above and below the picture that people came for (the channels) |
+| Why the picture gets a stop with nothing highlighted | Its controls are hidden most of the time, so there is nothing in it to land on, and it was jumped over | The same state as any player: the bare picture, OK plays and pauses |
+| Leaving the player | At the first or last of its controls, up or down goes straight to the next thing of the page, however far | Scrolling toward it a step at a time left the highlight behind on a control that then disappeared |
+| After OK on a channel | If the pressed thing is left off screen and the picture is in view, the highlight goes to the picture | The page itself went back up to it; before, the highlight jumped to whatever came first on screen (a tab) |
+
 ## 2026-11-24: an idle pointer has left; a new site is covered; a notice's X comes first
 
 **The agent's assumptions**, from three reports of Andrew's.

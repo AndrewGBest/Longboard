@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { coversPicture, findMainVideo, isPlayerActive, playControl, playerScope, isSeekBar, playerIsOwnPage } from '../src/layer/player';
+import { coversPicture, findMainVideo, pageVideo, passedOver, isPlayerActive, playControl, playerScope, isSeekBar, playerIsOwnPage } from '../src/layer/player';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
 import { cdpKey, strayKeyCode, InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo } from '../src/shared/player-keys';
 import { PLAYER_KEY_NAMES } from '../src/shared/profile';
@@ -249,5 +249,33 @@ describe('a key passed on from the page to the screen in front', () => {
     expect(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'Backspace', ' '].map(strayKeyCode)).toEqual(['Up', 'Down', 'Left', 'Right', 'Enter', 'Escape', 'Backspace', 'Space']);
     expect(strayKeyCode('a')).toBe('a');
     expect([strayKeyCode('Shift'), strayKeyCode('F5'), strayKeyCode('ContextMenu'), strayKeyCode('')]).toEqual([null, null, null, null]);
+  });
+});
+
+describe('a big player in a longer page', () => {
+  it('knows when a move went from one side of the picture to the other without stopping', () => {
+    const picture = { top: 237, bottom: 759 };
+    expect(passedOver({ top: 899, bottom: 950 }, { top: 110, bottom: 130 }, picture, 'up')).toBe(true);
+    expect(passedOver({ top: 110, bottom: 130 }, { top: 899, bottom: 950 }, picture, 'down')).toBe(true);
+    // Landing on something inside the picture is stopping in it.
+    expect(passedOver({ top: 899, bottom: 950 }, { top: 690, bottom: 730 }, picture, 'up')).toBe(false);
+    // Moving about on one side of it is not passing it.
+    expect(passedOver({ top: 1061, bottom: 1200 }, { top: 899, bottom: 950 }, picture, 'up')).toBe(false);
+    expect(passedOver({ top: 899, bottom: 950 }, { top: 110, bottom: 130 }, picture, 'down')).toBe(false);
+  });
+
+  it('finds the page\'s big video by its whole box, scrolled away or not, and no small or muted one', () => {
+    const size = (v: Element, top: number, w: number, h: number): void => {
+      v.getBoundingClientRect = () => ({ left: 0, top, width: w, height: h, right: w, bottom: top + h, x: 0, y: top, toJSON: () => ({}) });
+    };
+    document.body.innerHTML = '<video id="small"></video><video id="big"></video><video id="quiet" muted></video>';
+    const [small, big, quiet] = [...document.querySelectorAll('video')] as HTMLVideoElement[];
+    quiet!.muted = true;
+    size(small!, 0, 200, 100);
+    size(big!, -2000, window.innerWidth * 0.95, window.innerHeight * 0.95);
+    size(quiet!, 0, window.innerWidth, window.innerHeight);
+    expect(pageVideo(document)?.id).toBe('big');
+    size(big!, 0, 300, 200);
+    expect(pageVideo(document)).toBe(null);
   });
 });

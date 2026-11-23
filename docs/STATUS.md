@@ -67,6 +67,48 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-24, evening: getting about TSN's live page (0.3.27, not released)
+
+Andrew: people will want to move about the live section to pick the
+channel they want, and the navigation "seemed pretty wonky".
+
+**What was wrong, seen signed in:** the page is long (the site's tabs, the
+player, a "Multiplex view" button, then the row of five live channels) and
+its player is 93% of the window. Longboard took the whole page for a
+player: the highlight was shut inside it, **the channel row could not be
+reached at all**, and Up could not reach the tabs. The first press landed
+on a link the site keeps out of sight for keyboards ("Skip to main
+content").
+
+**Now, for a site with no profile whose page scrolls and has a big video:**
+
+- The video counts as "being watched" by how much of it is on screen, not
+  by its size on the page: at the top of the page, with half of it below
+  the fold, the page is a page.
+- The picture is a stop of its own between what is above and below it:
+  nothing is highlighted, it is brought to the middle of the screen, OK
+  plays and pauses, left and right are the player's, up and down bring its
+  controls up.
+- At the top or bottom of the player's controls, up and down go on into
+  the page, straight to the next thing however far.
+- OK on something that sends the page back to the picture (a channel)
+  leaves the highlight at the picture.
+- A transparent link stacked behind the page is not a target.
+
+**Verified on the live page, signed in, both ways:** tab, picture,
+progress bar, Pause, Multiplex view, channel row; Right along the
+channels; OK on one changed what was playing and came back to the picture;
+OK there paused and played; and up again through the same stops to the
+tabs, one press each. **Sportsnet+'s channel page** (the same shape):
+Down now goes on from the player's controls to the schedule below.
+**Verified by test:** unit tests; a new invented page (`pageplayer.html`)
+and scenario; the whole suite in six parts, all passed.
+
+**Not verified:** on a TV; the Multiplex view itself; TSN's other tabs
+(Schedule, Games on Demand); a held key on such a page. **Known:** the
+channel buttons are announced by the site as "Video 2 of 5", which is all
+the highlight has to go by; which channel is which is on their pictures.
+
 ## 2026-11-24, later: 0.3.26 released; Spotify profile 1.1.0 pushed; TSN's interface
 
 - **0.3.26 is released and the Spotify profile 1.1.0 is pushed** (Andrew:
