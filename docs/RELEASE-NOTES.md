@@ -3,7 +3,7 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
-New in 0.3.26 (not yet released):
+New in 0.3.26:
 
 - **A site arriving in place of another is covered.** While an app or
   another site is opening, the whole window shows Longboard's own screen
