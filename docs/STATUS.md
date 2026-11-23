@@ -67,6 +67,37 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-23, night: 0.3.25 released; Rogers checked again
+
+**0.3.25 is released** (Andrew: "Release it"): OK on a player that ignores
+its key until clicked.
+
+**Rogers, checked again at Andrew's word ("make sure we are 100% positive").**
+What was added to the entry below:
+
+| Could the refusal be something else? | Checked how | Answer |
+|---|---|---|
+| Out of the country or out of the home | Where this machine is on the internet | No: it is on a Rogers connection in Ontario |
+| The identity being only half changed | A whole Windows identity, then a whole macOS one: user agent, `navigator.platform` and the browser's brand hints, by a test-only override | No: the licence server answers 403 with the same code under each |
+| One channel, or the in-home list | A second and a third channel; the out-of-home list | No: the same every time |
+| Protected playback broken on this machine | The same day, same machine | No: Sportsnet+, TSN and Disney+ are given licences and play |
+
+**Sourced, for the sister service on the same platform** (the licence
+address is Comcast's): a 2022 write-up of Xfinity Stream on Linux found the
+same thing, a licence request refused on Linux whatever the user agent,
+and got past it only by loading another system's protected-playback
+library into the browser. That is exactly what Hard rule 2 forbids
+(the library is never replaced, patched or wrapped), and Longboard will
+not do it. https://thebrokenrail.com/2022/12/31/xfinity-stream-on-linux.html
+
+**What is established:** on this engine on Linux, signed in, on a Rogers
+line, the service's licence server refuses every channel tried, and
+nothing a page can be told changes that. **What is not, and cannot be from
+here:** that the same account plays in Chrome on Windows or a Mac on the
+same line (it was never seen to play anywhere). If Andrew sees it play
+there, the platform is the whole difference; if it fails there too, the
+account or the line is in it as well.
+
 ## 2026-11-23, evening: Rogers Xfinity Stream cannot play in Longboard; Apple TV asked about
 
 **Andrew: "test whatever methods to see if you can get Rogers working."**
