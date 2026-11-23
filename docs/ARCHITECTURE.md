@@ -46,8 +46,8 @@ Carried over from Tropic Video and kept:
   rates it cannot play (`src/shared/video-truth.ts`);
 - the user agent is Chromium's own, without the toolkit's tokens and with
   `Longboard/<version>` at the end; for a site
-  whose profile says `view.device: "tv"` it is followed by the one statement
-  that Longboard is running as a TV (`src/main/useragent.ts`, Hard rule 3).
+  whose profile says `view.device: "tv"` Longboard instead says the engine
+  TV apps run on, with itself as the device (`src/main/useragent.ts`, Hard rule 3).
 
 These match Electron's own security checklist [Sourced: Electron].
 

@@ -5,9 +5,11 @@ edges.
 
 New in 0.3.24 (not yet released; it takes in 0.3.23, which was never released):
 
-- **YouTube's TV app plays video previews.** Longboard's statement that it
-  is running as a TV now also says the kind of chip and the year, as TV
-  devices do. With those left out the site held previews back.
+- **YouTube's TV app gives Longboard its full interface: video previews
+  and page animation.** To that app, and only to it, Longboard now says
+  what a TV says (the engine TV apps run on, with Longboard as the
+  device). Told the plain truth the site served its lowest tier. This is
+  the owner's decision; everywhere else Longboard says what it is.
 - **YouTube's TV app plays at full size and frame rate.** It was held at
   1280x720 and 30 pictures a second: the app asks a browser impossible
   questions to see whether its answers can be trusted, and the engine

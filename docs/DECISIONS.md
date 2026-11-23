@@ -3,6 +3,27 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-23: where it is measured to be better, Longboard may say it is another browser (Andrew)
+
+**Andrew, 2026-11-23, verbatim:** "If reporting as a different browser
+enhances the experience then you can do that. Otherwise report
+truthfully." Said after the agent reported that the video site's TV app
+gives Longboard a lower tier than a program that says it is the TV engine,
+and that rule 3 forbade trying it. This reverses "never claim to be
+another browser or engine" for the measured case and keeps it everywhere
+else. The conditions in the rule are the agent's wording of "otherwise
+report truthfully"; Andrew can loosen or tighten them.
+
+| Question | Choice | Why |
+|---|---|---|
+| What counts as "enhances" | A measurement, on record here, of what the site serves or does under each identity | So the exception cannot grow by guesswork. The Disney+ case (2026-11-22) is the warning: the identity was blamed, changed, and was not the cause |
+| First use | Sites whose profile says `view.device: "tv"` (today: the video site's TV app) are told `Mozilla/5.0 (<system>) Cobalt/<version> (unlike Gecko) v8/<real version>-jit gles Starboard/<number>, Longboard_TV_<chip>_<year>/<version> (Longboard, <system>)` | Measured 2026-11-23: tier 1 instead of 3; 37 elements with a transition instead of none; switches for richer animation. Previews play under both |
+| Why not a new profile keyword for the engine | `"tv"` now carries it | A new key would make every released Longboard refuse the profile and fall back to the ordinary site. PROFILES.md says `"tv"` is only for a site where this is measured to be needed or better |
+| What stays true in it | The system, the script engine's version, and the whole device part | As little is untrue as the format allows |
+| The browser's brand hints (`sec-ch-ua`, `navigator.userAgentData`) | Left as the engine sends them: Chromium | Not needed for the gain measured; not changed without need |
+| The TV engine's own interfaces (`window.h5vcc`) | Not provided | Not needed for the gain measured. If something of the site's turns out to need one, that is a new measurement and a new entry |
+| Limits that do not move | Never for DRM, a paywall or a region limit; no other maker's device; no invented device ID; no switcher | Rule 2, and the rest of rule 3 |
+
 ## 2026-11-23: Longboard says no to picture sizes and frame rates it cannot play
 
 **The agent's assumption**, after Andrew asked that VacuumTube be studied.
@@ -26,7 +47,7 @@ fixed wording of its own). Andrew can reverse it.
 |---|---|---|
 | What is said after the honest identity | `, Longboard_TV_<chip>_<year>/<version> (Longboard, <system>)` | The public layout TV devices use for this part (maker, kind of device, chip, year, version; brand, model). **Measured 2026-11-23** on the video site's TV app: with chip and year, its served configuration adds inline previews and a preview plays; without, it does not |
 | Is each field true | Maker and brand: Longboard. Kind: TV, which it is running as. Chip: this machine's (`x8664`, `arm64`). Year: the year this copy was built (set at build). Version: Longboard's. Model: the system | Nothing is another maker's, engine's or device's; no serial or device ID is invented |
-| What is still not said | That the engine is the TV engine (Cobalt), which is what the fullest treatment appears to need | It is not. Rule 3: never claim another engine. Longboard gets a lower tier for it (limited animation), and that cost is accepted unless Andrew decides otherwise |
+| What is still not said | *(Changed the same day by Andrew's decision; see the entry above.)* That the engine is the TV engine (Cobalt) | It is not. Rule 3 then forbade it |
 
 ## 2026-11-23: a key reaching the page behind the menu is passed to the menu
 

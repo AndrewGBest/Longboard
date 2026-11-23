@@ -67,6 +67,37 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-23, late: to a TV site Longboard says the TV engine (0.3.24, not released)
+
+**Andrew, 2026-11-23:** "If reporting as a different browser enhances the
+experience then you can do that. Otherwise report truthfully." Hard rule 3
+is rewritten to that, with conditions (CLAUDE.md).
+
+**Measured first**, signed out, the video site's TV app, by a temporary
+switch since removed:
+
+| Said to the site | Tier | Elements with a transition | Previews | Extra switches served |
+|---|---|---|---|---|
+| Chrome, then `Longboard_TV_x8664_2026/... (Longboard, Linux)` | 3 | 0 | play | |
+| `Cobalt/... Starboard/18`, then the same device part | 1 | 37 or 38 | play | lottie animations, squeezeback, cast headers |
+
+**Done:** a site whose profile says `view.device: "tv"` is told the second.
+Everything but the engine's name, version and interface number is still
+true and Longboard's own. Every other site, and the same site's pages the
+profile does not name, get the true identity (held by an end-to-end check).
+
+**Verified in the built app, on the live site, signed out:** tier 1 and 37
+transitions; a preview plays on a rested result; a video opens from search
+and plays; Escape goes back; one 4K 60 video played at 2560x1440 at 60 in
+two runs (and at 854x480 at 30 in one run 33 seconds in, which the agent
+takes for the stream still finding its level, not established).
+
+**Not verified:** signed in; on a TV; that animation is *seen* (counted in
+the page, not watched); sign-in by code; voice search (the site now sets
+`trigger_starboard_mic_check`, and Longboard has none of that engine's own
+interfaces; nothing was seen to break, and not everything was tried);
+"who's watching" (its cooldowns are the same under either identity).
+
 ## 2026-11-23, night: what VacuumTube does, read from its source (0.3.24, not released)
 
 Andrew: "VacuumTube has previews working, make sure to study what they're

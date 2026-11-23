@@ -25,26 +25,46 @@ export function browserUserAgent(defaultUa: string, product: string = PRODUCT.na
 
 /**
  * What Longboard says to a site whose profile asks for its TV interface
- * (`view.device: "tv"`): the same identity, followed by one more
- * statement that is also true, that this is Longboard running as a TV.
- * Rule 3 as amended by Andrew on 2026-11-21 (docs/DECISIONS.md).
+ * (`view.device: "tv"`).
  *
- * The shape is the one TV devices use for this part, which is public (the
- * open-source TV engine's user agent code):
- * "<maker>_<kind of device>_<chip>_<year>/<version> (<brand>, <model>)".
- * Every field is Longboard's own and true: its name as maker and brand,
- * "TV" as what it is running as, the kind of chip this machine has, the
- * year this copy was built, its version, and the system as the model.
- * Until 2026-11-23 only "<name>_TV/<version> (<name>, <system>)" was said,
- * the least the video site's TV page accepts; with the chip and year left
- * out that site held back previews and most animation (measured, see
- * docs/DECISIONS.md). The browser, engine, version and system before it are
- * untouched, no other maker, engine, model or serial is named, and a
- * profile cannot change a letter of it: all a profile can say is "tv".
+ * **This is the one place Longboard says it is something it is not**, by
+ * Andrew's decision of 2026-11-23: "If reporting as a different browser
+ * enhances the experience then you can do that. Otherwise report
+ * truthfully." Here it says its engine is the one TV apps run on (Cobalt),
+ * in that engine's own layout, which is public:
+ *
+ *   Mozilla/5.0 (<system>) Cobalt/<version> (unlike Gecko) v8/<version>-jit
+ *   gles Starboard/<number>, <maker>_<kind>_<chip>_<year>/<version>
+ *   (<brand>, <model>)
+ *
+ * What is untrue in it: the engine's name and version, and the Starboard
+ * number. Everything else is Longboard's own and true: the system, the
+ * script engine's real version, and the device part (Longboard as maker
+ * and brand, "TV" as what it is running as, this machine's kind of chip,
+ * the year this copy was built, Longboard's version, the system as the
+ * model). No other maker's device, console or phone is named, and no
+ * serial or device ID is invented.
+ *
+ * Why, measured on the video site's TV app on 2026-11-23 (docs/DECISIONS.md):
+ * told the truth about the engine, the site serves its lowest tier of three
+ * and no page animation; told this, the first tier, with animation.
+ *
+ * A profile cannot change a letter of it: all a profile can say is "tv".
+ * It is never used to get past DRM, a paywall or a region limit (rule 2).
  */
-export function tvUserAgent(honest: string, product: string, version: string, system: string, chip: string, year: string): string {
-  return `${honest}, ${product}_TV_${chip}_${year}/${version} (${product}, ${system})`;
+export function tvUserAgent(honest: string, product: string, version: string, system: string, chip: string, year: string, v8: string): string {
+  const os = /^Mozilla\/5\.0 \(([^)]*)\)/.exec(honest)?.[1] ?? 'X11; Linux x86_64';
+  return `Mozilla/5.0 (${os}) ${TV_ENGINE} (unlike Gecko) v8/${v8}-jit gles ${TV_ENGINE_API}, ${product}_TV_${chip}_${year}/${version} (${product}, ${system})`;
 }
+
+/**
+ * The TV engine's name and version, and the number of its system interface,
+ * as a current TV app states them (the values the open-source program
+ * VacuumTube gives, read 2026-11-23). They age: when the video site stops
+ * serving its first tier, look here first.
+ */
+export const TV_ENGINE = 'Cobalt/27.lts.3.1040976-gold';
+export const TV_ENGINE_API = 'Starboard/18';
 
 /** The kind of chip, as plain letters and digits: "x8664", "arm64". */
 export function chipName(arch: string): string {

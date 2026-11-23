@@ -1198,8 +1198,9 @@ await scenario(
     const said = await evaluate('navigator.userAgent');
     const cut = said.lastIndexOf(', Longboard_TV');
     const [honest, added] = cut < 0 ? [said, ''] : [said.slice(0, cut), said.slice(cut + 2)];
-    check('the page is told Longboard is running as a TV, after everything it says anyway', [/^Mozilla\/5\.0 \(X11; Linux [^)]+\) AppleWebKit\/[\d.]+ \(KHTML, like Gecko\) Chrome\/[\d.]+ Safari\/[\d.]+ Longboard\/[\d.]+$/.test(honest), added], [true, `Longboard_TV_${process.arch === 'x64' ? 'x8664' : process.arch}_${new Date().getUTCFullYear()}/${version} (Longboard, Linux)`]);
-    check('no other browser, engine, maker or system is named', /Cobalt|Tizen|Web0S|SMART|PlayStation|Xbox|Android|Windows|Macintosh/i.test(said), false);
+    check('the page is told what a TV says: the TV engine, then Longboard as the device, by its own name', [/^Mozilla\/5\.0 \(X11; Linux [^)]+\) Cobalt\/\S+ \(unlike Gecko\) v8\/[\d.]+-jit gles Starboard\/\d+$/.test(honest), added], [true, `Longboard_TV_${process.arch === 'x64' ? 'x8664' : process.arch}_${new Date().getUTCFullYear()}/${version} (Longboard, Linux)`]);
+    check('no other maker\'s device or system is named', /Tizen|Web0S|SMART|PlayStation|Xbox|Android|Windows|Macintosh/i.test(said), false);
+    const usual = (ua) => /^Mozilla\/5\.0 \(X11; Linux [^)]+\) AppleWebKit\/[\d.]+ \(KHTML, like Gecko\) Chrome\/[\d.]+ Safari\/[\d.]+ Longboard\/[\d.]+$/.test(ua);
     check('what it fetches says the same', await evaluate('fetch("/agent").then((r) => r.json())'), said);
     await press('ArrowRight');
     await press('ArrowRight');
@@ -1234,10 +1235,10 @@ await scenario(
     await siteMenu(chrome);
     check('the site menu has a switch for the site\'s profile, on', [await reachRow('menu-site-profile'), await chrome.evaluate('(document.getElementById("menu-site-profile")?.ariaLabel ?? document.getElementById("menu-site-profile")?.textContent)')], ['menu-site-profile', "Use this site's profile: on"]);
     await chrome.press('Enter', 1500);
-    check('switched off, the site\'s front page is opened as any browser gets it', [await evaluate('location.pathname'), await evaluate('navigator.userAgent'), JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8'))['profile.test']], ['/', honest, { profile: false }]);
+    check('switched off, the site\'s front page is opened as any browser gets it', [await evaluate('location.pathname'), usual(await evaluate('navigator.userAgent')), JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8'))['profile.test']], ['/', true, { profile: false }]);
     await evaluate('location.href = "/home.html"');
     await sleep(1200);
-    check('and its pages open as asked, told only the usual, as is what they fetch', [await evaluate('location.pathname'), await evaluate('navigator.userAgent'), await evaluate('fetch("/agent").then((r) => r.json())')], ['/home.html', honest, honest]);
+    check('and its pages open as asked, told only the usual, as is what they fetch', [await evaluate('location.pathname'), usual(await evaluate('navigator.userAgent')), usual(await evaluate('fetch("/agent").then((r) => r.json())'))], ['/home.html', true, true]);
     await press('ContextMenu', 500);
     await siteMenu(chrome);
     check('the switch is still there, off', [await reachRow('menu-site-profile'), await chrome.evaluate('(document.getElementById("menu-site-profile")?.ariaLabel ?? document.getElementById("menu-site-profile")?.textContent)')], ['menu-site-profile', "Use this site's profile: off"]);

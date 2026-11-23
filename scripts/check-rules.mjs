@@ -26,7 +26,9 @@ const CODE_CHECKS = [
   // Rule 2
   [2, /libwidevine|widevinecdm|content_decryption_module|pywidevine|license_?server|getLicense|keyStatuses|MediaKeySession\b.*\.update/i, 'touches the CDM or licence exchange'],
   // Rule 3
-  [3, /SMART-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|AFT[A-Z]|Android TV|PlayStation|Xbox|Cobalt\/|Windows NT|Macintosh|CrOS/, 'looks like a spoofed device or OS identity'],
+  [3, /SMART-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|AFT[A-Z]|Android TV|PlayStation|Xbox|Windows NT|Macintosh|CrOS/, 'looks like a spoofed device or OS identity'],
+  // Rule 3 as amended 2026-11-23: the TV engine may be named, in the one identity module and nowhere else.
+  [3, /Cobalt\/|Starboard\//, 'names the TV engine outside the one module that may'],
   // Rule 3: what a view says it is, is decided in one module (see IDENTITY_MODULE below).
   [3, /setUserAgent\(|userAgent:\s|User-Agent/, 'sets a user agent outside the one module that may'],
   // Rule 5: blocking refuses requests; it never skips advertising inside a stream.
@@ -50,7 +52,7 @@ for (const file of files) {
     if (inTests && rule !== 13) continue;
     // The one module that may say what a view is. It is still held to the
     // other rule-3 check: no other maker's device, system or browser is named in it.
-    if (file === IDENTITY_MODULE && pattern.source.startsWith('setUserAgent')) continue;
+    if (file === IDENTITY_MODULE && (pattern.source.startsWith('setUserAgent') || pattern.source.startsWith('Cobalt'))) continue;
     const m = pattern.exec(text);
     if (m) fail(rule, file, `${why} (matched "${m[0]}")`);
   }

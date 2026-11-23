@@ -25,21 +25,25 @@ The reasoning for each is in `docs/LEGAL-GUARDRAILS.md`.
    standard EME interface with the unmodified CDM. Never extract keys, patch or
    wrap the CDM, inspect or replay licence traffic, record or download streams,
    or work around a resolution or output restriction.
-3. **Honest identity.** The user agent is the embedded Chromium's real one,
-   without the toolkit's tokens and with Longboard's own name and version at
-   the end (Andrew, 2026-11-21: named to every site; hiding the name was the
-   less honest choice and got Longboard refused by a sign-in service that
-   asks browsers to identify themselves). Never claim to be another browser
-   or engine, another OS, a console, a phone, or another maker's device.
-   Never invent device IDs or serials. No user-agent switcher. **One
-   addition is allowed** (Andrew, 2026-11-21): Longboard is a TV browser, so
-   for a site whose profile says `view.device: "tv"` it may add, after that
-   identity, the one fixed statement that it is Longboard running as a TV,
-   so that the site serves the interface it made for TVs. All the wording is
-   Longboard's and lives in `src/main/useragent.ts`; a profile can only say
-   `"tv"`, never supply or alter an identity; the person cannot pick one
-   either. None of this is ever used to get past DRM, a paywall, a region
-   limit or a resolution limit (rule 2 stands untouched).
+3. **Honest identity, with one kind of exception.** Everywhere it has no
+   measured reason to do otherwise, Longboard says what it is: the embedded
+   Chromium's real user agent, without the toolkit's tokens and with
+   Longboard's own name and version at the end (Andrew, 2026-11-21: named to
+   every site). **The exception** (Andrew, 2026-11-23: "If reporting as a
+   different browser enhances the experience then you can do that.
+   Otherwise report truthfully."): for a site where saying it is another
+   browser or engine has been **measured** to make the experience better,
+   Longboard may say so to that site. The conditions, all of them: the
+   measurement is written in `docs/DECISIONS.md` with what was gained; the
+   wording is fixed in `src/main/useragent.ts` and nowhere else; a profile
+   chooses it by a keyword and can never supply or alter an identity, nor
+   can the person (no user-agent switcher); Longboard's own name stays in
+   it wherever the format has a place for one; no other maker's device,
+   console or phone is named and no device ID or serial is invented. The
+   one use so far: a site whose profile says `view.device: "tv"` is told
+   the engine TV apps run on, with Longboard as the device. It is never
+   used to get past DRM, a paywall or a region limit (rule 2 stands
+   untouched).
 4. *(Removed by Andrew, 2026-11-18. Longboard is a whole browser, not a
    client for streaming services. The number is kept so the other rules keep
    theirs. Rules 2, 3 and 5 still stand.)*
