@@ -3,7 +3,7 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
-New in 0.3.25 (not yet released):
+New in 0.3.25:
 
 - **OK pauses and plays on players that ignore the remote until they have
   been clicked.** When the player's own key does nothing, Longboard clicks
