@@ -3,7 +3,7 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
-New in 0.3.24 (not yet released; it takes in 0.3.23, which was never released):
+New in 0.3.24 (it takes in 0.3.23, which was never released):
 
 - **YouTube's TV app gives Longboard its full interface: video previews
   and page animation.** To that app, and only to it, Longboard now says
