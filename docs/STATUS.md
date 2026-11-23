@@ -67,6 +67,20 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-24, later: 0.3.26 released; Spotify profile 1.1.0 pushed; TSN's interface
+
+- **0.3.26 is released and the Spotify profile 1.1.0 is pushed** (Andrew:
+  "Yes" to both). Both builds and the publish step passed.
+- **Andrew asked whether TSN has a TV interface on the web, or anything
+  better than `/live`.** **Not found:** a search turned up none, and the
+  likely addresses tried (`/tv`, `tv.` on the same name, `/live/<channel>`)
+  do not exist. Bell's own help page lists TV apps for particular makers'
+  TVs and boxes, which are installed apps, not pages served to a browser
+  (rule 9 keeps Longboard to the latter). **Found on `/live`,** signed in:
+  the player has a full-screen button the remote reaches (Down, then Right
+  to the end of the row, OK), and the page went full screen.
+  **Not done:** making OK on such a player go full screen by itself.
+
 ## 2026-11-24: Prime Video's categories, the cover, Spotify's cookie notice (0.3.26, not released)
 
 **Not released, and the Spotify profile 1.1.0 is committed in the profiles
