@@ -67,9 +67,23 @@ async function survey(site) {
     const shot = async (name) => shots && writeFileSync(join(shots, `${row.site}-${name}.png`), Buffer.from((await page.cdp.send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
     const state = () => page.evaluate(STATE);
     const press = async (key, wait = 650) => {
+      await answer();
       await page.press(key, wait);
       return state();
     };
+    // A site may ask for something (where the device is, notices), as it
+    // opens or later. Longboard then puts its question in front and the
+    // arrows go to it, which from the page looks like a highlight that never
+    // moves. The answer given is "Do not allow", which is where the question
+    // starts and is remembered, so a site that asks again is not asked about again.
+    const chrome = await app.chrome();
+    const answer = async () => {
+      for (let i = 0; i < 3 && (await chrome.evaluate('document.activeElement?.id === "prompt-deny"').catch(() => false)); i++) {
+        row.asked = (row.asked ?? 0) + 1;
+        await chrome.press('Enter', 700);
+      }
+    };
+    await answer();
     let s = await state();
     row.elements = s.elements;
     row.dialog = s.dialog;
