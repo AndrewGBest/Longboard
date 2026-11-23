@@ -535,6 +535,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const chromeState = (): ChromeState => ({
     surface,
     panel,
+    cover: surface === 'page' && !panel ? covering : null,
     version: app.getVersion(),
     home: {
       apps: apps.map((a) => ({ id: a.id, name: a.name, site: siteName(a.url), icon: iconOf(a.id), ownSession: a.ownSession })),
@@ -803,6 +804,45 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
 
   /** Sizes and shows the views for the current state, and gives the keys to the one in front. */
+  // While one site is opened in place of another (an app started, a tile
+  // chosen on Home, an address typed), the site being left would stay on
+  // screen until the new one's first page came. The whole window is covered
+  // by Longboard's own screen meanwhile, saying which site is coming.
+  // (Andrew, 2026-11-23.) The keys stay with the page: Back still works.
+  let covering: string | null = null;
+  let coverTimer: NodeJS.Timeout | undefined;
+  const COVER_MOST_MS = 12_000;
+  const uncover = (): void => {
+    clearTimeout(coverTimer);
+    if (covering === null) return;
+    covering = null;
+    if (!win.isDestroyed()) layout();
+  };
+  const coverFor = (url: string): void => {
+    covering = siteName(url);
+    clearTimeout(coverTimer);
+    // Never for good: a site that does not come is dealt with by the page's own notice.
+    coverTimer = setTimeout(uncover, COVER_MOST_MS);
+  };
+  const otherSite = (from: string, to: string): boolean => {
+    try {
+      return new URL(from).hostname !== new URL(to).hostname;
+    } catch {
+      return true;
+    }
+  };
+  eachPage((wc) => {
+    // The new site's page is there to be drawn: a moment for its first picture, then the cover goes.
+    wc.on('dom-ready', () => {
+      if (wc === page && covering !== null) {
+        clearTimeout(coverTimer);
+        coverTimer = setTimeout(uncover, 250);
+      }
+    });
+    wc.on('did-fail-load', (_e, _code, _text, _url, isMainFrame) => {
+      if (wc === page && isMainFrame) uncover();
+    });
+  });
   /** Whether the app's window is the one in front, as far as the shell has heard. */
   let windowAway = false;
   // Each view is told whether it is the one in front. A game controller is
@@ -818,6 +858,16 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (wc === page) for (const f of wc.mainFrame.framesInSubtree) if (f !== wc.mainFrame && !f.isDestroyed()) f.send('longboard:front', on);
     }
   };
+  // A page that has just come takes whatever lies under the idle pointer
+  // for pointed at, and some sites open a menu on that as they load. Until
+  // the mouse is really moved, the pointer is not in the window.
+  eachPage((wc) => {
+    const away = (): void => {
+      if (wc === page && !pointerOn && !wc.isDestroyed()) wc.sendInputEvent({ type: 'mouseLeave', x: 0, y: 0 });
+    };
+    wc.on('dom-ready', away);
+    wc.on('did-finish-load', away);
+  });
   // A page that has just come has heard nothing yet.
   eachPage((wc) => wc.on('dom-ready', () => tellFront()));
   const layout = (): void => {
@@ -837,13 +887,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (view !== pageView) view.setVisible(false);
     }
     // Home and the reader view fill the window; every other panel is a strip beside the website.
-    if (surface === 'home' || panel === 'reader') chromeView.setBounds({ x: 0, y: 0, width, height });
+    const covered = surface === 'page' && !panel && covering !== null;
+    if (surface === 'home' || panel === 'reader' || covered) chromeView.setBounds({ x: 0, y: 0, width, height });
     else {
       const strip = Math.round(width * PANEL_WIDTH);
       chromeView.setBounds({ x: width - strip, y: 0, width: strip, height });
     }
     pageView.setVisible(surface === 'page');
-    chromeView.setVisible(surface === 'home' || panel !== null);
+    chromeView.setVisible(surface === 'home' || panel !== null || covered);
     if (!chrome.isDestroyed()) chrome.send('longboard:chrome-state', chromeState());
     const front = active();
     if (!front.isDestroyed()) front.focus();
@@ -995,6 +1046,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
 
   const showHome = (): void => {
+    covering = null;
+    clearTimeout(coverTimer);
     if (edit) endEdit(false);
     if (surface === 'page') {
       // The site stays loaded, silent and still: what was playing is paused by
@@ -1090,6 +1143,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     }
     clearTimeout(retryTimer);
     setPointer(false);
+    // Another site than the one this tab shows, or the tab's first: covered until it has come.
+    if (otherSite(page.getURL(), url)) coverFor(url);
     showPage();
     void page.loadURL(url).catch(() => undefined);
   };
@@ -2097,6 +2152,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
         }
         break;
       }
+      case 'pointerAway':
+        // The pointer has "left the window", as far as the page is concerned,
+        // until the mouse is really moved again.
+        if (wc === page && !pointerOn && !wc.isDestroyed()) wc.sendInputEvent({ type: 'mouseLeave', x: 0, y: 0 });
+        break;
       case 'pictureClick': {
         // OK on the bare picture of a player that does not answer its key until it has been clicked.
         if (wc !== page || active() !== page || pointerOn) break;

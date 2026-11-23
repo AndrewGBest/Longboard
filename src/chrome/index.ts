@@ -1022,6 +1022,18 @@ function render(): void {
   const s = state;
   if (!s) return;
   const keep = document.querySelector('[data-longboard-focus]')?.id;
+  // A site arriving in place of another: the whole window, with its name and a moving line, and nothing to choose.
+  if (s.cover !== null && s.surface === 'page' && !s.panel) {
+    document.body.classList.remove('strip');
+    drawnPanel = null;
+    const name = el('p', { id: 'cover-site' });
+    name.textContent = s.cover;
+    const cover = el('div', { id: 'cover' }, [name, el('div', { cls: 'cover-line' }, [el('i', {})])]);
+    cover.setAttribute('role', 'status');
+    cover.setAttribute('aria-label', `Opening ${s.cover}`);
+    document.body.replaceChildren(cover, ...document.querySelectorAll('longboard-overlay'));
+    return;
+  }
   const reader = s.panel === 'reader';
   const strip = s.surface === 'page' && !reader;
   document.body.classList.toggle('strip', strip);

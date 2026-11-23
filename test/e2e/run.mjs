@@ -56,6 +56,8 @@ const asks = { suggest: [], file: 0, made: 0, slow: [], adverts: 0, bigIcon: 0, 
 const site = await serveFixtures({
   // A page that takes its time, as a far-away site does.
   '/slow-page': (_req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>slow</title><a href="/home.html" id="there">the words</a><img src="/slow.png" alt="">'),
+  // A page that takes five seconds to answer at all.
+  '/late-page': (_req, res) => setTimeout(() => res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>late</title><a href="#" id="came">here at last</a>'), 5000),
   '/slow.png': (_req, res) => setTimeout(() => res.writeHead(200, { 'content-type': 'image/png' }).end(siteIcon), 3500),
   // A made-up search site's suggestions, in the shape the real ones answer in.
   '/suggest': (req, res) => {
@@ -707,6 +709,26 @@ await scenario('backing out of a search box without searching', { url: `${site.o
   check('with something typed', await evaluate('document.getElementById("search").value.length > 0'), true);
   await page.press('Escape', 900);
   check('Back only puts the keyboard away: what was typed is a search someone may still want', [await page.keyboardShown(), await evaluate('__searchEscapes'), await evaluate('document.getElementById("search").value.length > 0')], [false, 1, true]);
+});
+
+// One site opened in place of another: the site being left is not what the
+// person watches while the new one is on its way.
+await scenario('the whole window is covered while another site arrives', { url: `${site.origin}/home.html` }, async (app) => {
+  const page = await app.page(site.origin);
+  const chrome = await app.chrome();
+  const cover = () => chrome.evaluate('document.getElementById("cover-site")?.textContent ?? null');
+  await sleep(1200);
+  check('nothing covers a site that has come', await cover(), null);
+  // Another site (this machine under its other name), asked for the way an app's entry asks.
+  await app.again([`--url=http://localhost:${new URL(site.origin).port}/late-page`]);
+  await sleep(700);
+  check('while the other site is on its way the window is covered, with its name', [await cover(), await page.evaluate('document.getElementById("came") !== null')], ['localhost', false]);
+  await until(() => page.evaluate('document.getElementById("came") !== null').catch(() => false), (there) => there === true, 100, 100);
+  await sleep(900);
+  check('once it has come the cover is gone and the site has the keys', [await cover(), await page.evaluate('document.getElementById("came") !== null')], [null, true]);
+  await page.evaluate('location.href = "/home.html"; 0');
+  await sleep(900);
+  check('a page of the same site is not covered', await cover(), null);
 });
 
 await scenario('a long article: reading with the arrows', { url: `${site.origin}/article.html` }, async (app) => {
@@ -1574,7 +1596,8 @@ await scenario(
   { config: { startWith: 'last' }, seed: (data) => writeFileSync(join(data, 'home.json'), JSON.stringify({ recents: [{ url: `${site.origin}/article.html`, title: 'An article', at: 5 }] })) },
   async (app) => {
     const page = await app.page(`${site.origin}/article.html`);
-    check('Longboard starts on the site opened most recently', [!!page, await page?.evaluate('document.visibilityState')], [true, 'visible']);
+    // (Covered by Longboard's own screen for the moment it takes to come.)
+    check('Longboard starts on the site opened most recently', [!!page, await until(() => page?.evaluate('document.visibilityState'), (v) => v === 'visible', 40, 100).catch(() => 'still hidden')], [true, 'visible']);
   },
 );
 

@@ -11,6 +11,8 @@ export interface ChromeState {
   /** What fills the window behind any panel. */
   surface: 'home' | 'page';
   panel: Panel | null;
+  /** A site is arriving in place of another: its name, while the whole window is covered so the site being left is not seen. Null otherwise. */
+  cover: string | null;
   version: string;
   /** `profile` says what Longboard has for the site: a reviewed profile, the person's own, or nothing. */
   home: {

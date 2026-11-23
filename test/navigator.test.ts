@@ -504,6 +504,35 @@ describe('moving from a point', () => {
   });
 });
 
+describe('a notice the profile knows how to close', () => {
+  // (Other tests in this file set the window's width; the notice is measured against whatever it is.)
+  const page = (share: number): string => `
+    <main><a href="#" id="first" data-rect="20,20,200,60">a</a><a href="#" id="second" data-rect="20,100,200,60">b</a></main>
+    <div id="notice" style="position: fixed" data-rect="0,300,${Math.round(window.innerWidth * share)},60"><button class="close" id="x" data-rect="${Math.round(window.innerWidth * share) - 50},310,40,40">x</button></div>`;
+
+  it('is where the highlight starts while it lies right across the window, before the place the profile names', () => {
+    document.body.innerHTML = page(1);
+    const nav = new SpatialNavigator(document, { initial: 'main a', closeFirst: ['#notice .close'] });
+    nav.move('down');
+    expect(nav.focused?.id).toBe('x');
+  });
+
+  it('but a small panel in a corner is not in the way: the page starts where the profile says', () => {
+    document.body.innerHTML = page(0.25);
+    const nav = new SpatialNavigator(document, { initial: 'main a', closeFirst: ['#notice .close'] });
+    nav.move('down');
+    expect(nav.focused?.id).toBe('first');
+  });
+
+  it('and the page starts where it always did once the notice is gone, or with a selector that cannot be read', () => {
+    document.body.innerHTML = page(1);
+    document.getElementById('notice')!.remove();
+    const nav = new SpatialNavigator(document, { initial: 'main a', closeFirst: ['#notice .close', 'a[[['] });
+    nav.move('down');
+    expect(nav.focused?.id).toBe('first');
+  });
+});
+
 describe('a body with no height that clips', () => {
   it('hides nothing: what is pinned inside it shows', () => {
     document.body.setAttribute('style', 'overflow-y: hidden');

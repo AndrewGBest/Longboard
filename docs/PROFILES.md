@@ -103,7 +103,7 @@ Only `longboard`, the identity fields, `match` and `evidence` are required.
 | `player.keys` | Which ordinary keys the site's player answers to. Only these can be named: Space, Enter, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, k, j, l, f, m |
 | `text.search` | The search field, for the search key |
 | `text.searchOpen` | A control that reveals the search field when it is hidden |
-| `dismiss` | Close buttons that Back presses first |
+| `dismiss` | Close buttons that Back presses first. While one is showing in a bar pinned right across the window (a cookie notice), the highlight also starts on it; a small panel in a corner does not take it |
 | `guard.purchase` | Controls that buy, rent or subscribe. Only used when Longboard is driven by a script (`--automation`), which then never presses them, whatever they say |
 | `evidence.outline` | The outline file, next to the profile, that shows the selectors exist |
 

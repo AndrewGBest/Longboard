@@ -67,6 +67,54 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-24: Prime Video's categories, the cover, Spotify's cookie notice (0.3.26, not released)
+
+**Not released, and the Spotify profile 1.1.0 is committed in the profiles
+repository but not pushed** (a push reaches people within a day). Andrew
+is asked about both.
+
+Reports from Andrew at the TV:
+
+1. **Prime Video "thinks you're hovering over an element and opens all
+   their categories".** **Reproduced by putting a real pointer** (the X
+   server's) on the site's Categories button: a panel 746 by 430 opens and
+   stays open while the remote is used. **Not established:** where the
+   pointer on Andrew's TV came from (the agent's guess: it rests near the
+   top right, where that button is). **Done:** a key pressed after the
+   mouse was last moved, and a page arriving, each tell the page the
+   pointer has left the window (`mouseLeave`); a real movement of the mouse
+   brings it back. **Verified** on the live site, signed in: with the
+   pointer resting on the button and the panel open, Down closed it.
+   **Not verified:** on the TV; a mouse user's hover at the moment a page
+   arrives is lost until they move it (accepted).
+2. **Prime Video's search bar staying on screen.** The fix made for
+   Netflix covers it: with the search key and then Back, the box closed
+   (its opener went back to `aria-expanded="false"`). Verified on the live
+   site in this build.
+3. **"Make the loading animation take up the whole screen so they don't
+   see the previous website."** Done in the shell, not in the page (the
+   page being left may be frozen): when an address of another site than
+   the tab shows is opened, Longboard's own screen covers the window with
+   the site's name and a moving line until the new page's document is
+   ready (a quarter second after), a failure, or twelve seconds. The keys
+   stay with the page. **Verified:** a scenario with a page that takes
+   five seconds; the look, from a screenshot. **Known:** the page counts
+   as hidden while covered, so a site that waits to be seen starts a
+   moment later.
+4. **"Hard to reach the cookie notice X on Spotify."** **Reproduced**,
+   signed out: the X came after five presses down the page, and the
+   highlight could land on a button lying under the notice. **Done:** when
+   a profile's `dismiss` control is showing in a bar pinned right across
+   the window, the highlight starts on it (a small panel in a corner does
+   not take it: an existing scenario holds that). The Spotify profile
+   1.1.0 names the notice's close button, from an outline saved today.
+   **Verified** on the live site with the profile installed: first press
+   on the X; OK closes it; Back closes it. **Not done:** keeping the
+   highlight off controls that lie under a pinned notice, on sites with no
+   profile.
+
+The whole suite in six parts, all passed.
+
 ## 2026-11-23, late night: Netflix's search bar stayed open; the Rogers issue (0.3.26, not released)
 
 - **Rogers is an open issue on GitHub**, at Andrew's word: issue 1,

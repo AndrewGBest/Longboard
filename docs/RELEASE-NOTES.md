@@ -5,6 +5,16 @@ edges.
 
 New in 0.3.26 (not yet released):
 
+- **A site arriving in place of another is covered.** While an app or
+  another site is opening, the whole window shows Longboard's own screen
+  with the site's name, not the site being left.
+- **An idle mouse pointer no longer opens things.** A pointer nobody is
+  using still counted as resting on whatever lay under it, and a film
+  service opened its whole list of categories for it. When the remote is
+  used, and as a page arrives, the page is told the pointer has left.
+- **A cookie notice's close button is where the highlight starts**, on a
+  site whose profile names it (the music service's profile now does).
+  Back closes it too.
 - **Backing out of a search box closes it.** On a site whose search box
   spreads over the menu when opened, Back with nothing typed now also
   tells the site "Escape", which is what closes such a box. Before, it

@@ -61,6 +61,16 @@ function labelledToggle(label: Element): HTMLInputElement | null {
 }
 
 export const FOCUS_ATTR = 'data-longboard-focus';
+/** True when `el` sits in something pinned to the window that is at least three fifths of its width: a notice bar, not a corner panel. */
+export function acrossTheWindow(el: Element, view: Window): boolean {
+  for (let node: Element | null = el; node && node !== el.ownerDocument.body; node = composedParent(node)) {
+    const position = view.getComputedStyle(node).position;
+    if (position !== 'fixed' && position !== 'sticky') continue;
+    if (node.getBoundingClientRect().width >= view.innerWidth * 0.6) return true;
+  }
+  return false;
+}
+
 /** A control with a value on a track: the page's own slider or the browser's. */
 export function isSlider(el: Element): boolean {
   return el.getAttribute('role') === 'slider' || (el instanceof HTMLInputElement && el.type === 'range');
@@ -154,6 +164,14 @@ export interface NavigatorOptions {
   groups?: ProfileGroup[];
   /** Where the highlight starts on a page, when a profile says. */
   initial?: string | undefined;
+  /**
+   * What a profile says Back closes first (a notice's close button). When
+   * one is showing in a bar pinned right across the window, the highlight
+   * starts on it: such a notice is the first thing in the way, and its
+   * small button was otherwise the last thing reached. A small panel in a
+   * corner is not in the way, and the page starts where it always does.
+   */
+  closeFirst?: readonly string[] | undefined;
   /**
    * Also offer elements that only look clickable: the page shows the hand
    * cursor over them. For sites with no profile, where it is the only sign.
@@ -1086,6 +1104,16 @@ export class SpatialNavigator {
           view.scrollBy({ top: (dir === 'down' ? 0.8 : -0.8) * view.innerHeight, behavior: 'instant' });
         }
         return true;
+      }
+      // A notice the profile knows how to close comes first.
+      for (const sel of this.opts.closeFirst ?? []) {
+        let close: Element | null = null;
+        try {
+          close = all.find((el) => el.matches(sel)) ?? null;
+        } catch {
+          // A selector this browser cannot parse names nothing.
+        }
+        if (close && view && acrossTheWindow(close, view)) return this.focus(close);
       }
       // A profile may say where the highlight starts.
       if (this.opts.initial) {

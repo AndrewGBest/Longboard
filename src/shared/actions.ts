@@ -59,6 +59,8 @@ export type BridgeMessage =
   | { kind: 'pointerClick' }
   /** Pointer mode cannot continue (the on-screen keyboard needs the arrows). */
   | { kind: 'pointerOff' }
+  /** The remote is in use and the mouse pointer is not: the page should stop treating whatever lies under the idle pointer as pointed at. */
+  | { kind: 'pointerAway' }
   /** The on-screen keyboard that was up for a field inside an embedded frame has been put away. */
   | { kind: 'frameFieldDone' }
   /** The highlight is asked into the frame that now has the cursor. `stay`: it carries on where it was in there. `at`: the middle of the frame, in page pixels, for a player inside it whose controls come up when the pointer moves. */

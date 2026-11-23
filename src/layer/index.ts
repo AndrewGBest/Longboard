@@ -164,6 +164,7 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     exclude: rules.selectors.exclude,
     groups: rules.groups,
     initial: rules.initial ?? undefined,
+    closeFirst: rules.selectors.dismiss,
     looksClickable: rules.generic,
     cursorHiddenClass: 'longboard-no-pointer',
     readingScroll: rules.generic,
@@ -815,6 +816,12 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       browseUrl = view.location.href;
       playerMenuSeen = false;
     }
+    // A key, after the mouse was last moved (or the page's first key): the
+    // pointer is hidden, and the page is told it has left. An idle pointer
+    // nobody can see still "hovers" what lies under it, and sites open
+    // things on that. (Seen on a film service at a TV: its whole list of
+    // categories opened over the page, with nothing pointing at it.)
+    if (!doc.documentElement.classList.contains('longboard-no-pointer') && !pointerOn) send({ kind: 'pointerAway' });
     doc.documentElement.classList.add('longboard-no-pointer');
     // (Saving an outline is asked for by the shell, pointer or no pointer.)
     if (pointerOn && a.type !== 'diagnostics') {
@@ -1327,6 +1334,7 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       rules.generic = next.generic;
       navOptions.skip = [...next.selectors.rowPrev, ...next.selectors.rowNext];
       navOptions.initial = next.initial ?? undefined;
+      navOptions.closeFirst = next.selectors.dismiss;
       navOptions.looksClickable = navOptions.readingScroll = navOptions.growPicturesOnly = next.generic;
       rules.playerKeys = next.playerKeys;
       rules.id = next.id;

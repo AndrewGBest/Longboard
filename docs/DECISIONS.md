@@ -3,6 +3,18 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-24: an idle pointer has left; a new site is covered; a notice's X comes first
+
+**The agent's assumptions**, from three reports of Andrew's.
+
+| Question | Choice | Why |
+|---|---|---|
+| The pointer nobody is using | The page is told it has left the window: at the first key after the mouse last moved, and as each page arrives. Not in pointer mode | On a TV the pointer cannot be seen and rests wherever it was left; sites open menus under it. A real movement undoes it at once, so a mouse user loses nothing but the hover of a pointer at rest |
+| What covers the window while another site comes | Longboard's own screen, drawn by the shell, with the site's name | The page being left cannot be relied on to draw it (it may be frozen), and it is the thing not to be seen |
+| When the cover goes | A quarter second after the new document is ready; on failure; after twelve seconds at most | First picture, not full load: a site that loads for a long time is still worth looking at |
+| When there is a cover at all | Only for a different host than the tab shows (or a tab's first page) | Moving about inside a site is not "another website" |
+| Where the highlight starts with a notice showing | On the profile's `dismiss` control, when it sits in something pinned at least three fifths of the window wide | The notice is in the way and its button was last in line. Only what a profile names (rule 8), and not a corner panel, whose page starts where the profile says |
+
 ## 2026-11-23: Back out of an empty search box tells the site Escape
 
 **The agent's assumption**, from Andrew's report on a film service.
