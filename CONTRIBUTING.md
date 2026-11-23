@@ -8,9 +8,12 @@ Open an issue with:
 
 - the site's address;
 - what you pressed and what happened;
-- a page outline, saved with the outline key. Outlines hold the page's
-  structure only: no text, names, links or account details. Look at the file
-  before attaching it anyway.
+- a page outline if you can: "Save page outline" in the menu writes one.
+  Outlines hold the page's structure only: no text, names, links or account
+  details. Look at the file before attaching it anyway.
+
+The issue form asks for these. Security problems go through
+[SECURITY.md](SECURITY.md), not a public issue.
 
 ## 2. Make or fix a profile
 

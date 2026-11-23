@@ -2,6 +2,127 @@
 
 Update this at the end of every working session. Newest first.
 
+## Where things stand (rewritten 2026-11-23, at 0.3.27)
+
+A summary, so nobody has to read the whole file to know. The entries below
+it are the record. **Headings up to 0.3.27 run up to a day ahead of the
+calendar in places** (the agent's slip; the commit dates are right).
+
+- **Released:** 0.3.27, for Intel/AMD and ARM, as AppImage (updates
+  itself), a Flatpak file and tar.gz. **Built, not released:** 0.3.28
+  (below). Releases are made only at Andrew's word.
+- **Tested by Andrew at his TV with a remote:** general browsing, and a
+  number of well-known services signed in. What he reported is answered up
+  to 0.3.27; whether each fix holds on his TV is known only where an entry
+  below says he said so.
+- **Tested by the agent signed in** (Andrew signed in himself; scripts
+  under `--automation`): Netflix, Prime Video, Disney+, Apple TV,
+  Sportsnet+, TSN play; Rogers Xfinity Stream does not (issue 1).
+- **Tested by script signed out:** the 68-site survey (today's run below);
+  the end-to-end suite on invented pages; 636 unit tests.
+- **Never tested by anyone:** an ARM TV box; Kinoite with Plasma
+  Bigscreen after 0.3.18; the Steam hand-back signed in; anybody's TV but
+  Andrew's.
+- **Open, known:** the stuck menu Andrew saw once (safeguards added, cause
+  never reproduced); YouTube's TV app asking who is watching at each
+  start; small pictures on two sports services on the test machine; a
+  full-screen advertisement laid over a weather site, seen once, that the
+  highlight could not get into (pointer mode gets out of it).
+- **Waiting on others:** castLabs' December release (then the AC-3
+  stopgap goes).
+
+## 2026-11-23, afternoon: the milestone pass (0.3.28, not released)
+
+Andrew: test the top sites and media apps, make sure no TV interface is
+being missed, go over everything for bugs, update the documents, and make
+a really good GitHub page.
+
+### The survey, all 68 sites, signed out
+
+`test/scorecard/survey.mjs`, two halves side by side, then the flagged
+sites again one at a time. All 68 loaded. Up reached the top on 66 at the
+first run.
+
+| Seen | What it was | Done |
+|---|---|---|
+| A news portal: no highlight, no movement at all | Not a fault. The site asks where the device is as it opens; Longboard's question was in front and the keys went to it, as they should. The survey could not see the question | The survey now answers "Do not allow" whenever the question is in front, and counts it (`asked`) |
+| A newspaper's front page: Up went round between the page and an advertisement's frame at its top; the menu could not be had with Up twice | **A real fault.** When a frame hands the highlight back and there is nowhere to go, the highlight was put back into the frame | Fixed (below) |
+| The same newspaper, later runs: Down goes round at a frame over the whole page | The site had started showing its "are you a robot" page to this machine after the day's visits. Nothing to fix; the agent stopped visiting it | - |
+| A weather site, once: nothing highlighted, nothing moves | An advertisement laid over the whole page with its own Close, inside a frame the highlight did not get into. Did not appear on three later runs | **Not fixed, not reproduced.** Pointer mode gets out of it |
+| Two streaming services, an electronics maker, a film service: Down "stuck" | Each opens with a privacy or welcome dialog; the highlight is in it and the page behind stays put. Known since 2026-11-20 | - |
+| Signed in: two services "stuck" | Each opens on its "who is watching" page, which is one screen | - |
+
+Nothing else new. The referee's misses are the same kinds as on
+2026-11-20 (carousel arrows, things in closed menus).
+
+### The fault fixed: a frame that hands the highlight back with nowhere to go
+
+`src/layer/index.ts`, `frameExit`. Before: back into the frame, always.
+Now, on a website (not in Longboard's own screens, not in a nested frame):
+
+- Up, with the page at its top: this is Up at the top of the page. The
+  highlight stays on the frame, "Press Up again for the menu" is said, and
+  Up again opens the menu.
+- Up or Down with more of the page that way: the page is scrolled and the
+  highlight takes up what comes into view, as from anything else.
+- Otherwise as before (a sign-in prompt that is a frame over a page that
+  does not scroll keeps the highlight).
+
+**Verified:** two new end-to-end scenarios on invented pages (a frame that
+is the first thing on the page; a frame as big as the screen above a long
+page). **Not verified on a live site:** the newspaper stopped serving its
+front page to this machine before the fix could be tried there.
+
+### TV interfaces: one found, not built
+
+Web research by a sub-agent (sources as it gave them; the agent checked
+one by measurement):
+
+- **A cloud-gaming site has a TV layout**, served when the identity ends
+  with ` Smart-TV` (documented by the better-xcloud project:
+  `github.com/redphx/better-xcloud`, `src/utils/user-agent.ts`).
+  **Measured here, signed out:** with the word, larger controls and
+  controller hints; without, the ordinary page. Not built: see
+  DECISIONS.md of this date. Needs Andrew's account to judge.
+- **Two self-hosted media servers** (Jellyfin, Emby) have a "TV" display
+  mode in their own settings (Jellyfin: `jellyfin-web`,
+  `displaySettings.template.html`). The person sets it; nothing to build.
+  Untested here.
+- **Music inside the video site's TV app:** the research says it is a
+  section of the same app (a guess on its part). The music site at its own
+  address stays the ordinary site, which works with no profile.
+- **None found** for the other services on the survey's list. The
+  research did not look at each in depth; "none found" is not "none".
+
+### The documents and the GitHub page
+
+- **README rewritten:** what it is in ten lines, pictures, direct links to
+  the newest packages, buttons, a "What works" table, what is missing,
+  what it will not do. The identity paragraph now says what rule 3 says
+  (it still said "never claims to be another browser").
+- **Pictures** are Longboard's own screens over an invented page
+  (`test/scorecard/own-shots.mjs`, `test/fixtures/showcase.html`).
+- **A website** in `site/` (plain HTML and CSS), published to GitHub Pages
+  by `.github/workflows/pages.yml`.
+- **Issue forms**, a pull-request template, `SECURITY.md`; on GitHub:
+  topics, a `site` label, private security reports switched on, a
+  description for the profiles repository.
+- **ROADMAP rewritten** (it still listed phases 0 to 5 as to do).
+  DESIGN, CONTRIBUTING and the profiles repository's README corrected
+  where they were out of date.
+- **The release page** now carries the newest version's notes and a link
+  to the rest (`scripts/release-body.sh`), not all of them.
+- **The two checks that were too quick on the ARM builder** wait for the
+  answer they expect.
+
+**Verified:** `npm run check` (636 unit tests, rule check); the whole
+end-to-end suite in six parts, all passing; the website looked at in a
+window 1280 wide. **Not verified:** the website on a phone-width screen
+(the layout is fluid; nobody has looked); the release-page script in a
+real release; the social preview picture is made
+(`site/images/social.png`) but GitHub takes it only through the
+repository's Settings page, by hand.
+
 ## 2026-11-22: Disney+ error 83, and leaving the name out for one site (0.3.21)
 
 Andrew: Disney+ does not play; it shows error 83.
@@ -67,7 +188,7 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
-## 2026-11-24, night: 0.3.27 is released
+## 2026-11-23, night: 0.3.27 is released
 
 Andrew: "Release it". Published; both builds and the publish step passed.
 
@@ -80,7 +201,7 @@ be wrong; **the check waits too little on a slow machine and should be
 made to wait for the advert**. The second such failure there in two days
 (the "history" scenario, 0.3.22). Not yet fixed.
 
-## 2026-11-24, evening: getting about TSN's live page (0.3.27)
+## 2026-11-23, evening: getting about TSN's live page (0.3.27)
 
 Andrew: people will want to move about the live section to pick the
 channel they want, and the navigation "seemed pretty wonky".
@@ -122,7 +243,7 @@ and scenario; the whole suite in six parts, all passed.
 channel buttons are announced by the site as "Video 2 of 5", which is all
 the highlight has to go by; which channel is which is on their pictures.
 
-## 2026-11-24, later: 0.3.26 released; Spotify profile 1.1.0 pushed; TSN's interface
+## 2026-11-23, later: 0.3.26 released; Spotify profile 1.1.0 pushed; TSN's interface
 
 - **0.3.26 is released and the Spotify profile 1.1.0 is pushed** (Andrew:
   "Yes" to both). Both builds and the publish step passed.
@@ -136,7 +257,7 @@ the highlight has to go by; which channel is which is on their pictures.
   to the end of the row, OK), and the page went full screen.
   **Not done:** making OK on such a player go full screen by itself.
 
-## 2026-11-24: Prime Video's categories, the cover, Spotify's cookie notice (0.3.26, not released)
+## 2026-11-23: Prime Video's categories, the cover, Spotify's cookie notice (0.3.26, not released)
 
 **Not released, and the Spotify profile 1.1.0 is committed in the profiles
 repository but not pushed** (a push reaches people within a day). Andrew

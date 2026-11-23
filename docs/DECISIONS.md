@@ -3,7 +3,41 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
-## 2026-11-24: a big player in a long page is a stop on the way, not the whole page
+## 2026-11-23: the front page, the website, and a second TV layout found but not built
+
+Andrew, at the 0.3.27 milestone: test the top sites and media apps, make
+sure no TV interface is being missed, update the documents, and make a
+really good GitHub page. **The choices below are the agent's assumptions.**
+
+| Question | Choice | Why |
+|---|---|---|
+| Pictures in the README and on the website | Longboard's own screens, over a page invented for the purpose (`test/fixtures/showcase.html`), taken by `test/scorecard/own-shots.mjs`. Home shows made-up apps with letter tiles | Hard rules 1 and 6: no screenshot of anyone's site, and no site's icon, is committed. A caption says the page is invented, so nobody takes it for a real service |
+| Naming services in "What works" | Plain names, a state, and the non-affiliation notice at the foot | Hard rule 6 allows plain-text statements of compatibility with the notice. Only what was tested is listed; the one that does not play is listed too |
+| The website | Plain HTML and CSS in `site/`, published to GitHub Pages by a workflow. No generator, no script, no fonts or anything else fetched from a third party | Least upkeep for one maintainer; nothing to track visitors (rule 12's spirit, though the rule is about the app) |
+| Where the pictures live | `site/images/`, and the README points there | One copy. `assets/` is packaged into the app and must not grow |
+| Community files | Issue forms for a site, a fault and an idea; a pull-request template; `SECURITY.md` with private reporting switched on | The site form asks for what CONTRIBUTING already asked for |
+| Discussions, a code of conduct file, funding | Not added | Each is a standing commitment of Andrew's time or name; his to choose |
+| The flaky checks on the ARM builder | Each now waits for the answer it expects and fails only if that never comes | Two releases needed a second run for checks that read a page too early |
+
+**A second TV layout exists and is not built: a cloud-gaming site.**
+Measured 2026-11-23, signed out, under `--automation`: the same address
+serves a layout with larger controls and controller hints when the
+identity ends with the word a third-party tool documents for it
+(` Smart-TV`, after Longboard's honest identity; source: the
+better-xcloud project's `user-agent.ts`), and the ordinary layout
+without. That would be a second use of rule 3's exception, and a truer
+one than the first (it adds a word; it replaces nothing). It is **not
+built** because the rule asks for a measured better experience and only
+the signed-out front page could be measured; whether games start, and
+whether the layout is better with a remote once signed in, needs Andrew's
+account. His to decide.
+
+**Looked for and not found** (web research, sources in STATUS.md): a TV
+interface served to a browser by any other service on the survey's list.
+Two self-hosted media servers have a "TV" display mode that the person
+sets in the server's own settings; nothing for Longboard to do.
+
+## 2026-11-23: a big player in a long page is a stop on the way, not the whole page
 
 **The agent's assumptions**, from Andrew's report on a sports network's
 live page. Sites with no profile only; not in a frame, not full screen.
@@ -16,7 +50,7 @@ live page. Sites with no profile only; not in a frame, not full screen.
 | Leaving the player | At the first or last of its controls, up or down goes straight to the next thing of the page, however far | Scrolling toward it a step at a time left the highlight behind on a control that then disappeared |
 | After OK on a channel | If the pressed thing is left off screen and the picture is in view, the highlight goes to the picture | The page itself went back up to it; before, the highlight jumped to whatever came first on screen (a tab) |
 
-## 2026-11-24: an idle pointer has left; a new site is covered; a notice's X comes first
+## 2026-11-23: an idle pointer has left; a new site is covered; a notice's X comes first
 
 **The agent's assumptions**, from three reports of Andrew's.
 

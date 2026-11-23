@@ -1,0 +1,60 @@
+name: A website does not work well
+description: The highlight gets stuck, misses something, a video will not play, or a page looks wrong.
+labels: ["site"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. One site per report, please. Never paste passwords, codes, cookies or anything from a signed-in page.
+  - type: input
+    id: address
+    attributes:
+      label: Address
+      description: The page where it happens. Leave out anything personal in the address.
+      placeholder: https://example.com/some/page
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What you pressed and what happened
+      description: Button by button if you can. Say what you expected instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Longboard version
+      description: The menu's "About and help" page shows it at the top.
+      placeholder: 0.3.27
+    validations:
+      required: true
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      options:
+        - AppImage
+        - Flatpak
+        - tar.gz
+        - Built from source
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and system
+      description: The machine, its Linux system, and what you drive it with (remote, controller, keyboard).
+      placeholder: Mini PC, Bazzite 43, a game controller
+  - type: dropdown
+    id: signed
+    attributes:
+      label: Were you signed in to the site?
+      options:
+        - "No"
+        - "Yes"
+  - type: textarea
+    id: outline
+    attributes:
+      label: Page outline (optional, but it helps most)
+      description: "\"Save page outline\" in the menu writes one. An outline holds the page's structure only (no text, names or links). Look at the file before attaching it anyway.

@@ -135,6 +135,7 @@ necessary, not sufficient.
 | `test/` | Unit tests, invented fixtures, end-to-end harness |
 | `scripts/` | Build and rule checks |
 | `docs/` | Design, architecture, profiles, guardrails, roadmap, status, decisions |
+| `site/` | The project's website: plain files, published to GitHub Pages by a workflow |
 
 ## Commands
 

@@ -33,8 +33,10 @@ and ordinary websites without reaching for a keyboard.
    before the person notices a delay (targets in section 9).
 6. **Easy to help.** A person who cannot program can still fix a site by
    making a profile.
-7. **Honest and private.** No telemetry, no pretending to be another browser
-   or another maker's device (it may say it is a TV, which it is), no DRM tricks.
+7. **Honest and private.** No telemetry, no DRM tricks, and it says what it
+   is. The one measured exception (Hard rule 3): a site with an interface
+   for TVs is told the engine TV apps run on, with Longboard as the device.
+   Never another maker's device.
 
 ## 3. The three ways a page is driven
 
@@ -369,7 +371,7 @@ Space for OK.
 | Safe | Chromium kept current; pages sandboxed; no way for a page or a profile to run code with the app's privileges. Electron's own guidance puts staying up to date first [Sourced: Electron] |
 | Predictable | Back always goes back. The highlight never disappears. The same key does the same thing on every site |
 | Quick | Targets in section 9, measured in tests |
-| Compatible | A real, current Chromium with its real identity, so sites treat it as the browser it is |
+| Compatible | A real, current Chromium that says what it is (Hard rule 3 has the one exception), so sites treat it as the browser it is |
 | Private | No telemetry. The only calls home are the profile catalogue and the filter lists, both to public hosts, both listed in Settings |
 | Legible | Text sized for ten feet; a margin for TVs that cut off the edges. Android's older TV guidance suggests a 5% margin [Sourced: Android style] |
 | Repairable by its users | Profiles |

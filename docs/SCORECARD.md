@@ -12,6 +12,14 @@ and whether pointer mode comes up. It cannot tell whether the highlight went
 somewhere *sensible*, or whether the site is pleasant to use from a couch.
 That still needs a person with a remote, and has not been done.
 
+## 2026-11-23: the wider survey again
+
+The 68-site survey (`test/scorecard/survey.mjs`, a rougher look than this
+scorecard) was run again at 0.3.27. All 68 loaded; one real fault was found
+and fixed (a frame at the top of a page that kept the highlight). The
+table of what was seen is in `docs/STATUS.md` under that date. The ten-site
+scorecard below was not run again that day.
+
 ## The referee (added 2026-11-19)
 
 The run now also presses Tab through each page, up to 150 times, and

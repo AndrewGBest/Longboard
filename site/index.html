@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Longboard: a web browser for the TV</title>
+<meta name="description" content="An open-source web browser for the TV. Drive any website from the couch with a remote, a game controller or a keyboard.">
+<meta property="og:title" content="Longboard: a web browser for the TV">
+<meta property="og:description" content="Drive any website from the couch with a remote, a game controller or a keyboard. Open source, no telemetry.">
+<meta property="og:image" content="https://andrewgbest.github.io/Longboard/images/social.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="images/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="top">
+  <a class="brand" href="./"><img src="images/icon.svg" width="36" height="36" alt=""> Longboard</a>
+  <nav aria-label="Sections">
+    <a href="#how">How it works</a>
+    <a href="#works">What works</a>
+    <a href="#install">Install</a>
+    <a href="#questions">Questions</a>
+    <a href="https://github.com/AndrewGBest/Longboard">GitHub</a>
+  </nav>
+</header>
+
+<main id="main">
+<section class="hero">
+  <h1>A web browser for the TV</h1>
+  <p class="lede">Drive any website from the couch with a remote, a game controller or a keyboard. Longboard moves a highlight from one thing to the next, so six buttons are enough.</p>
+  <p class="actions">
+    <a class="button primary" href="#install">Download for Linux</a>
+    <a class="button" href="https://github.com/AndrewGBest/Longboard">See the source</a>
+  </p>
+  <p class="small">Free and open source (GPL-3.0). No telemetry. Early: expect rough edges.</p>
+  <figure>
+    <img src="images/highlight.png" width="1280" height="720" alt="Longboard showing a streaming page, with a white highlight around one of a row of cards">
+    <figcaption>The page in these pictures is invented for this project. Longboard shows real websites; their pictures are not ours to print.</figcaption>
+  </figure>
+</section>
+
+<section id="how">
+  <h2>How it works</h2>
+  <div class="three">
+    <div>
+      <h3>1. Open any site</h3>
+      <p>Type an address or a search on Home, or pick a tile. It is a whole browser built on Chromium, not a list of supported services.</p>
+    </div>
+    <div>
+      <h3>2. Move the highlight</h3>
+      <p>Longboard finds what can be pressed on the page. The arrows move between those things, OK presses, Back goes back. Nothing to set up per site.</p>
+    </div>
+    <div>
+      <h3>3. Watch</h3>
+      <p>While a video plays, OK pauses, left and right seek, and up and down bring up the player's own controls.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>What you get</h2>
+  <div class="cards">
+    <article>
+      <img src="images/home.png" width="1280" height="720" loading="lazy" alt="Home: a search field and a grid of app tiles">
+      <h3>Any site as an app</h3>
+      <p>Add a site to Home and to your TV's app list. It opens like an app, and can keep its own sign-ins.</p>
+    </article>
+    <article>
+      <img src="images/menu.png" width="1280" height="720" loading="lazy" alt="The menu panel open over a page">
+      <h3>One menu for everything</h3>
+      <p>Address, zoom, tabs, history, reader view, find on the page, ad blocking for the site in front, and Settings.</p>
+    </article>
+    <article>
+      <img src="images/keyboard.png" width="1280" height="720" loading="lazy" alt="The on-screen keyboard over a form">
+      <h3>Typing without a keyboard</h3>
+      <p>An on-screen keyboard comes up on text fields. Or type from your phone, or speak.</p>
+    </article>
+  </div>
+  <ul class="points">
+    <li><strong>Streaming services play.</strong> Protected video goes through the browser's standard component, as in other browsers.</li>
+    <li><strong>A pointer when you need one.</strong> One button gives you an on-screen cursor for the rare page the highlight cannot handle.</li>
+    <li><strong>Profiles for the finishing touches.</strong> Small settings files for single sites, such as "this site has an interface made for TVs: open that". They are data, not programs, and <a href="https://github.com/AndrewGBest/Longboard-Profiles">anyone can write one</a>.</li>
+    <li><strong>Ad blocking you control</strong>, site by site, from public filter lists.</li>
+    <li><strong>Private.</strong> No analytics and no crash upload. What it fetches by itself is listed in Settings and can be switched off.</li>
+    <li><strong>A parental lock</strong> with a PIN, and a list of what each site may ask for.</li>
+  </ul>
+</section>
+
+<section id="works">
+  <h2>What works</h2>
+  <p>Any site should be usable. These are the ones somebody has sat through with a remote or a script; the <a href="https://github.com/AndrewGBest/Longboard/blob/main/docs/STATUS.md">status file</a> has the dates, the detail and the rough spots.</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Site</th><th>State</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>YouTube</td><td class="yes">Works, in its TV interface</td><td>Longboard opens the interface the site makes for TVs, with previews</td></tr>
+      <tr><td>Netflix</td><td class="yes">Works</td><td>Browsing, search, playback and the progress bar</td></tr>
+      <tr><td>Prime Video</td><td class="yes">Works</td><td>With a reviewed profile</td></tr>
+      <tr><td>Disney+</td><td class="yes">Works</td><td></td></tr>
+      <tr><td>Apple TV</td><td class="yes">Works</td><td></td></tr>
+      <tr><td>Spotify</td><td class="yes">Works</td><td>With a reviewed profile</td></tr>
+      <tr><td>Sportsnet+, TSN</td><td class="yes">Work</td><td>Live channels play</td></tr>
+      <tr><td>Players embedded from another site</td><td class="yes">Work</td><td>OK on the player takes it full screen, where the remote drives it</td></tr>
+      <tr><td>Rogers Xfinity Stream</td><td class="no">Does not play</td><td>The service refuses playback on Linux in any browser we tried (<a href="https://github.com/AndrewGBest/Longboard/issues/1">issue 1</a>)</td></tr>
+      <tr><td>The 50 most-visited websites</td><td class="yes">Navigable</td><td>The highlight gets around each, signed out (<a href="https://github.com/AndrewGBest/Longboard/blob/main/docs/SCORECARD.md">scorecard</a>)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note"><strong>Picture quality is the service's decision.</strong> Several services send a browser on Linux a smaller picture than they send a TV app, because of how protected playback works there. Longboard does not work around that.</p>
+</section>
+
+<section id="install">
+  <h2>Install</h2>
+  <p>Linux with a desktop session, on a 64-bit Intel/AMD or ARM machine. These links always fetch the newest release.</p>
+  <div class="downloads">
+    <div>
+      <h3>AppImage <span>updates itself</span></h3>
+      <p><a class="button primary" href="https://github.com/AndrewGBest/Longboard/releases/latest/download/Longboard-x86_64.AppImage">Intel / AMD</a>
+         <a class="button" href="https://github.com/AndrewGBest/Longboard/releases/latest/download/Longboard-arm64.AppImage">ARM</a></p>
+      <pre><code>chmod +x Longboard-x86_64.AppImage
+./Longboard-x86_64.AppImage</code></pre>
+    </div>
+    <div>
+      <h3>Flatpak file</h3>
+      <p><a class="button" href="https://github.com/AndrewGBest/Longboard/releases/latest/download/Longboard-x86_64.flatpak">Intel / AMD</a>
+         <a class="button" href="https://github.com/AndrewGBest/Longboard/releases/latest/download/Longboard-aarch64.flatpak">ARM</a></p>
+      <pre><code>flatpak install --user ./Longboard-x86_64.flatpak</code></pre>
+    </div>
+    <div>
+      <h3>tar.gz</h3>
+      <p><a class="button" href="https://github.com/AndrewGBest/Longboard/releases/latest/download/Longboard-x64.tar.gz">Intel / AMD</a>
+         <a class="button" href="https://github.com/AndrewGBest/Longboard/releases/latest/download/Longboard-arm64.tar.gz">ARM</a></p>
+      <p class="small">Unpack it anywhere and run <code>longboard</code> inside it.</p>
+    </div>
+  </div>
+  <p class="small">Releases are not signed. GitHub shows a SHA-256 digest beside each file on the <a href="https://github.com/AndrewGBest/Longboard/releases/latest">release page</a>, where the <a href="https://github.com/AndrewGBest/Longboard/blob/main/docs/RELEASE-NOTES.md">release notes</a> are too. The ARM packages are built and tested by script and have not yet been tried on an ARM TV box.</p>
+
+  <h3>Buttons</h3>
+  <div class="scroll">
+  <table>
+    <tbody>
+      <tr><th scope="row">Arrows, D-pad</th><td>Move the highlight; scroll when there is nothing to move to</td></tr>
+      <tr><th scope="row">OK, Enter, A</th><td>Select. On a text field: the on-screen keyboard</td></tr>
+      <tr><th scope="row">Back, Escape, B</th><td>Back; Home from a site's first page</td></tr>
+      <tr><th scope="row">Menu key, Start, or Up twice at the top of a page</th><td>The menu</td></tr>
+      <tr><th scope="row">F2, pressing the right stick</th><td>The on-screen pointer, on and off</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="questions">
+  <h2>Questions</h2>
+  <details>
+    <summary>Is it a media centre? Does it come with anything to watch?</summary>
+    <p>No. It is a browser. It holds no content and unlocks nothing: you need your own accounts, and each site decides what it shows you.</p>
+  </details>
+  <details>
+    <summary>Does it get round DRM, region limits or adverts in videos?</summary>
+    <p>No, and it will not. Protected video plays through the unmodified standard component. Ad blocking only refuses requests that a public filter list names; it does nothing inside a video stream. The reasons are written down in the <a href="https://github.com/AndrewGBest/Longboard/blob/main/docs/LEGAL-GUARDRAILS.md">guardrails</a>.</p>
+  </details>
+  <details>
+    <summary>What does it tell websites it is?</summary>
+    <p>What it is: the engine it is built on, and its own name. One exception: a site with an interface made for TVs is told the engine TV apps run on, with Longboard as the device, because that is what makes the site serve that interface. It never claims to be another maker's device.</p>
+  </details>
+  <details>
+    <summary>What is missing compared with a mainstream browser?</summary>
+    <p>Safe Browsing (nothing warns about known phishing or malware sites), sync, translation, and tabs that survive a restart. Releases are not signed. The <a href="https://github.com/AndrewGBest/Longboard#what-is-missing">full list</a> is kept honest.</p>
+  </details>
+  <details>
+    <summary>Which remotes and controllers work?</summary>
+    <p>Anything the system sees as a keyboard, which is how most remotes arrive, or as a game controller. Buttons can be given other jobs in Settings.</p>
+  </details>
+  <details>
+    <summary>Windows, Mac, TVs that run Android?</summary>
+    <p>Linux only today. A version for TVs that run Android has been researched, not built.</p>
+  </details>
+  <details>
+    <summary>Who makes it?</summary>
+    <p>One person in spare time. The code is written with Claude Code, an AI coding agent, directed and tested by the owner, who is responsible for what is released.</p>
+  </details>
+  <details>
+    <summary>Something does not work. Where do I say so?</summary>
+    <p><a href="https://github.com/AndrewGBest/Longboard/issues/new/choose">Open an issue</a>. For a site, the address and what you pressed are enough to start.</p>
+  </details>
+</section>
+</main>
+
+<footer>
+  <p>Longboard is an independent project. It is not affiliated with any website or streaming service it can display. It does not provide, unlock or bypass access to any content and does not remove or work around DRM. The names of websites and services on this page are used only to say what was tested. They belong to their owners, who have not endorsed Longboard.</p>
+  <p>GPL-3.0. This page uses no cookies, no trackers and nothing fetched from anyone but GitHub, which hosts it. <a href="https://github.com/AndrewGBest/Longboard">Source</a> · <a href="https://github.com/AndrewGBest/Longboard/blob/main/SECURITY.md">Security</a></p>
+</footer>
+</body>
+</html>

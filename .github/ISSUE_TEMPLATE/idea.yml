@@ -1,0 +1,19 @@
+name: An idea
+description: Something Longboard should do, or do differently.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you would like
+      description: Say what you are trying to do from the couch; that is more use than a design.
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: What you do today instead
+  - type: markdown
+    attributes:
+      value: |
+        Some things Longboard will not do, whoever asks: get round DRM, region limits or paywalls, skip adverts inside a video stream, or download streams. The reasons are in [docs/LEGAL-GUARDRAILS.md](https://github.com/AndrewGBest/Longboard/blob/main/docs/LEGAL-GUARDRAILS.md).

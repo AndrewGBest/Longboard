@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Make or fix a profile for a site
+    url: https://github.com/AndrewGBest/Longboard-Profiles
+    about: Profiles are small settings files, kept in their own repository. No programming needed.
+  - name: Report a security problem privately
+    url: https://github.com/AndrewGBest/Longboard/security/advisories/new
+    about: Please do not open a public issue for something that could put people at risk.

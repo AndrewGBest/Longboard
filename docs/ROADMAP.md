@@ -1,67 +1,58 @@
 # Roadmap
 
-Phases are in order. Each ends with something a person can try. No dates:
-this is a spare-time project and dates would be guesses.
+No dates: this is a spare-time project and dates would be guesses. What is
+done is listed so that nobody plans it twice; `docs/STATUS.md` has the detail
+and what was and was not checked.
 
-## Phase 0: carry over
+## Done
 
-- Bring Tropic Video's code into this repository under the new layout.
-- Rename, keep every test passing, keep the rule checks.
-- Result: Longboard opens one address and behaves as Tropic Video does.
+| Phase | What | Since |
+|---|---|---|
+| 0 | Tropic Video's code carried over under the new layout | 2026-11-18 |
+| 1 | A browser shell: Home, the menu, Back, reload, zoom, the permission policy, the on-screen keyboard | 2026-11-18 |
+| 2 | Generic mode (any page with no profile), pointer mode, the fixture pages and the scorecard | 2026-11-18 |
+| 3 | Profiles: schema, validator, matcher, interpreter, import and export, the shared catalogue with checksums | 2026-11-18 |
+| 4 | Any site as an app; the on-TV profile editor | 2026-11-18 |
+| 5 | Ad blocking: a per-site switch, off to start with on verified sites | 2026-11-18 |
+| - | Settings, tabs, history, downloads, reader view, find on the page, a PIN lock, passwords in the system keyring, extensions, speech, typing from a phone | 2026-11-18 to 19 |
+| - | Releases for Intel/AMD and ARM as AppImage, Flatpak file and tar.gz; the AppImage updates itself | 0.3.0, 2026-11-19 |
+| - | A site's own interface for TVs, opened by a profile | 0.3.13 to 0.3.24 |
+| - | Players: thin progress bars, players in a frame from another site, players in a long page | 0.3.19 to 0.3.27 |
 
-## Phase 1: a browser shell
+## Next
 
-- Home screen with tiles and "go to address or search".
-- The menu panel. Back, reload, zoom.
-- Replace the single-service allowlist with the permission policy.
-- On-screen keyboard working in Longboard's own screens and on pages.
-- Result: you can open any address from the couch.
+In rough order. The first group is about trust, which a browser needs before
+it needs features.
 
-## Phase 2: generic mode and pointer mode
+1. **People other than the owner using it.** Nobody else has reported yet.
+   The README, the website and the issue forms exist to make that easy.
+2. **Move to each castLabs Electron release promptly** (Hard rule 14). The
+   December 2026 one is expected to fix the engine's wrong answer about
+   AC-3 sound, after which the stopgap in `src/shared/audio-truth.ts` goes.
+3. **Signed releases.** Today GitHub's digests are the only check.
+4. **Safe Browsing or an equivalent**, if one can be had on terms an
+   open-source project can meet. Until then the README says it is missing.
 
-- Target discovery on unknown pages, scrolling, video detection.
-- Pointer mode on a button.
-- The fixture pages and the real-site scorecard.
-- Result: ordinary sites are usable without a profile.
+Then, as they are asked for:
 
-## Phase 3: profiles
+- Tabs that survive a restart; a list of downloads that lasts beyond one run.
+- Frames from other origins driven by the highlight everywhere, not only
+  for players.
+- More reviewed profiles, written from outlines by the people who use the
+  sites.
+- An Android TV version (researched in `RESEARCH-ANDROID.md`, not started).
+- Reviewed scripts in profiles (format version 2), only with a recorded
+  decision (Hard rule 7).
+- Speech in languages other than English.
 
-- Schema, validator, matcher, interpreter.
-- Convert Tropic Video's adapter into the first profile. This is the test of
-  the format.
-- Local profiles folder; import and export of files.
-- The catalogue repository with its checks; background fetch with checksums.
-- Result: Prime Video works through a profile as well as it did in Tropic
-  Video, and a second person can write a profile.
+## Known and open
 
-## Phase 4: web apps and the editor
-
-- Add any site as an app: Home tile, launcher entry, optional own session.
-- The on-TV profile editor.
-- Result: the first release worth announcing.
-
-## Phase 5: ad blocking
-
-- Request filter, the allowed-here decision, settings.
-- Result: on by default on ordinary sites, off on streaming services.
-- Built on 2026-11-18 (STATUS.md). Not in it: a settings screen (the switch
-  is in the menu, the rest is in `config.json`), and choosing lists on the TV.
-
-Ad blocking is late on purpose. It adds a dependency and the most legal
-exposure, and nothing else depends on it.
-
-## Later
-
-- Bookmarks beyond Home tiles. Tabs that survive a restart. A list of downloads that lasts beyond one run.
-- Typing from a phone; voice search.
-- Reviewed scripts in profiles (format version 2).
-- Other systems and architectures: Linux arm64 first, since the shell already
-  ships for it.
-- Frames from other origins handled by the highlight, not only the pointer.
-
-## Before any public release
-
-- Clear the name (DECISIONS.md).
-- State plainly what is missing compared with a mainstream browser,
-  including Safe Browsing.
-- Run the scorecard and publish it.
+- Not on Flathub: its policy on AI-written code ruled it out (DECISIONS.md,
+  "Distribution"), so the Flatpak is a file that does not update itself.
+- A cable company's streaming site refuses playback on Linux
+  ([issue 1](https://github.com/AndrewGBest/Longboard/issues/1)). Nothing
+  Longboard may do changes that (Hard rule 2).
+- Several services send a smaller picture to a browser on Linux than to a
+  TV app. Not Longboard's to work around.
+- The Chrome Web Store's terms and what they mean for adding extensions
+  from it (`RESEARCH-STORE-ARM.md`).

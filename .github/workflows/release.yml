@@ -73,5 +73,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l release/
+          sh scripts/release-body.sh > release-body.md
           gh release create "$GITHUB_REF_NAME" release/*.AppImage release/*.tar.gz release/*.flatpak \
-            --title "Longboard ${GITHUB_REF_NAME#v}" --notes-file docs/RELEASE-NOTES.md
+            --title "Longboard ${GITHUB_REF_NAME#v}" --notes-file release-body.md
