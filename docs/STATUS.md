@@ -67,7 +67,20 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
-## 2026-11-24, evening: getting about TSN's live page (0.3.27, not released)
+## 2026-11-24, night: 0.3.27 is released
+
+Andrew: "Release it". Published; both builds and the publish step passed.
+
+**A test that fails now and then on the arm64 builder:** on the first try
+its "ad blocking" scenario read a verified site's page before the page's
+advert had been asked for ("on a verified site nothing is refused to begin
+with": expected `advert,site`, got `site`). The same commit passed on x64
+and passed on arm64 when run again, so nothing in the product is known to
+be wrong; **the check waits too little on a slow machine and should be
+made to wait for the advert**. The second such failure there in two days
+(the "history" scenario, 0.3.22). Not yet fixed.
+
+## 2026-11-24, evening: getting about TSN's live page (0.3.27)
 
 Andrew: people will want to move about the live section to pick the
 channel they want, and the navigation "seemed pretty wonky".
