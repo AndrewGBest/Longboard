@@ -67,6 +67,31 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-23: releases are asked for first; 0.3.23 is not out; YouTube previews
+
+- **Andrew, 2026-11-23: "Ask before you release things."** This replaces
+  "You can make releases" (2026-11-19). The tag `v0.3.23` had been pushed
+  minutes before; its build was cancelled before the publish step, so
+  **0.3.23 is committed and tagged but not released**. The latest release
+  is 0.3.22. To release it once Andrew says so: re-run the cancelled
+  workflow run for the tag.
+- **"Video previews don't work on YouTube"** (the TV app, which the
+  YouTube profile opens). **Reproduced as a guest:** resting for nine
+  seconds on a tile of a browse shelf or of search results starts nothing;
+  the app's one video element stays hidden and the app never calls `play`.
+  **Looked at:** the app's Settings list here has no "Previews" entry (it
+  has Auto-play, Restricted mode, linking, language, history, About);
+  guides for other TV platforms describe a "Previews with sound" entry
+  there, and user reports say some platforms have none. About says the
+  app sees "TV (PLATFORM_DETAIL_TV), Longboard/Linux, Chrome".
+  **The agent's reading, not established:** the app does not offer
+  previews to this device, and that is its decision. **Tried and ruled
+  out:** the engine answers yes to the app's deliberately impossible
+  capability questions (video 99,999 wide and the like); answering those
+  truthfully, by a probe, changed nothing, so nothing was built for it.
+  **Not tried:** signed in. What decides it inside the app was not looked
+  for (rule 9), and saying Longboard is another maker's TV is out (rule 3).
+
 ## 2026-11-23: players embedded in a frame from another site (0.3.23)
 
 Andrew: on general media players "there's no way to get to the media
