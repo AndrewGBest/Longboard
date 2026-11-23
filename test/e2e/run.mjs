@@ -1600,7 +1600,7 @@ await scenario('ad blocking', { url: `${site.origin}/ads.html`, args: [`--filter
   check('nothing was saved about the site: the switch has not been touched', existsSync(join(app.userData, 'sites.json')), false);
   check('the switch can be reached', await reach('menu-adblock'), 'menu-adblock');
   await chrome.press('Enter', 900);
-  check('turning it off is kept for the site and loads the page again with everything on it', [JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8')), await loaded('advert,site'), asks.adverts], [{ '127.0.0.1': { adBlocking: false } }, 'advert,site', 2]);
+  check('turning it off is kept for the site and loads the page again with everything on it', [JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8')), await loaded('advert,site'), await until(() => asks.adverts, (n) => n >= 2, 40)], [{ '127.0.0.1': { adBlocking: false } }, 'advert,site', 2]);
   check('the menu stays open and says it is off by choice', [await chrome.evaluate('(document.getElementById("menu-adblock")?.ariaLabel ?? document.getElementById("menu-adblock")?.textContent)'), await line(), await chrome.focused()], ['Ad blocking: off', 'Off for this site: your choice.', 'menu-adblock']);
   await chrome.press('Enter', 900);
   check('and on again', [JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8')), await loaded(), asks.adverts], [{ '127.0.0.1': { adBlocking: true } }, 'site', 2]);
@@ -1614,6 +1614,8 @@ await scenario('ad blocking', { url: `${site.origin}/ads.html`, args: [`--filter
   check('a verified site opens', !!verifiedPage, true);
   if (!verifiedPage) return;
   await sleep(600);
+  // Both of the page's advertisements must have been asked for; the second is a picture and can come a moment after the page says it is complete.
+  await until(() => asks.adverts, (n) => n >= 2, 40);
   check('on a verified site nothing is refused to begin with', [await until(() => verifiedPage.evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v === 'advert,site', 60), asks.adverts], ['advert,site', 2]);
   await verifiedPage.press('ContextMenu', 500);
   check('the menu says the switch starts off there, and why', [await chrome.evaluate('(document.getElementById("menu-adblock")?.ariaLabel ?? document.getElementById("menu-adblock")?.textContent)'), await line()], ['Ad blocking: off', 'Off to start with: this site is on the list of sites where it starts off.']);
