@@ -103,7 +103,9 @@ one by measurement):
 - **Pictures** are Longboard's own screens over an invented page
   (`test/scorecard/own-shots.mjs`, `test/fixtures/showcase.html`).
 - **A website** in `site/` (plain HTML and CSS), published to GitHub Pages
-  by `.github/workflows/pages.yml`.
+  by `.github/workflows/pages.yml`. Live at
+  https://andrewgbest.github.io/Longboard/ since this afternoon (the
+  third run: the upload and the publishing had to be separate jobs).
 - **Issue forms**, a pull-request template, `SECURITY.md`; on GitHub:
   topics, a `site` label, private security reports switched on, a
   description for the profiles repository.
