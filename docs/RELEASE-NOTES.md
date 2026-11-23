@@ -3,7 +3,7 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
-New in 0.3.27 (not yet released):
+New in 0.3.27:
 
 - **A big player in the middle of a long page is a stop, not a trap.** On
   a page with tabs above the picture and a row of channels below it (a
