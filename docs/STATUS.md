@@ -67,6 +67,42 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-23, evening: Rogers Xfinity Stream cannot play in Longboard; Apple TV asked about
+
+**Andrew: "test whatever methods to see if you can get Rogers working."**
+He signed in himself. Everything below was done with a temporary,
+test-only switch for the identity, **since removed; nothing of it is in
+Longboard**.
+
+| Step | Longboard says Linux (the truth) | Says ChromeOS, Windows or macOS (the system only, in the user agent) |
+|---|---|---|
+| Front door | "Update your browser to start streaming" | The MyRogers sign-in page |
+| Signed in | not reached | Home, the guide and the listings load and can be read |
+| A channel pressed in the guide | | The player opens, asks for the Widevine key system and is given it, and starts two stream buffers (H.264, AAC) |
+| Then | | **The service's licence server answers 403.** The page's own console: "Failed to acquire a license", and the request to its licence address is the one that failed |
+
+So the refusal at the door is not the real one. The service does not
+issue a licence to this player (the agent's reading of why, **not
+established**: a Linux build of the engine reports an unverified platform,
+castLabs' wiki, and the service wants a verified one). That is the
+service's protected-playback decision. **Longboard does not work round it
+(rule 2), and this is where the testing stopped.** Only the status of the
+request and the page's console were looked at; nothing of the licence
+exchange was read.
+
+**Nothing is built for Rogers.** Saying another system would only move the
+refusal from a clear page to a failed player, so rule 3 stays as it is on
+systems: Longboard never says it runs on another.
+
+The "This Video Cannot Be Played (player.noPlayableID)" seen first was a
+different thing: the item on the home page's "Now Playing" strip has no
+stream for a browser, under any identity tried.
+
+**Apple TV**, asked again by Andrew: it has played since 0.3.22 (a title
+resumed on the Canadian storefront, entry of 2026-11-22). The castLabs
+December release is not being waited for; it will let the AC-3 stopgap be
+taken out.
+
 ## 2026-11-23, after the release: Sportsnet+, TSN and Rogers (0.3.25, not released)
 
 Andrew asked how the three work and signed in to the first two himself
