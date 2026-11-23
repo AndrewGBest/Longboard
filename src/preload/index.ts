@@ -96,8 +96,13 @@ function watchFrameFields(): (el: Element) => void {
 function frameLayer(sayField: (el: Element) => void): void {
   let layer: Layer | null = null;
   const tell = (what: Record<string, unknown>): void => ipcRenderer.send('longboard:frame', what);
+  let frameFront: boolean | null | undefined;
+  const started = (made: Layer): Layer => {
+    if (frameFront !== undefined) made.front(frameFront);
+    return made;
+  };
   const begin = (): Layer =>
-    (layer ??= startLayer({
+    (layer ??= started(startLayer({
       doc: document,
       options: { dev: false, automation: process.argv.includes('--longboard-automation') },
       rules: rulesFromUntrusted(null, document),
@@ -116,7 +121,7 @@ function frameLayer(sayField: (el: Element) => void): void {
         exit: (how) => tell({ exit: how }),
         field: sayField,
       },
-    }));
+    })));
   // The shell asks every frame; the one that has the cursor answers.
   ipcRenderer.on('longboard:frame-enter', (_event, stay: unknown) => {
     if (!document.hasFocus() || document.activeElement instanceof HTMLIFrameElement) return;
@@ -124,6 +129,10 @@ function frameLayer(sayField: (el: Element) => void): void {
     tell({ entered: taken, player: taken && begin().framePlayer() });
   });
   ipcRenderer.on('longboard:frame-out', () => layer?.dropHighlight());
+  ipcRenderer.on('longboard:front', (_event, on: unknown) => {
+    frameFront = on === null ? null : on === true;
+    layer?.front(frameFront);
+  });
   ipcRenderer.on('longboard:frame-in', (_event, state: unknown) => {
     if (state === 'in' || state === 'none' || state === 'lost') layer?.frameIn(state);
   });
@@ -249,6 +258,7 @@ const start = (): void => {
   }
   // The window is no longer the one in front.
   ipcRenderer.on('longboard:away', () => layer.away());
+  ipcRenderer.on('longboard:front', (_event, on: unknown) => layer.front(on === null ? null : on === true));
   // Button mappings changed in Settings: the layer reads this object at every key.
   ipcRenderer.on('longboard:keys', (_event, keys: unknown) => replaceKeys(held, keys));
   // Pointer mode: where the pointer is now, or null when it has been put away.

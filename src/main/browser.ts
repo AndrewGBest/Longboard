@@ -45,9 +45,9 @@ import { MENU_TIP } from '../shared/about';
 import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeLauncher } from '../platform';
 import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
 import { canvasOf, wantsTv, type Profile, type ProfileSource } from '../shared/profile';
-import { identityFor, systemName, tvUserAgent } from './useragent';
+import { buildYear, chipName, identityFor, systemName, tvUserAgent } from './useragent';
 import { desktopZoom, hoverPoint, pageBounds, tvZoom } from './zoom';
-import { cdpKey } from '../shared/player-keys';
+import { cdpKey, strayKeyCode } from '../shared/player-keys';
 import { filterSession, type FilterSet } from './adblock';
 import { privacySignals } from './signals';
 import { parseArticle, type Article } from '../shared/reader';
@@ -803,6 +803,23 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
 
   /** Sizes and shows the views for the current state, and gives the keys to the one in front. */
+  /** Whether the app's window is the one in front, as far as the shell has heard. */
+  let windowAway = false;
+  // Each view is told whether it is the one in front. A game controller is
+  // read by the views themselves, and each used to go by whether its own
+  // window had heard it was focused; that is not always heard.
+  const tellFront = (): void => {
+    const front = active();
+    for (const wc of [chrome, page]) {
+      if (wc.isDestroyed()) continue;
+      // With the app's window itself not in front, the view goes by what its own window hears, as before.
+      const on = wc !== front ? false : windowAway ? null : true;
+      wc.send('longboard:front', on);
+      if (wc === page) for (const f of wc.mainFrame.framesInSubtree) if (f !== wc.mainFrame && !f.isDestroyed()) f.send('longboard:front', on);
+    }
+  };
+  // A page that has just come has heard nothing yet.
+  eachPage((wc) => wc.on('dom-ready', () => tellFront()));
   const layout = (): void => {
     if (win.isDestroyed()) return;
     if (pending && panel !== 'prompt') dropQuestion();
@@ -830,6 +847,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (!chrome.isDestroyed()) chrome.send('longboard:chrome-state', chromeState());
     const front = active();
     if (!front.isDestroyed()) front.focus();
+    tellFront();
   };
 
   /** A line of text over whatever is in front. */
@@ -1291,6 +1309,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (isMainFrame && !isInPlace) thaw(wc);
   }));
 
+  /** Keys Longboard has just sent a view itself, so they are not taken for a person's. */
+  const ownKeys: Array<{ to: WebContents; key: string; until: number }> = [];
+  let strayLogged = false;
   /** The highlight is in a frame that is a player (see onFrame). */
   let playerInFrame = false;
   let attached = false;
@@ -1463,6 +1484,38 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (!pointerOn) detach();
     }
   }));
+  // A key that reaches a website while one of Longboard's own screens is in
+  // front (the menu, Settings, Home) belongs to that screen. It should never
+  // happen, since the screen in front is given the keys; Andrew saw it happen
+  // at a TV on 2026-11-23 (the menu open, the keys still moving the page, and
+  // so no way to close the menu), by a road not yet found. Whatever the
+  // road, the key is taken from the page, the screen in front is given the
+  // keys again, and the key is passed on to it. Keys Longboard itself sends
+  // a page (a player's pause as the page is left) are let through.
+  eachPage((wc) => wc.on('before-input-event', (event, input) => {
+    const front = active();
+    if (front === wc || front !== chrome || chrome.isDestroyed()) return;
+    const now = Date.now();
+    while (ownKeys.length && ownKeys[0]!.until < now) ownKeys.shift();
+    const mine = ownKeys.findIndex((k) => k.to === wc && k.key === input.key);
+    if (mine !== -1) {
+      if (input.type === 'keyUp') ownKeys.splice(mine, 1);
+      return;
+    }
+    event.preventDefault();
+    // The menu key, Quit and the like are acted on by the shell itself, wherever they arrive (below).
+    const own = keyToAction({ key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift }, 'text', config.keys);
+    const keyCode = own && (own.type === 'menu' || own.type === 'exit' || own.type === 'voice' || own.type === 'pointer') ? null : strayKeyCode(input.key);
+    if (!strayLogged) {
+      strayLogged = true;
+      console.error('[longboard] a key reached the page while another screen was in front; it was passed on to that screen');
+    }
+    setImmediate(() => {
+      if (chrome.isDestroyed() || active() !== chrome) return;
+      chrome.focus();
+      if (keyCode && (input.type === 'keyDown' || input.type === 'keyUp')) chrome.sendInputEvent({ type: input.type, keyCode });
+    });
+  }));
   // In pointer mode the shell takes the keys before the page sees them: the
   // pointer must work wherever in the page the keys would have gone.
   eachPage((wc) => wc.on('before-input-event', (event, input) => {
@@ -1631,6 +1684,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     // its place (not for a moment, as when one of its own lists opens).
     if (surface === 'page') freezeSoon(page);
     awayAt = Date.now();
+    windowAway = true;
+    tellFront();
     clearTimeout(awayTimer);
     awayTimer = setTimeout(() => {
       if (!win.isDestroyed() && win.isFullScreen() && !win.isFocused() && !win.isMinimized()) win.minimize();
@@ -1639,6 +1694,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const returned = (): void => {
     clearTimeout(awayTimer);
     awayAt = 0;
+    windowAway = false;
+    tellFront();
     if (!page.isDestroyed() && surface === 'page') {
       thaw(page);
       page.setAudioMuted(false);
@@ -1816,7 +1873,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // whose profile asks for its TV interface, that plus "running as a TV"
   // (main/useragent.ts; rule 3 as amended 2026-11-21).
   const honestAgent = app.userAgentFallback;
-  const identity = identityFor(honestAgent, tvUserAgent(honestAgent, PRODUCT.name, app.getVersion(), systemName(honestAgent)), (url) => wantsTv(profileFor(url)?.profile ?? null));
+  const identity = identityFor(honestAgent, tvUserAgent(honestAgent, PRODUCT.name, app.getVersion(), systemName(honestAgent), chipName(process.arch), buildYear()), (url) => wantsTv(profileFor(url)?.profile ?? null));
   eachPage((wc) => wc.on('did-start-navigation', (details) => {
     if (details.isMainFrame && !details.isSameDocument) identity.follow(wc, details.url);
   }));
@@ -2033,6 +2090,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
           break;
         }
         if (info) {
+          ownKeys.push({ to: wc, key: info.domKey, until: Date.now() + 600 });
           wc.sendInputEvent({ type: 'keyDown', keyCode: info.code });
           if (info.char) wc.sendInputEvent({ type: 'char', keyCode: info.char });
           wc.sendInputEvent({ type: 'keyUp', keyCode: info.code });

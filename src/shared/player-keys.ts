@@ -78,6 +78,19 @@ export function playerKeyInfo(key: unknown): KeyInfo | null {
 }
 
 /**
+ * A key, as Electron's own input events name it, for passing a key press on
+ * from one of the app's views to another. Null for a key that is not passed
+ * on (modifiers, function keys, anything unknown).
+ */
+export function strayKeyCode(key: string): string | null {
+  const named: Record<string, string> = {
+    ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', Enter: 'Enter', Escape: 'Escape', Backspace: 'Backspace', ' ': 'Space', Tab: 'Tab',
+  };
+  if (named[key]) return named[key]!;
+  return /^[a-z0-9]$/i.test(key) ? key : null;
+}
+
+/**
  * The same key as the DevTools input channel wants it said (the channel that
  * reaches a frame served by another site). Null for no key.
  */

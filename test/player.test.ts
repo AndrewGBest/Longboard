@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { coversPicture, findMainVideo, isPlayerActive, playControl, playerScope, isSeekBar, playerIsOwnPage } from '../src/layer/player';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
-import { cdpKey, InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo } from '../src/shared/player-keys';
+import { cdpKey, strayKeyCode, InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo } from '../src/shared/player-keys';
 import { PLAYER_KEY_NAMES } from '../src/shared/profile';
 
 // jsdom has no layout, so each test gives its videos a size by hand.
@@ -241,5 +241,13 @@ describe('a player key for the channel that reaches frames', () => {
   it('is nothing for no key or one it does not know', () => {
     expect(cdpKey(null)).toBe(null);
     expect(cdpKey({ domKey: 'F13' })).toBe(null);
+  });
+});
+
+describe('a key passed on from the page to the screen in front', () => {
+  it('is named the way the app sends keys, and only the keys a screen uses', () => {
+    expect(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'Backspace', ' '].map(strayKeyCode)).toEqual(['Up', 'Down', 'Left', 'Right', 'Enter', 'Escape', 'Backspace', 'Space']);
+    expect(strayKeyCode('a')).toBe('a');
+    expect([strayKeyCode('Shift'), strayKeyCode('F5'), strayKeyCode('ContextMenu'), strayKeyCode('')]).toEqual([null, null, null, null]);
   });
 });

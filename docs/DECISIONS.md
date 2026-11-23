@@ -3,6 +3,28 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-23: the TV statement also says the chip and the year
+
+**The agent's assumption, inside Hard rule 3 as Andrew amended it on
+2026-11-21** (Longboard may say it is Longboard running as a TV, in one
+fixed wording of its own). Andrew can reverse it.
+
+| Question | Choice | Why |
+|---|---|---|
+| What is said after the honest identity | `, Longboard_TV_<chip>_<year>/<version> (Longboard, <system>)` | The public layout TV devices use for this part (maker, kind of device, chip, year, version; brand, model). **Measured 2026-11-23** on the video site's TV app: with chip and year, its served configuration adds inline previews and a preview plays; without, it does not |
+| Is each field true | Maker and brand: Longboard. Kind: TV, which it is running as. Chip: this machine's (`x8664`, `arm64`). Year: the year this copy was built (set at build). Version: Longboard's. Model: the system | Nothing is another maker's, engine's or device's; no serial or device ID is invented |
+| What is still not said | That the engine is the TV engine (Cobalt), which is what the fullest treatment appears to need | It is not. Rule 3: never claim another engine. Longboard gets a lower tier for it (limited animation), and that cost is accepted unless Andrew decides otherwise |
+
+## 2026-11-23: a key reaching the page behind the menu is passed to the menu
+
+**The agent's assumption**, for a fault Andrew reported and the agent could
+not reproduce. The shell already gives the keys to the screen in front; if
+a key arrives at a website's view while the menu, Settings or Home is in
+front, it is taken from the page, the screen in front is focused again and
+the key is sent to it. Keys Longboard itself sends a page (a player's pause
+as the page is left) are let through. Each view is also told whether it is
+in front, and a controller's buttons are acted on only there.
+
 ## 2026-11-23: a player in a frame is watched full screen and driven by the remote
 
 **The agent's assumptions**, from Andrew's report that embedded players
@@ -226,7 +248,7 @@ below. How it is done is **the agent's assumption**.
 
 | Question | Choice | Why |
 |---|---|---|
-| What is said | The unchanged honest identity, then `, Longboard_TV/<version> (Longboard, <system>)` | Tried against the video site's TV page on 2026-11-21 with plain requests: this is the least it accepts. The honest identity alone, or with a bare "TV" word in several places, is answered with a small "not for this device" page |
+| What is said | *(Extended 2026-11-23 with the chip and the year; see that entry.)* The unchanged honest identity, then `, Longboard_TV/<version> (Longboard, <system>)` | Tried against the video site's TV page on 2026-11-21 with plain requests: this is the least it accepts. The honest identity alone, or with a bare "TV" word in several places, is answered with a small "not for this device" page |
 | Not what the app looked at for comparison does | That app sends the identity of the engine the site's own TV apps run on, with a version copied from one of them (read in its source, 2026-11-21) | That is claiming to be another browser. It turned out not to be needed |
 | Who chooses the words | Longboard, in `src/main/useragent.ts`, the only file the rule checker lets set an identity | A profile that could carry a user agent would be a user-agent switcher fed from the catalogue |
 | What a profile says | `view.device: "tv"`, and no other value is valid | Rule 7: data, and the smallest there can be |

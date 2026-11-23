@@ -29,14 +29,33 @@ export function browserUserAgent(defaultUa: string, product: string = PRODUCT.na
  * statement that is also true, that this is Longboard running as a TV.
  * Rule 3 as amended by Andrew on 2026-11-21 (docs/DECISIONS.md).
  *
- * The shape "<name>_TV/<version> (<name>, <system>)" was found by trying
- * the site's own TV page: it is the least that page accepts. The browser,
- * engine, version and system before it are untouched, no other maker,
- * model, chipset or serial is named, and a profile cannot change a letter
- * of it: all a profile can say is "tv".
+ * The shape is the one TV devices use for this part, which is public (the
+ * open-source TV engine's user agent code):
+ * "<maker>_<kind of device>_<chip>_<year>/<version> (<brand>, <model>)".
+ * Every field is Longboard's own and true: its name as maker and brand,
+ * "TV" as what it is running as, the kind of chip this machine has, the
+ * year this copy was built, its version, and the system as the model.
+ * Until 2026-11-23 only "<name>_TV/<version> (<name>, <system>)" was said,
+ * the least the video site's TV page accepts; with the chip and year left
+ * out that site held back previews and most animation (measured, see
+ * docs/DECISIONS.md). The browser, engine, version and system before it are
+ * untouched, no other maker, engine, model or serial is named, and a
+ * profile cannot change a letter of it: all a profile can say is "tv".
  */
-export function tvUserAgent(honest: string, product: string, version: string, system: string): string {
-  return `${honest}, ${product}_TV/${version} (${product}, ${system})`;
+export function tvUserAgent(honest: string, product: string, version: string, system: string, chip: string, year: string): string {
+  return `${honest}, ${product}_TV_${chip}_${year}/${version} (${product}, ${system})`;
+}
+
+/** The kind of chip, as plain letters and digits: "x8664", "arm64". */
+export function chipName(arch: string): string {
+  const plain = (arch === 'x64' ? 'x86_64' : arch).replace(/[^A-Za-z0-9]/g, '');
+  return plain || 'unknown';
+}
+
+declare const LONGBOARD_BUILD_YEAR: string | undefined;
+/** The year this copy was built (set by scripts/build.mjs); this year, when run from source without a build. */
+export function buildYear(): string {
+  return typeof LONGBOARD_BUILD_YEAR === 'string' && /^\d{4}$/.test(LONGBOARD_BUILD_YEAR) ? LONGBOARD_BUILD_YEAR : String(new Date().getUTCFullYear());
 }
 
 /** The system's plain name, as the honest identity already says it. */

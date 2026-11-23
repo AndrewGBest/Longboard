@@ -153,6 +153,8 @@ export function startPolling(
   dispatch: (a: Action) => void,
   overrides: Readonly<Record<string, ActionName>> = {},
   pointer?: PointerPad,
+  /** What the shell has said about this view being the one in front; undefined until it has. */
+  toldFront?: () => boolean | undefined,
 ): () => void {
   const trackers = new Map<number, RepeatTracker>();
   let stopped = false;
@@ -178,7 +180,11 @@ export function startPolling(
       trackers.clear();
       return;
     }
-    if (focused) {
+    // A view the shell says is behind another never acts; one it says is in
+    // front does, even if the window's own focus event was missed (seen at a
+    // TV: the menu open and a press still moving the page behind it).
+    const told = toldFront?.();
+    if (told !== false && (focused || told === true)) {
       const steam = pads.find((p) => STEAM_VIRTUAL_PAD.test(p.id));
       for (const pad of steam ? [steam] : pads) {
         let tracker = trackers.get(pad.index);

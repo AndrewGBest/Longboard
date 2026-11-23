@@ -68,6 +68,8 @@ export interface Layer {
   dispatch: (a: Action) => void;
   /** The shell's answer after the highlight was asked into a frame: taken (`in`), nothing there to take it (`none`), or what had it is gone (`lost`). */
   frameIn: (state: 'in' | 'none' | 'lost', player?: boolean) => void;
+  /** The shell says whether this view is the one in front (a game controller's buttons are acted on only there). */
+  front: (on: boolean | null) => void;
   /** In a frame's own layer: the highlight has gone back to the page round the frame. */
   dropHighlight: () => void;
   /** In a frame's own layer: the frame is a player (a video fills it). */
@@ -402,6 +404,21 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     }, { once: true });
     void doc.exitFullscreen().catch(() => undefined);
   };
+  // While something of the page is shown full screen, a highlight on what
+  // lies underneath is not drawn: the ring is drawn above everything, and
+  // showed round an element behind the picture. (Andrew, at a TV, with a
+  // player put full screen by its own button.) A frame or a video that is
+  // itself the thing full screen gets no ring round the whole screen either.
+  // The highlight is kept, and drawn again when the full screen ends.
+  doc.addEventListener('fullscreenchange', () => {
+    const full = doc.fullscreenElement;
+    const f = nav.focused;
+    if (!f) return;
+    if (full) {
+      const under = f === full ? full instanceof HTMLIFrameElement || full instanceof HTMLVideoElement : !deepContains(full, f);
+      if (under) overlay.track(null);
+    } else if (f.isConnected && !frameInside) overlay.track(f);
+  });
   // Full screen can also end without this layer asking: the browser itself
   // ends it on Escape, which is Back on many remotes, and the key never
   // reaches a page. That is leaving the player all the same: the keys come
@@ -1142,10 +1159,12 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   };
   view.addEventListener('mousemove', onPointer, { passive: true });
 
+  /** What the shell has said: this view is the one in front, or is behind another. */
+  let toldFront: boolean | undefined;
   const stopPads = startPolling(view, mode, dispatch, options.buttons, {
     active: () => pointerOn,
     held: (dirs) => send({ kind: 'pointerHeld', dirs }),
-  });
+  }, () => toldFront);
 
   // Tell the shell when video is playing so it can hold off the screensaver.
   let lastPlaying = false;
@@ -1192,6 +1211,9 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     frameIn,
     frameExit,
     framePlayer: () => !!frame && mainVideo() !== null,
+    front: (on) => {
+      toldFront = on ?? undefined;
+    },
     dropHighlight: () => nav.clear(),
     takeHighlight: (stay) => {
       if (stay && nav.focused?.isConnected) return nav.focus(nav.focused);

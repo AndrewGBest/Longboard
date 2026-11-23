@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { installPurchaseGuard, isSpendControl, looksLikeSpendUrl } from '../src/layer/guard/purchase-guard';
 import { buildOutline, maskIdentifier, sanitizeUrl } from '../src/layer/diagnostics/outline';
-import { browserUserAgent, identityFor, systemName, tvUserAgent } from '../src/main/useragent';
+import { browserUserAgent, buildYear, chipName, identityFor, systemName, tvUserAgent } from '../src/main/useragent';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { aboutTitle, NOTICE } from '../src/shared/about';
@@ -244,11 +244,13 @@ describe('the guard, after an independent review', () => {
 
 describe('what Longboard says it is to a site with an interface for TVs (rule 3, amended 2026-11-21)', () => {
   const honest = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Longboard/1.2.3';
-  const tv = tvUserAgent(honest, 'Longboard', '1.2.3', systemName(honest));
+  const tv = tvUserAgent(honest, 'Longboard', '1.2.3', systemName(honest), chipName('x64'), '2026');
   const id = identityFor(honest, tv, (url) => new URL(url).pathname.startsWith('/tv'));
 
   it('adds only that it is Longboard running as a TV', () => {
-    expect(tv).toBe(`${honest}, Longboard_TV/1.2.3 (Longboard, Linux)`);
+    expect(tv).toBe(`${honest}, Longboard_TV_x8664_2026/1.2.3 (Longboard, Linux)`);
+    expect([chipName('x64'), chipName('arm64'), chipName('ia32'), chipName('')]).toEqual(['x8664', 'arm64', 'ia32', 'unknown']);
+    expect(buildYear()).toMatch(/^20\d\d$/);
     expect(tv.startsWith(honest)).toBe(true);
     expect(tv).not.toMatch(/Cobalt|Tizen|Web0S|SMART|PlayStation|Xbox|Android/i);
     expect(systemName('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBe('macOS');

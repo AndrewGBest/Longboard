@@ -18,6 +18,8 @@ await build({
   outfile: 'dist/main.js',
   platform: 'node',
   format: 'cjs',
+  // The year this copy was built in, which Longboard states as its year to a site with an interface for TVs (main/useragent.ts).
+  define: { LONGBOARD_BUILD_YEAR: JSON.stringify(String(new Date().getUTCFullYear())) },
   // The two extension libraries stay as they are in node_modules: they find their own preload file from where they sit.
   external: ['electron', 'electron-chrome-extensions', 'electron-chrome-web-store'],
 });

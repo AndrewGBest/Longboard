@@ -67,6 +67,53 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-23, later: the stranded menu, the ring over full screen, YouTube's tier (0.3.24, not released)
+
+**Nothing here is released.** 0.3.24 is committed, not tagged; it takes in
+0.3.23. The tag `v0.3.23` exists on an older commit and was never
+published. Andrew is asked before any release.
+
+Four reports from Andrew at the TV, on 0.3.22:
+
+1. **"I have opened the Longboard menu but my selection is on the web page
+   not the menu and there's no way to close the menu."** **Not
+   reproduced**, with real key presses through the X server, in any of:
+   the highlight inside a frame, a frame's player full screen, a page
+   asking for the window's focus, a frame taking the cursor. The road is
+   unknown. Two things done that do not depend on the road: a key that
+   reaches a website while one of Longboard's screens is in front is taken
+   from the page, the screen in front is given the keys again and the key
+   is passed on to it (and the log says once that it happened, which will
+   say whether this was the road); and each view is now told by the shell
+   whether it is the one in front, so a game controller is not read by a
+   page behind the menu when its window never heard it lost the keys.
+   **Verified:** an end-to-end scenario sends keys to the page with the
+   menu open. **Not verified:** that this is what Andrew met; a
+   controller (none on the test machine).
+2. **A highlight showing over a player put full screen.** The ring is
+   drawn above everything, full screen included. Now not drawn while
+   something is full screen that the highlighted thing is not inside, and
+   drawn again after. **Verified** by eye from two screenshots of a
+   fixture; no test holds it.
+3. **YouTube's previews, its animations, and "are we getting the full TV
+   experience?"** No. Read from the configuration the site serves the
+   page (`window.environment`): this device is given `receiver_tier: 3`
+   and `steel_limited_animation: true`. **Previews: fixed.** With the TV
+   statement written the way TV devices write it, chip and year included
+   (`Longboard_TV_x8664_2026/<version> (Longboard, Linux)`), the site
+   also serves `inline_playback` and the client-side muted-preview
+   switches, and a preview played on a rested tile (measured before and
+   after, as a guest, on a browse shelf). **Animations: not fixed**; the
+   tier and "limited animation" stay as they were. **Not established:**
+   what the tier goes by. VacuumTube's own source says the site "decides a
+   lot" by the identity and that it presents itself as the TV engine
+   (Cobalt) to get it; Longboard says it is Chrome, which it is (rule 3).
+4. **"Who's watching" every launch on VacuumTube, not here.** The served
+   configuration has `whos_watching_enabled: true` with cooldowns: 120
+   minutes with several accounts, 30 as a guest. That fits what Andrew saw
+   on 2026-11-21 (shown once, then not). Why VacuumTube sees it at every
+   launch was not found.
+
 ## 2026-11-23: releases are asked for first; 0.3.23 is not out; YouTube previews
 
 - **Andrew, 2026-11-23: "Ask before you release things."** This replaces

@@ -3,7 +3,17 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
-New in 0.3.23:
+New in 0.3.24 (not yet released; it takes in 0.3.23, which was never released):
+
+- **YouTube's TV app plays video previews.** Longboard's statement that it
+  is running as a TV now also says the kind of chip and the year, as TV
+  devices do. With those left out the site held previews back.
+- **The menu cannot be left stranded.** A key that reaches the page while
+  the menu (or Settings, or Home) is in front is passed on to it, and a
+  game controller is read only by the screen in front.
+- **No highlight is drawn over a picture shown full screen.**
+
+New in 0.3.23 (never released on its own):
 
 - **A video player embedded in a page can be watched with the remote.**
   Many video sites show their player inside a frame from another site.

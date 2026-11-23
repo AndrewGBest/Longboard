@@ -1110,6 +1110,7 @@ ipcRenderer.on('longboard:icon', (_event, job: { id: number; dataUrl: string; si
   img.src = job.dataUrl;
 });
 // Button mappings changed in Settings: the layer reads this object at every key.
+ipcRenderer.on('longboard:front', (_event, on: unknown) => layer?.front(on === null ? null : on === true));
 ipcRenderer.on('longboard:keys', (_event, keys: unknown) => {
   const held = ((boot.options as { keys?: Record<string, string> }).keys ??= {});
   if (!keys || typeof keys !== 'object') return;

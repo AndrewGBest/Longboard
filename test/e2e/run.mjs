@@ -991,6 +991,30 @@ await scenario('a player in a frame from another site', { url: `${site.origin}/e
   check('and the page goes on below it', (await focused()) !== 'frame', true);
 });
 
+// Seen at a TV on 2026-11-23: the menu open, and the keys still going to the
+// page behind it, so that the menu could not be used or closed. How the
+// keys came to be there is not known; a key that arrives at the page while
+// another screen is in front is passed on to that screen.
+await scenario('a key that reaches the page while the menu is open', { url: `${site.origin}/frames.html` }, async (app) => {
+  const page = await app.page(`${site.origin}/frames.html`);
+  const chrome = await app.chrome();
+  const menu = () => chrome.evaluate('[document.querySelector("#panel h1")?.textContent ?? null, document.activeElement?.id ?? null]');
+  await sleep(1000);
+  await page.press('ArrowDown');
+  await page.press('ArrowDown');
+  await page.press('Enter', 900);
+  check('the highlight is inside a frame of the page', await page.evaluate('document.activeElement?.id'), 'frame');
+  await page.press('ContextMenu', 900);
+  check('the menu opens', await menu(), ['Menu', 'menu-home']);
+  // Sent to the page, not to the menu: the road a key took at the TV.
+  await page.press('ArrowDown', 600);
+  const moved = await menu();
+  check('a key sent to the page moves the menu\'s highlight, not the page\'s', [moved[0], moved[1] !== 'menu-home' && moved[1] !== null, await page.focused()], ['Menu', true, 'frame']);
+  await page.press('Escape', 900);
+  check('and Back sent to the page closes the menu and nothing else', [(await menu())[0], await page.focused(), await page.evaluate('location.pathname')], [null, 'frame', '/frames.html']);
+  check('it is written down once that it happened', (app.log.match(/a key reached the page while another screen was in front/g) ?? []).length, 1);
+});
+
 await scenario('a frame with nothing in it to select', { url: `${site.origin}/frames.html?inner=inner-picture.html` }, async (app) => {
   const page = await app.page(`${site.origin}/frames.html`);
   const { evaluate, press, focused } = page;
@@ -1172,7 +1196,7 @@ await scenario(
     const said = await evaluate('navigator.userAgent');
     const cut = said.lastIndexOf(', Longboard_TV');
     const [honest, added] = cut < 0 ? [said, ''] : [said.slice(0, cut), said.slice(cut + 2)];
-    check('the page is told Longboard is running as a TV, after everything it says anyway', [/^Mozilla\/5\.0 \(X11; Linux [^)]+\) AppleWebKit\/[\d.]+ \(KHTML, like Gecko\) Chrome\/[\d.]+ Safari\/[\d.]+ Longboard\/[\d.]+$/.test(honest), added], [true, `Longboard_TV/${version} (Longboard, Linux)`]);
+    check('the page is told Longboard is running as a TV, after everything it says anyway', [/^Mozilla\/5\.0 \(X11; Linux [^)]+\) AppleWebKit\/[\d.]+ \(KHTML, like Gecko\) Chrome\/[\d.]+ Safari\/[\d.]+ Longboard\/[\d.]+$/.test(honest), added], [true, `Longboard_TV_${process.arch === 'x64' ? 'x8664' : process.arch}_${new Date().getUTCFullYear()}/${version} (Longboard, Linux)`]);
     check('no other browser, engine, maker or system is named', /Cobalt|Tizen|Web0S|SMART|PlayStation|Xbox|Android|Windows|Macintosh/i.test(said), false);
     check('what it fetches says the same', await evaluate('fetch("/agent").then((r) => r.json())'), said);
     await press('ArrowRight');
