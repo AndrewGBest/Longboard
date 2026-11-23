@@ -56,8 +56,12 @@
   };
   player.addEventListener('mousemove', () => { state.moves++; show(); });
 
+  // With "?needsClick" the player answers its keys only once it has been clicked, as some do; a click on the picture plays or pauses.
+  let listening = !new URLSearchParams(location.search).has('needsClick');
+  state.clicks = 0;
+  video.addEventListener('click', () => { listening = true; state.clicks++; video.paused ? video.play() : video.pause(); });
   window.addEventListener('keydown', (e) => {
-    if (!document.getElementById('player')) return;
+    if (!document.getElementById('player') || !listening) return;
     if (e.key === ' ') { state.space++; video.paused ? video.play() : video.pause(); }
     if (e.key === 'ArrowLeft') state.left++;
     if (e.key === 'ArrowRight') state.right++;

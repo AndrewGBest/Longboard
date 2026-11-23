@@ -679,6 +679,19 @@ await scenario('a thin progress bar in a player', { url: `${site.origin}/scrub.h
   check('the button laid over the whole picture is never landed on', await focused(), 'x');
 });
 
+// A made-up player that ignores its keys until it has been clicked, as a
+// sports network's live player was seen to (2026-11-23).
+await scenario('a player that answers its keys only once clicked', { url: `${site.origin}/player.html?needsClick` }, async (app) => {
+  const page = await app.page(site.origin);
+  const { evaluate, focused } = page;
+  await sleep(1500);
+  await page.press('Enter', 1500);
+  check('OK pauses: the key did nothing, so the picture was clicked once', await evaluate('[document.getElementById("v").paused, __p.space, __p.clicks]'), [true, 0, 1]);
+  await page.press('Enter', 1500);
+  check('OK again plays, by the player\'s own key now that it answers it, with no second click', await evaluate('[document.getElementById("v").paused, __p.space, __p.clicks]'), [false, 1, 1]);
+  check('no pointer was left on screen and nothing is highlighted', [await page.pointerAt(), await focused()], [null, null]);
+});
+
 await scenario('a long article: reading with the arrows', { url: `${site.origin}/article.html` }, async (app) => {
   const page = await app.page(site.origin);
   const { evaluate, press, focused } = page;

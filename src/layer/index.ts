@@ -986,18 +986,30 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       case 'seek': {
         const key = playerKeyFor(a);
         if (key) pressPlayerKey(key);
-        // A player in a frame may not answer its keys until it has been
-        // clicked (seen on an open-source player embedded by a video site:
-        // its shortcuts work only once it has "focus", which a click
-        // gives). OK that changed nothing is followed by one ordinary click
-        // on the picture, which every player takes as play or pause.
-        // Whether it changed is only looked at; the video is not touched.
-        const v = frame && a.type === 'playPause' ? mainVideo() : null;
+        // A player may not answer its keys until it has been clicked (seen
+        // on an open-source player a video site embeds, and on a sports
+        // network's live player: their shortcuts work only once the player
+        // has "focus", which a click gives). OK that changed nothing is
+        // followed by one ordinary click on the picture, which every player
+        // takes as play or pause. Whether it changed is only looked at; the
+        // video is not touched. Not on a site with a profile, which names
+        // its player's own key.
+        const v = (frame || rules.generic) && a.type === 'playPause' ? mainVideo() : null;
         if (v) {
           const was = v.paused;
+          let answered = false;
+          const heard = (): void => {
+            answered = true;
+          };
+          v.addEventListener('pause', heard, { once: true });
+          v.addEventListener('play', heard, { once: true });
           view.setTimeout(() => {
-            if (v.isConnected && v.paused === was && inPlayer() && !onPlayerControl()) send({ kind: 'pictureClick' });
-          }, 400);
+            v.removeEventListener('pause', heard);
+            v.removeEventListener('play', heard);
+            if (answered || !v.isConnected || v.paused !== was || !inPlayer() || onPlayerControl()) return;
+            const box = v.getBoundingClientRect();
+            send({ kind: 'pictureClick', x: (Math.max(box.left, 0) + Math.min(box.right, view.innerWidth)) / 2, y: (Math.max(box.top, 0) + Math.min(box.bottom, view.innerHeight)) / 2 });
+          }, 600);
         }
         break;
       }

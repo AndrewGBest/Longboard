@@ -67,6 +67,46 @@ reason (Apple TV was the first suspected); a page that asks from a worker,
 which still gets the engine's wrong answer; picture quality (the title
 played at 854x480 in a 960x540 window, which says nothing about a TV).
 
+## 2026-11-23, after the release: Sportsnet+, TSN and Rogers (0.3.25, not released)
+
+Andrew asked how the three work and signed in to the first two himself
+(windows with nothing attached). Tested in the survey's data folder under
+`--automation`, in a 1920x1080 window. No profile was written for any.
+
+| Service | Signed out | Signed in |
+|---|---|---|
+| **Sportsnet+** (`watch.sportsnet.ca`) | Rows move sideways, tiles open | A live channel plays full-window with sound. OK pauses and plays. Down reaches Settings, Multiview, Captions and picture-in-picture; Up lands on Pause; Back returns to the picture, then leaves |
+| **TSN** (`tsn.ca/live`) | Navigates; the player says to sign in | The live channel plays. Down reaches jump forward, mute, information, captions, settings; Up lands on Play. **OK did nothing**: the player ignores its key until clicked. Fixed (below) |
+| **Rogers Ignite TV** (now "Rogers Xfinity Stream") | Sent to "Update your browser to start streaming" | Not reached |
+
+- **Fixed for TSN, and for any site without a profile:** OK on the bare
+  picture sends the player's key; if nothing changes in 0.6 s and the video
+  has not said it played or paused, the picture is clicked once (an
+  ordinary click at its middle). Until now only for a player in a frame.
+  **Verified:** a scenario on the invented player with "?needsClick"; on
+  TSN, OK paused, played and paused again; Sportsnet+ unchanged (its
+  player answers the key, so no click).
+- **Picture size, not understood:** after a minute Sportsnet+ showed
+  512x288 and TSN 960x540, both from streams coded for standard
+  definition. **Not established** whether that is the service's limit for
+  a browser with software-only protected playback (a common one, and not
+  something Longboard works round, rule 2), or this test machine, which
+  has no graphics card. Andrew's TV will show which.
+- **Rogers:** its requirements page lists Windows and Mac browsers only.
+  **Measured:** refused with Longboard's name and without it, so it is
+  Linux it refuses. Saying another system is still forbidden by rule 3
+  (Andrew's change of 2026-11-23 was about browsers), and such a refusal
+  often stands for protected playback that would fail anyway. **Asked
+  Andrew; nothing done.**
+- TSN asks the key-system interface whether AC-3 sound can be played and
+  is told yes (Longboard corrects that answer elsewhere, not there, by
+  the decision of 2026-11-22). It then used ordinary sound. Noted in case
+  a title there ever fails the way Disney+ did.
+
+**Not verified:** on a TV; a game as opposed to a channel; TSN full
+screen (its player takes 96% of the screen inside its page; whether it has
+a full-screen button the remote reaches was not looked for).
+
 ## 2026-11-23: 0.3.24 is released
 
 Andrew, asked: "Release it". Tagged and published 2026-11-23; both builds

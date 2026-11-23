@@ -2097,6 +2097,16 @@ export function createBrowser(deps: BrowserDeps): Browser {
         }
         break;
       }
+      case 'pictureClick': {
+        // OK on the bare picture of a player that does not answer its key until it has been clicked.
+        if (wc !== page || active() !== page || pointerOn) break;
+        const at = hoverPoint(msg, page.getZoomFactor(), viewSize(page));
+        if (!at) break;
+        mouse(at.x, at.y, { type: 'move' });
+        mouse(at.x, at.y, { type: 'down' });
+        mouse(at.x, at.y, { type: 'up' });
+        break;
+      }
       case 'voice':
         speak();
         break;
