@@ -19,6 +19,10 @@
   window.addEventListener('message', (e) => window.__frame.messages.push(String(e.data)));
   // Another origin: this machine under its other name, same port.
   // "?inner=" names another page for the frame (one with nothing in it to select).
+  // "?first": the frame is the first thing on the page, as an advertisement at the top of a front page is.
+  if (new URLSearchParams(location.search).has('first')) document.getElementById('above').remove();
+  // "?big": and it is as big as the screen, with the rest of the page a long way below it.
+  if (new URLSearchParams(location.search).has('big')) { document.body.style.padding = '0'; Object.assign(document.getElementById('frame').style, { width: '100vw', height: '100vh', margin: '0 0 900px', border: '0' }); }
   document.getElementById('frame').src = `http://localhost:${location.port}/${new URLSearchParams(location.search).get('inner') ?? 'inner.html'}`;
 </script>
 </body>

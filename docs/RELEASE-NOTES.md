@@ -3,6 +3,14 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.28 (not released yet):
+
+- **An advertisement's frame at the top of a page no longer holds the
+  highlight.** On a newspaper's front page, Up went round between the page
+  and the frame and the menu could not be opened with Up twice. Now Up out
+  of such a frame is Up at the top of the page, and a frame as big as the
+  screen is scrolled past like anything else.
+
 New in 0.3.27:
 
 - **A big player in the middle of a long page is a stop, not a trap.** On

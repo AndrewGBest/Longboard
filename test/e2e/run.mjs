@@ -1042,6 +1042,31 @@ await scenario('the highlight inside a frame from another site', { url: `${site.
 // A made-up page that embeds a player from another origin, with the page's
 // own bar pinned over the frame's lower edge. The player is watched full
 // screen and driven with the remote, without the pointer.
+await scenario('a frame that is the first thing on the page', { url: `${site.origin}/frames.html?first` }, async (app) => {
+  const page = await app.page(`${site.origin}/frames.html`);
+  const chrome = await app.chrome();
+  await sleep(1000);
+  await page.press('ArrowDown');
+  check('the highlight lands on the frame', await page.focused(), 'frame');
+  await page.press('Enter', 900);
+  check('and goes into it', await page.evaluate('document.activeElement?.id'), 'frame');
+  await page.press('ArrowUp', 700);
+  check('Up out of it is Up at the top of the page: the highlight stays on the frame and the menu is offered', [await page.focused(), await page.toastText(), await chrome.evaluate('!!document.querySelector("#panel h1")')], ['frame', 'Press Up again for the menu', false]);
+  await page.press('ArrowUp', 700);
+  check('Up again opens the menu', await chrome.evaluate('document.querySelector("#panel h1")?.textContent'), 'Menu');
+});
+
+await scenario('a frame as big as the screen at the top of a long page', { url: `${site.origin}/frames.html?first&big` }, async (app) => {
+  const page = await app.page(`${site.origin}/frames.html`);
+  await sleep(1000);
+  let at = null;
+  for (let i = 0; i < 14 && at !== 'below'; i++) {
+    await page.press('ArrowDown', 700);
+    at = await page.focused();
+  }
+  check('Down gets through the frame and on to the page below it', [at, await page.evaluate('scrollY > 0')], ['below', true]);
+});
+
 await scenario('a player in a frame from another site', { url: `${site.origin}/embed.html` }, async (app) => {
   const page = await app.page(`${site.origin}/embed.html`);
   const { evaluate, focused } = page;
@@ -1560,7 +1585,8 @@ await scenario('ad blocking', { url: `${site.origin}/ads.html`, args: [`--filter
     return chrome.focused();
   };
   const line = () => chrome.evaluate('document.querySelector("#menu-adblock .sub")?.textContent ?? null');
-  const loaded = () => until(() => evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v !== null, 60);
+  // A slow machine can be read between one script of the page and the next, so each check waits for the answer it expects and fails only if that never comes.
+  const loaded = (want) => until(() => evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => (want ? v === want : v !== null), 60);
   // The list arrives in the background; the first page may have been loaded before it.
   await until(() => app.log, (log) => /ad blocking: 1 filter list\(s\) fetched/.test(log), 80);
   check('the filter list is fetched in the background and said so in the terminal', /ad blocking: 1 filter list\(s\) fetched/.test(app.log), true);
@@ -1574,7 +1600,7 @@ await scenario('ad blocking', { url: `${site.origin}/ads.html`, args: [`--filter
   check('nothing was saved about the site: the switch has not been touched', existsSync(join(app.userData, 'sites.json')), false);
   check('the switch can be reached', await reach('menu-adblock'), 'menu-adblock');
   await chrome.press('Enter', 900);
-  check('turning it off is kept for the site and loads the page again with everything on it', [JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8')), await loaded(), asks.adverts], [{ '127.0.0.1': { adBlocking: false } }, 'advert,site', 2]);
+  check('turning it off is kept for the site and loads the page again with everything on it', [JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8')), await loaded('advert,site'), asks.adverts], [{ '127.0.0.1': { adBlocking: false } }, 'advert,site', 2]);
   check('the menu stays open and says it is off by choice', [await chrome.evaluate('(document.getElementById("menu-adblock")?.ariaLabel ?? document.getElementById("menu-adblock")?.textContent)'), await line(), await chrome.focused()], ['Ad blocking: off', 'Off for this site: your choice.', 'menu-adblock']);
   await chrome.press('Enter', 900);
   check('and on again', [JSON.parse(readFileSync(join(app.userData, 'sites.json'), 'utf8')), await loaded(), asks.adverts], [{ '127.0.0.1': { adBlocking: true } }, 'site', 2]);
@@ -1588,7 +1614,7 @@ await scenario('ad blocking', { url: `${site.origin}/ads.html`, args: [`--filter
   check('a verified site opens', !!verifiedPage, true);
   if (!verifiedPage) return;
   await sleep(600);
-  check('on a verified site nothing is refused to begin with', [await until(() => verifiedPage.evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v !== null, 60), asks.adverts], ['advert,site', 2]);
+  check('on a verified site nothing is refused to begin with', [await until(() => verifiedPage.evaluate('document.readyState === "complete" && Array.isArray(window.__seen) ? window.__seen.join() : null'), (v) => v === 'advert,site', 60), asks.adverts], ['advert,site', 2]);
   await verifiedPage.press('ContextMenu', 500);
   check('the menu says the switch starts off there, and why', [await chrome.evaluate('(document.getElementById("menu-adblock")?.ariaLabel ?? document.getElementById("menu-adblock")?.textContent)'), await line()], ['Ad blocking: off', 'Off to start with: this site is on the list of sites where it starts off.']);
   await reach('menu-adblock');
@@ -2080,8 +2106,9 @@ await scenario('history', { url: `${site.origin}/home.html` }, async (app) => {
   await sleep(800);
   await page.evaluate('location.href = "/article.html"; 0');
   await until(() => page.evaluate('location.pathname + document.readyState'), (v) => v === '/article.htmlcomplete');
-  await sleep(500);
-  check('each page opened is kept, newest first, on this machine', saved(), ['/article.html', '/home.html']);
+  // The file is written a moment after the page arrives; a slow machine takes longer, so wait for what is expected.
+  const savedAs = (want) => until(() => { try { return saved(); } catch { return []; } }, (v) => v.join() === want.join(), 40);
+  check('each page opened is kept, newest first, on this machine', await savedAs(['/article.html', '/home.html']), ['/article.html', '/home.html']);
   await page.press('ContextMenu', 500);
   for (let i = 0; i < 24 && (await chrome.focused()) !== 'menu-tabs'; i++) await chrome.press('ArrowDown');
   await chrome.press('ArrowRight');
@@ -2091,7 +2118,7 @@ await scenario('history', { url: `${site.origin}/home.html` }, async (app) => {
   await chrome.press('ArrowDown');
   await chrome.press('Enter', 600);
   check('pressing one opens it', await until(() => page.evaluate('location.pathname'), (p) => p === '/home.html'), '/home.html');
-  check('and it moves to the front', (await sleep(400), saved()), ['/home.html', '/article.html']);
+  check('and it moves to the front', await savedAs(['/home.html', '/article.html']), ['/home.html', '/article.html']);
 });
 
 await scenario('no history when it is turned off, and a language for sites', { url: `${site.origin}/home.html`, config: { history: false, language: 'fr' } }, async (app) => {

@@ -555,8 +555,38 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     }
     if (nav.move(how)) return;
     // Nowhere to go from the frame either: out of this frame too, or back into the one just left.
-    if (frame) frame.exit(how);
-    else enterFrame(el, true);
+    if (frame) {
+      frame.exit(how);
+      return;
+    }
+    // Up out of a frame that is the first thing on a website is Up at the
+    // top of the page: the highlight stays on the frame and Up again opens
+    // the menu. (Seen on a newspaper's front page, which starts with an
+    // advertisement's frame: the highlight went back into the frame each
+    // time, and the menu could not be had without a key for it.)
+    if (how === 'up' && !hooks && view.scrollY <= 0) {
+      const edge = topEdge.up(Date.now());
+      if (edge === 'menu') send({ kind: 'menu' });
+      else if (edge === 'hint') overlay.toast('Press Up again for the menu');
+      return;
+    }
+    // A frame as big as the screen with the rest of the page out of sight
+    // beyond it: the page is scrolled, as it is from anything else with
+    // nowhere to go, and the highlight takes up what comes into view.
+    // (Seen on two news sites that open with an advertisement's frame: the
+    // highlight went back into the frame each time and never got past it.)
+    if (!hooks && (how === 'up' || how === 'down')) {
+      const scrolled = scrollBy(doc, el, how, false, pinnedLayer());
+      if (scrolled) {
+        view.clearTimeout(scrollTimer);
+        scrollTimer = view.setTimeout(() => {
+          const f = nav.focused;
+          if (!f || nav.focusIsOffScreen() || !deepContains(scrolled, f)) nav.focusOnScreen(how, scrolled);
+        }, 350);
+        return;
+      }
+    }
+    enterFrame(el, true);
   };
   const openOsk = (field: Element): void => {
     // Inside a frame the keyboard is the page's: the shell is told of the field.
