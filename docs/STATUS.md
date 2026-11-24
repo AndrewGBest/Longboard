@@ -69,8 +69,9 @@ do currently."
   `longboard://screens/chrome.html`, served only in their own session.
 - **The package itself is tested.** The harness can drive a packaged
   build; "Build packages" and "Release" now run the end-to-end checks
-  against what they built. Passed on GitHub on both processors (before
-  the screens moved; a run with that is under way as this is written).
+  against what they built. Passed on GitHub on both processors before
+  the screens moved; the run with that had not finished when this was
+  written.
 - **The end-to-end scenarios are 15 files by subject**, not one of 5,500
   lines. The same checks, in the same order.
 - **Tabs are kept for the next start** and **saved files' names are
@@ -89,8 +90,17 @@ do currently."
   at one in fifteen is suggestive and no more. What the engine reports
   about the requesting frame in that moment was never observed; the fix
   relies on the request's referrer instead, and does nothing when unsure.
-- **Tests:** 649 unit tests; 624 end-to-end checks, passing from source
-  and against the package with every fuse set.
+- **A warning before sites on public lists of harmful sites**
+  (DECISIONS.md has the research and the reasons). Unit tests; two
+  end-to-end scenarios against a made-up list. **Checked against the real
+  lists:** the app fetched one of them over the network under
+  `--automation`; all three, loaded offline as the app loads them, flag
+  none of the survey's 78 well-known sites. **Not checked:** a real
+  harmful site was not opened, on purpose; the first fetch of all three
+  on a TV box; how often the lists are wrong.
+- **Tests:** 656 unit tests; 641 end-to-end checks, passing from source.
+  Against the package with every fuse set: the 624 that existed before
+  the warning was added.
 - **Known about the tests:** with three parts of the suite running side
   by side on this machine, a part now and then fails with a page that
   did not answer in time (twice today, different scenarios each time,
@@ -105,7 +115,6 @@ do currently."
   be made and kept by Andrew; one made and held by the agent, or stored
   where the build can read it, adds nothing over the attestation.
 - **Narrowing what the parts share through `core`.** Not started.
-- **Safe Browsing.** Being researched (terms and lists); nothing built.
 
 ## 2026-11-24: making it a proper project (0.3.28, not released)
 
