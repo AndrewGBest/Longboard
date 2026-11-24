@@ -696,6 +696,21 @@ export default async function run() {
           (v) => v === 'hidden',
           50,
         );
+      if ((await gone()) !== 'hidden') {
+        // Said when it goes wrong, so a failure on a machine that cannot be sat at explains itself.
+        console.log(
+          'still on screen:',
+          await chrome.evaluate('document.querySelector("#panel h1")?.textContent ?? null'),
+          '| focus:',
+          await chrome.focused(),
+          '| log:',
+          app.log
+            .split('\n')
+            .filter((l) => /harmful|blocked|key reached/.test(l))
+            .slice(-6)
+            .join(' || '),
+        );
+      }
       check(
         'Go back leaves the page as it was',
         [await gone(), await page.evaluate('location.host + location.pathname')],
