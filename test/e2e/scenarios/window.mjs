@@ -689,9 +689,16 @@ export default async function run() {
       );
       await sleep(700);
       await chrome.press('Enter', 500);
+      // The question leaves the screen a moment after the press, longer on a slow machine.
+      const gone = () =>
+        until(
+          () => chrome.evaluate('document.visibilityState'),
+          (v) => v === 'hidden',
+          50,
+        );
       check(
         'Go back leaves the page as it was',
-        [await chrome.evaluate('document.visibilityState'), await page.evaluate('location.host + location.pathname')],
+        [await gone(), await page.evaluate('location.host + location.pathname')],
         ['hidden', `127.0.0.1:${port}/home.html`],
       );
       await page.evaluate(`location.href = ${JSON.stringify(bad)}; 0`);
@@ -718,6 +725,7 @@ export default async function run() {
       check('a listed part of another site is asked about too', await asked(), 'This site may be harmful');
       await sleep(700);
       await chrome.press('Enter', 500);
+      await gone();
       await there.evaluate(`location.href = "http://profile.test:${port}/article.html"; 0`);
       check(
         'while the rest of that site opens without a question',
