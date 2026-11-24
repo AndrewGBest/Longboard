@@ -170,14 +170,23 @@ export class FilterStore {
  */
 export function filterSession(
   ses: Electron.Session,
-  refuse: (url: string, kind: RequestKind, contents: Electron.WebContents | undefined) => boolean,
+  refuse: (
+    url: string,
+    kind: RequestKind,
+    contents: Electron.WebContents | undefined,
+    from: { topDocument: boolean; referrer: string },
+  ) => boolean,
 ): void {
   ses.webRequest.onBeforeRequest(
     { urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] },
     (details, callback) => {
       let cancel: boolean;
       try {
-        cancel = refuse(details.url, details.resourceType, details.webContents);
+        const frame = details.frame;
+        cancel = refuse(details.url, details.resourceType, details.webContents, {
+          topDocument: !!frame && frame.parent === null,
+          referrer: details.referrer,
+        });
       } catch {
         cancel = false;
       }

@@ -3,6 +3,7 @@
 // main/useragent.ts and nowhere else), the privacy signals, and setting up
 // extensions.
 import { app, type WebContents } from 'electron';
+import { pageOfRequest } from '../../shared/adblock';
 import { deviceOf } from '../../shared/profile';
 import { buildYear, chipName, identityFor, systemName, tvBrowserUserAgent, tvUserAgent } from '../useragent';
 import { filterSession } from '../adblock';
@@ -20,10 +21,26 @@ export function createPrivacy(core: Core): PrivacyPart {
   // Requests that the public filter lists name are refused, for the views
   // that show websites, when the switch for the site in front is on. That is
   // all: nothing is redirected, rewritten or put into a page (main/adblock.ts).
+  // The page a view is on its way to, from the moment it sets off until it
+  // has arrived: its first requests can come before the view says it is
+  // there (shared/adblock.ts, pageOfRequest).
+  const onItsWay = new WeakMap<WebContents, string>();
+  core.eachPage((wc) => {
+    wc.on('did-start-navigation', (details) => {
+      if (details.isMainFrame && !details.isSameDocument) onItsWay.set(wc, details.url);
+    });
+    wc.on('did-redirect-navigation', (details) => {
+      if (details.isMainFrame) onItsWay.set(wc, details.url);
+    });
+    wc.on('did-navigate', () => onItsWay.delete(wc));
+    wc.on('did-fail-load', (_e, _code, _why, _url, isMainFrame) => {
+      if (isMainFrame) onItsWay.delete(wc);
+    });
+  });
   core.eachSession((web) =>
-    filterSession(web, (url, kind, wc) => {
+    filterSession(web, (url, kind, wc, from) => {
       if (!wc || wc.isDestroyed() || !core.isPageView(wc)) return false;
-      const pageUrl = wc.getURL();
+      const pageUrl = pageOfRequest(wc.getURL(), onItsWay.get(wc) ?? null, from);
       if (!core.blockingAt(pageUrl)) return false;
       if (!core.deps.adBlock.filters()?.refuses(url, pageUrl, kind)) return false;
       core.refused.set(wc, (core.refused.get(wc) ?? 0) + 1);

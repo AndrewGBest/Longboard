@@ -5,6 +5,12 @@ edges.
 
 New in 0.3.29 (not released yet):
 
+- **Ad blocking no longer judges a new page's first requests by the page
+  being left.** For a moment as a site arrived, a request or two could be
+  decided by the previous site's switch: an advertisement refused on a
+  site where blocking is off, or let through where it is on. It happened
+  rarely, and mostly on a busy machine. Found by a test that failed about
+  once in fifteen runs under load.
 - **The tabs that were open are there next time.** Longboard starts as it
   always did (Home, or the last site, as you chose), and the tabs from
   last time are in the Tabs list behind it. Each one loads when you choose

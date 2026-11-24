@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  pageOfRequest,
   blockingOn,
   blockingStartsOn,
   isVerified,
@@ -236,5 +237,34 @@ describe('the filters on this machine', () => {
     expect(await failing.refresh()).toBe(false);
     expect(ad(failing)).toBe(true);
     expect(notes.at(-1)).toMatch(/lists not updated .*did not send a filter list/);
+  });
+});
+
+describe('which page a request belongs to while a new page is arriving', () => {
+  const old = 'https://shop.example/list';
+  const next = 'https://news.example/today';
+  const top = (referrer: string) => ({ topDocument: true, referrer });
+
+  it('is the page shown when nothing is on its way', () => {
+    expect(pageOfRequest(old, null, top('https://news.example/'))).toBe(old);
+  });
+
+  it('is the arriving page for a request its own document makes before the view says it is there', () => {
+    expect(pageOfRequest(old, next, top('https://news.example/today'))).toBe(next);
+    // A referrer cut down to the origin still names the host.
+    expect(pageOfRequest(old, next, top('https://news.example/'))).toBe(next);
+  });
+
+  it('stays with the page shown for anything less certain', () => {
+    // The page being left is still asking for things.
+    expect(pageOfRequest(old, next, top('https://shop.example/list'))).toBe(old);
+    // No referrer, or one that cannot be read.
+    expect(pageOfRequest(old, next, top(''))).toBe(old);
+    expect(pageOfRequest(old, next, top('not an address'))).toBe(old);
+    // Asked for by a stylesheet from somewhere else, or by a frame inside the page.
+    expect(pageOfRequest(old, next, top('https://cdn.example/site.css'))).toBe(old);
+    expect(pageOfRequest(old, next, { topDocument: false, referrer: 'https://news.example/today' })).toBe(old);
+    // Another port is another site as far as its switch goes.
+    expect(pageOfRequest(old, 'http://127.0.0.1:8001/a', top('http://127.0.0.1:8002/a'))).toBe(old);
   });
 });

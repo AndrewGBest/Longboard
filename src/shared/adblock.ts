@@ -191,3 +191,32 @@ export function parseFilterLists(raw: unknown): string[] | null {
   }
   return out.length > 0 && out.length <= MAX_LISTS ? out : null;
 }
+
+const hostOf = (url: string): string | null => {
+  try {
+    return new URL(url).host || null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * The page a request belongs to, for deciding whether its site's switch is on.
+ *
+ * Usually that is the page the view shows (`shown`). But for a moment as a
+ * new page arrives, its first requests can be seen while the view still
+ * reports the page being left, and they would be judged by the wrong site's
+ * switch: an advertisement refused on a site where blocking is off, or let
+ * through where it is on. So while a page is on its way (`arriving`), a
+ * request made by the top document whose referrer is that page's own host
+ * is the new page's. Anything less certain stays with the page shown.
+ */
+export function pageOfRequest(
+  shown: string,
+  arriving: string | null,
+  from: { topDocument: boolean; referrer: string },
+): string {
+  if (!arriving || !from.topDocument) return shown;
+  const host = hostOf(arriving);
+  return host !== null && host === hostOf(from.referrer) ? arriving : shown;
+}
