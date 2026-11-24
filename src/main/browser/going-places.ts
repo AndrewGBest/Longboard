@@ -4,7 +4,7 @@
 // about the menu, adding to history and to Home's recent sites, tv.css going
 // into each page, keeping the chrome view where it is, and the window's resize.
 import { powerSaveBlocker, type WebContents } from 'electron';
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { siteName } from '../../shared/address';
 import { addRecent, titleRecent } from '../../shared/home';
@@ -22,6 +22,7 @@ import {
 import { readJson, writeJson } from '../store';
 import { MENU_TIP } from '../../shared/about';
 import { addVisit, titleVisit } from '../../shared/history';
+import { keepsTabs, parseTabs, tabsToKeep, type KeptTab } from '../../shared/tabs';
 import type { Core } from './core';
 import { isNotice } from './core';
 
@@ -39,8 +40,12 @@ export interface GoingPlacesPart {
   showHome: () => void;
   /** The tab most recently in front: where an address opens when an app's own view is in front, or none is. */
   lastTab: string;
-  /** The places of the open tabs, in the order they were opened. */
+  /** The places of the open tabs, in the order they were opened; those kept from the last run and not yet looked at come last. */
   tabPlaces: () => string[];
+  /** A tab kept from the last run that has not been opened yet: what it will show. Undefined for any other tab. */
+  keptTab: (place: string) => KeptTab | undefined;
+  /** Offers the tabs kept from the last run again, behind the tab Longboard starts in. Called once, at the start. */
+  restoreTabs: () => void;
   /**
    * Makes the view for a place the page in front. A tab's view is kept
    * behind the one in front; an app's own view is closed when another
@@ -127,8 +132,15 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
         );
       return;
     }
-    if (typeof id !== 'string' || !core.isTab(id) || !core.views.has(id)) return;
+    if (typeof id !== 'string' || !core.isTab(id) || !tabPlaces().includes(id)) return;
     if (op === 'switch') {
+      const kept = waiting.get(id);
+      if (kept) {
+        // Kept from the last run and not looked at until now: this is when it loads.
+        waiting.delete(id);
+        open(kept.url, false, id);
+        return;
+      }
       usePartition(id);
       if (core.pageLoaded()) showPage();
       else {
@@ -156,18 +168,20 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
     const gone = core.views.get(id);
     core.views.delete(id);
     if (core.lastTab === id) core.lastTab = core.isTab(core.partition) ? core.partition : (others[0] ?? '');
+    const was = waiting.get(id)?.url ?? gone?.webContents.getURL() ?? '';
+    waiting.delete(id);
+    if (!core.isPrivate(id) && /^https?:/i.test(was) && !isNotice(was)) {
+      core.closedTabs.push(was);
+      if (core.closedTabs.length > 10) core.closedTabs.shift();
+    }
     if (gone) {
       const left = gone.webContents.session;
-      const was = gone.webContents.getURL();
-      if (!core.isPrivate(id) && /^https?:/i.test(was) && !isNotice(was)) {
-        core.closedTabs.push(was);
-        if (core.closedTabs.length > 10) core.closedTabs.shift();
-      }
       core.win.contentView.removeChildView(gone);
       gone.webContents.close();
       // What a private tab's sites stored goes with the tab.
       if (core.isPrivate(id)) void left.clearStorageData().catch(() => undefined);
     }
+    saveTabs();
     core.layout();
   };
 
@@ -198,7 +212,51 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
   core.lastTab = '';
   let tabCount = 0;
   const MAX_TABS = 8;
-  const tabPlaces = (): string[] => [...core.views.keys()].filter(core.isTab);
+  /** Tabs kept from the last run and not opened yet. They have no view until they are chosen. */
+  const waiting = new Map<string, KeptTab>();
+  const tabPlaces = (): string[] => [
+    ...[...core.views.keys()].filter(core.isTab),
+    ...[...waiting.keys()].filter((place) => !core.views.has(place)),
+  ];
+  const keptTab = (place: string): KeptTab | undefined => waiting.get(place);
+
+  // The open tabs are written down as they change, so that they can be
+  // offered again at the next start (shared/tabs.ts). Private tabs never are.
+  const tabsFile = join(core.dataDir, 'tabs.json');
+  let tabsTimer: NodeJS.Timeout | undefined;
+  const saveTabs = (): void => {
+    clearTimeout(tabsTimer);
+    if (!keepsTabs(core.config)) {
+      rmSync(tabsFile, { force: true });
+      return;
+    }
+    const open = tabPlaces()
+      .filter((place) => !core.isPrivate(place))
+      .map((place) => {
+        const wc = core.views.get(place)?.webContents;
+        return waiting.get(place) ?? { url: wc?.getURL() ?? '', title: wc?.getTitle() ?? '' };
+      });
+    writeJson(tabsFile, tabsToKeep(open));
+  };
+  /** A page's title comes a moment after its address, and some pages change theirs often: one write for the lot. */
+  const saveTabsSoon = (): void => {
+    clearTimeout(tabsTimer);
+    tabsTimer = setTimeout(saveTabs, 2000);
+  };
+  core.eachPage((wc) => {
+    wc.on('did-navigate', saveTabsSoon);
+    wc.on('did-navigate-in-page', (_e, _url, isMainFrame) => isMainFrame && saveTabsSoon());
+    wc.on('page-title-updated', saveTabsSoon);
+  });
+  // The last word before the window goes, while the pages can still be asked where they are.
+  core.win.on('close', saveTabs);
+  const restoreTabs = (): void => {
+    if (!keepsTabs(core.config)) {
+      rmSync(tabsFile, { force: true });
+      return;
+    }
+    for (const tab of parseTabs(readJson(tabsFile))) waiting.set(`tab:${++tabCount}`, tab);
+  };
   const usePartition = (next: string): void => {
     if (next === core.partition) return;
     core.setPointer(false);
@@ -444,6 +502,8 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
     tabAction,
     showHome,
     tabPlaces,
+    keptTab,
+    restoreTabs,
     usePartition,
     open,
     openInSharedTab,

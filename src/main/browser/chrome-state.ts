@@ -221,6 +221,7 @@ export function createChromeState(core: Core): Omit<ChromeStatePart, 'offeredSea
             autoplay: core.config.autoplay !== false,
             clearOnExit: core.config.clearOnExit === true,
             history: core.config.history !== false,
+            keepTabs: core.config.keepTabs !== false,
             visits: core.visits.length,
             language: core.config.language ?? null,
             buttons: BUTTON_ACTIONS.map((a) => ({
@@ -234,11 +235,13 @@ export function createChromeState(core: Core): Omit<ChromeStatePart, 'offeredSea
           },
     tabs: core.tabPlaces().map((place) => {
       const wc = core.views.get(place)?.webContents;
-      const url = wc && !wc.isDestroyed() ? wc.getURL() : '';
+      // A tab kept from the last run shows what it will open; it has no page yet.
+      const kept = core.keptTab(place);
+      const url = kept ? kept.url : wc && !wc.isDestroyed() ? wc.getURL() : '';
       const loaded = !isNotice(url);
       return {
         id: place,
-        title: loaded && wc ? wc.getTitle().slice(0, 80) : '',
+        title: kept ? kept.title.slice(0, 80) : loaded && wc ? wc.getTitle().slice(0, 80) : '',
         site: loaded ? siteName(url) : '',
         current: place === core.partition,
         private: core.isPrivate(place),

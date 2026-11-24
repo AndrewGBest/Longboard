@@ -142,8 +142,8 @@ Names are used only to say what was tested; see the notice at the foot.
 Compared with a mainstream browser, today:
 
 - **No Safe Browsing.** Nothing warns about known phishing or malware sites.
-- No sync between machines and no translation. Tabs are not kept when
-  Longboard is closed.
+- No sync between machines and no translation. The list of downloads is
+  forgotten when Longboard is closed.
 - Passwords are kept only on a system with a keyring, and only filled in
   when asked; there is no other autofill. Speech is English only.
 - Extensions from the Chrome Web Store can be added, but not all work, and

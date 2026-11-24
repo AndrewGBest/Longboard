@@ -38,6 +38,7 @@ export const SETTING_NAMES = [
   'hardwareDecode',
   'neverAsk',
   'history',
+  'keepTabs',
   'downloads',
   'language',
   'httpsOnly',

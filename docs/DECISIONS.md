@@ -3,6 +3,27 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-24: tabs are kept for the next start
+
+From the roadmap, at Andrew's "work on the items we can do". The shape is
+the agent's: **an assumption.**
+
+- **On as shipped**, with a switch in Settings (Privacy, "What is kept").
+  It writes addresses to disk, as history does, which is also on as
+  shipped. Off whenever "clear what sites stored when Longboard closes" is
+  on: somebody who asked for that does not want a list of where they were.
+- **Private tabs are never written down.**
+- **The start is unchanged.** Home, the last site or an app comes up as
+  before, in a tab of its own. Last time's tabs are entries in the Tabs
+  list behind it and are not loaded until chosen: eight pages loading at
+  once on a TV box would be slow, would start their videos' buffering, and
+  would sign in to things nobody asked to see. So seven are kept, one
+  fewer than can be open.
+- **A kept tab opens through the same door as any address**, so the
+  parental lock and the rules about which addresses may open apply to it.
+- The rules are pure (`src/shared/tabs.ts`, unit-tested); the wiring is in
+  `src/main/browser/going-places.ts`; two end-to-end scenarios.
+
 ## 2026-11-24: the package's fuses, and testing the package itself
 
 Electron's security checklist (item 19) says to turn off, in the packaged

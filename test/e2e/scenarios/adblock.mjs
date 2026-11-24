@@ -108,10 +108,18 @@ export default async function run() {
       await chrome.press('Escape', 400);
 
       // A verified site: the made-up catalogue lists profile.test.
-      await until(
+      // The list of verified sites is fetched in the background after the start. Going to the site before it
+      // has come would have its first advertisement refused and its second let through, so it is waited for
+      // properly (half a minute at most, for a loaded machine) and said aloud if it never comes.
+      const fetched = await until(
         () => app.log,
         (log) => /catalogue: \d+ profile\(s\), 1 verified site/.test(log),
-        80,
+        300,
+      );
+      check(
+        'the list of verified sites has been fetched',
+        /catalogue: \d+ profile\(s\), 1 verified site/.test(fetched ?? ''),
+        true,
       );
       asks.adverts = 0;
       await evaluate(`location.href = "http://profile.test:${port}/ads.html"; 0`);

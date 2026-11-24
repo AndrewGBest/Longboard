@@ -1,5 +1,5 @@
 // Settings, tabs and history.
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { check, sleep, until } from '../harness.mjs';
 import { scenario, site, mapHost, port } from './setup.mjs';
@@ -133,6 +133,91 @@ export default async function run() {
       'gone',
     );
   });
+
+  // Tabs from the last run are written in tabs.json. Here the file is put
+  // there beforehand, as a run that ended with two tabs open would have left it.
+  const keptTabs = (data) =>
+    writeFileSync(
+      join(data, 'tabs.json'),
+      JSON.stringify({
+        tabs: [
+          { url: `${site.origin}/article.html`, title: 'Kept one' },
+          { url: `${site.origin}/results.html`, title: 'Kept two' },
+          { url: 'file:///etc/hostname', title: 'Not a web page' },
+        ],
+      }),
+    );
+  await scenario('tabs kept from the last time', { url: `${site.origin}/home.html`, seed: keptTabs }, async (app) => {
+    const first = await app.page(`${site.origin}/home.html`);
+    const chrome = await app.chrome();
+    const names = () =>
+      chrome.evaluate(
+        '[...document.querySelectorAll("#panel button[id^=tab-]")].map((b) => b.id + "=" + (b.ariaLabel ?? b.textContent))',
+      );
+    await sleep(800);
+    await first.press('ArrowDown');
+    await first.press('ContextMenu', 500);
+    for (let i = 0; i < 24 && (await chrome.focused()) !== 'menu-tabs'; i++) await chrome.press('ArrowDown');
+    await chrome.press('Enter', 500);
+    check('the tabs open last time are offered again, behind the page Longboard started with', await names(), [
+      'tab-new=New tab',
+      'tab-private=New private tab',
+      'tab-0=Longboard fixture: generic streaming home (127.0.0.1): in front now',
+      'tab-close-0=Close: Longboard fixture: generic streaming home (127.0.0.1)',
+      'tab-1=Kept one (127.0.0.1)',
+      'tab-close-1=Close: Kept one (127.0.0.1)',
+      'tab-2=Kept two (127.0.0.1)',
+      'tab-close-2=Close: Kept two (127.0.0.1)',
+    ]);
+    check('none of them has been loaded yet', await app.page(`${site.origin}/article.html`, 3), null);
+    for (let i = 0; i < 8 && (await chrome.focused()) !== 'tab-1'; i++) await chrome.press('ArrowDown');
+    await chrome.press('Enter', 600);
+    const kept = await app.page(`${site.origin}/article.html`);
+    check('choosing one loads it and puts it in front', !!kept, true);
+    if (!kept) return;
+    await until(
+      () => kept.evaluate('document.visibilityState'),
+      (v) => v === 'visible',
+    );
+    check(
+      'with the first page still there behind it, and the other kept tab still not loaded',
+      [await first.evaluate('document.visibilityState'), await app.page(`${site.origin}/results.html`, 3)],
+      ['hidden', null],
+    );
+    const file = join(app.userData, 'tabs.json');
+    const written = await until(
+      () => JSON.parse(readFileSync(file, 'utf8')).tabs.map((t) => new URL(t.url).pathname),
+      (paths) => paths.length === 3 && paths[1] === '/article.html',
+      40,
+    );
+    check('what is open is written down again for next time, in order', written, [
+      '/home.html',
+      '/article.html',
+      '/results.html',
+    ]);
+  });
+
+  await scenario(
+    'no tabs are kept when that is switched off',
+    { url: `${site.origin}/home.html`, config: { keepTabs: false }, seed: keptTabs },
+    async (app) => {
+      const first = await app.page(`${site.origin}/home.html`);
+      const chrome = await app.chrome();
+      await sleep(800);
+      await first.press('ArrowDown');
+      await first.press('ContextMenu', 500);
+      for (let i = 0; i < 24 && (await chrome.focused()) !== 'menu-tabs'; i++) await chrome.press('ArrowDown');
+      await chrome.press('Enter', 500);
+      check(
+        'only the page Longboard started with is there, and the file from last time is gone',
+        [
+          await chrome.evaluate('document.querySelectorAll("#panel button[id^=tab-]").length'),
+          existsSync(join(app.userData, 'tabs.json')),
+        ],
+        [3, false],
+      );
+    },
+  );
 
   await scenario('history', { url: `${site.origin}/home.html` }, async (app) => {
     const page = await app.page(site.origin);

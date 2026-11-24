@@ -47,7 +47,7 @@ For the code:
 
 Then, as they are asked for:
 
-- Tabs that survive a restart; a list of downloads that lasts beyond one run.
+- A list of downloads that lasts beyond one run.
 - Frames from other origins driven by the highlight everywhere, not only
   for players.
 - More reviewed profiles, written from outlines by the people who use the

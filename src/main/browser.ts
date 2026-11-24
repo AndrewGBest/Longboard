@@ -83,6 +83,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
     ipcMain.off('longboard:frame', core.onFrame);
   });
 
+  core.restoreTabs();
   void core.chrome.loadFile(join(__dirname, 'chrome.html'));
   const startApp = core.deps.startApp ? core.apps.find((a) => a.id === core.deps.startApp) : undefined;
   if (core.deps.startApp && !startApp)

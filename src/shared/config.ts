@@ -40,6 +40,7 @@ const SETTING_KEYS = [
   'pageSize',
   'neverAsk',
   'history',
+  'keepTabs',
   'downloads',
   'language',
   'httpsOnly',
@@ -123,6 +124,8 @@ export interface UserConfig {
   clearOnExit?: boolean;
   /** Set to false to keep no history of the pages opened. */
   history?: boolean;
+  /** Set to false to start with no tabs from the last time. */
+  keepTabs?: boolean;
   /** Where downloaded files are saved: a folder's full path. The desktop's Downloads folder without it. */
   downloads?: string;
   /** The language sites are asked for, such as "fr" or "en-GB". The system's without it. Read at start. */
@@ -214,6 +217,10 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
   if (r['history'] !== undefined) {
     if (typeof r['history'] === 'boolean') config.history = r['history'];
     else problems.push('"history" must be true or false');
+  }
+  if (r['keepTabs'] !== undefined) {
+    if (typeof r['keepTabs'] === 'boolean') config.keepTabs = r['keepTabs'];
+    else problems.push('"keepTabs" must be true or false');
   }
   if (r['downloads'] !== undefined) {
     if (

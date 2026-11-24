@@ -5,6 +5,12 @@ edges.
 
 New in 0.3.29 (not released yet):
 
+- **The tabs that were open are there next time.** Longboard starts as it
+  always did (Home, or the last site, as you chose), and the tabs from
+  last time are in the Tabs list behind it. Each one loads when you choose
+  it, not before. Private tabs are never kept. Settings, under Privacy,
+  has the switch ("Keep the open tabs for next time"); nothing is kept
+  while "clear what sites stored when Longboard closes" is on.
 - **The packaged program can no longer be used as a general script
   runner.** The engine's switches for that (`ELECTRON_RUN_AS_NODE`,
   `NODE_OPTIONS`, `--inspect`) are turned off in the package, and it runs

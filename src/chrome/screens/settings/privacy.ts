@@ -116,6 +116,15 @@ export function privacyPage(st: Settings): Node[] {
     el('h2', { text: 'What is kept' }),
     flip('set-history', 'Keep a history of pages opened', st.history, set('history', st.history ? false : null)),
     flip(
+      'set-keep-tabs',
+      `Keep the open tabs for next time`,
+      st.keepTabs && !st.clearOnExit,
+      set('keepTabs', st.keepTabs ? false : null),
+      st.clearOnExit
+        ? `Not while what sites stored is cleared when ${PRODUCT.name} closes`
+        : 'Private tabs are never kept',
+    ),
+    flip(
       'set-clear-exit',
       `Clear what sites stored when ${PRODUCT.name} closes`,
       st.clearOnExit,

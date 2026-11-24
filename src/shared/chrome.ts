@@ -149,6 +149,8 @@ export interface ChromeState {
     /** Whether a history of pages is kept, and how many pages are in it. */
     history: boolean;
     visits: number;
+    /** Whether the tabs open at closing are offered again at the next start. */
+    keepTabs: boolean;
     /** The language sites are asked for, as a code; null for the system's. */
     language: string | null;
     /** The buttons the person has given to each action, and the action now waiting for a button to be pressed. */
