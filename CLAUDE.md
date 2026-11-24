@@ -128,7 +128,8 @@ necessary, not sufficient.
 
 | Path | What |
 |---|---|
-| `src/main/` | Shell: windows, sessions, permissions, profile store, ad blocking |
+| `src/main/` | Shell: starting up, sessions, profile store, ad blocking, updates |
+| `src/main/browser/` | The window and everything in it, one subject per file (ARCHITECTURE.md 2.1) |
 | `src/preload/` | Boots the layer in the isolated world |
 | `src/layer/` | Navigation engine, profile interpreter, generic mode, pointer, player |
 | `src/chrome/` | Home, menu, on-screen keyboard, profile editor |

@@ -71,6 +71,57 @@ domains. Longboard loads anything, so the allowlist is replaced by:
 Longboard has no Safe Browsing service. That is a real gap compared with
 mainstream browsers and is stated in the README of the first release.
 
+### 2.1 How the shell's code is laid out
+
+`src/main/index.ts` starts the app: it reads the command line and the
+settings, sets up the profile store, ad blocking and updates, and calls
+`createBrowser` (`src/main/browser.ts`) to make the window.
+
+The browser is **one object built from parts**. Each file in
+`src/main/browser/` is a part: one subject, written as a function that
+takes the shared `core` object and returns what it adds to it. The file
+begins with an interface listing exactly that, so the top of each file is
+its table of contents. `core.ts` puts the interfaces together as one type.
+
+| Part | Subject |
+|---|---|
+| `shell.ts` | The window, its views, and Home's lists on disk |
+| `state.ts` | What is on screen and what is waiting for an answer |
+| `lock.ts` | The parental lock and its PIN |
+| `text-entry.ts` | Saved sign-ins, typing from a phone, speech |
+| `chrome-state.ts` | What Longboard's own screens are told to show |
+| `hand-back.ts` | The question on screen; handing an account back to another program |
+| `layout.ts` | Where the views sit, the loading cover, notices, zoom |
+| `going-places.ts` | Home, tabs, Back, and pages arriving, failing or trying to leave |
+| `standstill.ts` | Freezing pages that are not in front |
+| `pointer-mode.ts` | The on-screen pointer |
+| `keys.ts` | Which keys the shell answers itself |
+| `away.ts` | Losing the screen to another program and getting it back |
+| `permissions.ts` | Asking before a site gets a permission |
+| `privacy.ts` | Ad blocking, identity, privacy signals, extensions |
+| `downloads.ts` | Downloads |
+| `layer-messages.ts` | Messages from the layer in the page |
+| `frames.ts` | Frames inside a page |
+| `profile-editor.ts` | Making a profile by pointing |
+| `icons.ts` | Site icons for Home |
+| `apps.ts` | Sites added as apps |
+| `menu.ts` | What the menu's and Settings' entries do |
+| `chrome-messages.ts` | Messages from Longboard's own screens |
+
+Two things to know before changing a part:
+
+- **The parts are built in the order `createBrowser` lists them**, and a
+  part's set-up code may use only what the parts above it made. Once the
+  app is running any part may call any other through `core`.
+- **A part holds wiring, not decisions.** Whether a request is refused,
+  where a download is saved, what a key means: those are pure functions in
+  `src/shared/` (or beside the part in `src/main/`), with unit tests. If a
+  part is growing an `if` that decides behaviour, move it out and test it.
+
+The parts were one long function until 2026-11-24 and were separated
+without changing what runs, so they still share more through `core` than
+a fresh design would. Narrowing what each part needs is welcome work.
+
 ## 3. The layer
 
 The layer runs in the preload's isolated world, in the top frame of the page
@@ -95,6 +146,32 @@ arrow with nowhere to go on a large one): it moves the highlight there and
 hands back at its edges, and has no keyboard, menu or pointer of its own
 (DECISIONS.md, 2026-11-21). A frame with nothing to select is handled by
 pointer mode.
+
+### 3.1 How the layer's code is laid out
+
+`startLayer` (`src/layer/index.ts`) is built the same way as the browser
+(section 2.1): parts in `src/layer/parts/`, each one subject, sharing one
+`core` object.
+
+| Part | Subject |
+|---|---|
+| `page.ts` | The page as the layer sees it: its player, the overlay, the navigator |
+| `moving.ts` | The arrows: moving the highlight, hover menus, scrolling |
+| `frames.ts` | Handing the highlight into a frame and taking it back |
+| `keyboard.ts` | The on-screen keyboard |
+| `page-keys.ts` | Keys given to the page and its player |
+| `dialogs.ts` | Pop-ups and dialogs |
+| `player-controls.ts` | A playing video's controls |
+| `back.ts` | What Back closes, in order |
+| `search.ts` | Finding the site's search field |
+| `dispatch.ts` | What each action from the remote does |
+| `input.ts` | Listening to keys, focus and the mouse |
+
+The folders beside it hold what the parts use and what can be tested on
+its own: `spatial/` (which element an arrow leads to), `profile/` (reading
+a profile's rules), `generic/`, `input/` (keys and controllers to
+actions), `guard/`, `edit/`, `diagnostics/`, `ui/` (the highlight and the
+keyboard as drawn).
 
 ## 4. Chrome views
 
@@ -189,7 +266,8 @@ Whether protected video actually plays on each is unverified.
 
 | Path | What |
 |---|---|
-| `src/main/` | Shell: windows, sessions, permissions, profile store, ad blocking |
+| `src/main/` | Shell: starting up, sessions, the profile store, ad blocking, updates |
+| `src/main/browser/` | The window and everything in it, in parts (section 2.1) |
 | `src/preload/` | Boots the layer in the isolated world |
 | `src/layer/` | Navigation engine, profile interpreter, generic mode, pointer, player |
 | `src/chrome/` | Home, menu, keyboard, editor |
