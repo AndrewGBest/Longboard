@@ -57,4 +57,4 @@ body:
     id: outline
     attributes:
       label: Page outline (optional, but it helps most)
-      description: "\"Save page outline\" in the menu writes one. An outline holds the page's structure only (no text, names or links). Look at the file before attaching it anyway.
+      description: "\"Save page outline\" in the menu writes one. An outline holds the page's structure only (no text, names or links). Look at the file before attaching it anyway."
