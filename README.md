@@ -14,7 +14,7 @@ a game controller or a keyboard.
 [![Licence: GPL-3.0](https://img.shields.io/badge/licence-GPL--3.0-blue)](LICENSE)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/AndrewGBest/Longboard/badge)](https://scorecard.dev/viewer/?uri=github.com/AndrewGBest/Longboard)
 
-<img src="site/images/highlight.png" width="820" alt="Longboard showing a streaming page, with a white highlight around one of a row of cards">
+<img src="site/images/social.png" width="820" alt="Longboard, a web browser for the TV: a made-up streaming page on a television, with a white highlight around one of a row of cards">
 
 <sub>The page in the pictures is invented for this project. Longboard shows real websites; their pictures are not ours to print.</sub>
 
