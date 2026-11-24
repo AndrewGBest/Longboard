@@ -6,6 +6,7 @@ import { copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'n
 import { join } from 'node:path';
 import {
   chooseProfile,
+  entryFor,
   exportName,
   importKey,
   validateProfile,
@@ -13,10 +14,10 @@ import {
   type ProfileChoice,
   type ProfileSource,
   type StoredProfile,
-  entryFor,
 } from '../shared/profile';
 import { readJson, writeJson } from './store';
 
+/** Where each kind of profile is kept on disk. */
 export interface ProfileFolders {
   /** Shipped with the app: `<folder>/<site>/profile.json`. */
   builtin: string;
@@ -35,6 +36,7 @@ export interface ProfileFolders {
 const MAX_FILE = 200_000;
 const EXPORT_SUFFIX = '.longboard-profile.json';
 
+/** The names in a folder, sorted, so the order profiles load in does not depend on the file system. Empty when there is no such folder. */
 function listDir(dir: string): string[] {
   try {
     return readdirSync(dir).sort();

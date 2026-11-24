@@ -18,8 +18,10 @@ const visible = (el: HTMLElement): boolean => {
 
 const usable = (el: HTMLInputElement): boolean => !el.disabled && !el.readOnly && visible(el);
 
+/** Input types a name or an email address is typed into. An input with no type is a text field. */
 const NAME_TYPES = new Set(['text', 'email', 'tel', '']);
 
+/** A sign-in form's two fields. `user` is null when the page asks for the password alone. */
 export interface LoginFields {
   user: HTMLInputElement | null;
   pass: HTMLInputElement;

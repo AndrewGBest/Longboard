@@ -1,18 +1,21 @@
-// What each action from the remote does.
-import { type Action } from '../../shared/actions';
-import { rulesReport } from '../profile/rules';
-import { buildOutline, sanitizeUrl } from '../diagnostics/outline';
-import { isEmptyField } from '../search-field';
-import { activeOption, openCombo } from '../combobox';
-import { deepActiveElement } from '../spatial/deep';
+// What each action does, whatever it came from: a remote's key, a
+// controller's button, or the shell. What is open decides first (pointer
+// mode, a drop-down, the keyboard, a list of suggestions), then the action.
+import type { Action } from '../../shared/actions';
 import { playerKeyFor } from '../../shared/player-keys';
+import { activeOption, openCombo } from '../combobox';
+import { buildOutline, sanitizeUrl } from '../diagnostics/outline';
 import { pageVideo } from '../player';
-import { coveredByScreen, MENU_ENTRY, openDialog } from '../spatial/navigator';
+import { rulesReport } from '../profile/rules';
+import { isEmptyField } from '../search-field';
+import { deepActiveElement } from '../spatial/deep';
+import { coveredByScreen, MENU_ENTRY, openDialog } from '../spatial/dialogs';
 import type { LayerCore } from './core';
 import { isTextEntry } from './core';
 
 /** What this part adds for the other parts to use. */
 export interface DispatchPart {
+  /** Carries out one action. */
   dispatch: (a: Action) => void;
 }
 
@@ -179,8 +182,6 @@ export function createDispatch(core: LayerCore): DispatchPart {
         }
         if (target && !core.inPlayer()) {
           core.hoverIfStillCollapsed(target);
-          // Some controls scroll the page to another section (tabs that are
-          // really jump links). Focus follows to what is now on screen.
           // What was selected may open something over the whole screen (the
           // player, while its video is still loading). The ring goes as soon
           // as that is in front, not when the video finally starts.
@@ -194,6 +195,8 @@ export function createDispatch(core: LayerCore): DispatchPart {
               core.nav.clear();
             }
           }, 150);
+          // Some controls scroll the page to another section (tabs that are
+          // really jump links). Focus follows to what is now on screen.
           core.view.clearTimeout(core.followTimer);
           core.followTimer = core.view.setTimeout(() => {
             if (core.enterDialog()) return;
@@ -279,7 +282,7 @@ export function createDispatch(core: LayerCore): DispatchPart {
         core.send({ kind: 'voice' });
         break;
       case 'diagnostics':
-        // The first line says how much of the adapter still matches this page:
+        // The first line says how much of the profile still matches this page:
         // a zero where there used to be matches is the site having changed.
         core.send({
           kind: 'diagnostics',

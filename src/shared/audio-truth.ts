@@ -20,6 +20,7 @@ export function namesDolbyAudio(type: unknown): boolean {
   return typeof type === 'string' && /codecs\s*=\s*"?[^";]*\b(ac-3|ec-3|mp4a\.a5|mp4a\.a6)\b/i.test(type);
 }
 
+/** Makes the three answers say no to AC-3 and E-AC-3. Runs inside the page, so it uses nothing from outside itself. */
 export function correctAudioAnswers(): void {
   const names = (type: unknown): boolean =>
     typeof type === 'string' && /codecs\s*=\s*"?[^";]*\b(ac-3|ec-3|mp4a\.a5|mp4a\.a6)\b/i.test(type);

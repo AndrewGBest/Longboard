@@ -10,6 +10,7 @@
 
 /** Where the newest release is described. */
 export const RELEASE_FEED = 'https://api.github.com/repos/AndrewGBest/Longboard/releases/latest';
+/** GitHub is asked no more often than this. */
 export const UPDATE_EVERY_MS = 24 * 60 * 60 * 1000;
 /** A package is never bigger than this. */
 export const MAX_PACKAGE_BYTES = 600_000_000;
@@ -17,6 +18,7 @@ export const MAX_PACKAGE_BYTES = 600_000_000;
 /** "install": fetch and install new versions (the usual). "tell": only say there is one. "off": never ask. */
 export type UpdateMode = 'install' | 'tell' | 'off';
 export const UPDATE_MODES: readonly UpdateMode[] = ['install', 'tell', 'off'];
+/** The mode config.json asks for; anything unknown is "install". */
 export function updateMode(setting: unknown): UpdateMode {
   return setting === 'tell' || setting === 'off' ? setting : 'install';
 }

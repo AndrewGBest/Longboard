@@ -1,4 +1,8 @@
-// Opening pages: Home, tabs, Back, and what happens when a page arrives, fails or tries to leave.
+// Opening pages: Home, tabs, Back, and what happens when a page arrives,
+// fails or tries to go somewhere (every address is checked by blockReason in
+// main/navigation.ts, and there are no pop-up windows). Also here: the tip
+// about the menu, adding to history and to Home's recent sites, tv.css going
+// into each page, keeping the chrome view where it is, and the window's resize.
 import { powerSaveBlocker, type WebContents } from 'electron';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -23,16 +27,27 @@ import { isNotice } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface GoingPlacesPart {
+  /** Loads a page that failed once more, after a wait. */
   retryTimer: NodeJS.Timeout | undefined;
+  /** The menu has been opened on a website: the tip about how to open it is not shown again. */
   menuLearned: () => void;
+  /** Puts the website view in front, awake and with its sound on. */
   showPage: () => void;
   /** Tabs: a new one (which starts on Home), bringing one in front, or closing one. */
   tabAction: (op: unknown, id: unknown) => void;
+  /** Puts Home in front. The page stays loaded, silent and frozen. */
   showHome: () => void;
   /** The tab most recently in front: where an address opens when an app's own view is in front, or none is. */
   lastTab: string;
+  /** The places of the open tabs, in the order they were opened. */
   tabPlaces: () => string[];
+  /**
+   * Makes the view for a place the page in front. A tab's view is kept
+   * behind the one in front; an app's own view is closed when another
+   * takes its place.
+   */
   usePartition: (next: string) => void;
+  /** Opens an address the person asked for. `remember` puts it on Home. `inSession` is the place it opens in: a tab, or an app's own session. */
   open: (asked: string, remember: boolean, inSession?: string) => void;
   /** Opens a page in a tab of the session everything shares: where extensions live. Not put on Home. */
   openInSharedTab: (url: string) => void;
@@ -47,6 +62,7 @@ export interface GoingPlacesPart {
    *   would then change nothing the person can see.
    */
   backIndex: () => number;
+  /** Back: to where backIndex says, or to Home. */
   goBack: () => void;
 }
 
@@ -88,7 +104,6 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
     }
   };
 
-  /** Tabs: a new one (which starts on Home), bringing one in front, or closing one. */
   const tabAction = (op: unknown, id: unknown): void => {
     if (core.edit) core.endEdit(false);
     const again = op === 'reopen' ? core.closedTabs[core.closedTabs.length - 1] : undefined;
@@ -173,11 +188,6 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
     core.layout();
   };
 
-  /**
-   * Makes the view for a session the page in front. The shared view is kept
-   * for the whole run; an app's own view is closed when another session's
-   * takes its place.
-   */
   /** While a video plays the display is kept awake; this lets it sleep again. */
   const releaseDisplay = (): void => {
     if (core.blocker === undefined) return;
@@ -220,7 +230,6 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
     pageShown = core.pageLoaded();
   };
 
-  /** Opens an address the person asked for. `remember` puts it on Home. `inSession` is an app's own session, or "" for the shared one. */
   /** Where an address of a site is opened instead, when the site's profile says its interface for a TV is elsewhere and the person has not switched the profile off. */
   const entryAt = (url: string): string | null => (core.profileOffAt(url) ? null : core.deps.profiles.entry(url));
   const open = (asked: string, remember: boolean, inSession = core.lastTab): void => {
@@ -260,20 +269,9 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
     void core.page.loadURL(url).catch(() => undefined);
   };
 
-  /** Opens a page in a tab of the session everything shares: where extensions live. Not put on Home. */
   const openInSharedTab = (url: string): void =>
     open(url, false, core.isTab(core.lastTab) && !core.isPrivate(core.lastTab) ? core.lastTab : '');
 
-  /**
-   * Where Back leads in the view's history, or -1 when it leads Home.
-   * - Longboard's own notices are never gone back to.
-   * - From a notice, the page it is about is passed over too: stepping onto
-   *   it would only bring the notice back.
-   * - Entries with the address being left are passed over. Some pages add a
-   *   second history entry for themselves as they load (seen on the title
-   *   pages of the service Steamboat was written for), and one step back
-   *   would then change nothing the person can see.
-   */
   const backIndex = (): number => {
     const history = core.page.navigationHistory;
     const entries = history.getAllEntries();
@@ -402,8 +400,8 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
       else byEntry(wc, e, url);
     }),
   );
-  // Frames inside a page are the site's own business; only
-  // where the view itself goes is checked.
+  // Frames inside a page are the site's own business; only where the view
+  // itself goes is checked.
   core.eachPage((wc) =>
     wc.on('will-redirect', (e, url, _isInPlace, isMainFrame) => {
       if (!isMainFrame) return;

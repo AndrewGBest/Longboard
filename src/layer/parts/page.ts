@@ -1,39 +1,50 @@
 // The page as the layer sees it: its player, what the highlight may reach, the overlay and the navigator.
-import { type BridgeMessage, type LayerOptions } from '../../shared/actions';
-import { type SiteRules } from '../profile/rules';
+import type { BridgeMessage, LayerOptions } from '../../shared/actions';
 import { isSecretField } from '../../shared/osk';
+import { coversPicture, findMainVideo, GENERIC_PLAYER_SHARE, pageVideo, playerScope } from '../player';
+import type { SiteRules } from '../profile/rules';
 import { deepContains } from '../spatial/deep';
-import { findMainVideo, GENERIC_PLAYER_SHARE, coversPicture, pageVideo, playerScope } from '../player';
-import { coveringLayer, openDialog, SpatialNavigator, type NavigatorOptions } from '../spatial/navigator';
+import { coveringLayer, openDialog } from '../spatial/dialogs';
+import { SpatialNavigator, type NavigatorOptions } from '../spatial/navigator';
 import { HOST_TAG, Overlay } from '../ui/overlay';
 import type { LayerCore } from './core';
 
 /** What this part adds for the other parts to use. */
 export interface PagePart {
+  // The first six are what the layer was started with (LayerDeps in core.ts).
   doc: Document;
   options: LayerOptions;
   rules: SiteRules;
   send: (msg: BridgeMessage) => void;
   hooks: { back?: () => boolean; edge?: (dir: 'up' | 'down' | 'left' | 'right') => boolean } | undefined;
   frame: { exit: (how: 'up' | 'down' | 'left' | 'right' | 'back') => void; field: (el: Element) => void } | undefined;
+  /** The page's window. */
   view: Window & typeof globalThis;
+  /** The profile's selectors for what the site's player lives in. */
   playerRoots: string[];
+  /** How much of the window a video must fill to count as being watched, 0 to 1. */
   playerShare: () => number;
+  /** True when a player is one part of a longer page that the arrows must also reach. */
   playerInPage: () => boolean;
+  /** The video being watched, or null on a page that is being browsed. */
   mainVideo: () => HTMLVideoElement | null;
-  /** True for the length of one move out of such a player: the whole page is in reach. */
+  /** True for the length of one move out of a player that is part of a longer page: the whole page is in reach. */
   leavingPlayer: boolean;
+  /** True while a video is being watched: the keys are the player's, and the highlight stays among its controls. */
   inPlayer: () => boolean;
   /** The pop-up or covering layer in front, when it is pinned to the screen and so does not move with the page. */
   pinnedLayer: () => Element | null;
-  /** While the player is open, focus stays among its own controls. */
+  /** What the highlight is kept inside for now: an open dialog or menu, a covering layer, the player. Null for the whole page. */
   scope: () => Element | null;
+  /** What the layer draws: the ring, the keyboard, the pointer, messages. */
   overlay: Overlay;
-  /** A scripted run never types a password or a one-time code (Hard rule 9). A person may. */
+  /** A scripted run never types a password or a one-time code (Hard rule 10). A person may. */
   keyboardBarred: (el: Element) => boolean;
-  /** Things that jump elsewhere when they get the cursor (moveInPage finds them). */
+  /** Things that jump elsewhere when they get the cursor (moveInPage in moving.ts finds them). */
   jumpers: WeakSet<Element>;
+  /** What the navigator goes by. It keeps this object, so a change here takes effect at once. */
   navOptions: NavigatorOptions;
+  /** Finds what the highlight can go to, and moves it. */
   nav: SpatialNavigator;
 }
 
@@ -69,7 +80,6 @@ export function createPage(core: LayerCore): Omit<PagePart, 'leavingPlayer'> {
   // bringing a control at its bottom edge on screen has scrolled part of
   // the picture away.
   const mainVideo = (): HTMLVideoElement | null => findMainVideo(doc, playerRoots, playerShare()) ?? onPagePlayer();
-  /** True for the length of one move out of such a player: the whole page is in reach. */
   core.leavingPlayer = false;
   const inPlayer = (): boolean => {
     if (core.leavingPlayer) return false;
@@ -81,14 +91,12 @@ export function createPage(core: LayerCore): Omit<PagePart, 'leavingPlayer'> {
     const on = nav.focused;
     return !on || deepContains(playerScope(v, playerRoots), on);
   };
-  /** The pop-up or covering layer in front, when it is pinned to the screen and so does not move with the page. */
   const pinnedLayer = (): Element | null => {
     const layer = openDialog(doc) ?? (inPlayer() ? null : coveringLayer(doc));
     for (let el: Element | null = layer; el; el = el.parentElement)
       if (view.getComputedStyle(el).position === 'fixed') return layer;
     return null;
   };
-  /** While the player is open, focus stays among its own controls. */
   const scope = (): Element | null => {
     // A pop-up the page opened in front of everything: only it can be reached.
     const dialog = openDialog(doc);
@@ -99,11 +107,11 @@ export function createPage(core: LayerCore): Omit<PagePart, 'leavingPlayer'> {
     // A gate or notice laid over the whole screen without saying it is a dialog.
     if (!inPlayer()) return coveringLayer(doc);
     const v = mainVideo();
+    // While the player is open, focus stays among its own controls.
     return v ? playerScope(v, playerRoots) : null;
   };
 
   const overlay = new Overlay(doc);
-  /** A scripted run never types a password or a one-time code (Hard rule 9). A person may. */
   const keyboardBarred = (el: Element): boolean =>
     options.automation &&
     isSecretField(
@@ -111,7 +119,6 @@ export function createPage(core: LayerCore): Omit<PagePart, 'leavingPlayer'> {
       el.getAttribute('autocomplete'),
       `${el.getAttribute('name') ?? ''} ${el.id}`,
     );
-  /** Things that jump elsewhere when they get the cursor (moveInPage finds them). */
   const jumpers = new WeakSet<Element>();
   // The navigator keeps this object, so setRules can change what it goes by.
   const navOptions: NavigatorOptions = {

@@ -1,34 +1,39 @@
 // The on-screen keyboard: opening it on a text field, and typing through the shell.
-import { looksLikeSearch } from '../search-field';
 import { oskDock, OskModel } from '../../shared/osk';
-import { deepActiveElement } from '../spatial/deep';
 import { playerKeyInfo } from '../../shared/player-keys';
+import { looksLikeSearch } from '../search-field';
+import { deepActiveElement } from '../spatial/deep';
 import type { LayerCore } from './core';
 import { GENERIC_SEARCH } from './core';
 
 /** What this part adds for the other parts to use. */
 export interface KeyboardPart {
+  /** The keyboard's keys, and which one is highlighted. */
   osk: OskModel;
   oskOpen: boolean;
   /** The keyboard is up for a text field inside an embedded frame: the frame has the cursor, and the shell hands the keys over. */
   frameTyping: boolean;
+  /** Draws the keyboard as it now is, or takes it off the screen when it is closed. */
   drawOsk: () => void;
+  /** True for the site's search box: by the profile's selector, the usual ones, or the field's own markup. */
   isSearchField: (el: Element) => boolean;
+  /** Brings the keyboard up for a text field. In a frame's layer, tells the shell of the field instead. */
   openOsk: (field: Element) => void;
   closeOsk: () => void;
   /** The shell says a click put the cursor in a text field inside a frame (or that it has left). */
   frameField: (field: { hint: string; top: number; bottom: number } | null) => void;
+  /** OK on the highlighted key: types it through the shell. */
   pressOsk: () => void;
 }
 
 export function createKeyboard(core: LayerCore): Omit<KeyboardPart, 'oskOpen' | 'frameTyping'> {
-  // On-screen keyboard: shown when layer focus lands on a text field, so a
-  // remote can type. It types through the shell, like a real keyboard would.
+  // The keyboard types through the shell, as a real keyboard would: the
+  // page gets ordinary key presses and never a value set from here.
   const osk = new OskModel();
   core.oskOpen = false;
+  /** The word on the keyboard's Enter key. */
   let oskSubmit = 'enter';
   let oskSide: 'top' | 'bottom' = 'bottom';
-  /** The keyboard is up for a text field inside an embedded frame: the frame has the cursor, and the shell hands the keys over. */
   core.frameTyping = false;
   const drawOsk = (): void =>
     core.overlay.keyboard(core.oskOpen ? osk.rows : null, { row: osk.row, index: osk.index }, oskSubmit, oskSide);
@@ -36,7 +41,7 @@ export function createKeyboard(core: LayerCore): Omit<KeyboardPart, 'oskOpen' | 
     try {
       if (el.matches([...core.rules.selectors.searchInput, ...GENERIC_SEARCH].join(','))) return true;
     } catch {
-      // a profile's selector the browser cannot read: go by the field itself
+      // A profile's selector the browser cannot read: go by the field itself.
     }
     return looksLikeSearch(el);
   };
@@ -72,7 +77,6 @@ export function createKeyboard(core: LayerCore): Omit<KeyboardPart, 'oskOpen' | 
     }
     drawOsk();
   };
-  /** The shell says a click put the cursor in a text field inside a frame (or that it has left). */
   const frameField = (field: { hint: string; top: number; bottom: number } | null): void => {
     if (!field) {
       if (core.frameTyping) closeOsk();

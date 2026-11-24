@@ -67,6 +67,7 @@ export function additionsCanBeMet(type: unknown, hdr: boolean): boolean {
   return true;
 }
 
+/** Makes `isTypeSupported` say no to additions the engine cannot meet. Runs inside the page, so it uses nothing from outside itself. */
 export function correctVideoAnswers(): void {
   const w = globalThis as unknown as {
     MediaSource?: { isTypeSupported: (type: string) => boolean };

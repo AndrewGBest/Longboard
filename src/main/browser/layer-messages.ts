@@ -1,8 +1,11 @@
-// Messages from the navigation layer in the page.
-import { app, ipcMain, powerSaveBlocker, type WebContents } from 'electron';
-import { cleanCredentials, loginPlace, shouldOffer } from '../../shared/passwords';
+// Messages from the navigation layer in a page: what it is told as it starts
+// (onBoot, which chooses the page's profile from the frame's real address)
+// and what it asks for afterwards (onMessage). Only the top frame of a view
+// is listened to. Also keeps the display awake while a video plays.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { app, ipcMain, powerSaveBlocker, type WebContents } from 'electron';
+import { cleanCredentials, loginPlace, shouldOffer } from '../../shared/passwords';
 import { type BootData, type BridgeMessage, type Direction, type LayerOptions } from '../../shared/actions';
 import { siteName } from '../../shared/address';
 import { type ChromeState } from '../../shared/chrome';
@@ -18,10 +21,15 @@ import type { Core } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface LayerMessagesPart {
+  /** What keeps the display awake while a video plays (a powerSaveBlocker id); undefined when nothing does. */
   blocker: number | undefined;
+  /** Which way the last sweep of the pointer went. They alternate, so that each one is a real movement. */
   nudge: boolean;
+  /** The width and height of a view, in view pixels. */
   viewSize: (wc: WebContents) => [number, number];
+  /** Answers a layer as it starts: its options and, for a website, the profile that drives the page. */
   onBoot: (event: Electron.IpcMainEvent) => void;
+  /** Acts on what the layer in the page in front, or in Longboard's own screens, asks for. */
   onMessage: (event: Electron.IpcMainEvent, msg: BridgeMessage) => void;
 }
 
@@ -319,7 +327,7 @@ export function createLayerMessages(core: Core): Omit<LayerMessagesPart, 'blocke
         break;
       case 'frameEnter':
         if (wc === core.page && core.active() === core.page) {
-          // Where the frame is, for a player inside it (see onFrame, `reveal`).
+          // Where the frame is, for a player inside it (frames.ts: onFrame, `reveal`).
           core.frameAt = hoverPoint({ x: msg.at?.x, y: msg.at?.y }, core.page.getZoomFactor(), viewSize(core.page));
           core.askIntoFrame(core.page.mainFrame, msg.stay === true);
         }

@@ -1,21 +1,24 @@
 // Pop-ups and dialogs: the highlight goes in when one opens and comes back when it closes.
 import { deepContains } from '../spatial/deep';
-import { isVisible, openDialog } from '../spatial/navigator';
+import { openDialog } from '../spatial/dialogs';
+import { isVisible } from '../spatial/visibility';
 import type { LayerCore } from './core';
 
 /** What this part adds for the other parts to use. */
 export interface DialogsPart {
-  /** Moves focus into a pop-up that has opened, if it is not there already. */
+  /** A label whose hidden checkbox opened a list when OK was pressed on it, kept so that Back can close the list. */
   openToggle: { label: HTMLLabelElement; input: HTMLInputElement } | null;
+  /** The wait in leaveDialog. */
   dialogTimer: number | undefined;
+  /** Moves focus into a pop-up that has opened, if it is not there already. True when one is open. */
   enterDialog: () => boolean;
   /** After asking a pop-up to close: once it has gone, focus returns to what opened it. */
   leaveDialog: () => void;
 }
 
 export function createDialogs(core: LayerCore): Omit<DialogsPart, 'openToggle' | 'dialogTimer'> {
-  /** Moves focus into a pop-up that has opened, if it is not there already. */
   core.openToggle = null;
+  /** What had the highlight when the pop-up opened. */
   let beforeDialog: Element | null = null;
   core.dialogTimer = undefined;
   const enterDialog = (): boolean => {
@@ -31,7 +34,6 @@ export function createDialogs(core: LayerCore): Omit<DialogsPart, 'openToggle' |
     }
     return true;
   };
-  /** After asking a pop-up to close: once it has gone, focus returns to what opened it. */
   const leaveDialog = (): void => {
     core.view.clearTimeout(core.dialogTimer);
     core.dialogTimer = core.view.setTimeout(() => {

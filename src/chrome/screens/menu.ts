@@ -1,10 +1,10 @@
 // The menu panel, and its second page about the site in front.
-import { PRODUCT } from '../../shared/product';
 import { type ChromeState, type MenuAction } from '../../shared/chrome';
+import { PRODUCT } from '../../shared/product';
 import { badge, button, el, heading, icon, note, row } from '../parts';
-import { tell, ui } from './ui';
-import { render } from './render';
 import { addressField } from './home';
+import { render } from './render';
+import { tell, ui } from './ui';
 
 /** The site in front, at the top of the menu: its icon, the page's title, and whether the page was sent privately. */
 function siteBlock(page: NonNullable<ChromeState['page']>): HTMLElement {
@@ -17,6 +17,7 @@ function siteBlock(page: NonNullable<ChromeState['page']>): HTMLElement {
   ]);
 }
 
+/** The menu. What it offers depends on whether a website or Home is in front; `ui.menuPage` says which of its two pages. */
 export function menuPanel(s: ChromeState): Node[] {
   const act = (action: MenuAction) => (): void => tell({ kind: 'menu', action });
   const page = s.page;
@@ -176,7 +177,7 @@ export function menuPanel(s: ChromeState): Node[] {
           disabled: page.adBlocking.locked,
         }),
       );
-    // On the first page (Andrew, 2026-11-19): making an app of a site is one of the main things the menu is for.
+    // On the first page: making an app of a site is one of the main things the menu is for (DECISIONS.md, 2026-11-19).
     items.push(
       page.app
         ? row('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp'), { icon: 'trash' })

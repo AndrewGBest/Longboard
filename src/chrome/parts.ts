@@ -2,8 +2,9 @@
 // icons are drawn here, as line drawings of this project's own making (Hard
 // rule 1): nothing is loaded and nothing is copied from an icon set.
 
-/** Each icon is a few strokes on a 24 by 24 grid. */
+/** The circle several icons are drawn inside. */
 const RING = 'M12 4a8 8 0 1 0 0 16a8 8 0 0 0 0-16z';
+/** Each icon is a few strokes on a 24 by 24 grid. */
 const ICONS = {
   search: ['M11 4a7 7 0 1 0 0 14a7 7 0 0 0 0-14z', 'M16.2 16.2L21 21'],
   back: ['M19 12H5', 'M11 6l-6 6 6 6'],
@@ -54,6 +55,7 @@ export type IconName = keyof typeof ICONS;
 
 const SVG = 'http://www.w3.org/2000/svg';
 
+/** One of the icons above, as a drawing that takes its colour and size from chrome.html. */
 export function icon(name: IconName): SVGSVGElement {
   const svg = document.createElementNS(SVG, 'svg');
   svg.setAttribute('class', 'ic');
@@ -101,6 +103,7 @@ export function logo(): SVGSVGElement {
   return svg;
 }
 
+/** An element with its id, class and text set and its children in place. */
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   props: { id?: string; cls?: string; text?: string } = {},

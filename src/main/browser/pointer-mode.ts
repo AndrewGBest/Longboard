@@ -1,4 +1,7 @@
-// Pointer mode: an on-screen pointer for what the highlight cannot reach.
+// Pointer mode: an on-screen pointer moved with the arrows, for what the
+// highlight cannot reach (maps, canvases, embedded frames). Also the DevTools
+// input channel its mouse events go through (attach, detach, mouse), which
+// frames.ts and layer-messages.ts use too, and a few flags those parts share.
 import { type WebContents } from 'electron';
 import { type Direction } from '../../shared/actions';
 import { cdpPoint, PointerHolds, pointerGlide, pointerTap, type PointerStep } from '../pointer';
@@ -7,6 +10,7 @@ import type { Mouse } from './types';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface PointerModePart {
+  /** Where the pointer is, in view pixels, and what is moving it. `checkId` numbers the question a scripted run asks before a click. */
   pointer: {
     x: number;
     y: number;
@@ -15,32 +19,40 @@ export interface PointerModePart {
     last: number;
     checkId: number;
   };
+  /** The size of the website view in front. */
   pageSize: () => { width: number; height: number };
   /** Keys Longboard has just sent a view itself, so they are not taken for a person's. */
   ownKeys: Array<{ to: WebContents; key: string; until: number }>;
+  /** True once a key that reached a page behind one of Longboard's own screens has been logged (keys.ts): it is said once a run. */
   strayLogged: boolean;
-  /** The highlight is in a frame that is a player (see onFrame). */
+  /** The highlight is in a frame that is a player (frames.ts). */
   playerInFrame: boolean;
+  /** True while the DevTools input channel is attached to the page in front. */
   attached: boolean;
+  /** Attaches that channel. Without it, mouse events go the plain way and do not reach frames from other sites. */
   attach: () => void;
+  /** Lets the channel go, unless a keyboard or a player in a frame still needs it. */
   detach: () => void;
+  /** Sends the page in front a mouse event at a point in view pixels. */
   mouse: (x: number, y: number, what: Mouse) => void;
+  /** Stops the pointer moving and forgets what was held. */
   stopGlide: () => void;
   /** A direction key of a keyboard or remote went down. */
   keyPointer: (dir: Direction, isRepeat: boolean) => void;
   /** What a game controller holds now. */
   padPointer: (dirs: readonly Direction[]) => void;
+  /** A click where the pointer is, with no questions asked: see pressPointer. */
   click: () => void;
   /** OK in pointer mode. A scripted run asks the layer first whether the spot is safe (Hard rule 11). */
   pressPointer: () => void;
+  /** Turns pointer mode on or off. It starts at `at`, or in the middle of the page. */
   setPointer: (on: boolean, at?: { x: number; y: number } | null) => void;
 }
 
 export function createPointerMode(core: Core): Omit<PointerModePart, 'strayLogged' | 'playerInFrame' | 'attached'> {
-  // An on-screen pointer moved with the arrows, for what the highlight cannot
-  // reach: maps, canvases, embedded frames. Everything it does is an ordinary
-  // mouse event sent to the page, so the page cannot tell it from a mouse and
-  // nothing in the page is touched. The layer only draws the arrow.
+  // Everything the pointer does is an ordinary mouse event sent to the page,
+  // so the page cannot tell it from a mouse and nothing in the page is
+  // touched. The layer only draws the arrow.
   const pointer = {
     x: 0,
     y: 0,
@@ -56,7 +68,7 @@ export function createPointerMode(core: Core): Omit<PointerModePart, 'strayLogge
   /** Keys Longboard has just sent a view itself, so they are not taken for a person's. */
   const ownKeys: Array<{ to: WebContents; key: string; until: number }> = [];
   core.strayLogged = false;
-  /** The highlight is in a frame that is a player (see onFrame). */
+  /** The highlight is in a frame that is a player (frames.ts). */
   core.playerInFrame = false;
   core.attached = false;
   // Mouse events for pointer mode go through the browser's DevTools input
@@ -166,12 +178,10 @@ export function createPointerMode(core: Core): Omit<PointerModePart, 'strayLogge
       }
     }, 16);
   };
-  /** A direction key of a keyboard or remote went down. */
   const keyPointer = (dir: Direction, isRepeat: boolean): void => {
     if (pointer.holds.keyDown(dir, isRepeat, Date.now())) applyStep(pointerTap(pointer, dir, pageSize()));
     glide();
   };
-  /** What a game controller holds now. */
   const padPointer = (dirs: readonly Direction[]): void => {
     for (const dir of pointer.holds.setPad(dirs, Date.now())) applyStep(pointerTap(pointer, dir, pageSize()));
     glide();
@@ -183,7 +193,6 @@ export function createPointerMode(core: Core): Omit<PointerModePart, 'strayLogge
     mouse(x, y, { type: 'down' });
     mouse(x, y, { type: 'up' });
   };
-  /** OK in pointer mode. A scripted run asks the layer first whether the spot is safe (Hard rule 11). */
   const pressPointer = (): void => {
     if (!core.options.automation) {
       click();

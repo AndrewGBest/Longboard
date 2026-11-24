@@ -1,12 +1,12 @@
 // Home: the address field with its suggestions, the clock, and the tiles.
-import { PRODUCT } from '../../shared/product';
-import { type ChromeState } from '../../shared/chrome';
 import { siteName } from '../../shared/address';
+import { type ChromeState } from '../../shared/chrome';
+import { PRODUCT } from '../../shared/product';
 import { badge, button, el, icon, logo, type IconName } from '../parts';
-import { tell, ui } from './ui';
 import { render } from './render';
+import { tell, ui } from './ui';
 
-/** The tile with the highlight on Home, from what is drawn now. */
+/** The tile with the highlight on Home, worked out from the id of the button drawn for it. */
 export function focusedTile(s: ChromeState): typeof ui.menuFor {
   const id = document.querySelector('[data-longboard-focus]')?.id ?? '';
   const m = /^(tile|app|saved)-(\d+)$/.exec(id);
@@ -80,6 +80,8 @@ function clockWords(now = new Date()): [string, string] {
     now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }),
   ];
 }
+
+/** Brings the clock up to date. Called every few seconds, so it touches the page only when the minute has changed. */
 export function drawClock(): void {
   const clock = document.getElementById('clock');
   if (!clock) return;
@@ -109,6 +111,7 @@ function tile(
   return t;
 }
 
+/** Home: the top bar, the address field, the page left behind, and the tiles, or a welcome when there are none. */
 export function home(s: ChromeState): HTMLElement {
   let go: HTMLElement;
   if (ui.typing) {

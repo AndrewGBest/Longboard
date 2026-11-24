@@ -168,7 +168,9 @@ pointer mode.
 | `input.ts` | Listening to keys, focus and the mouse |
 
 The folders beside it hold what the parts use and what can be tested on
-its own: `spatial/` (which element an arrow leads to), `profile/` (reading
+its own: `spatial/` (which element an arrow leads to: the navigator, and
+beside it what counts as visible, as a dialog, as a control, and how lists
+scroll), `profile/` (reading
 a profile's rules), `generic/`, `input/` (keys and controllers to
 actions), `guard/`, `edit/`, `diagnostics/`, `ui/` (the highlight and the
 keyboard as drawn).
@@ -183,8 +185,8 @@ and best-tested user of it.
 The code is `src/chrome/`: `index.ts` listens to the shell and starts the
 layer; `screens/render.ts` draws whichever screen the state calls for;
 each screen is a function in `screens/` (`home.ts`, `menu.ts`,
-`settings.ts`, `site-panels.ts`, `panels.ts`) that returns the elements to
-show; `screens/ui.ts` holds what they share; `parts.ts` has the pieces
+`settings.ts` with its pages in `screens/settings/`, `site-panels.ts`,
+`panels.ts`) that returns the elements to show; `screens/ui.ts` holds what they share; `parts.ts` has the pieces
 they are built from (rows, switches, icons). How they look is
 `chrome.html`. The shell sends one state object (`src/shared/chrome.ts`)
 and the screens send back messages; nothing else crosses.

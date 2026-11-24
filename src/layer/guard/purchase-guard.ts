@@ -1,7 +1,8 @@
-// Automation safety net. When the app is being driven by a test harness or an
-// AI agent, no click may reach a control that could spend money or start a
-// subscription. Ordinary users are never affected: this is only installed in
-// automation mode.
+// Automation safety net (Hard rule 11). When the app is being driven by a
+// test harness or an AI agent, no click may reach a control that could spend
+// money or start a subscription. Ordinary users are never affected: this is
+// only installed in automation mode. It errs toward blocking, and must never
+// be weakened to get a test through.
 import { deepClosest } from '../spatial/deep';
 
 /**
@@ -12,6 +13,7 @@ import { deepClosest } from '../spatial/deep';
 const ACCOUNT_WORDS =
   /\b(log ?out|sign ?out|(add|edit|delete|manage) profiles?|account( settings)?|billing|payment (method|details)|cancel (subscription|membership|plan))\b/i;
 
+/** Words on a control that buys, rents, subscribes or signs up. */
 const SPEND_WORDS =
   /\b(buy|rent|rentals?|purchase|pre-?order|subscribe|subscription|free trial|start (your )?trial|try (it |for )?free|join (prime|now|today|free)|sign[- ]?up|register|get started|upgrade|(go )?ad[- ]free|add to (cart|basket)|place (your )?order|order now|pay|checkout|1-click)\b/i;
 /** A price on a button: "$3.99", "€ 5", "3,99 €". */
@@ -21,16 +23,18 @@ const CONTROL =
   'a, button, [role="button"], [role="link"], input[type="submit"], input[type="button"], input[type="image"]';
 
 /**
- * URL fragments that indicate a payment or sign-up flow. Heuristic until confirmed on the live site.
- * Not "offers" (Andrew, 2026-11-21): one service's signed-out front page
- * lives at such an address, and looking at a page of offers spends nothing.
- * The buttons on it are still never pressed (SPEND_WORDS, PRICE), and
- * where they lead is still never opened (the rest of this list).
+ * URL fragments that indicate a payment or sign-up flow. A heuristic, not
+ * something confirmed on any one site. Not "offers" (see DECISIONS.md,
+ * 2026-11-21): one service's signed-out front page lives at such an
+ * address, and looking at a page of offers spends nothing. The buttons on
+ * it are still never pressed (SPEND_WORDS, PRICE), and where they lead is
+ * still never opened (the rest of this list).
  */
 const SPEND_URL = /(checkout|\/buy\b|\/gp\/buy|purchase|signup|sign-up|subscribe|payment)/i;
 /** The same for the first part of a host name: checkout.example.com. */
 const SPEND_HOST = /^(checkout|pay|payments?|billing|buy|subscribe|signup)\./i;
 
+/** True when an address looks like part of paying or signing up. One that cannot be read counts as one. */
 export function looksLikeSpendUrl(url: string): boolean {
   try {
     const u = new URL(url, 'https://invalid.example');
@@ -40,6 +44,7 @@ export function looksLikeSpendUrl(url: string): boolean {
   }
 }
 
+/** Everything a control says about itself: its words, and the names given to it and to the pictures in it. */
 function describe(el: Element): string {
   const parts = [
     el.textContent ?? '',
@@ -75,7 +80,7 @@ export function isSpendControl(target: Element, extraSelectors: readonly string[
     try {
       if (deepClosest(control, sel)) return true;
     } catch {
-      // a selector this browser cannot read names nothing
+      // A selector this browser cannot parse names nothing.
     }
   }
   const text = describe(control);
@@ -94,6 +99,11 @@ export function isSpendControl(target: Element, extraSelectors: readonly string[
   return false;
 }
 
+/**
+ * Stops every click, press of Enter or Space, and form submission that
+ * isSpendControl refuses, before the page hears of it. `onBlocked` is told
+ * each time. Returns the function that takes the guard away.
+ */
 export function installPurchaseGuard(
   doc: Document,
   extraSelectors: readonly string[],
@@ -120,7 +130,7 @@ export function installPurchaseGuard(
       onBlocked(form);
     }
   };
-  // Capture phase on window so we run before any page handler.
+  // Capture phase on the window, so this runs before any handler of the page's.
   const view = doc.defaultView;
   const events = ['click', 'pointerdown', 'mousedown', 'mouseup', 'pointerup', 'keydown'] as const;
   const keyFilter = (e: Event): void => {

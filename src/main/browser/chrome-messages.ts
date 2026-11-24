@@ -1,7 +1,9 @@
-// Messages from Longboard's own screens.
+// Messages from Longboard's own screens (the chrome view). Each is checked
+// against what is on screen and what is known before it is acted on: the
+// shell does not take a renderer's word for an address, an id or a folder.
+import { accessSync, constants as fsConstants } from 'node:fs';
 import { app, ipcMain } from 'electron';
 import { loginPlace } from '../../shared/passwords';
-import { accessSync, constants as fsConstants } from 'node:fs';
 import { searchUrl, siteName, DEFAULT_SEARCH } from '../../shared/address';
 import { EDIT_ACTIONS, MENU_ACTIONS, SETTINGS_ACTIONS, type ChromeMessage } from '../../shared/chrome';
 import { removeRecent, removeSaved } from '../../shared/home';
@@ -17,6 +19,7 @@ import { PROMPT_SETTLE_MS } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface ChromeMessagesPart {
+  /** Acts on what Longboard's own screens ask for. */
   onChrome: (event: Electron.IpcMainEvent, msg: ChromeMessage) => void;
 }
 

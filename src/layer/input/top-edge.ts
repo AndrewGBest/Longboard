@@ -6,6 +6,7 @@ export const SECOND_PRESS_MIN_MS = 250;
 /** A second press later than this is a new thought; the hint is shown again. */
 export const SECOND_PRESS_MAX_MS = 4000;
 
+/** Remembers when Up last ran out at the top, to tell a second press from a held key. */
 export class TopEdge {
   private last = Number.NEGATIVE_INFINITY;
 

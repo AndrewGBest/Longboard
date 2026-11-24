@@ -1,16 +1,18 @@
-// Permissions: a site gets nothing until the person says yes for that site (Hard rule 13).
-
+// Permissions: a site gets nothing until the person says yes for that site
+// (Hard rule 13). Also answerPrompt, which carries out the answer to every
+// kind of question on screen: a permission, a profile, an extension, a
+// download, a password, the speech model, an account to hand back.
+import { rmSync } from 'node:fs';
 import { voiceModelSize } from '../../shared/voice';
 import { DECLINED, HAND_BACKS, steamAnswer } from '../handback';
-import { rmSync } from 'node:fs';
 import { siteKey } from '../../shared/address';
 import { hasPermission, mayAsk, permissionDecision, withAnswers } from '../permissions';
 import { type Profile } from '../../shared/profile';
-
 import type { Core } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface PermissionsPart {
+  /** Carries out the answer to the question on screen. `remember` keeps the answer, for the kinds of question that can be remembered. */
   answerPrompt: (allow: boolean, remember: boolean) => void;
   /** Asks, once, whether to use a profile someone gave the person (docs/PROFILES.md section 3). */
   askAboutProfile: (profile: Profile) => void;
@@ -179,7 +181,6 @@ export function createPermissions(core: Core): PermissionsPart {
     for (const answer of asked.answer) answer(allow);
     core.layout();
   };
-  /** Asks, once, whether to use a profile someone gave the person (docs/PROFILES.md section 3). */
   const askAboutProfile = (profile: Profile): void => {
     if (core.pending || core.surface !== 'page') return;
     core.pending = { what: 'profile', profile };

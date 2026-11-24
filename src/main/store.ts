@@ -3,6 +3,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
+/** Undefined when the file is missing or cannot be parsed. Only the second is a problem, and is passed to `onProblem`. */
 export function readJson(file: string, onProblem: (why: string) => void = () => undefined): unknown {
   try {
     return JSON.parse(readFileSync(file, 'utf8'));
@@ -12,6 +13,7 @@ export function readJson(file: string, onProblem: (why: string) => void = () => 
   }
 }
 
+/** Never throws: a failure is logged and the old file stays. */
 export function writeJson(file: string, value: unknown): void {
   try {
     mkdirSync(dirname(file), { recursive: true });

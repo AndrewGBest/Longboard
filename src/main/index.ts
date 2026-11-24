@@ -1,31 +1,35 @@
-// Main process: start-up. The window and its views are in browser.ts.
-import { app, nativeTheme, protocol, session } from 'electron';
-
-// The listening page's own address (main/voice.ts). It has to be declared before the app is ready.
-protocol.registerSchemesAsPrivileged([
-  { scheme: 'voice', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
-]);
-import * as electron from 'electron';
-import { join } from 'node:path';
-import { parseConfig, type UserConfig } from '../shared/config';
-import { resolveAddress } from '../shared/address';
-import { DEFAULT_INDEX_URL } from '../shared/catalogue';
-import { blockingMode, DEFAULT_FILTER_LISTS, effectiveVerified, parseVerified } from '../shared/adblock';
-import { changeSetting, resetSettings } from '../shared/settings';
-import { listsInUse } from '../shared/privacy';
-import { RELEASE_FEED, updateMode, updateWords, type UpdateState } from '../shared/update';
-import { Updater } from './update';
+// Where the shell starts: reads the command line and config.json, sets up the
+// profile store, ad blocking, the catalogue and updates, and hands them to
+// `createBrowser` (browser.ts), which builds the window from the parts in
+// browser/ (ARCHITECTURE.md section 2.1).
 import { createHash } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
+import { join } from 'node:path';
+import * as electron from 'electron';
+import { app, nativeTheme, protocol, session } from 'electron';
+import { blockingMode, DEFAULT_FILTER_LISTS, effectiveVerified, parseVerified } from '../shared/adblock';
+import { resolveAddress } from '../shared/address';
+import { DEFAULT_INDEX_URL } from '../shared/catalogue';
+import { parseConfig, type UserConfig } from '../shared/config';
+import { listsInUse } from '../shared/privacy';
+import { PRODUCT } from '../shared/product';
+import { changeSetting, resetSettings } from '../shared/settings';
+import { RELEASE_FEED, updateMode, updateWords, type UpdateState } from '../shared/update';
 import { FilterStore } from './adblock';
 import { createBrowser } from './browser';
 import { refreshCatalogue } from './catalogue';
 import { handBackFrom } from './handback';
 import { ProfileStore } from './profiles';
 import { readJson, writeJson } from './store';
+import { Updater } from './update';
 import { browserUserAgent } from './useragent';
-import { PRODUCT } from '../shared/product';
 
+// The listening page's own address (main/voice.ts). It has to be declared before the app is ready.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'voice', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
+]);
+
+// The command line: `--name` is a switch, `--name=value` carries a value.
 const argv = process.argv.slice(1);
 const flag = (name: string): boolean => argv.includes(`--${name}`);
 const value = (name: string): string | undefined =>
@@ -73,7 +77,7 @@ async function main(): Promise<void> {
   // The language sites are asked for, when the person chose one in Settings.
   // On Linux the browser takes its language from the environment, as every
   // program does, and reads it after this point; its own --lang switch is
-  // not honoured there (both measured, 2026-11-18).
+  // not honoured there (both measured 2026-11-18, docs/DECISIONS.md).
   if (config.language) process.env['LANGUAGE'] = config.language;
   if (config.hardwareDecode) {
     // Chromium's own switches for decoding video on the graphics chip on
@@ -97,7 +101,7 @@ async function main(): Promise<void> {
     .catch(() => undefined);
   app.userAgentFallback = browserUserAgent(app.userAgentFallback, PRODUCT.name, app.getVersion());
 
-  // Nothing but our two views is ever created; a page cannot embed another browser.
+  // Only the shell makes views: a page cannot embed another browser inside itself.
   app.on('web-contents-created', (_e, contents) => {
     contents.on('will-attach-webview', (event) => event.preventDefault());
   });
@@ -169,6 +173,7 @@ async function main(): Promise<void> {
     now: () => Date.now(),
     note,
   });
+  /** False in a scripted run that was not pointed at lists of its own. */
   const mayFetchLists = (): boolean => !options.automation || value('filters') !== undefined;
   /** Gets the filters ready when ad blocking is in use: from disk, then from the publisher if the copy is old or `force`. */
   const readyFilters = async (force = false): Promise<boolean> => {
@@ -210,6 +215,7 @@ async function main(): Promise<void> {
   // The look sites are asked for (their dark or light one), when the person chose.
   nativeTheme.themeSource = config.theme ?? 'system';
 
+  // New versions (shared/update.ts). `--updates=` points a scripted run at a release feed of its own.
   const feed = value('updates') ?? RELEASE_FEED;
   const updater = new Updater({
     current: app.getVersion(),
@@ -313,8 +319,9 @@ async function main(): Promise<void> {
     else if (wantedApp) browser.openApp(wantedApp);
     else if (address) browser.openAddress(address);
   });
-  // New versions (shared/update.ts): looked for at start and once a day,
-  // unless Settings says not to. A scripted run looks only when pointed at a
+  // New versions are looked for at start and once a day, unless Settings
+  // says not to. The timer runs every hour and `updater.check` decides
+  // whether a day has passed. A scripted run looks only when pointed at a
   // release feed of its own.
   const lookForUpdate = (force = false): Promise<UpdateState> => {
     const mode = updateMode(config.updates);

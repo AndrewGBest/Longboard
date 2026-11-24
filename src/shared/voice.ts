@@ -26,6 +26,7 @@ export const VOICE_MODEL_FILES: readonly { name: string; size: number; sha256: s
   { name: 'tokenizer.bin', size: 249974, sha256: '6884b35fd6377d4c4d32336a0bc152f36b64d1e45b6503683cdc238250a8472d' },
 ];
 
+/** The size of the whole model, and that size in the words the question uses ("51 MB"). */
 export const VOICE_MODEL_BYTES = VOICE_MODEL_FILES.reduce((n, f) => n + f.size, 0);
 export const voiceModelSize = (): string => `${Math.round(VOICE_MODEL_BYTES / 1_000_000)} MB`;
 

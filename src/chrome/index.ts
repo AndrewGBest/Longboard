@@ -6,18 +6,22 @@
 // The highlight here is moved by the same layer that drives websites, so
 // Longboard's own interface is the first user of its navigation engine.
 //
-// How the screens look is in chrome.html; the parts they are built from
-// (rows, switches, icons) are in ./parts.
+// This file listens to the shell and starts the layer. Each screen is drawn
+// by a function in ./screens; how they look is in chrome.html; the parts
+// they are built from (rows, switches, icons) are in ./parts.
 import { ipcRenderer } from 'electron';
-import { PRODUCT } from '../shared/product';
-import { type ChromeState } from '../shared/chrome';
-import { genericRules } from '../layer/profile/rules';
-import { startLayer } from '../layer/index';
 
-import { focusedTile, showSuggestions, drawClock } from './screens/home';
-import { render } from './screens/render';
-import { tell, boot, send, ui } from './screens/ui';
+import { startLayer } from '../layer/index';
+import { genericRules } from '../layer/profile/rules';
+import { type ChromeState } from '../shared/chrome';
+import { PRODUCT } from '../shared/product';
+import { drawClock, focusedTile, showSuggestions } from './screens/home';
 import { pinKey } from './screens/panels';
+import { render } from './screens/render';
+import { boot, send, tell, ui } from './screens/ui';
+
+// A new state from the shell. Before it is drawn, what the screens remember
+// between drawings (ui) is put back to its start for any screen that has closed.
 
 ipcRenderer.on('longboard:chrome-state', (_event, next: ChromeState) => {
   // A panel that opens or closes ends any typing in the Home field.
@@ -69,8 +73,10 @@ ipcRenderer.on('longboard:icon', (_event, job: { id: number; dataUrl: string; si
   };
   img.src = job.dataUrl;
 });
-// Button mappings changed in Settings: the layer reads this object at every key.
+// Whether this view is the one in front. Null: the shell cannot say, and the layer goes by what the window hears.
 ipcRenderer.on('longboard:front', (_event, on: unknown) => ui.layer?.front(on === null ? null : on === true));
+// Button mappings changed in Settings. The layer reads this object at every
+// key, so it is emptied and refilled in place, never replaced.
 ipcRenderer.on('longboard:keys', (_event, keys: unknown) => {
   const held = ((boot.options as { keys?: Record<string, string> }).keys ??= {});
   if (!keys || typeof keys !== 'object') return;
@@ -151,7 +157,7 @@ const start = (): void => {
         if (ui.state.panel === 'prompt') tell({ kind: 'answer', allow: false, remember: false });
         // Back on the editor's panel goes back to pointing; the panel's own buttons end the editing.
         else if (ui.state.panel === 'edit') tell({ kind: 'edit', action: 'pickAgain' });
-        // Back inside Settings goes up a page before it closes.
+        // Back inside the menu or Settings goes up a page before it closes.
         else if (ui.state.panel === 'menu' && ui.menuPage === 'site') {
           ui.menuPage = 'main';
           render();

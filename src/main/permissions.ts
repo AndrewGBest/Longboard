@@ -3,6 +3,7 @@
 // list or the person saying yes for that site (Hard rule 13: default deny).
 // Pure, so the rules are unit-tested; the shell wires them to the session.
 
+// Answers are kept per site, under the same key as a site's other settings.
 export { siteKey } from '../shared/address';
 
 /**
@@ -27,6 +28,7 @@ export interface SitePermissions {
   answers?: Partial<Record<Askable, 'granted' | 'denied'>>;
 }
 
+/** What to do with a request: give it, refuse it, or ask the person about `names`. */
 export type PermissionDecision = { kind: 'grant' } | { kind: 'deny' } | { kind: 'ask'; names: Askable[] };
 
 /**

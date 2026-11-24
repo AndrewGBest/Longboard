@@ -1,7 +1,7 @@
 // The browser is one object, built from the parts in this folder. Each part's
 // file says what it adds; this file puts those together as one type, and
 // holds what every part may need: what the shell hands in, and a few constants.
-import { BaseWindow } from 'electron';
+import type { BaseWindow } from 'electron';
 import { type HandBack } from '../handback';
 import { type UserConfig } from '../../shared/config';
 import { type ProfileStore } from '../profiles';
@@ -31,8 +31,11 @@ import type { AppsPart } from './apps';
 import type { MenuPart } from './menu';
 import type { ChromeMessagesPart } from './chrome-messages';
 
+/** What main/index.ts hands the browser when it makes it. */
 export interface BrowserDeps {
+  /** The --dev and --automation options. Automation is a scripted run (Hard rules 10 and 11). */
   options: { dev: boolean; automation: boolean };
+  /** The person's settings (config.json). */
   config: UserConfig;
   /** An address given on the command line; Home is shown when there is none. */
   startUrl: string | null;
@@ -40,7 +43,9 @@ export interface BrowserDeps {
   startApp: string | null;
   /** Where typing from a phone listens, when it is not the home-network address. */
   phoneAt?: string | undefined;
+  /** A scripted run cannot scan the code on the screen, so it brings its own key. Never set outside one. */
   phoneKey?: string | undefined;
+  /** A folder that already has the speech model, so a scripted run fetches nothing. */
   voiceModel?: string | undefined;
   fullscreen: boolean;
   /** The --size=WIDTHxHEIGHT option: the window's size when it is not full screen. */
@@ -65,6 +70,7 @@ export interface BrowserDeps {
     verified: () => readonly string[];
     /** The reviewed list as it came, before those changes. */
     reviewed: () => readonly string[];
+    /** When the filters were last downloaded, or null when they never were. */
     fetchedAt: () => number | null;
     /** Downloads the list now. */
     refresh: () => Promise<boolean>;
@@ -90,6 +96,7 @@ export const PROMPT_SETTLE_MS = 600;
 export const ICON_KEPT_MS = 7 * 24 * 60 * 60 * 1000;
 /** How long a site is given to send its icon. */
 export const ICON_WAIT_MS = 8000;
+/** True for one of Longboard's own notice pages (they are data: addresses) and for a view with no page yet. */
 export const isNotice = (url: string): boolean => url.startsWith('data:') || url === 'about:blank' || url === '';
 
 /** What the rest of the shell can ask of the window once it is up. */
@@ -97,6 +104,7 @@ export interface Browser {
   win: BaseWindow;
   /** Opens an app by its id; false when there is none. */
   openApp: (id: string) => boolean;
+  /** Opens an address as if the person had asked for it: it is put on Home. */
   openAddress: (url: string) => void;
   /** Opens the sign-in page for something another program asked to be handed back (main/handback.ts). */
   handBack: (ask: HandBack) => void;

@@ -5,7 +5,7 @@ import { mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'nod
 import { userInfo } from 'node:os';
 import { join } from 'node:path';
 
-/** Folders where a USB stick or card shows up when it is plugged in. Missing ones are simply skipped. */
+/** Folders where a USB stick or card shows up when it is plugged in. Missing ones are skipped. */
 export function removableFolders(): string[] {
   if (process.platform !== 'linux') return [];
   let user = '';
@@ -71,6 +71,7 @@ export function writeLauncher(fileName: string, text: string): boolean {
   }
 }
 
+/** Takes an entry out of the app list. One that is not there is not an error. */
 export function removeLauncher(fileName: string): void {
   const folder = launcherFolder();
   if (!folder) return;

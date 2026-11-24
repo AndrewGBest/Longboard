@@ -3,6 +3,41 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-24: how the project is kept: tools, GitHub settings, and the shape of the code
+
+Andrew: "Research everything that makes a good project... Go through
+everything we can do on github and make sure its all set up. Then work on
+cleaning the code too... Make this into a real proper project." What was
+measured against is in the research list in STATUS.md of this date
+(GitHub's community standards, the OpenSSF Scorecard and Best Practices
+criteria, Electron's security checklist, typescript-eslint's and
+Prettier's documents). The choices below are the agent's, so
+**assumptions** for Andrew to overrule.
+
+| Choice | Why |
+|---|---|
+| **Prettier lays the code out; 120 columns** | Layout stops being a matter of opinion. 120, not Prettier's 80: the code leans on long descriptive names and 80 broke most lines in two. Markdown, HTML and the test pages are left out: prose is wrapped by hand, and whitespace in those pages is part of what is tested |
+| **ESLint with typescript-eslint's type-checked "recommended"** | The preset its own documents suggest. Not "strict": they call it unstable between versions. Two rules relaxed in tests (stand-ins for async interfaces); control characters allowed in patterns, which name them on purpose |
+| **`npm run check` includes lint and format** | One command still says whether a change may be committed |
+| **The formatting commit is listed in `.git-blame-ignore-revs`** | So blame shows who wrote a line, not who indented it |
+| **The three longest files were split by subject, by script** | `src/main/browser.ts` (4,100 lines, one function), `src/layer/index.ts` (1,500, one function) and `src/chrome/index.ts` (1,950). A script read the compiler's symbol table and moved each run of statements to its own file, in order, so nothing runs differently; every end-to-end check passes. What the parts share goes through one `core` object. That is honest about how entangled they are and is not the last word: narrowing what each part needs is future work (ARCHITECTURE.md 2.1) |
+| **A code of conduct written for this project**, not the Contributor Covenant | The Covenant is somebody else's text (CC BY-SA) and wants a reporting address; a short one in the project's own words says the same for a one-person project |
+| **No contributor agreement** | Inbound is outbound: contributions come under GPL-3.0, as CONTRIBUTING says |
+| **Rules on `main` and on `v*` tags: no force pushes, no deletion; tags never moved** | Stops history and releases being rewritten. Required reviews and required checks are not set: one maintainer pushes to main, and they would only be bypassed |
+| **Actions pinned to commits, and GitHub set to require it** | A tag can be moved to other code; a commit cannot. Dependabot keeps the pins current |
+| **Dependabot weekly, grouped; `@types/node` held at 22** | Few pull requests to read. The types follow the Node the project builds with |
+| **CodeQL (GitHub's default setup) and the OpenSSF Scorecard** | Free outside checks. The Scorecard marks down what one person cannot do (review by a second person, contributors from several organisations); those are left as they are and said here |
+| **Releases: `SHA256SUMS.txt`, a build attestation, and immutable releases** | The nearest thing to signing that needs no key to guard: GitHub attests that the files came from this repository's workflow at the tagged commit, and a published release can no longer be altered. First used at the next release, so untested until then |
+| **Discussions on; wiki and projects off** | Questions get a place that is not the issue list; the two unused tabs go |
+| **Not done, Andrew's to decide:** a funding file, the OpenSSF Best Practices badge (needs his sign-in at bestpractices.dev), the social preview image (GitHub takes it only by hand) | Each needs his account or his name |
+
+**Dependencies.** vitest 3 to 5 and esbuild 0.25 to 0.28 (development
+tools; cleared the advisories against them). adm-zip 0.5.18 to 0.6.1,
+with an `overrides` entry so the web-store library uses it too: the old
+version had open advisories about crafted archives. After this
+`npm audit --omit=dev` reports nothing. What remains is in the packaging
+tool's own dependencies and never ships.
+
 ## 2026-11-23, evening: the second use of rule 3's exception, a larger layout for browsers on TVs
 
 Andrew signed in to the cloud-gaming site in the test window so that the

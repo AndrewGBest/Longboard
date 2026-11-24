@@ -16,6 +16,7 @@ const { ModelArch, Transcriber } = moonshine as {
   Transcriber: { load: (options: { files: Map<string, Uint8Array>; modelArch: unknown }) => Promise<Engine> };
 };
 
+/** Tells the preload, which passes it on to the shell. */
 const say = (message: Record<string, unknown>): void => window.postMessage({ from: 'voice-page', ...message }, '*');
 let engine: Promise<Engine> | null = null;
 let stop: (() => void) | null = null;
@@ -35,6 +36,7 @@ const ready = (): Promise<Engine> =>
     throw err;
   }));
 
+/** Listens until the person stops speaking or the shell says stop, then says what was heard. One at a time. */
 async function listen(): Promise<void> {
   if (stop) return;
   let stream: MediaStream;

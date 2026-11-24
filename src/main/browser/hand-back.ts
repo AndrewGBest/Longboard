@@ -1,7 +1,10 @@
-// The question on screen, and handing an account back to the program that asked for it.
+// What becomes of a question that leaves the screen unanswered (dropQuestion),
+// and handing an account back to the program that asked for it
+// (main/handback.ts): nothing is shared before the person says yes. Also
+// holds the reader view's article, and which panel the last layout showed.
+import { renameSync, rmSync, writeFileSync } from 'node:fs';
 import { type WebContents } from 'electron';
 import { DECLINED, HAND_BACKS, steamStorePage, steamWho, type HandBack } from '../handback';
-import { renameSync, rmSync, writeFileSync } from 'node:fs';
 import { type Panel } from '../../shared/chrome';
 import { type Article } from '../../shared/reader';
 import { PRODUCT } from '../../shared/product';
@@ -13,6 +16,7 @@ export interface HandBackPart {
   reading: (Article & { site: string }) | null;
   /** When the question now on screen was put there. */
   promptShownAt: number;
+  /** The panel as of the last layout, which is how layout tells that one has opened or closed. */
   shownPanel: Panel | null;
   /**
    * A question that is no longer on screen cannot be answered, so it is
@@ -33,12 +37,6 @@ export function createHandBack(core: Core): Omit<HandBackPart, 'reading' | 'prom
   /** When the question now on screen was put there. */
   core.promptShownAt = 0;
   core.shownPanel = null;
-  /**
-   * A question that is no longer on screen cannot be answered, so it is
-   * answered "not now": the site is refused this once, the file is dropped,
-   * the profile is asked about another time. Left waiting, it would refuse
-   * every later question until Longboard was closed.
-   */
   const dropQuestion = (): void => {
     const asked = core.pending;
     if (!asked) return;
@@ -52,7 +50,6 @@ export function createHandBack(core: Core): Omit<HandBackPart, 'reading' | 'prom
     else if (asked.what === 'handBack') writeHandBack(asked.ask, DECLINED);
   };
 
-  /** Writes the answer where the asking program looks for it: whole or not at all, and for this user only. */
   const writeHandBack = (ask: HandBack, line: string): void => {
     if (core.wanted === ask) core.wanted = null;
     try {
@@ -114,7 +111,6 @@ export function createHandBack(core: Core): Omit<HandBackPart, 'reading' | 'prom
     }),
   );
 
-  /** Opens the sign-in page for what was asked for. One request at a time: a new one replaces one not yet answered. */
   const handBack = (ask: HandBack): void => {
     if (core.wanted && core.wanted !== ask) writeHandBack(core.wanted, DECLINED);
     core.wanted = ask;

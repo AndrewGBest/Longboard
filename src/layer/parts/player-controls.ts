@@ -1,16 +1,21 @@
 // A playing video: showing the player's controls and moving among them.
-import { type Direction } from '../../shared/actions';
-import { deepActiveElement } from '../spatial/deep';
+import type { Direction } from '../../shared/actions';
 import { isSeekBar, playControl } from '../player';
-import { isSidewaysSlider } from '../spatial/navigator';
+import { isSidewaysSlider } from '../spatial/controls';
+import { deepActiveElement } from '../spatial/deep';
 import type { LayerCore } from './core';
 
 /** What this part adds for the other parts to use. */
 export interface PlayerControlsPart {
+  /** Until this time (milliseconds), a mouse movement is the shell's own nudge and not a person reaching for a mouse. */
   ignorePointerUntil: number;
+  /** The watch for the player's controls to appear, after they were asked for. */
   controlsTimer: number | undefined;
+  /** When a key was last pressed on the player's controls, in milliseconds. */
   lastControlKeyAt: number;
+  /** The timer that keeps the controls up while the highlight is on one. */
   keepAlive: number;
+  /** An arrow while a video is being watched: brings the controls up and moves among them. */
   moveInPlayer: (dir: Direction) => void;
 }
 

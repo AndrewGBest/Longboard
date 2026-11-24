@@ -1,10 +1,14 @@
-// Moving the highlight in a page: the arrows, menus that open on hover, and scrolling when there is nowhere to go.
-import { type Direction } from '../../shared/actions';
+// Moving the highlight in a page: the arrows, menus that open on hover, and
+// scrolling when there is nowhere to go. Also a few things the other parts
+// read: whether pointer mode is on, a drop-down that may be open, the last press.
+import type { Direction } from '../../shared/actions';
 import { scrollBy } from '../generic/scroll';
 import { TopEdge } from '../input/top-edge';
-import { deepActiveElement, deepContains } from '../spatial/deep';
 import { pageVideo, passedOver } from '../player';
-import { edgeControl, isSidewaysSlider, isVisible, press } from '../spatial/navigator';
+import { isSidewaysSlider, press } from '../spatial/controls';
+import { deepActiveElement, deepContains } from '../spatial/deep';
+import { edgeControl } from '../spatial/scrolling';
+import { isVisible } from '../spatial/visibility';
 import type { LayerCore } from './core';
 import { BIG_FRAME_SHARE } from './core';
 
@@ -12,17 +16,27 @@ import { BIG_FRAME_SHARE } from './core';
 export interface MovingPart {
   /** When the person last pressed OK or clicked: a text field the page focuses soon after is one they asked for. */
   lastPressAt: number;
+  /** How long after a press a text field the page focuses still counts as asked for, in milliseconds. */
   PRESS_ANSWER_MS: 1500;
   /** The text field a plugged-in keyboard has typed into; while it has focus the keys are the field's. */
   typedInto: Element | null;
+  /** Pointer mode is on. The shell moves the pointer and clicks; the layer draws it and stays out of the way. */
   pointerOn: boolean;
+  /** A drop-down that OK opened as the browser's own list, and that may still be open. */
   nativeList: HTMLSelectElement | null;
+  /** True while that list may be open: a controller's buttons are then turned into the list's keys. */
   listOpen: () => boolean;
+  /** What holds a menu the pointer was rested on a button to open. While it is there the highlight stays inside it. */
   hoverHost: Element | null;
+  /** The button the pointer was rested on. */
   hoverTrigger: Element | null;
+  /** The wait in hoverIfStillCollapsed. */
   hoverTimer: number | undefined;
+  /** Takes the pointer away again, which closes the menu it opened. */
   unhover: () => void;
+  /** Asks the shell to rest the pointer on `target`, for a menu that opens only on hover. */
   hoverOn: (target: Element) => void;
+  /** After a press on a button that says it is collapsed: if it still says so a moment later, the pointer is rested on it. */
   hoverIfStillCollapsed: (target: Element) => void;
   /**
    * A link that is also the button of a collapsed menu: Enter opens the menu
@@ -30,9 +44,13 @@ export interface MovingPart {
    * menu is open after that, and Enter on the link follows it as usual.
    */
   opensMenuFirst: (target: Element) => boolean;
+  /** The wait after a carousel's arrow was pressed, before the highlight takes up the new slide. */
   edgeTimer: number | undefined;
+  /** The wait after a scroll, before the highlight takes up what came into view. */
   scrollTimer: number | undefined;
+  /** Counts presses of Up at the top of a page: the second opens the menu. */
   topEdge: TopEdge;
+  /** An arrow on a page being browsed: moves the highlight, or failing that scrolls, turns a carousel or leaves the frame. */
   moveInPage: (dir: Direction) => void;
   /**
    * True while the user is on one of the player's own controls (reached with
@@ -56,10 +74,8 @@ export function createMoving(
   | 'edgeTimer'
   | 'scrollTimer'
 > {
-  /** When the person last pressed OK or clicked: a text field the page focuses soon after is one they asked for. */
   core.lastPressAt = 0;
   const PRESS_ANSWER_MS = 1500;
-  /** The text field a plugged-in keyboard has typed into; while it has focus the keys are the field's. */
   core.typedInto = null;
 
   // Pointer mode. The shell owns it: it moves the pointer and clicks with
@@ -108,17 +124,9 @@ export function createMoving(
       if (target.isConnected && target.getAttribute('aria-expanded') === 'false') hoverOn(target);
     }, 300);
   };
-  /**
-   * A link that is also the button of a collapsed menu: Enter opens the menu
-   * instead of following the link, so the menu's entries can be reached. The
-   * menu is open after that, and Enter on the link follows it as usual.
-   */
   const opensMenuFirst = (target: Element): boolean =>
     target instanceof HTMLAnchorElement && target.getAttribute('aria-expanded') === 'false' && core.hoverHost === null;
 
-  // Left or right with nowhere to go: press the strip's own arrow, if the
-  // adapter knows it. A carousel that swaps slides leaves focus on something
-  // no longer shown, so focus then moves to the new slide.
   core.edgeTimer = undefined;
   core.scrollTimer = undefined;
   const topEdge = new TopEdge();
@@ -226,6 +234,9 @@ export function createMoving(
     }
     // Longboard's own lists go round at their ends.
     if (core.hooks?.edge?.(dir)) return;
+    // Left or right with nowhere to go: press the strip's own arrow, if the
+    // profile names it. A carousel that swaps slides leaves focus on something
+    // no longer shown, so focus then moves to the new slide.
     const from = core.nav.focused;
     const hit =
       from && (dir === 'left' || dir === 'right')
@@ -282,11 +293,6 @@ export function createMoving(
     settle(true);
   };
 
-  /**
-   * True while the user is on one of the player's own controls (reached with
-   * up or down). The controls hide themselves after a while; focus is dropped
-   * when that happens, which returns the keys to playback.
-   */
   const onPlayerControl = (): boolean => {
     const f = core.nav.focused;
     // Outside the player this must answer without touching focus: it is also

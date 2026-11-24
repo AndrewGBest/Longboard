@@ -1,20 +1,26 @@
 // Back: closing what is open, leaving the player, then asking the shell to go back.
-import { firstMatch } from '../profile/rules';
-import { deepActiveElement } from '../spatial/deep';
 import { playerIsOwnPage } from '../player';
-import { MENU_ENTRY, openDialog, press } from '../spatial/navigator';
+import { firstMatch } from '../profile/rules';
+import { press } from '../spatial/controls';
+import { deepActiveElement } from '../spatial/deep';
+import { MENU_ENTRY, openDialog } from '../spatial/dialogs';
 import type { LayerCore } from './core';
 import { isTextEntry } from './core';
 
 /** What this part adds for the other parts to use. */
 export interface BackPart {
+  // Three waits that OK starts (dispatch.ts) and the next key cancels.
+  /** In a player: before the highlight is picked up again, when pressing a control replaced it. */
   refocusTimer: number | undefined;
+  /** On a page: before the highlight follows into a pop-up, or to what the press brought on screen. */
   followTimer: number | undefined;
+  /** The watch for something opening over the whole screen in front of what was pressed. */
   coverTimer: number | undefined;
   /** A menu was seen to open in the player and no Escape has been sent for it yet. */
   playerMenuSeen: boolean;
   /** The address the user was last browsing at, outside the player. */
   browseUrl: string | null;
+  /** Back: closes the innermost thing that is open; with nothing open, asks the shell to go back. */
   back: () => void;
 }
 
@@ -24,11 +30,10 @@ export function createBack(
   core.refocusTimer = undefined;
   core.followTimer = undefined;
   core.coverTimer = undefined;
+  /** When Back last sent the player its Escape key, and how many times in a row. */
   let lastCloseAt = 0;
   let backStreak = 0;
-  /** A menu was seen to open in the player and no Escape has been sent for it yet. */
   core.playerMenuSeen = false;
-  /** The address the user was last browsing at, outside the player. */
   core.browseUrl = null;
   const back = (): void => {
     const active = deepActiveElement(core.doc);

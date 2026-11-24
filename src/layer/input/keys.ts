@@ -4,6 +4,7 @@
 import type { Action } from '../../shared/actions';
 import { actionFor, type ActionName } from '../../shared/config';
 
+/** The parts of a key event the mapping reads, so tests can pass a plain object. */
 export interface KeyLike {
   key: string;
   ctrlKey?: boolean;
@@ -12,8 +13,10 @@ export interface KeyLike {
   shiftKey?: boolean;
 }
 
+/** What the keys mean now: moving the highlight, a player's keys, or typing in a field. */
 export type Mode = 'browse' | 'player' | 'text';
 
+/** Seconds skipped by one press of a seek key. */
 const SEEK_STEP = 10;
 
 /**
@@ -47,7 +50,7 @@ export function keyToAction(
     }
   }
 
-  // While typing, only navigation-away keys are ours; letters belong to the field.
+  // While typing, only the keys that leave the field are Longboard's; letters belong to the field.
   if (mode === 'text') {
     switch (e.key) {
       case 'Escape':

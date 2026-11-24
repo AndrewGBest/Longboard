@@ -1,10 +1,27 @@
-// DOM side of directional focus: finds candidates, moves focus, activates.
+// The navigator: finds what on a page the highlight can go to, decides where
+// an arrow takes it, and puts it there. The scoring of one box against
+// another is geometry.ts; the questions asked of single elements are in
+// visibility.ts, scrolling.ts, dialogs.ts and controls.ts.
 import type { Direction } from '../../shared/actions';
-import { composedParent, deepClosest, deepContains, deepQueryAll } from './deep';
+import type { ProfileGroup } from '../../shared/profile';
 import { scrollBy } from '../generic/scroll';
 import { boxOf } from './box';
+import { isLongSlider, isSidewaysSlider, isSlider, press, shouldZoom, ZOOM_ATTR, zoomTarget } from './controls';
+import { composedParent, deepClosest, deepContains, deepQueryAll } from './deep';
+import { MENU_ENTRY, pinnedNotices } from './dialogs';
 import { pickInitial, pickNext, type Rect } from './geometry';
-import type { ProfileGroup } from '../../shared/profile';
+import { pageScrolls, paneWithMore, rowOf, scrollWithinList } from './scrolling';
+import {
+  acrossTheWindow,
+  clippedAwayFrom,
+  isLaidOut,
+  isOnScreen,
+  isPinned,
+  isVisible,
+  onScreenish,
+  outOfReach,
+  shownIn,
+} from './visibility';
 
 const FOCUSABLE = [
   'a[href]',
@@ -44,7 +61,8 @@ const FOCUSABLE = [
   'video[controls]',
   'audio[controls]',
   // A frame from elsewhere cannot be driven from here; it can be landed on,
-  // and OK on it hands over to pointer mode (see the layer).
+  // and OK on it hands the highlight into it or starts pointer mode
+  // (parts/frames.ts).
   'iframe',
 ].join(',');
 
@@ -61,108 +79,16 @@ function labelledToggle(label: Element): HTMLInputElement | null {
   return target instanceof HTMLInputElement && (target.type === 'checkbox' || target.type === 'radio') ? target : null;
 }
 
+/** Set on the element that has the highlight. */
 export const FOCUS_ATTR = 'data-longboard-focus';
-/** True when `el` sits in something pinned to the window that is at least three fifths of its width: a notice bar, not a corner panel. */
-export function acrossTheWindow(el: Element, view: Window): boolean {
-  for (let node: Element | null = el; node && node !== el.ownerDocument.body; node = composedParent(node)) {
-    const position = view.getComputedStyle(node).position;
-    if (position !== 'fixed' && position !== 'sticky') continue;
-    if (node.getBoundingClientRect().width >= view.innerWidth * 0.6) return true;
-  }
-  return false;
-}
 
-/** A control with a value on a track: the page's own slider or the browser's. */
-export function isSlider(el: Element): boolean {
-  return el.getAttribute('role') === 'slider' || (el instanceof HTMLInputElement && el.type === 'range');
-}
-
-/** How long a slider's track must be to be worth landing on however thin it is drawn. */
-export const LONG_SLIDER_PX = 100;
-
-/** A slider with a real track: long one way, and at least a line the other. */
-export function isLongSlider(el: Element): boolean {
-  if (!isSlider(el)) return false;
-  const r = el.getBoundingClientRect();
-  return Math.max(r.width, r.height) >= LONG_SLIDER_PX && Math.min(r.width, r.height) >= 1;
-}
-
-/** A slider that lies across the screen: left and right are its own keys. */
-export function isSidewaysSlider(el: Element): boolean {
-  if (!isSlider(el)) return false;
-  const r = el.getBoundingClientRect();
-  return r.width > r.height;
-}
-
-/** Set on a focused element small enough to grow, as focused cards do on a TV. */
-export const ZOOM_ATTR = 'data-longboard-zoom';
-
-/** What makes a link a card: a picture in it. */
-const PICTURE = 'img, picture, video, canvas, svg';
-
-/**
- * A focused card grows; a banner, a text field or a slider does not. Nor
- * does a link in running text: an inline box cannot be scaled at all, and
- * marking it moved what was placed inside it (seen on a search engine's
- * results: each sub-link's arrow jumped under its words). With
- * `picturesOnly`, for sites with no profile, only something holding a
- * picture counts as a card: grown text lies over its neighbours.
- */
-export function shouldZoom(el: Element, view: Window, picturesOnly = false): boolean {
-  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement)
-    return false;
-  if (view.getComputedStyle(el).display === 'inline') return false;
-  const r = el.getBoundingClientRect();
-  if (picturesOnly) {
-    const picture = el.matches(PICTURE) ? el : el.querySelector(PICTURE);
-    const p = picture?.getBoundingClientRect();
-    // A picture that is most of the control, not an icon beside its words.
-    if (!p || p.width * p.height < r.width * r.height * 0.4) return false;
-  }
-  const viewport = view.innerWidth * view.innerHeight;
-  return viewport > 0 && (r.width * r.height) / viewport <= 0.2;
-}
-
-/**
- * The element to grow for a focused control: the outermost ancestor that
- * occupies the same box. On the live site a card's link is a transparent
- * layer over its picture, so growing the link alone left the picture behind.
- */
-export function zoomTarget(el: Element): Element {
-  const box = el.getBoundingClientRect();
-  const same = (r: DOMRect): boolean =>
-    Math.abs(r.left - box.left) <= 6 &&
-    Math.abs(r.top - box.top) <= 6 &&
-    Math.abs(r.right - box.right) <= 6 &&
-    Math.abs(r.bottom - box.bottom) <= 6;
-  let target = el;
-  for (
-    let node = el.parentElement, i = 0;
-    node && i < 6 && same(node.getBoundingClientRect());
-    node = node.parentElement, i++
-  ) {
-    target = node;
-  }
-  return target;
-}
-
-/**
- * Presses something as a click would. Most elements can be asked to click
- * themselves; a drawing (SVG) cannot, and is sent the click it would have got.
- */
-export function press(el: Element): void {
-  if (typeof (el as HTMLElement).click === 'function') (el as HTMLElement).click();
-  else
-    el.dispatchEvent(
-      new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, view: el.ownerDocument.defaultView }),
-    );
-}
-
+/** What a navigator is told about the page it works on. All of it is optional. */
 export interface NavigatorOptions {
-  /** Extra selectors from the site adapter. */
+  /** Selectors the site's profile adds to what can be focused. */
   extraFocusable?: string[];
   /** Elements the layer itself owns; never candidates. */
   ignoreWithin?: string;
+  /** Told each time the highlight moves, and with null when it is taken away. */
   onFocusChange?: (el: Element | null) => void;
   /** Elements the layer has found it must not land on (one that jumps elsewhere when it gets the cursor). */
   avoid?: (el: Element) => boolean;
@@ -201,347 +127,6 @@ export interface NavigatorOptions {
   growPicturesOnly?: boolean;
 }
 
-/**
- * `faded` remembers, for one pass over many controls, whether each ancestor
- * is transparent or sits inside something that is: siblings share almost all
- * of their ancestors, and asking for each one's style again is most of the
- * cost of a move on a long page. With it the search goes all the way up;
- * without it, twelve levels.
- */
-export function isVisible(el: Element, view: Window, faded?: Map<Element, boolean>): boolean {
-  const r = el.getBoundingClientRect();
-  // A slider's track is the one thing drawn thinner than that and still meant to be used.
-  if ((r.width < 4 || r.height < 4) && !isLongSlider(el)) return false;
-  const style = view.getComputedStyle(el);
-  if (style.visibility === 'hidden' || style.display === 'none') return false;
-  if (style.opacity === '0') {
-    // A transparent link or button laid over a picture is a hit area, not a
-    // hidden control. Seen on the live site: each episode's play link is
-    // invisible over its thumbnail, and ignores the pointer, until the
-    // thumbnail is hovered; activating it directly still works. Only
-    // picture-sized ones count; small transparent controls stay hidden.
-    const hitArea = el.matches('a[href], button, [role="button"], [role="link"]');
-    if (!hitArea || r.width < 48 || r.height < 48) return false;
-    // Not one put behind the page as well: that is a link kept out of sight
-    // until a keyboard's Tab reaches it ("skip to main content"), not
-    // something laid over a picture. (Seen on a sports network's site.)
-    if (Number(style.zIndex) < 0) return false;
-  }
-  if (deepClosest(el, '[aria-hidden="true"], [inert]')) return false;
-  // Opacity is not inherited in the computed style, but a transparent ancestor
-  // hides everything in it. Seen on the live site: the slides of a carousel
-  // are stacked in one place and all but one sit in a fully transparent wrapper.
-  const walked: Element[] = [];
-  let hidden = false;
-  let node = composedParent(el);
-  for (let i = 0; node && (faded || i < 12); i++, node = composedParent(node)) {
-    const known = faded?.get(node);
-    if (known !== undefined) {
-      hidden = known;
-      break;
-    }
-    walked.push(node);
-    const around = view.getComputedStyle(node);
-    if (around.opacity === '0' || collapsed(node, around)) {
-      hidden = true;
-      break;
-    }
-  }
-  // Everything walked lies under where the search ended, so it shares the answer.
-  if (faded) for (const n of walked) faded.set(n, hidden);
-  return !hidden;
-}
-
-/**
- * True for a box closed up to nothing that cuts off what is in it: its
- * contents keep their sizes and places but none of them shows. (Seen on a
- * music site: the player's bar is shut to no height until something plays,
- * and Down went to a button in it that nobody could see.)
- */
-function collapsed(node: Element, style: CSSStyleDeclaration): boolean {
-  // Not the page itself: clipping set on the body or the root is the
-  // window's, and a body with nothing in the flow is no height at all while
-  // everything pinned inside it shows. (Seen in a player made for a frame:
-  // the body clipped, the player pinned to the window, and every control of
-  // it taken for hidden.)
-  const page = node.ownerDocument;
-  if (node === page.body || node === page.documentElement) return false;
-  const cuts = (o: string): boolean => o === 'hidden' || o === 'clip';
-  if (!cuts(style.overflowY) && !cuts(style.overflowX)) return false;
-  if (style.display === 'contents' || style.display.startsWith('inline')) return false;
-  const box = node.getBoundingClientRect();
-  return (cuts(style.overflowY) && box.height < 1) || (cuts(style.overflowX) && box.width < 1);
-}
-
-/**
- * The sideways-scrolling strip an element sits in, if any: the nearest
- * ancestor that is wider inside than outside and clips or scrolls. Plain
- * grids have none and keep purely geometric movement.
- */
-/**
- * The carousel arrow to press when sideways movement runs out: a match for
- * `selectors` in the nearest ancestor of `from` that has one. That ancestor
- * must be no taller than the viewport, so a press in one strip never turns
- * another strip. The arrow only needs to be laid out: on the live site the
- * arrows are transparent until the pointer hovers, and still work.
- */
-export function edgeControl(
-  from: Element,
-  selectors: readonly string[],
-  view: Window,
-): { control: Element; container: Element } | null {
-  const maxHeight = view.innerHeight * 1.2;
-  let node = from.parentElement;
-  for (let i = 0; node && i < 14; i++, node = node.parentElement) {
-    for (const sel of selectors) {
-      try {
-        for (const control of node.querySelectorAll(sel)) {
-          const r = control.getBoundingClientRect();
-          if (r.width < 4 || r.height < 4 || (control as HTMLButtonElement).disabled) continue;
-          return node.getBoundingClientRect().height > maxHeight ? null : { control, container: node };
-        }
-      } catch {
-        // A bad selector must never break navigation.
-      }
-    }
-  }
-  return null;
-}
-
-export function rowOf(el: Element, view: Window): Element | null {
-  let node = composedParent(el);
-  for (let i = 0; node && i < 8; i++, node = composedParent(node)) {
-    // A strip, not a page: on the live site a page-sized container also
-    // clips sideways, and taking it for a row sent focus to the top of the page.
-    if (node.clientHeight > view.innerHeight * 0.9) return null;
-    if (node.scrollWidth > node.clientWidth + 8 && view.getComputedStyle(node).overflowX !== 'visible') return node;
-  }
-  return null;
-}
-
-/** True when some of `el` shows on the screen. */
-function isOnScreen(el: Element, view: Window): boolean {
-  const r = el.getBoundingClientRect();
-  return r.bottom > 0 && r.top < view.innerHeight && r.right > 0 && r.left < view.innerWidth;
-}
-
-/** How far a pane must still be able to scroll for a key to scroll it and not leave it. */
-const PANE_ROOM = 8;
-
-/**
- * The nearest pane around `el` that scrolls up and down by itself (not the
- * page) and has more to show in `dir`. Null when there is none.
- */
-export function paneWithMore(el: Element, doc: Document, view: Window, dir: 'up' | 'down'): Element | null {
-  const page = doc.scrollingElement ?? doc.documentElement;
-  for (
-    let node = composedParent(el), i = 0;
-    node && node !== page && node !== doc.body && node !== doc.documentElement && i < 40;
-    node = composedParent(node), i++
-  ) {
-    const room = dir === 'down' ? node.scrollHeight - node.clientHeight - node.scrollTop : node.scrollTop;
-    if (room <= PANE_ROOM) continue;
-    const overflow = view.getComputedStyle(node).overflowY;
-    if (overflow === 'auto' || overflow === 'scroll' || overflow === 'overlay') return node;
-  }
-  return null;
-}
-
-/**
- * Notices on screen that call themselves dialogs and are pinned to it: a
- * cookie notice across the bottom, a sign-up prompt in a corner. Not what
- * `openDialog` or `coveringLayer` answer for; those hold the highlight.
- */
-export function pinnedNotices(doc: Document, view: Window): Element[] {
-  const out: Element[] = [];
-  for (const el of doc.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]')) {
-    const r = el.getBoundingClientRect();
-    if (r.width < 4 || r.height < 4) continue;
-    if (r.right <= 0 || r.bottom <= 0 || r.left >= view.innerWidth || r.top >= view.innerHeight) continue;
-    if (!isPinned(el, view) || !isVisible(el, view)) continue;
-    out.push(el);
-  }
-  return out;
-}
-
-/** The share of `el`'s box that shows inside `pane` and the screen, 0 to 1. */
-export function shownIn(el: Element, pane: Element, view: Window): number {
-  const r = el.getBoundingClientRect();
-  const p = pane.getBoundingClientRect();
-  if (r.width <= 0 || r.height <= 0) return 0;
-  const w = Math.min(r.right, p.right, view.innerWidth) - Math.max(r.left, p.left, 0);
-  const h = Math.min(r.bottom, p.bottom, view.innerHeight) - Math.max(r.top, p.top, 0);
-  return w <= 0 || h <= 0 ? 0 : (w * h) / (r.width * r.height);
-}
-
-/**
- * The pop-up the page has put in front of everything, if any: the last
- * laid-out modal dialog. While one is open, only its controls can be reached.
- */
-export function openDialog(doc: Document): Element | null {
-  let found: Element | null = null;
-  for (const el of doc.querySelectorAll('[role="dialog"][aria-modal="true"], dialog[open]')) {
-    const r = el.getBoundingClientRect();
-    if (r.width < 4 || r.height < 4) continue;
-    const view = doc.defaultView;
-    if (view && view.innerWidth > 0 && view.innerHeight > 0) {
-      // Parked off the screen: not open, whatever it says. (Seen on a shop:
-      // its side menu is built when its button gets the cursor, sits off the
-      // left edge until asked for, and already calls itself a modal dialog.
-      // Taken at its word, nothing on the page could be reached.)
-      if (r.right <= 0 || r.bottom <= 0 || r.left >= view.innerWidth || r.top >= view.innerHeight) continue;
-      // A small notice in a corner that calls itself modal does not keep the
-      // page from being used, so it does not keep the highlight either.
-      // (Seen on a mail site: a 420 by 300 notice at the bottom right.)
-      const share =
-        ((Math.min(r.right, view.innerWidth) - Math.max(r.left, 0)) *
-          (Math.min(r.bottom, view.innerHeight) - Math.max(r.top, 0))) /
-        (view.innerWidth * view.innerHeight);
-      const overMiddle =
-        r.left <= view.innerWidth / 2 &&
-        r.right >= view.innerWidth / 2 &&
-        r.top <= view.innerHeight / 2 &&
-        r.bottom >= view.innerHeight / 2;
-      if (!overMiddle && share < 0.3) continue;
-    }
-    // It must really be in front. Seen on the live site: a station's pop-up
-    // stays open underneath the player it started. Where the browser cannot
-    // say what is on top (no layout), the dialog is taken at its word.
-    const top =
-      typeof doc.elementFromPoint === 'function'
-        ? doc.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2)
-        : null;
-    if (top && !el.contains(top) && !top.contains(el)) continue;
-    found = el;
-  }
-  return found;
-}
-
-/**
- * A layer fixed over the whole screen that takes the pointer everywhere, with
- * something in it to press: a gate or a notice the page has put in front of
- * itself without saying so in its markup. (Seen on a site for adults: its
- * age question is such a layer over a page that is locked from scrolling,
- * and the highlight wandered among the links hidden behind it.) A web app
- * whose whole page lives in one fixed box is also this, and loses nothing.
- *
- * It only says where the highlight may go. Back is not turned into the
- * page's "close" key for it, as it is for a real dialog: Back at a gate has
- * to leave the site.
- */
-export function coveringLayer(doc: Document): Element | null {
-  const view = doc.defaultView;
-  if (!view || typeof doc.elementFromPoint !== 'function' || view.innerWidth < 1 || view.innerHeight < 1) return null;
-  let layer: Element | null = null;
-  for (const [x, y] of [
-    [0.5, 0.5],
-    [0.2, 0.2],
-    [0.8, 0.2],
-    [0.2, 0.8],
-    [0.8, 0.8],
-  ] as const) {
-    let over: Element | null = null;
-    for (
-      let node = doc.elementFromPoint(view.innerWidth * x, view.innerHeight * y), i = 0;
-      node && node !== doc.body && node !== doc.documentElement && i < 60;
-      node = composedParent(node), i++
-    ) {
-      if (view.getComputedStyle(node).position !== 'fixed') continue;
-      const r = node.getBoundingClientRect();
-      if (r.left <= 2 && r.top <= 2 && r.right >= view.innerWidth - 2 && r.bottom >= view.innerHeight - 2) over = node;
-    }
-    if (!over || (layer && over !== layer)) return null;
-    layer = over;
-  }
-  return layer?.querySelector('a[href], button, input, select, textarea, [role="button"], [role="link"], [tabindex]')
-    ? layer
-    : null;
-}
-
-/**
- * True for controls in a bar that stays put while the page scrolls (a fixed
- * or sticky header, a pinned tab strip). `cache` avoids restyling shared ancestors.
- */
-export function isPinned(el: Element, view: Window, cache: Map<Element, boolean> = new Map()): boolean {
-  const path: Element[] = [];
-  let pinned = false;
-  for (let node: Element | null = el; node && node !== el.ownerDocument.body; node = composedParent(node)) {
-    const known = cache.get(node);
-    if (known !== undefined) {
-      pinned = known;
-      break;
-    }
-    path.push(node);
-    const position = view.getComputedStyle(node).position;
-    if (position === 'fixed' || position === 'sticky') {
-      pinned = true;
-      break;
-    }
-  }
-  for (const node of path) cache.set(node, pinned);
-  return pinned;
-}
-
-/** False for an element the page has put away: no box, or not displayed. */
-function isLaidOut(el: Element, view: Window): boolean {
-  const r = el.getBoundingClientRect();
-  if (r.width === 0 && r.height === 0) return false;
-  const style = view.getComputedStyle(el);
-  return style.display !== 'none' && style.visibility !== 'hidden';
-}
-
-/** False for something parked far outside the page, a common way to hide a real input. */
-export function onScreenish(el: Element, view: Window): boolean {
-  const r = el.getBoundingClientRect();
-  return r.right > -2000 && r.left < view.innerWidth + 2000;
-}
-
-/**
- * True for something that no scrolling can bring into view.
- *
- * Parked above the top of the page: a "skip to content" link that shows
- * itself only when Tab reaches it. (Seen on a video site: Up at the top went
- * to one, it came into view beside the search field, and Up never ran out.)
- *
- * Off the screen inside something fixed to the screen: a banner taller than
- * the screen, whose lower links are cut off. (Seen on an encyclopedia's front
- * page: Down at the foot of the page went to one, could not show it, and
- * started again from the top of the screen, round and round.)
- *
- * Something scrolled out of a list of its own is neither.
- */
-function outOfReach(el: Element, view: Window): boolean {
-  const r = el.getBoundingClientRect();
-  const above = r.bottom + view.scrollY <= 0;
-  const off = r.bottom <= 0 || r.top >= view.innerHeight || r.right <= 0 || r.left >= view.innerWidth;
-  if (!off) return false;
-  for (let node = composedParent(el), i = 0; node && i < 40; node = composedParent(node), i++) {
-    if (node.scrollTop > 0 || node.scrollLeft > 0) return false;
-    const style = view.getComputedStyle(node);
-    const scrolls =
-      (style.overflowY !== 'visible' && node.scrollHeight > node.clientHeight + 1) ||
-      (style.overflowX !== 'visible' && node.scrollWidth > node.clientWidth + 1);
-    if (scrolls && node !== el.ownerDocument.documentElement && node !== el.ownerDocument.body) return false;
-    if (style.position === 'fixed') return true;
-  }
-  return above;
-}
-
-/** True when `el` lies wholly outside the box of something that clips it, along the way pressed, and `from` is not inside that same thing. */
-function clippedAwayFrom(el: Element, from: Element, view: Window, vertical: boolean): boolean {
-  const r = el.getBoundingClientRect();
-  for (let node = composedParent(el), i = 0; node && i < 40; node = composedParent(node), i++) {
-    if (deepContains(node, from)) return false;
-    const style = view.getComputedStyle(node);
-    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
-    const box = node.getBoundingClientRect();
-    if (box.width < 1 || box.height < 1) continue;
-    // Along the way pressed only: a row scrolled sideways is still entered from above, at what it shows.
-    if (vertical ? r.bottom <= box.top || r.top >= box.bottom : r.right <= box.left || r.left >= box.right) return true;
-  }
-  return false;
-}
-
 /** True when `outer` wholly contains `inner` and is at least four times its area. */
 function covers(outer: Rect, inner: Rect): boolean {
   if (inner.left < outer.left || inner.right > outer.right || inner.top < outer.top || inner.bottom > outer.bottom)
@@ -557,55 +142,13 @@ function covers(outer: Rect, inner: Rect): boolean {
  */
 const BACKDROP_SHARE = 0.4;
 
+/** The box of `el` as a person sees it (box.ts), which is what moves are scored on. */
 function toRect(el: Element): Rect {
   return boxOf(el);
 }
 
-/**
- * True when something the size of the screen has come up in front of `el`
- * (a player opening over the page, say): what the user selected is no longer
- * what they are looking at.
- */
-export function coveredByScreen(el: Element, view: Window): boolean {
-  const r = el.getBoundingClientRect();
-  const top = el.ownerDocument.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
-  // For a control inside a shadow root the browser names its outermost host.
-  if (!top || deepContains(el, top) || deepContains(top, el)) return false;
-  for (let c: Element | null = top; c && !deepContains(c, el); c = composedParent(c)) {
-    const b = c.getBoundingClientRect();
-    if (b.width >= view.innerWidth * 0.9 && b.height >= view.innerHeight * 0.9) return true;
-  }
-  return false;
-}
-
-/**
- * Brings `el` into view inside the nearest list that scrolls by itself, when
- * that list has it out of sight. Only that list moves. Seen on Steamboat's service:
- * the player's subtitle menu is a list taller than its box, and entries past
- * the box could be focused but not seen.
- */
-export function scrollWithinList(el: Element, view: Window): void {
-  const body = el.ownerDocument.body;
-  for (
-    let node = composedParent(el), i = 0;
-    node && node !== body && node !== el.ownerDocument.documentElement && i < 12;
-    node = composedParent(node), i++
-  ) {
-    if (node.scrollHeight <= node.clientHeight + 8) continue;
-    const overflow = view.getComputedStyle(node).overflowY;
-    if (overflow !== 'auto' && overflow !== 'scroll') continue;
-    const box = node.getBoundingClientRect();
-    const r = el.getBoundingClientRect();
-    if (r.top < box.top || r.bottom > box.bottom) node.scrollTop += (r.top + r.bottom) / 2 - (box.top + box.bottom) / 2;
-    return;
-  }
-}
-
+/** Where a page's footer is, by its own markup. A held Down stops short of it. */
 const FOOTER = 'footer, [role="contentinfo"]';
-
-/** What a menu's entries are. */
-export const MENU_ENTRY =
-  '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], [role="radio"]';
 
 /** How far past the screen's edge a target may be, in screens, and still be jumped to while reading. */
 export const READING_REACH = 0.35;
@@ -613,13 +156,10 @@ export const READING_REACH = 0.35;
 /** Moves closer together than this are a held key (or a very quick thumb). */
 const RAPID_MS = 220;
 
-/** False when the page has turned the window's own scrolling off. */
-function pageScrolls(doc: Document, view: Window): boolean {
-  const root = view.getComputedStyle(doc.documentElement).overflowY;
-  const used = root && root !== 'visible' ? root : doc.body ? view.getComputedStyle(doc.body).overflowY : root;
-  return used !== 'hidden' && used !== 'clip';
-}
-
+/**
+ * Keeps the highlight for one document. `candidates` lists what it can go
+ * to, `move` takes it one step in a direction, `focus` puts it on an element.
+ */
 export class SpatialNavigator {
   private current: Element | null = null;
   private zoomed: Element | null = null;
@@ -646,6 +186,7 @@ export class SpatialNavigator {
     private readonly opts: NavigatorOptions = {},
   ) {}
 
+  /** What has the highlight, or null. Something the page has since removed does not count. */
   get focused(): Element | null {
     if (this.current && !this.current.isConnected) this.current = null;
     return this.current;
@@ -925,6 +466,7 @@ export class SpatialNavigator {
     if (wasHidden) rootEl.classList.add(hiding);
   }
 
+  /** The selectors of `list` this browser can parse, joined as one; null when there are none. */
   private validSelector(list: readonly string[] | undefined): string | null {
     const valid = (list ?? []).filter((sel) => {
       try {
@@ -1099,6 +641,7 @@ export class SpatialNavigator {
   /** A place whose pop-up closed under the highlight, and what was there before the pop-up. */
   private fleeting: { box: Rect; known: WeakSet<Element> } | null = null;
 
+  /** A box kept in page terms, in window terms; null when none of it is on screen. */
   private inWindow(box: Rect): Rect | null {
     const view = this.doc.defaultView;
     if (!view) return null;
@@ -1140,6 +683,11 @@ export class SpatialNavigator {
     return true;
   }
 
+  /**
+   * Back on the place whose pop-up closed under the highlight: the
+   * candidates that were there before the pop-up, so the next move passes
+   * over what the pop-up brought. Null when that does not apply.
+   */
   private withoutFleeting(all: readonly Element[]): Element[] | null {
     const from = this.focused;
     const box = this.fleeting ? this.inWindow(this.fleeting.box) : null;
@@ -1153,10 +701,10 @@ export class SpatialNavigator {
     return few.length > 1 ? few : null;
   }
 
-  /** One attempt at a move among `all`. Null when nothing lies in that direction. */
   /** Pinned notices, and strips beside a scrolling pane, the highlight has already been taken to once. */
   private offered = new WeakSet<Element>();
 
+  /** One attempt at a move among `all`. Null when nothing lies in that direction. */
   private step(dir: Direction, all: Element[]): boolean | null {
     const view = this.doc.defaultView;
     // What had focus may have been put away without being removed (an entry
@@ -1545,6 +1093,10 @@ export class SpatialNavigator {
     return this.focus(onScreen[pick] ?? null, { scroll: false });
   }
 
+  /**
+   * Puts the highlight and keyboard focus on `el` and brings it into view.
+   * `scroll: false` leaves the page where it is. False when `el` is null.
+   */
   focus(el: Element | null, how: { scroll?: boolean } = {}): boolean {
     if (!el) return false;
     this.current?.removeAttribute(FOCUS_ATTR);
@@ -1563,7 +1115,7 @@ export class SpatialNavigator {
     }
     if (el instanceof HTMLIFrameElement) {
       // Keyboard focus on a frame sends the keys into it, where nothing of
-      // ours would hear them again. The highlight rests on it; the keys stay here.
+      // the layer's would hear them again. The highlight rests on it; the keys stay here.
       const active = this.doc.activeElement;
       if (active instanceof HTMLElement && active !== this.doc.body) active.blur();
     } else if (el instanceof HTMLElement || 'focus' in el) {
@@ -1614,6 +1166,7 @@ export class SpatialNavigator {
     return true;
   }
 
+  /** Presses what has the highlight. False when nothing has it. */
   activate(): boolean {
     const el = this.focused;
     if (!el) return false;
@@ -1621,6 +1174,7 @@ export class SpatialNavigator {
     return true;
   }
 
+  /** Takes the highlight away. Keyboard focus is left where it is. */
   clear(): void {
     this.lastBox = null;
     this.current?.removeAttribute(FOCUS_ATTR);

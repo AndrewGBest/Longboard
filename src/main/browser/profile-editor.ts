@@ -7,17 +7,21 @@ import { isNotice } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface ProfileEditorPart {
+  /** Tells the page's layer what to outline: what is picked and what is marked, or nothing when no editing is going on. */
   showEdit: () => void;
+  /** Starts a draft for the site in front and turns the pointer on. */
   startEdit: () => void;
   /** Ends the editing. Unless it was saved, the page goes back to the rules it had. */
   endEdit: (saved: boolean) => void;
+  /** Asks the layer what is under the pointer; it answers with an `editPicked` message. */
   pickForEdit: () => void;
   openEditPanel: () => void;
+  /** Does what a button on the editor's panel asks. */
   editAction: (action: EditAction) => void;
 }
 
 export function createProfileEditor(core: Core): ProfileEditorPart {
-  // A first, small editor (DESIGN.md 4.5): point at something, press OK, and
+  // A small editor (DESIGN.md 4.5): point at something, press OK, and
   // say what it is. Every choice goes into a draft profile in the ordinary
   // format, the page is driven by the draft at once, and saving writes it to
   // the person's own profiles with an outline of the page as its evidence.
@@ -49,7 +53,6 @@ export function createProfileEditor(core: Core): ProfileEditorPart {
     showEdit();
     core.notify('Profile editor: move the pointer onto something and press OK. Back to finish.');
   };
-  /** Ends the editing. Unless it was saved, the page goes back to the rules it had. */
   const endEdit = (saved: boolean): void => {
     if (!core.edit) return;
     core.edit = null;

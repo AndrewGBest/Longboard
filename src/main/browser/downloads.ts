@@ -11,6 +11,7 @@ import type { Download } from './types';
 export interface DownloadsPart {
   /** Puts a finished download where the person will look for it. */
   keep: (d: Download) => void;
+  /** Redraws the downloads list once a second while it is open and something is arriving. */
   downloadsTick: NodeJS.Timeout;
 }
 
@@ -19,12 +20,10 @@ export function createDownloads(core: Core): DownloadsPart {
   // first: what it is called, how big, where from. While the question is up
   // the file goes on arriving, under a meaningless name in a folder of
   // Longboard's own (a download cannot be made to wait, and one that came
-  // from sending a form cannot be asked for twice). Agreed
-  // to, it is moved to the downloads folder under a name that writes over
-  // nothing. Refused, what arrived is deleted. Longboard never opens or runs
-  // what it downloads.
+  // from sending a form cannot be asked for twice). Agreed to, it is moved
+  // to the downloads folder under a name that writes over nothing. Refused,
+  // what arrived is deleted. Longboard never opens or runs what it downloads.
   const taken = (n: string): boolean => existsSync(join(core.downloadsDir(), n));
-  /** Puts a finished download where the person will look for it. */
   const keep = (d: Download): void => {
     try {
       mkdirSync(core.downloadsDir(), { recursive: true });

@@ -1,6 +1,7 @@
-// Finds the site's player. Observation only: nothing here controls the video
-// element or touches the media pipeline or DRM. Control is sent as ordinary
-// key presses (see shared/player-keys.ts).
+// Finds the site's player and answers questions about it. Observation only:
+// nothing here controls the video element or touches the media pipeline or
+// DRM (Hard rule 2). Control is sent as ordinary key presses (see
+// shared/player-keys.ts).
 
 /** The part of an element's box that lies inside the window, in square pixels. */
 function shownArea(el: Element): number {
@@ -53,6 +54,7 @@ export function passedOver(
     : from.bottom <= box.top + slack && to.top >= box.bottom - slack;
 }
 
+/** The video in `scope` with the most of itself on screen, and that area in square pixels. */
 function largestVideo(scope: ParentNode, skipMuted: boolean): { video: HTMLVideoElement; area: number } | null {
   let best: HTMLVideoElement | null = null;
   let bestArea = 0;
@@ -73,10 +75,10 @@ function largestVideo(scope: ParentNode, skipMuted: boolean): { video: HTMLVideo
 /**
  * The video the user is watching, or null on a browse page.
  *
- * `playerRoots` are adapter selectors for the element the site's player lives
+ * `playerRoots` are the profile's selectors for the element the site's player lives
  * in. When any of them matches, only videos inside it count, which keeps a
  * full-width background trailer from being mistaken for the player. When none
- * matches (empty or stale adapter) the generic rule applies: the largest
+ * matches (no profile, or a stale one) the generic rule applies: the largest
  * unmuted video, if it covers at least `minShare` of the viewport.
  */
 export function findMainVideo(
@@ -121,13 +123,14 @@ export function findMainVideo(
  */
 export const GENERIC_PLAYER_SHARE = 0.85;
 
+/** True when the main video has started: it is playing, or paused part-way through. */
 export function isPlayerActive(doc: Document, playerRoots: readonly string[] = [], minShare = 0.5): boolean {
   const v = findMainVideo(doc, playerRoots, minShare);
   return !!v && (!v.paused || v.currentTime > 0) && v.readyState > 0;
 }
 
 /**
- * The element holding the player and its controls: the adapter's root when it
+ * The element holding the player and its controls: the profile's root when it
  * contains the video, otherwise the highest ancestor that is no bigger than
  * the viewport (the page behind a full-window player is taller or absent).
  */
@@ -137,7 +140,7 @@ export function playerScope(video: HTMLVideoElement, playerRoots: readonly strin
       const root = video.closest(sel);
       if (root) return root;
     } catch {
-      // ignore a bad selector
+      // A selector this browser cannot parse names no root.
     }
   }
   const view = video.ownerDocument.defaultView;

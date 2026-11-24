@@ -9,15 +9,19 @@ import { isNotice } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface LockPart {
+  /** The lock as saved in lock.json, or null when no PIN is set. */
   lock: Lock | null;
   /** True once the PIN has been given for browsing; until "Lock again" or the end of this run. */
   unlocked: boolean;
+  /** Wrong PINs in a row. */
   pinFailures: number;
+  /** The time before which no PIN is accepted, after wrong ones (milliseconds since 1970). */
   pinNotBefore: number;
   /** What the PIN on screen is being asked for. `set` is the two entries of a new PIN. */
   pinFor:
     { title: string; note: string; then: () => void; back?: 'settings' } | { set: true; first: string | null } | null;
   saveLock: () => void;
+  /** What blockReason (main/navigation.ts) needs to decide whether an address may open. */
   navRules: () => { automation: boolean; httpsOnly: boolean; onlySites: string[] | null; extensions: string[] };
   /**
    * Locking: a page that is not on one of Home's sites gives way to the
@@ -60,11 +64,6 @@ export function createLock(
     onlySites: onlySites(),
     extensions: core.extensions.ids(),
   });
-  /**
-   * Locking: a page that is not on one of Home's sites gives way to the
-   * notice saying so, in every tab, and Back leads to nothing opened while
-   * it was unlocked.
-   */
   const lockViews = (): void => {
     const sites = onlySites();
     if (!sites) return;
@@ -84,14 +83,12 @@ export function createLock(
         });
     }
   };
-  /** Does `then` at once when there is no PIN, and after the PIN has been given when there is. */
   const withPin = (title: string, then: () => void): void => {
     if (!core.lock) return then();
     core.pinFor = { title, note: '', then };
     core.panel = 'pin';
     core.layout();
   };
-  /** The same, for changes to what is on Home: asked for only while Home decides which sites open. */
   const withPinForHome = (then: () => void): void =>
     core.lock?.homeOnly && !core.unlocked ? withPin('Enter the PIN to change what is on Home', then) : then();
   return { saveLock, navRules, lockViews, withPin, withPinForHome };

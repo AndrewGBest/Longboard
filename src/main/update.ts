@@ -2,7 +2,7 @@
 // taken only when the release feed states its SHA-256 and the file that
 // arrives has it. It then takes the place of the AppImage this copy was
 // started from, in one step, and is used from the next start.
-import { chmodSync, mkdirSync, renameSync, rmSync, statSync, accessSync, constants } from 'node:fs';
+import { accessSync, chmodSync, constants, mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { isNewer, packageFor, parseRelease, parseUpdateState, updateDue, type UpdateState } from '../shared/update';
 import { readJson, writeJson } from './store';
@@ -25,6 +25,7 @@ export interface UpdaterDeps {
   note: (line: string) => void;
 }
 
+/** Looks for new versions and installs them. One check runs at a time. */
 export class Updater {
   private busy = false;
   constructor(private readonly deps: UpdaterDeps) {}
@@ -32,6 +33,7 @@ export class Updater {
   private get file(): string {
     return join(this.deps.folder, 'update.json');
   }
+  /** What the last check found, read from update.json each time. */
   get state(): UpdateState {
     return parseUpdateState(readJson(this.file));
   }

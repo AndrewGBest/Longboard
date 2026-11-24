@@ -1,27 +1,36 @@
-// Ways text gets into a page other than the keyboard: saved sign-ins, a phone, speech.
+// Ways text gets into a page other than the on-screen keyboard: saved
+// sign-ins, typing from a phone, speech. A password is kept only when the
+// person asks, encrypted by the system's keyring, and never in a scripted
+// run (Hard rule 10).
+import { join } from 'node:path';
 import { net, safeStorage, type WebContents } from 'electron';
+import qrcode from 'qrcode-generator';
 import { Passwords } from '../passwords';
 import { PhoneTyping } from '../phone';
 import { Voice } from '../voice';
-import qrcode from 'qrcode-generator';
-import { join } from 'node:path';
 import { resolveAddress } from '../../shared/address';
 import type { Core } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface TextEntryPart {
   passwords: Passwords;
+  /** True when saved sign-ins are offered: the setting is on, a keyring is there, and this is not a scripted run. */
   loginsOn: () => boolean;
   /** The address of the page whose sign-in form was seen, for each view that has one showing. */
   loginForms: WeakMap<Electron.WebContents, string>;
   /** A sign-in just typed that the person may ask to keep; held in memory for a few minutes and then dropped. */
   typed: WeakMap<Electron.WebContents, { place: string; user: string; password: string; at: number }>;
+  /** The sign-in just typed in a view, or null when there is none or it has been held too long. */
   typedNow: (wc: WebContents) => { place: string; user: string; password: string } | null;
+  /** Text from a phone or from speech, held until the layer in front says whether a text field has the cursor. */
   phoneHeld: { id: number; text: string; to: WebContents; at: number; from: 'phone' | 'voice' } | null;
+  /** Typing from a phone (main/phone.ts): off until the person turns it on from the menu. */
   phone: PhoneTyping;
+  /** Speech, recognised on this machine (main/voice.ts). */
   voice: Voice;
   /** Opens what was typed or said: an address, or words to search for. */
   openTyped: (input: string) => void;
+  /** Starts listening, or stops when already listening. Asks first when the speech model has not been fetched. */
   speak: () => void;
   /** An address as a square code for a phone's camera: rows of 0 and 1. */
   codeFor: (text: string) => string[];
@@ -47,9 +56,7 @@ export function createTextEntry(core: Core): Omit<TextEntryPart, 'phoneHeld'> {
   // The screens are drawn again once the keyring has answered.
   void passwords.ready.then(() => setImmediate(() => !core.win.isDestroyed() && core.refreshChrome()));
   const loginsOn = (): boolean => core.config.passwords !== false && !core.options.automation && passwords.available();
-  /** The address of the page whose sign-in form was seen, for each view that has one showing. */
   const loginForms = new WeakMap<WebContents, string>();
-  /** A sign-in just typed that the person may ask to keep; held in memory for a few minutes and then dropped. */
   const typed = new WeakMap<WebContents, { place: string; user: string; password: string; at: number }>();
   const TYPED_KEPT_MS = 5 * 60_000;
   const typedNow = (wc: WebContents): { place: string; user: string; password: string } | null => {
@@ -58,9 +65,9 @@ export function createTextEntry(core: Core): Omit<TextEntryPart, 'phoneHeld'> {
     return typed.get(wc) ?? null;
   };
 
-  // Off until the person turns it on from the menu, and off again when
-  // Longboard closes. What a phone sends is typed where the cursor is, or
-  // pressed as a button of the remote would be.
+  // Typing from a phone: off until the person turns it on from the menu, and
+  // off again when Longboard closes. What a phone sends is typed where the
+  // cursor is, or pressed as a button of the remote would be.
   let phoneCount = 0;
   core.phoneHeld = null;
   /** Holds text from a phone or from speech, and asks the layer in front whether a text field has the cursor for it. */
@@ -129,7 +136,6 @@ export function createTextEntry(core: Core): Omit<TextEntryPart, 'phoneHeld'> {
         );
     },
   });
-  /** Opens what was typed or said: an address, or words to search for. */
   const openTyped = (input: string): void => {
     const url = resolveAddress(input, core.config.search);
     // A search is not a site the person asked for by name; it is not put on Home.
@@ -154,7 +160,6 @@ export function createTextEntry(core: Core): Omit<TextEntryPart, 'phoneHeld'> {
     voice.listen();
   };
 
-  /** An address as a square code for a phone's camera: rows of 0 and 1. */
   const codeFor = (text: string): string[] => {
     const code = qrcode(0, 'M');
     code.addData(text);

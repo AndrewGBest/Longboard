@@ -2,6 +2,7 @@
 // LEGAL-GUARDRAILS.md requires in every release; keep the two in step.
 import { PRODUCT } from './product';
 
+/** The non-affiliation notice. */
 export const NOTICE =
   `${PRODUCT.name} is an independent project. It is not affiliated with any website or streaming service it can display. ` +
   'It does not provide, unlock or bypass access to any content and does not remove or work around DRM.';
@@ -22,6 +23,7 @@ export const BACKGROUND =
 /** Said on the first website of a run, until the menu has been opened on a website once. */
 export const MENU_TIP = 'For the menu, press Up twice at the top of the page';
 
+/** The keys and what they do, as the help panel lists them: remote, keyboard and controller in one line each. */
 export const HELP: readonly (readonly [string, string])[] = [
   ['Arrows or D-pad', 'Move'],
   ['OK, Enter or A', 'Select; play or pause on a full-screen video'],

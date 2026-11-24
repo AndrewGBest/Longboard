@@ -1,11 +1,15 @@
-// Pages that are not in front stand still.
+// Pages that are not in front stand still: the browser itself freezes them a
+// moment after they are left, and wakes them when they are in front again
+// (see DECISIONS.md, 2026-11-18).
 import { type WebContents } from 'electron';
 import type { Core } from './core';
 import { FREEZE_DELAY_MS, isNotice } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface StandstillPart {
+  /** The pages that are frozen now. */
   frozen: WeakSet<Electron.WebContents>;
+  /** Wakes a page, or calls off a freeze that has not happened yet. */
   thaw: (wc: WebContents) => void;
   /** Freezes a page a moment after it is left, so the site's own pause key (sent first) has been dealt with. */
   freezeSoon: (wc: WebContents) => void;
@@ -16,10 +20,10 @@ export function createStandstill(core: Core): StandstillPart {
   // is, or Home, or another program) is put into the browser's own "frozen"
   // state, the one a phone's browser puts a background tab into: its video
   // and audio pause, its timers stop, and nothing in it runs until it is in
-  // front again. Longboard does not touch the site's player to do this (Hard
-  // rule 4); the browser pauses the page as a whole. Measured 2026-11-18:
-  // a playing <video>, a playing <audio> and Web Audio all stop, and stay
-  // paused when the page is thawed, so playback waits for the person.
+  // front again. Longboard does not touch the site's player to do this; the
+  // browser pauses the page as a whole. Measured 2026-11-18: a playing
+  // <video>, a playing <audio> and Web Audio all stop, and stay paused when
+  // the page is thawed, so playback waits for the person.
   const frozen = new WeakSet<WebContents>();
   const lifecycle = (wc: WebContents, state: 'frozen' | 'active'): void => {
     if (wc.isDestroyed()) return;
@@ -45,7 +49,6 @@ export function createStandstill(core: Core): StandstillPart {
     frozen.delete(wc);
     lifecycle(wc, 'active');
   };
-  /** Freezes a page a moment after it is left, so the site's own pause key (sent first) has been dealt with. */
   const freezeSoon = (wc: WebContents): void => {
     leaving.add(wc);
     setTimeout(() => {

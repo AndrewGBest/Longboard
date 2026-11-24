@@ -1,4 +1,8 @@
-// What is on screen and what is waiting: the surface, the panel, the question, downloads, history.
+// What is on screen and what is waiting: the surface, the panel, the question
+// asked, downloads, history, the profile editor's draft. Also the small
+// questions the other parts ask about an address or the page in front: which
+// profile applies (profileFor), its site (pageSite), whether its requests
+// are filtered (blockingAt, Hard rule 5), where it is drawn and at what zoom.
 import { type WebContents } from 'electron';
 import { type HandBack } from '../handback';
 import { rmSync } from 'node:fs';
@@ -19,10 +23,13 @@ import type { Download } from './types';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface StatePart {
+  /** What fills the window: Home, or a website. */
   surface: 'home' | 'page';
+  /** Which of Longboard's own screens is open over that (the menu, Settings, a question), or null. */
   panel: Panel | null;
+  /** True while pointer mode is on (pointer-mode.ts). */
   pointerOn: boolean;
-  /** The question waiting for an answer: protected playback for a site, or whether to use an imported profile. */
+  /** The question waiting for an answer, or null. One at a time: see dropQuestion (hand-back.ts) and answerPrompt (permissions.ts). */
   pending:
     | { what: 'permission'; site: string; names: Askable[]; answer: Array<(granted: boolean) => void> }
     | { what: 'profile'; profile: Profile }
@@ -34,36 +41,45 @@ export interface StatePart {
     | null;
   /** What the program that started Longboard asked to be handed back, until it is answered. */
   wanted: HandBack | null;
+  /** True while hand-back.ts is asking the site who is signed in, so it is not asked twice at once. */
   lookingForAccount: boolean;
   /** The downloads the person agreed to in this run, newest first. */
   downloads: Download[];
+  /** How many downloads that list keeps. */
   MAX_LISTED: 30;
+  /** The id given to the newest download. */
   lastDownload: number;
+  /** Where a download is held until it is whole and agreed to. */
   waitingDir: string;
   /** The profile editor, while it is in use: the draft, and what was last pointed at. */
   edit: { site: string; draft: Profile; chain: PickedStep[]; level: number; saving: boolean } | null;
   /** True when the person switched the profile of the site at this address off (the site menu). */
   profileOffAt: (url: string) => boolean;
+  /** The profile that applies to an address now, without asking about one that still needs an answer. */
   profileFor: (url: string) => { profile: Profile; source: ProfileSource } | null;
   /** Where files are saved: the command line's folder, else the one chosen in Settings, else the desktop's. */
   downloadsDir: () => string;
-  /** History: the pages opened, newest first (shared/history.ts). */
   historyFile: string;
+  /** History: the pages opened, newest first (shared/history.ts). */
   visits: Visit[];
   saveHistory: () => void;
   /** The folder the folder chooser is looking in, while it is open. */
   pickAt: string | null;
   /** The action waiting for a button to be pressed for it, on the Settings screen. */
   capturing: string | null;
+  /** The site of the page in front, as the key its settings are kept under; null when it is not a website. */
   pageSite: () => string | null;
   /** Whether requests are filtered for the site at this address (Hard rule 5): the person's choice, else where the switch starts. */
   blockingAt: (url: string) => boolean;
   /** How many requests were refused for the page each view is showing. */
   refused: WeakMap<Electron.WebContents, number>;
+  /** True when the view in front has a real page in its history, not only notices. */
   pageLoaded: () => boolean;
   /** Where the page in front is drawn: the whole window, less the edge its profile asks to be kept clear. */
   pageArea: () => { x: number; y: number; width: number; height: number };
+  /** The zoom that fits the page in front to this screen, before the person's own zoom for the site. */
   autoZoom: () => number;
+  /** The person's own zoom for the site in front; 1 when they have not changed it. */
   siteZoom: () => number;
 }
 
@@ -86,7 +102,7 @@ export function createState(
   core.surface = 'home';
   core.panel = null;
   core.pointerOn = false;
-  /** The question waiting for an answer: protected playback for a site, or whether to use an imported profile. */
+  /** The question waiting for an answer, or null. One at a time. */
   core.pending = null;
   /** What the program that started Longboard asked to be handed back, until it is answered. */
   core.wanted = null;
@@ -102,8 +118,6 @@ export function createState(
   /** The profile editor, while it is in use: the draft, and what was last pointed at. */
   core.edit = null;
 
-  /** The profile that applies to an address now, without asking about one that still needs an answer. */
-  /** True when the person switched the profile of the site at this address off (the site menu). */
   const profileOffAt = (url: string): boolean => core.sites[siteKey(url) ?? '']?.profile === false;
   const profileFor = (url: string): { profile: Profile; source: ProfileSource } | null => {
     if (profileOffAt(url)) return null;
@@ -111,7 +125,6 @@ export function createState(
     return choice.kind === 'use' ? choice : choice.kind === 'ask' ? choice.fallback : null;
   };
 
-  /** Where files are saved: the command line's folder, else the one chosen in Settings, else the desktop's. */
   const downloadsDir = (): string => core.deps.downloadsFlag ?? core.config.downloads ?? core.deps.downloads;
   /** History: the pages opened, newest first (shared/history.ts). */
   const historyFile = join(core.dataDir, 'history.json');
@@ -122,7 +135,6 @@ export function createState(
   /** The action waiting for a button to be pressed for it, on the Settings screen. */
   core.capturing = null;
   const pageSite = (): string | null => siteKey(core.page.getURL());
-  /** Whether requests are filtered for the site at this address (Hard rule 5): the person's choice, else where the switch starts. */
   const blockingAt = (url: string): boolean => {
     const key = siteKey(url);
     return blockingOn(
@@ -132,10 +144,8 @@ export function createState(
       core.deps.adBlock.mode(),
     );
   };
-  /** How many requests were refused for the page each view is showing. */
   const refused = new WeakMap<WebContents, number>();
   const pageLoaded = (): boolean => core.page.navigationHistory.getAllEntries().some((e) => !isNotice(e.url));
-  /** Where the page in front is drawn: the whole window, less the edge its profile asks to be kept clear. */
   const pageArea = (): { x: number; y: number; width: number; height: number } => {
     const [width = 0, height = 0] = core.win.getContentSize();
     return pageBounds({ width, height }, profileFor(core.page.getURL())?.profile.view?.safeMargin);

@@ -1,11 +1,16 @@
+// The vocabulary the shell and the layers share: what an input means (an
+// Action), what a layer may ask the shell to do (a BridgeMessage), and what
+// the shell hands a layer when a page starts. Types only.
 import type { ActionName } from './config';
 import type { PlayerKey, TextKey } from './player-keys';
 import type { PlayerKeyName } from './profile';
 
-// Every input device is reduced to one of these actions before anything else
-// sees it. Adding a device means writing a mapper to Action, nothing more.
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
+/**
+ * Every input device is reduced to one of these before anything else sees
+ * it. Adding a device means writing a mapper to Action, nothing more.
+ */
 export type Action =
   | { type: 'move'; dir: Direction }
   | { type: 'select' }
@@ -40,9 +45,9 @@ export type BridgeMessage =
   | { kind: 'icons'; list: Array<{ href: string; rel: string; sizes: string }> }
   /** The article on the page, read for the reader view; null when the page has none. */
   | { kind: 'reader'; article: { title: string; blocks: Array<{ kind: string; text: string }> } | null }
-  /** Go back one page; the shell goes Home when there is no page to go back to. */
-  /** The page has a sign-in form (told once), and what was typed into it when it was sent. Never in a scripted run. */
+  /** The page has a sign-in form (told once). Never in a scripted run. */
   | { kind: 'loginSeen' }
+  /** What was typed into the sign-in form when it was sent. Never in a scripted run. */
   | { kind: 'credentials'; user: string; password: string }
   /** There is a text field with the cursor for the text a phone sent, which the shell holds under this number. */
   | { kind: 'phoneOk'; id: number }
@@ -50,6 +55,7 @@ export type BridgeMessage =
   | { kind: 'phoneNo'; id: number }
   /** The button given the job of "Speak" was pressed (a controller's; a keyboard's or remote's the shell hears itself). */
   | { kind: 'voice' }
+  /** Go back one page; the shell goes Home when there is no page to go back to. */
   | { kind: 'back' }
   /** The menu button was pressed. */
   | { kind: 'menu' }
@@ -87,6 +93,7 @@ export interface EditView {
 /** Which of Longboard's two views a layer is running in. */
 export type Surface = 'page' | 'chrome';
 
+/** How a layer is told to behave when it starts. */
 export interface LayerOptions {
   dev: boolean;
   automation: boolean;

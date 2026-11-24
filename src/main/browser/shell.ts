@@ -1,4 +1,8 @@
-// The window, its views, and what Longboard keeps on disk about Home.
+// The window and its views: one chrome view for Longboard's own screens and
+// a website view for each tab or app session, all sandboxed and isolated
+// (Hard rule 13). Also reads what is kept on disk about Home (recent sites,
+// saved pages, apps, their icons) and each site's settings, and sets up
+// extensions.
 import { app, BaseWindow, session, WebContentsView, type WebContents } from 'electron';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -15,40 +19,63 @@ import type { Core } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface ShellPart {
+  /** The --dev and --automation options, as handed in. */
   options: { dev: boolean; automation: boolean };
+  /** The person's settings (config.json). */
   config: UserConfig;
+  /** Longboard's folder for this user: settings, lists, icons. */
   dataDir: string;
+  /** home.json: the recent sites and the saved pages. */
   homeFile: string;
+  /** sites.json: what the person chose for each site. */
   sitesFile: string;
+  /** Makes the logger `readJson` is given for a file that cannot be read. */
   complain: (file: string) => (why: string) => void;
+  /** Sites opened lately, newest first, for Home. */
   recents: RecentSite[];
   /** Pages the person asked to keep on Home. */
   saved: SavedPage[];
+  /** What the person chose for each site (zoom, ad blocking, answers to questions), by site key. */
   sites: Record<string, SiteSettings>;
   appsFile: string;
+  /** Where the icons of apps and of Home's sites are kept, as PNG files. */
   iconsDir: string;
+  /** Sites added as apps. */
   apps: WebApp[];
   /** Each app's icon as a data: address, read from disk once. */
   iconData: Map<string, string | null>;
+  /** The icon kept under an id, as a data: address; null when there is none. */
   iconOf: (id: string) => string | null;
   /** The name a site's icon is kept under while the site is on Home: nothing that can be read back into an address. */
   siteIconId: (url: string) => string;
   win: BaseWindow;
+  /** Extensions from the Chrome Web Store (main/extensions.ts). */
   extensions: Extensions;
+  /** The view that shows Longboard's own screens. */
   chromeView: WebContentsView;
+  /** That view's contents: where messages for Longboard's own screens are sent. */
   chrome: Electron.WebContents;
+  /** Every website view, by its place (see makeView). */
   views: Map<string, WebContentsView>;
+  /** The sessions website views use, each set up once. */
   wiredSessions: Set<Electron.Session>;
   /** Sets something up on every website view, those made later included. */
   eachPage: (wire: (wc: WebContents) => void) => void;
   /** The same for every session a website view uses. */
   eachSession: (wire: (ses: Electron.Session) => void) => void;
+  /** True for the place of a private tab ("private:N"). */
   isPrivate: (place: string) => boolean;
+  /** True for the place of any tab, as against an app's own session. */
   isTab: (place: string) => boolean;
+  /** Makes the website view for a place and sets it up. It starts hidden. */
   makeView: (place: string) => WebContentsView;
+  /** True for the contents of any website view, in front or not. */
   isPageView: (wc: WebContents) => boolean;
+  /** The place of the view in front: "" for the first tab, "tab:N", "private:N", or an app's session. */
   partition: string;
+  /** The website view in front. Changed only by usePartition (going-places.ts). */
   pageView: WebContentsView;
+  /** That view's contents: the page in front. */
   page: Electron.WebContents;
 }
 
@@ -67,7 +94,6 @@ export function createShell(
   const appsFile = join(dataDir, 'apps.json');
   const iconsDir = join(dataDir, 'icons');
   core.apps = parseApps(readJson(appsFile, complain('apps.json')));
-  /** Each app's icon as a data: address, read from disk once. */
   const iconData = new Map<string, string | null>();
   const iconOf = (id: string): string | null => {
     if (!iconData.has(id)) {
@@ -82,7 +108,6 @@ export function createShell(
     return iconData.get(id) ?? null;
   };
 
-  /** The name a site's icon is kept under while the site is on Home: nothing that can be read back into an address. */
   const siteIconId = (url: string): string =>
     `site-${createHash('sha256')
       .update(siteKey(url) ?? '')
@@ -119,24 +144,21 @@ export function createShell(
   chromeView.setBackgroundColor('#0d1014');
   const chrome = chromeView.webContents;
 
-  // Website views. There is one for the session everything shares, and one
-  // more while an app that keeps its own sign-ins is open. Only one is ever
-  // the page in front; the rest of this file calls that one `page`.
+  // Website views: one for each tab, and one more while an app that keeps
+  // its own sign-ins is open. Only one is ever the page in front; the parts
+  // call that one `core.page`.
   const views = new Map<string, WebContentsView>();
   const wiring: Array<(wc: WebContents) => void> = [];
   const wiredSessions = new Set<Electron.Session>();
   const sessionWiring: Array<(ses: Electron.Session) => void> = [];
-  /** Sets something up on every website view, those made later included. */
   const eachPage = (wire: (wc: WebContents) => void): void => {
     wiring.push(wire);
     for (const view of views.values()) wire(view.webContents);
   };
-  /** The same for every session a website view uses. */
   const eachSession = (wire: (ses: Electron.Session) => void): void => {
     sessionWiring.push(wire);
     for (const ses of wiredSessions) wire(ses);
   };
-  /** Makes the website view for a session: "" is the one everything shares. */
   // A view is known by its place: "" is the first tab, "tab:N" another tab,
   // and anything else is the session of an app that keeps its own sign-ins.
   // Tabs share the one session everything shares; they differ only in page.

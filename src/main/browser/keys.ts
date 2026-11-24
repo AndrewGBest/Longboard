@@ -1,6 +1,9 @@
-// Keys: which ones the shell answers itself, and which go on to the page or to Longboard's screens.
-import { shortcutFor, type Shortcut } from '../../shared/shortcuts';
+// Keys: which ones the shell answers itself (the menu, Quit, speech, the
+// pointer, a desk keyboard's shortcuts), and which it takes from a page for
+// pointer mode or for the keyboard typing into a frame. Also tells each page
+// when another is loading, for the line along its top.
 import { app, type WebContents } from 'electron';
+import { shortcutFor, type Shortcut } from '../../shared/shortcuts';
 import { keyToAction } from '../../layer/input/keys';
 import { strayKeyCode } from '../../shared/player-keys';
 import { mapButton } from '../../shared/settings';
@@ -9,9 +12,13 @@ import { isNotice } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface KeysPart {
+  /** Set while the on-screen keyboard is up for a text field inside a frame. `pointer`: pointer mode was on when it opened. */
   frameField: { pointer: boolean } | null;
+  /** Keys the shell has just sent for that keyboard, which are let through to the frame. */
   sentKeys: { key: string; until: number }[];
+  /** Opens or closes the menu, or the editor's panel while a profile is being edited. Not while a question is up. */
   toggleMenu: () => void;
+  /** When the window lost the screen to another program (away.ts); 0 while it has it. */
   awayAt: number;
   /** Tells every layer the button mappings as they now are; pages opened later get them when they start. */
   sendKeys: () => void;
@@ -61,12 +68,13 @@ export function createKeys(core: Core): Omit<KeysPart, 'frameField' | 'awayAt'> 
   );
   // A key that reaches a website while one of Longboard's own screens is in
   // front (the menu, Settings, Home) belongs to that screen. It should never
-  // happen, since the screen in front is given the keys; Andrew saw it happen
-  // at a TV on 2026-11-23 (the menu open, the keys still moving the page, and
-  // so no way to close the menu), by a road not yet found. Whatever the
-  // road, the key is taken from the page, the screen in front is given the
-  // keys again, and the key is passed on to it. Keys Longboard itself sends
-  // a page (a player's pause as the page is left) are let through.
+  // happen, since the screen in front is given the keys, but it was seen at
+  // a TV on 2026-11-23: the menu open, the keys still moving the page, and so
+  // no way to close the menu. The cause has not been found (DECISIONS.md,
+  // 2026-11-23). Whatever it is, the key is taken from the page, the screen
+  // in front is given the keys again, and the key is passed on to it. Keys
+  // Longboard itself sends a page (a player's pause as the page is left) are
+  // let through.
   core.eachPage((wc) =>
     wc.on('before-input-event', (event, input) => {
       const front = core.active();
@@ -79,7 +87,7 @@ export function createKeys(core: Core): Omit<KeysPart, 'frameField' | 'awayAt'> 
         return;
       }
       event.preventDefault();
-      // The menu key, Quit and the like are acted on by the shell itself, wherever they arrive (below).
+      // The menu key, Quit and the like are acted on by the shell itself, wherever they arrive (watchKeys, below).
       const own = keyToAction(
         { key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift },
         'text',
@@ -283,7 +291,6 @@ export function createKeys(core: Core): Omit<KeysPart, 'frameField' | 'awayAt'> 
       }
     });
   };
-  /** Tells every layer the button mappings as they now are; pages opened later get them when they start. */
   const sendKeys = (): void => {
     for (const wc of [core.chrome, ...[...core.views.values()].map((v) => v.webContents)])
       if (!wc.isDestroyed()) wc.send('longboard:keys', core.config.keys);

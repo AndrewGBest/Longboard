@@ -17,18 +17,19 @@ const TYPES: Record<string, string> = {
 };
 const PAGE =
   '<!doctype html><meta charset="utf-8"><title>Longboard: listening</title><script type="module" src="/voice.js"></script>';
-// Threads in the engine need the page set apart from every other origin.
 const HEADERS = {
   // Its own files only: no other site can be fetched from, sent to, or shown. The engine's own loader builds
   // functions from text, which is why "unsafe-eval" is allowed here, on a page that loads nothing from anywhere else.
   'content-security-policy':
     "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self'; media-src 'self' blob:; base-uri 'none'; form-action 'none'",
+  // Threads in the engine need the page set apart from every other origin: these three do that.
   'cross-origin-opener-policy': 'same-origin',
   'cross-origin-embedder-policy': 'require-corp',
   'cross-origin-resource-policy': 'same-origin',
   'cache-control': 'no-store',
 };
 
+/** What the listening page reports as it goes. */
 export type VoiceEvent =
   | { kind: 'listening' }
   | { kind: 'working' }
@@ -46,6 +47,7 @@ export interface VoiceOptions {
   event: (e: VoiceEvent) => void;
 }
 
+/** The speech model on disk and the hidden page that listens. */
 export class Voice {
   private view: WebContentsView | null = null;
   private pageReady = false;

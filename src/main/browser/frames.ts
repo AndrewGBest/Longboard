@@ -1,4 +1,7 @@
-// Frames inside a page: the layer in each one, full screen, and passing the highlight in and out.
+// Frames inside a page: what the layer in each one says (onFrame), passing
+// the highlight in and out, a player in a frame and its full screen, a text
+// field in a frame, and in a scripted run whether every frame has its
+// purchase guard up (Hard rule 11).
 import { ipcMain, type WebContents } from 'electron';
 import { playerKeyInfo, cdpKey } from '../../shared/player-keys';
 import type { Core } from './core';
@@ -9,7 +12,9 @@ export interface FramesPart {
   framesGuarded: () => boolean;
   /** The middle of the frame the highlight was asked into from the page itself, in view pixels. */
   frameAt: { x: number; y: number } | null;
+  /** Asks every frame of the page to take the highlight; the one with the cursor answers, and `from` is told how it went. */
   askIntoFrame: (from: Electron.WebFrameMain, stay: boolean, again?: boolean) => void;
+  /** Acts on what the layer in a frame inside a page says. */
   onFrame: (event: Electron.IpcMainEvent, what: unknown) => void;
 }
 
@@ -18,7 +23,6 @@ export function createFrames(core: Core): Omit<FramesPart, 'frameAt'> {
   // guard is up, and when the guard stopped something.
   const guarded = new Set<string>();
   const frameKey = (frame: Electron.WebFrameMain): string => `${frame.processId}:${frame.routingId}`;
-  /** True when every frame inside the page has its guard up. */
   const framesGuarded = (): boolean =>
     core.page.mainFrame.framesInSubtree.every((f) => f === core.page.mainFrame || guarded.has(frameKey(f)));
   // The highlight is sent into a frame by whoever holds the frame (the

@@ -10,6 +10,7 @@
 // reaches the phone through the camera, from the code on the TV's screen.
 import nacl from 'tweetnacl';
 
+/** The buttons on the phone's page. */
 export type PhoneKey = 'up' | 'down' | 'left' | 'right' | 'ok' | 'back' | 'menu' | 'delete' | 'enter' | 'playPause';
 export const PHONE_KEYS: readonly PhoneKey[] = [
   'up',
@@ -24,6 +25,7 @@ export const PHONE_KEYS: readonly PhoneKey[] = [
   'playPause',
 ];
 
+/** The few things a phone may say: that it is there, text to type, or one button. */
 export type PhoneMessage = { t: 'hello' } | { t: 'text'; v: string } | { t: 'key'; v: PhoneKey };
 
 export const MAX_PHONE_TEXT = 2000;

@@ -1,11 +1,13 @@
-// The window and its two views: the page view shows websites, the chrome view
-// shows Longboard's own screens (Home, the menu panel, questions). They are
-// separate renderers with separate sessions; a website can never reach the
-// chrome view or the shell (Hard rule 13).
-import { ipcMain } from 'electron';
-import { DECLINED } from './handback';
+// Makes the window. The page view shows websites and the chrome view shows
+// Longboard's own screens (Home, the menu panel, questions): separate
+// renderers with separate sessions, so a website can never reach the chrome
+// view or the shell (Hard rule 13). The work is done by the parts in
+// browser/, put together here in order. This file also decides what the
+// window opens with, and tidies up when it closes.
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { ipcMain } from 'electron';
+import { DECLINED } from './handback';
 import { startingPageUrl } from './navigation';
 import type { Browser, BrowserDeps, Core } from './browser/core';
 import { createShell } from './browser/shell';
@@ -33,9 +35,11 @@ import { createChromeMessages } from './browser/chrome-messages';
 
 export type { Browser, BrowserDeps } from './browser/core';
 
+/** Makes the window and everything in it, and opens what the command line or Settings asked for. */
 export function createBrowser(deps: BrowserDeps): Browser {
-  // Each part adds to `core` what the later ones (and, once running, the earlier ones) use.
-  // The order matters: a part's set-up may use what the parts above it made.
+  // Each part adds to `core` what the later ones use and, once running, the
+  // earlier ones too. The order matters: a part's set-up may use only what
+  // the parts above it made.
   const core = { deps } as Core;
   Object.assign(core, createShell(core));
   Object.assign(core, createState(core));

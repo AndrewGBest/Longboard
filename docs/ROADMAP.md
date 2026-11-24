@@ -29,9 +29,22 @@ it needs features.
 2. **Move to each castLabs Electron release promptly** (Hard rule 14). The
    December 2026 one is expected to fix the engine's wrong answer about
    AC-3 sound, after which the stopgap in `src/shared/audio-truth.ts` goes.
-3. **Signed releases.** Today GitHub's digests are the only check.
-4. **Safe Browsing or an equivalent**, if one can be had on terms an
+3. **Signed releases.** From 0.3.28 a release carries checksums and a
+   build attestation and cannot be altered once published; a signature
+   with a key of the project's own is still to do.
+4. **Electron's fuses.** The packaged engine still accepts the switches
+   that make it run as plain Node (`ELECTRON_RUN_AS_NODE` and the like).
+   Electron's security checklist says to turn them off in the package;
+   that changes the package and needs a release's worth of testing.
+5. **Safe Browsing or an equivalent**, if one can be had on terms an
    open-source project can meet. Until then the README says it is missing.
+
+For the code:
+
+- Narrow what each part of the shell and of the layer takes from `core`
+  (ARCHITECTURE.md 2.1): the parts were separated on 2026-11-24 without
+  being untangled.
+- Split `test/e2e/run.mjs` (one long file of scenarios) by subject.
 
 Then, as they are asked for:
 

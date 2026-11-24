@@ -1,10 +1,10 @@
 // The smaller panels: find in page, the PIN, reader view, tabs, history, downloads, About, questions, typing from a phone.
-import { PRODUCT } from '../../shared/product';
-import { type ChromeState } from '../../shared/chrome';
 import { aboutTitle, BACKGROUND, HELP, NOTICE, SHORTCUT_HELP } from '../../shared/about';
+import { type ChromeState } from '../../shared/chrome';
+import { PRODUCT } from '../../shared/product';
 import { button, el, heading, icon, note, row } from '../parts';
-import { tell, ui } from './ui';
 import { render } from './render';
+import { tell, ui } from './ui';
 
 /** Find words on the page in front: a field, and next and previous. What was typed stays while the panel is open. */
 export function findPanel(): Node[] {
@@ -41,6 +41,8 @@ export function findPanel(): Node[] {
     row('find-close', 'Close', () => tell({ kind: 'menu', action: 'close' }), { cls: 'quiet' }),
   ];
 }
+
+/** A dot for each of the four digits, filled for those entered. The digits themselves are never drawn. */
 function pinDots(): HTMLElement {
   const dots = el(
     'p',
@@ -51,6 +53,8 @@ function pinDots(): HTMLElement {
   dots.setAttribute('aria-label', `${ui.pinDigits.length} of 4 digits entered`);
   return dots;
 }
+
+/** One press on the PIN screen: a digit or 'delete'. The fourth digit sends the PIN to the shell and empties the dots. */
 export function pinKey(key: string): void {
   if (ui.state?.panel !== 'pin') return;
   if (key === 'delete') ui.pinDigits = ui.pinDigits.slice(0, -1);
@@ -62,6 +66,7 @@ export function pinKey(key: string): void {
   }
   document.getElementById('pin-dots')?.replaceWith(pinDots());
 }
+
 /** The PIN screen: ten digits to press with OK (or the number buttons of a remote), shown only as dots. */
 export function pinPanel(s: ChromeState): Node[] {
   const p = s.pin;
@@ -96,6 +101,7 @@ export function pinPanel(s: ChromeState): Node[] {
 /** How big the reader view's words are; kept while Longboard is open. */
 const READER_SIZES = [3, 3.6, 4.4, 5.4, 6.6] as const;
 let readerSize = 1;
+
 /** Reader view: the words of the article, big, on a screen of their own. Up and Down move through it. */
 export function readerPanel(s: ChromeState): Node[] {
   const r = s.reader;
@@ -161,7 +167,8 @@ export function tabsPanel(s: ChromeState): Node[] {
   items.push(row('tabs-close', 'Close this list', () => tell({ kind: 'menu', action: 'close' }), { cls: 'quiet' }));
   return items;
 }
-/** The pages opened lately, under the day they were opened. Pressing one opens it; the cross beside it takes it out. */
+
+/** The history's rows that have the words searched for, under the day each was opened. At most 80 are drawn. */
 function historyRows(s: ChromeState): Node[] {
   const words = ui.historyWords.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const all = s.history ?? [];
@@ -187,6 +194,8 @@ function historyRows(s: ChromeState): Node[] {
   if (!shown && all.length) items.push(note('No page in the history has those words.'));
   return items;
 }
+
+/** The pages opened lately. Pressing one opens it; the cross beside it takes it out of the history. */
 export function historyPanel(s: ChromeState): Node[] {
   const items: Node[] = [heading('History', 'history')];
   const list = s.history ?? [];
@@ -232,6 +241,7 @@ export function downloadsPanel(s: ChromeState): Node[] {
   return items;
 }
 
+/** About and help: the notice, what each button does, and what is fetched in the background (Hard rule 12). */
 export function aboutPanel(s: ChromeState): Node[] {
   const list = el('dl');
   for (const [keys, what] of HELP) list.append(el('dt', { text: what }), el('dd', { text: keys }));
@@ -250,6 +260,10 @@ export function aboutPanel(s: ChromeState): Node[] {
   ];
 }
 
+/**
+ * A question from the shell that needs a yes or a no. The no always has the
+ * id 'prompt-deny', which is where render() puts the highlight first.
+ */
 export function promptPanel(s: ChromeState): Node[] {
   const answer = (allow: boolean) => (): void => tell({ kind: 'answer', allow });
   const lead = (text: string): HTMLElement => el('p', { cls: 'lead', text });

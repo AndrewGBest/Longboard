@@ -4,7 +4,7 @@ import type { Action, Direction } from '../../shared/actions';
 import { actionFor, type ActionName } from '../../shared/config';
 import type { Mode } from './keys';
 
-// Standard Gamepad mapping button indices.
+/** Button numbers in the browser's "standard" gamepad mapping. */
 export const Btn = {
   A: 0,
   B: 1,
@@ -28,11 +28,15 @@ const STICK_DOWN = 101;
 const STICK_LEFT = 102;
 const STICK_RIGHT = 103;
 
+/** How far the stick must be pushed, of its full travel, to count as a direction. */
 export const AXIS_THRESHOLD = 0.5;
+/** A held direction repeats after this long, and then this often. */
 export const REPEAT_DELAY_MS = 500;
 export const REPEAT_INTERVAL_MS = 100;
+/** Seconds skipped by one press of a seek button. */
 const SEEK_STEP = 10;
 
+/** Buttons that repeat while held. The rest fire once for each press. */
 const REPEATABLE = new Set<number>([
   Btn.Up,
   Btn.Down,
@@ -87,6 +91,7 @@ export function buttonToAction(
   }
 }
 
+/** One reading of a pad: which buttons are down and where the sticks are. */
 export interface PadSnapshot {
   buttons: readonly boolean[];
   axes: readonly number[];
@@ -135,8 +140,8 @@ export class RepeatTracker {
   }
 }
 
-// Steam Input presents one virtual pad; when present it is the only one we read,
-// otherwise a physical pad and its Steam twin would both fire.
+// Steam Input presents one virtual pad. When it is there it is the only one
+// read: otherwise a physical pad and its Steam twin would both fire.
 const STEAM_VIRTUAL_PAD = /Vendor: 28de Product: 11ff/i;
 
 /** The directions held on the D-pad or the left stick, in a fixed order. */
@@ -158,6 +163,10 @@ export interface PointerPad {
   held: (dirs: Direction[]) => void;
 }
 
+/**
+ * Reads the connected pads every frame and dispatches what their buttons
+ * mean. Returns the function that stops it.
+ */
 export function startPolling(
   view: Window,
   getMode: () => Mode,

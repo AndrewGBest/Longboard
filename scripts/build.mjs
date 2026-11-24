@@ -1,7 +1,8 @@
-// Bundles the entry points. Each output is a single file so the sandboxed
-// preloads never need `require` at runtime.
+// Builds dist/: bundles each entry point and copies the two files that are
+// used as they are. Each output is a single file so the sandboxed preloads
+// never need `require` at runtime.
+import { copyFile, mkdir } from 'node:fs/promises';
 import { build } from 'esbuild';
-import { mkdir, copyFile } from 'node:fs/promises';
 
 const common = {
   bundle: true,
@@ -12,6 +13,7 @@ const common = {
 
 await mkdir('dist', { recursive: true });
 
+// The shell (the main process).
 await build({
   ...common,
   entryPoints: ['src/main/index.ts'],

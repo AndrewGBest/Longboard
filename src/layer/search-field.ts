@@ -9,11 +9,12 @@ const SELECTOR =
 /** Attributes that are read for the word; what was typed (`value`) and addresses are not. */
 const SKIP = new Set(['value', 'href', 'src', 'style', 'autocomplete', 'type']);
 
+/** True when the field's own markup says it is a search box. */
 export function looksLikeSearch(el: Element): boolean {
   try {
     if (el.matches(SELECTOR)) return true;
   } catch {
-    // a browser that cannot read the selector: go by the attributes
+    // A browser that cannot read the selector: go by the attributes.
   }
   // Sites name the box in whatever attribute they use for their own code
   // (a name, an id, a label, a placeholder, a test hook).

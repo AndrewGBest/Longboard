@@ -2,8 +2,8 @@
 // while the person has turned it on. It serves one page and its script, and
 // takes sealed messages (shared/phone.ts). Nothing else is answered. What
 // arrives is handed on only after it has been opened with this run's key.
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { networkInterfaces } from 'node:os';
 import {
   homeAddress,
@@ -15,6 +15,7 @@ import {
   type PhoneMessage,
 } from '../shared/phone';
 
+/** Sent with every answer: nothing is cached, and the page may load and reach only this server. */
 const SECURITY = {
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'no-referrer',
@@ -23,6 +24,7 @@ const SECURITY = {
     "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
 };
 
+/** The server a phone talks to. One phone session at a time; `start` makes a new key. */
 export class PhoneTyping {
   private server: Server | null = null;
   private key = '';
@@ -54,18 +56,22 @@ export class PhoneTyping {
     return this.server ? phoneUrl(this.address, this.port, this.key) : null;
   }
 
-  /** Starts listening on this machine's home-network address. False when there is no network. */
+  /**
+   * Starts listening on this machine's home-network address. False when
+   * there is no network. `only` and `key` are for a scripted run, which
+   * names the address to listen on and brings its own key.
+   */
   async start(only?: string, key?: string): Promise<boolean> {
     if (this.server) return true;
     const address = only ?? homeAddress(networkInterfaces());
     if (!address) return false;
-    let page: Buffer;
+    let scriptBytes: Buffer;
     try {
-      page = readFileSync(this.script);
+      scriptBytes = readFileSync(this.script);
     } catch {
       return false;
     }
-    const server = createServer((req, res) => this.answer(req, res, page));
+    const server = createServer((req, res) => this.answer(req, res, scriptBytes));
     server.on('clientError', (_err, socket) => socket.destroy());
     const ok = await new Promise<boolean>((resolve) => {
       server.once('error', () => resolve(false));
@@ -83,6 +89,7 @@ export class PhoneTyping {
     return true;
   }
 
+  /** Stops listening and forgets the key, so the address that was scanned stops working. */
   stop(): void {
     this.server?.closeAllConnections();
     this.server?.close();
@@ -91,6 +98,7 @@ export class PhoneTyping {
     this.heard = false;
   }
 
+  /** The three things answered: the page, its script, and a sealed message. Everything else is a 404. */
   private answer(req: IncomingMessage, res: ServerResponse, script: Buffer): void {
     const path = (req.url ?? '').split('?')[0];
     if (req.method === 'GET' && path === '/') {

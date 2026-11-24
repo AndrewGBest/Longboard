@@ -1,24 +1,26 @@
 // Sandboxed preload of the page view. The whole layer runs here, in the
-// isolated world. Nothing is exposed to the page: there is no contextBridge
-// API, so site scripts cannot call into the app.
+// isolated world: it starts the layer in the top frame, a smaller one in a
+// frame the highlight is sent into, and passes the shell's messages to it.
+// Nothing is exposed to the page (Hard rule 13): no API is put in the page's
+// world, so site scripts cannot call into the app.
 import { contextBridge, ipcRenderer } from 'electron';
-import { correctAudioAnswers } from '../shared/audio-truth';
-import { correctVideoAnswers } from '../shared/video-truth';
-import { fillLogin, watchLogins } from '../layer/logins';
-import type { Action, BootData, BridgeMessage, EditView, PointerSpot } from '../shared/actions';
-import { rulesFromUntrusted } from '../layer/profile/rules';
+import { Referee } from '../layer/diagnostics/referee';
 import { installPurchaseGuard } from '../layer/guard/purchase-guard';
 import { startLayer, type Layer } from '../layer/index';
+import { fillLogin, watchLogins } from '../layer/logins';
+import { rulesFromUntrusted } from '../layer/profile/rules';
 import { readArticle } from '../layer/reader';
-import { Referee } from '../layer/diagnostics/referee';
 import { HOST_TAG } from '../layer/ui/overlay';
+import type { Action, BootData, BridgeMessage, EditView, PointerSpot } from '../shared/actions';
+import { correctAudioAnswers } from '../shared/audio-truth';
 import { isSecretField } from '../shared/osk';
+import { correctVideoAnswers } from '../shared/video-truth';
 
 /**
- * Inside an embedded frame there is no layer. The one thing done there, and
- * only in a scripted run, is the purchase guard: pointer mode sends real
- * clicks, and those reach frames too (Hard rule 11). The frame tells the
- * shell the guard is up, so the shell knows a click there will be checked.
+ * In an embedded frame, in a scripted run, the purchase guard goes up at
+ * once: pointer mode sends real clicks, and those reach frames too (Hard
+ * rule 11). The frame tells the shell the guard is up, so the shell knows a
+ * click there will be checked.
  */
 function guardFrame(): void {
   if (!process.argv.includes('--longboard-automation')) return;
@@ -34,7 +36,7 @@ function guardFrame(): void {
 }
 
 /**
- * The other thing done in a frame: saying when a click (pointer mode's, or a
+ * Also done in every frame: saying when a click (pointer mode's, or a
  * mouse's) has put the cursor in a text field there, and when it has left,
  * so the on-screen keyboard can come up for it. A sign-in prompt is often a
  * frame from the service's own sign-in site. Only that a field has the
@@ -164,15 +166,12 @@ function frameLayer(sayField: (el: Element) => void): void {
   });
 }
 
-// In a scripted run the guard goes up now, before any of the page's own
-// scripts have run, so nothing the page sets up can get in ahead of it.
-// What it says when it stops something waits for the layer to exist.
 // On Linux the engine says it can play two kinds of sound it cannot decode.
 // The answer is put right in the page's own world before the page's scripts
 // run, in every frame (shared/audio-truth.ts). Nothing is exposed to the
 // page by this: one function is run there once and nothing of Longboard's
 // stays reachable.
-// And on every system it says yes to any picture size or frame rate a page
+// On every system it says yes to any picture size or frame rate a page
 // names, the impossible included (shared/video-truth.ts).
 try {
   const inPage = (func: () => void): void =>
@@ -182,9 +181,12 @@ try {
   if (process.platform === 'linux') inPage(correctAudioAnswers);
   inPage(correctVideoAnswers);
 } catch {
-  // an engine without this call: pages get the engine's own answers
+  // An engine without this call: pages get the engine's own answers.
 }
 
+// In a scripted run the guard goes up now, before any of the page's own
+// scripts have run, so nothing the page sets up can get in ahead of it.
+// What it says when it stops something waits for the layer to exist.
 const scripted = process.argv.includes('--longboard-automation');
 const guarded: string[] = [];
 let sayBlocked: () => void = () => undefined;
@@ -198,6 +200,7 @@ function replaceKeys(into: Record<string, string>, keys: unknown): void {
     if (typeof action === 'string') into[key] = action;
 }
 
+/** Starts the layer in the top frame and wires the shell's messages to it. */
 const start = (): void => {
   if (window.top !== window) return;
   // Asked for when the page starts, so the shell can choose by the page's address.
@@ -321,7 +324,7 @@ const start = (): void => {
     const answer = layer.mayClickAt(ask.x, ask.y);
     if (answer !== 'no') send({ kind: 'pointerClickOk', id: ask.id, frame: answer === 'frame' });
   });
-  // The profile editor (see main/browser.ts): pick what is at a point, draw
+  // The profile editor (see main/browser/profile-editor.ts): pick what is at a point, draw
   // the marks, and drive the page by the draft as it changes.
   ipcRenderer.on('longboard:edit-pick', (_event, at: { x: number; y: number }) => {
     if (at && typeof at.x === 'number' && typeof at.y === 'number') layer.editPick(at.x, at.y);
@@ -353,7 +356,7 @@ const start = (): void => {
       try {
         article = readArticle(document);
       } catch {
-        // a page that cannot be read has no article
+        // A page that cannot be read has no article.
       }
       send({ kind: 'reader', article });
       return;

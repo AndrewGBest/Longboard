@@ -8,10 +8,13 @@ import type { Core } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface AppsPart {
+  /** Writes the app's entry in the desktop's app list. False when it could not be written. */
   writeAppLauncher: (item: WebApp) => boolean;
   /** Adds the site in front as an app (DESIGN.md 4.2). */
   addCurrentAsApp: (wanted: { name: string; ownSession: boolean; launcher: boolean }) => Promise<void>;
+  /** Removes an app with its entry in the app list, its icon and, if it kept its own sign-ins, what it stored. */
   removeAppById: (id: string) => void;
+  /** Opens an app by its id; false when there is none. */
   openApp: (id: string) => boolean;
 }
 
@@ -40,7 +43,6 @@ export function createApps(core: Core): AppsPart {
   // an older version wrote where no desktop looked is put right.
   for (const item of core.apps) if (item.launcher) writeAppLauncher(item);
 
-  /** Adds the site in front as an app (DESIGN.md 4.2). */
   const addCurrentAsApp = async (wanted: { name: string; ownSession: boolean; launcher: boolean }): Promise<void> => {
     const url = core.page.getURL();
     const added = addApp(core.apps, { url, ...wanted });

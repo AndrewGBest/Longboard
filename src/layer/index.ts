@@ -1,32 +1,37 @@
 // Entry point of the page-side layer. Runs in the preload's isolated world:
 // it shares the DOM with the site but not its JavaScript, so the site cannot
 // tamper with it and it does not modify the site's own scripts.
-import { type SiteRules } from './profile/rules';
+//
+// startLayer puts the parts in parts/ together, starts the timers that
+// belong to no one part, and returns what the preload may ask of the layer.
 import { elementAt, matchesOf, pickChain } from './edit/selector';
 import { installPurchaseGuard, isSpendControl } from './guard/purchase-guard';
 import { startPolling } from './input/gamepad';
-import { deepActiveElement } from './spatial/deep';
-import { isPlayerActive, playerScope } from './player';
-import { HOST_TAG } from './ui/overlay';
-import type { LayerDeps, Layer, LayerCore } from './parts/core';
-import { isTextEntry } from './parts/core';
-import { createPage } from './parts/page';
-import { createMoving } from './parts/moving';
-import { createFrames } from './parts/frames';
-import { createKeyboard } from './parts/keyboard';
-import { createPageKeys } from './parts/page-keys';
-import { createDialogs } from './parts/dialogs';
-import { createPlayerControls } from './parts/player-controls';
 import { createBack } from './parts/back';
-import { createSearch } from './parts/search';
+import type { Layer, LayerCore, LayerDeps } from './parts/core';
+import { isTextEntry } from './parts/core';
+import { createDialogs } from './parts/dialogs';
 import { createDispatch } from './parts/dispatch';
+import { createFrames } from './parts/frames';
 import { createInput } from './parts/input';
+import { createKeyboard } from './parts/keyboard';
+import { createMoving } from './parts/moving';
+import { createPage } from './parts/page';
+import { createPageKeys } from './parts/page-keys';
+import { createPlayerControls } from './parts/player-controls';
+import { createSearch } from './parts/search';
+import { isPlayerActive, playerScope } from './player';
+import type { SiteRules } from './profile/rules';
+import { deepActiveElement } from './spatial/deep';
+import { HOST_TAG } from './ui/overlay';
 
 export type { LayerDeps, Layer } from './parts/core';
 
+/** Starts the layer on a page (or on one of Longboard's own screens) and returns the handle to it. */
 export function startLayer(deps: LayerDeps): Layer {
-  // Each part adds to `core` what the later ones (and, once running, the earlier ones) use.
-  // The order matters: a part's set-up may use what the parts above it made.
+  // Each part adds to `core` what the later ones (and, once running, the
+  // earlier ones) use. The order matters: a part's set-up may use what the
+  // parts above it made.
   const core = { deps } as LayerCore;
   Object.assign(core, createPage(core));
   Object.assign(core, createMoving(core));

@@ -1,5 +1,7 @@
-// Mechanical enforcement of the Hard rules in CLAUDE.md. This catches the
-// obvious slips; it does not replace reading the rules.
+// Mechanical enforcement of the Hard rules in CLAUDE.md, run by `npm run
+// check`. It looks at every file git knows about, by name and by matching
+// source text. This catches the obvious slips; it does not replace reading
+// the rules.
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
@@ -32,11 +34,12 @@ const BANNED_NAMES = /(^|\/)(cookies?(\.txt|\.json|\.sqlite)?|Login Data|Local S
 
 const TEXT_EXT = new Set(['.ts', '.mjs', '.js', '.json', '.css', '.html', '.yml', '.yaml']);
 const SELF = 'scripts/check-rules.mjs';
-// Rule 3, as amended 2026-11-21: Longboard's honest identity, and for a site
-// whose profile says "tv", the same identity plus "Longboard running as a TV";
-// as amended 2026-11-23, the two measured exceptions written in that module.
+// Rule 3: the one module that may word an identity or set one on a view. It
+// holds the honest identity and the two measured exceptions.
 const IDENTITY_MODULE = 'src/main/useragent.ts';
 
+// Each check is [rule, pattern, what a match means]. A file fails a check
+// when the pattern matches anywhere in its text, comments included.
 const CODE_CHECKS = [
   // Rule 2
   [
@@ -50,9 +53,9 @@ const CODE_CHECKS = [
     /SMART-TV|Smart-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|AFT[A-Z]|Android TV|PlayStation|Xbox|Windows NT|Macintosh|CrOS/,
     'looks like a spoofed device or OS identity',
   ],
-  // Rule 3 as amended 2026-11-23: the TV engine may be named, in the one identity module and nowhere else.
+  // Rule 3: the TV engine may be named in the identity module and nowhere else.
   [3, /Cobalt\/|Starboard\//, 'names the TV engine outside the one module that may'],
-  // Rule 3: what a view says it is, is decided in one module (see IDENTITY_MODULE below).
+  // Rule 3: what a view says it is, is decided in one module (IDENTITY_MODULE above).
   [3, /setUserAgent\(|userAgent:\s|User-Agent/, 'sets a user agent outside the one module that may'],
   // Rule 5: blocking refuses requests; it never skips advertising inside a stream.
   [5, /skipAd|sponsorblock/i, 'skips advertising inside a video'],
@@ -113,7 +116,7 @@ for (const file of files) {
   }
 }
 
-// Rule 3: a profile says "tv" and nothing more. The format has no key that carries an identity.
+// Rule 3: a profile says "tv" or "tv-browser" and nothing more. The format has no key that carries an identity.
 {
   const format = readFileSync('src/shared/profile.ts', 'utf8');
   if (/userAgent|user_agent|['"]identity['"]/.test(format))
@@ -159,6 +162,7 @@ for (const file of files.filter((f) => /^profiles\/[^/]+\/profile\.json$/.test(f
     if (lines.length === 0) fail(8, `${folder}/${outline}`, 'is empty');
   }
 }
+// Rule 8: there is no second home for site selectors.
 for (const file of files) {
   if (/(^|\/)adapters\//.test(file)) fail(8, file, 'site selectors live in profiles/, with their outline');
 }

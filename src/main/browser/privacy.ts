@@ -1,4 +1,7 @@
-// What a page is told and what is refused: ad blocking, identity, privacy signals, extensions.
+// What a page is told and what is refused: ad blocking by refusing requests
+// (Hard rule 5), what each view says it is (Hard rule 3; the wording lives in
+// main/useragent.ts and nowhere else), the privacy signals, and setting up
+// extensions.
 import { app, type WebContents } from 'electron';
 import { deviceOf } from '../../shared/profile';
 import { buildYear, chipName, identityFor, systemName, tvBrowserUserAgent, tvUserAgent } from '../useragent';
@@ -9,7 +12,7 @@ import type { Core } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface PrivacyPart {
-  /** Puts those settings into effect again after one was changed. */
+  /** Puts the privacy settings into effect again after one was changed. */
   applyPrivacy: () => void;
 }
 
@@ -27,12 +30,9 @@ export function createPrivacy(core: Core): PrivacyPart {
       return true;
     }),
   );
-  // The privacy settings that act on every website view: the two "do not
-  // track" signals (main/signals.ts), and keeping the device's address on the
-  // home network from sites that set up calls.
   // What a view says it is: Longboard's honest identity, and for a site
   // whose profile asks for its TV interface, that plus "running as a TV"
-  // (main/useragent.ts; rule 3 as amended 2026-11-21).
+  // (main/useragent.ts; Hard rule 3; DECISIONS.md, 2026-11-21 and 2026-11-23).
   const honestAgent = app.userAgentFallback;
   const identity = identityFor(
     honestAgent,
@@ -53,6 +53,9 @@ export function createPrivacy(core: Core): PrivacyPart {
       if (details.isMainFrame && !details.isSameDocument) identity.follow(wc, details.url);
     }),
   );
+  // The privacy settings that act on every website view: the two "do not
+  // track" signals (main/signals.ts), and keeping the device's address on the
+  // home network from sites that set up calls.
   const signalSession = (web: Electron.Session): void =>
     privacySignals(web, core.config.doNotTrack === true, identity.header);
   const guardAddress = (wc: WebContents): void => {
@@ -70,7 +73,6 @@ export function createPrivacy(core: Core): PrivacyPart {
     setInterval(refresh, 24 * 60 * 60 * 1000).unref();
   });
   core.eachPage(guardAddress);
-  /** Puts those settings into effect again after one was changed. */
   const applyPrivacy = (): void => {
     for (const web of core.wiredSessions) signalSession(web);
     for (const view of core.views.values()) guardAddress(view.webContents);

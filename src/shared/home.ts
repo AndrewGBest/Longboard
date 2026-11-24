@@ -46,7 +46,7 @@ export function addRecent(list: readonly RecentSite[], url: string, now: number)
   return [entry, ...list.filter((r) => siteKey(r.url) !== key)].slice(0, MAX_RECENTS);
 }
 
-/** The list with the title of the entry for `url`'s site set, when that entry is for exactly `url`'s site. */
+/** The list with the title set on the entry for `url`'s site. */
 export function titleRecent(list: readonly RecentSite[], url: string, title: string): RecentSite[] {
   const key = siteKey(url);
   return list.map((r) => (key && siteKey(r.url) === key ? { ...r, title: clean(title, 120) } : r));

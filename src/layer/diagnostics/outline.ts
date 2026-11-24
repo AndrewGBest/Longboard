@@ -1,8 +1,10 @@
-// Produces a structural outline of the current page for writing site-adapter
-// selectors. The outline must be safe to share: it carries NO text content,
-// no titles, no names, no image or link targets, and no cookies or storage.
-// Only tag names, a small allowlist of structural attributes, and lengths.
+// Produces a structural outline of the current page: the evidence a
+// profile's selectors are written from (Hard rule 8). The outline must be
+// safe to share (Hard rule 12): it carries no text content, no titles, no
+// names, no image or link targets, and no cookies or storage. Only tag
+// names, a small allowlist of structural attributes, and lengths.
 
+/** Tags that say nothing about the page's structure, or (the last three) would list every stroke of a drawing. */
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'LINK', 'META', 'HEAD', 'PATH', 'DEFS', 'G']);
 
 /** Attributes copied verbatim. All are structural, none carry user content. */
@@ -43,6 +45,7 @@ const REDACTED = new Set([
   'value',
 ]);
 
+// Limits that keep the outline of a very large page to a size that can be read and shared.
 const MAX_NODES = 4000;
 const MAX_DEPTH = 40;
 const MAX_CLASS_CHARS = 120;
@@ -94,10 +97,12 @@ export function maskIdentifier(value: string): string {
   return head && maskToken(head) === head ? `${head}-:text` : ':text';
 }
 
+/** A list of classes or attribute words, each masked, cut to a fixed length. */
 function maskList(value: string): string {
   return value.split(/\s+/).filter(Boolean).map(maskToken).join(' ').slice(0, MAX_CLASS_CHARS);
 }
 
+/** One line of the outline: the tag, its masked id and classes, the allowed attributes, and how much text it holds. */
 function describe(el: Element): string {
   const parts: string[] = [el.tagName.toLowerCase()];
   if (el.id) parts.push(`#${maskIdentifier(el.id)}`);
@@ -121,6 +126,7 @@ function describe(el: Element): string {
   return parts.join('');
 }
 
+/** The outline of everything under `root`, one indented line for each element. */
 export function buildOutline(root: Element): string {
   const lines: string[] = [];
   let count = 0;

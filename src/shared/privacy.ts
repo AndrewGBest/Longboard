@@ -1,12 +1,11 @@
 // "Ask sites not to track": the two standard signals a browser can send with
 // its requests. Pure, so what is sent is unit-tested.
 //
-// This is the one place Longboard adds anything to what it sends a site, by
-// Andrew's decision of 2026-11-18 (docs/DECISIONS.md). Both are fixed values
-// defined by public specifications for exactly this purpose, they say nothing
-// about the person or the device, and they are sent to every site alike or to
-// none. Nothing a site sends back is touched, and no other header is added,
-// changed or removed.
+// These are the only headers Longboard adds to what it sends a site
+// (docs/DECISIONS.md, 2026-11-18). Both are fixed values defined by public
+// specifications for exactly this purpose, they say nothing about the person
+// or the device, and they are sent to every site alike or to none. Nothing a
+// site sends back is touched, and no other header is added or removed.
 
 /** The headers added when the person turns the setting on. */
 export const SIGNAL_HEADERS: Readonly<Record<string, string>> = {

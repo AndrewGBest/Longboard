@@ -1,19 +1,19 @@
-// What the menu's and Settings' entries do.
+// What the menu's entries and the Settings screen's buttons do. Also
+// clearSiteData, which the shell calls for "clear when Longboard closes".
 import { app, session } from 'electron';
 import { join } from 'node:path';
 import { type MenuAction, type SettingsAction } from '../../shared/chrome';
 import { addSaved, removeSaved } from '../../shared/home';
 import { removableFolders } from '../../platform';
 import { appFor, appPartition } from '../../shared/apps';
-
 import { storeExtensionId } from '../../shared/extensions';
-
 import { PRODUCT } from '../../shared/product';
 import type { Core } from './core';
 import { isNotice } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface MenuPart {
+  /** Does a menu entry. One that changes what is on Home asks for the PIN first while Home decides which sites open. */
   menu: (action: MenuAction) => void;
   /** Clears what every site has stored (cookies and the rest) and the saved copies of pages, in every session. */
   clearSiteData: () => Promise<void>;
@@ -296,7 +296,6 @@ export function createMenu(core: Core): MenuPart {
         break;
     }
   };
-  /** Clears what every site has stored (cookies and the rest) and the saved copies of pages, in every session. */
   const clearSiteData = async (): Promise<void> => {
     // By name, not through the views: this also runs as the program closes, when the views are gone.
     const all = [
@@ -307,7 +306,6 @@ export function createMenu(core: Core): MenuPart {
       all.flatMap((s) => [s.clearStorageData().catch(() => undefined), s.clearCache().catch(() => undefined)]),
     );
   };
-  /** The buttons on the Settings screen that do something once, as against changing a setting. */
   const settingsAction = (action: SettingsAction): void => {
     const webSessions = (): Electron.Session[] => [
       (core.views.get(core.lastTab) ?? core.pageView).webContents.session,

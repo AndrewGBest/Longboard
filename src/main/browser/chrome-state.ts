@@ -1,10 +1,13 @@
-// What Longboard's own screens are told to show: one state object, built from everything else.
+// What Longboard's own screens are told to show: one state object built from
+// everything else (chromeState), and the sending of it (refreshChrome). The
+// file starts with search suggestions for the address field, and also holds
+// the folder chooser's listing and `active`, which says which view has the keys.
+import { readdirSync, statSync } from 'node:fs';
+import { basename, dirname } from 'node:path';
 import { app, net, type WebContents } from 'electron';
 import { voiceModelSize } from '../../shared/voice';
 import { loginPlace } from '../../shared/passwords';
 import { HAND_BACKS } from '../handback';
-import { readdirSync, statSync } from 'node:fs';
-import { basename, dirname } from 'node:path';
 import { siteName, DEFAULT_SEARCH } from '../../shared/address';
 import { type ChromeState } from '../../shared/chrome';
 import { EDIT_MARKS, hasMark, marksOf } from '../../shared/editor';
@@ -26,21 +29,27 @@ import { isNotice } from './core';
 export interface ChromeStatePart {
   /** Sends Longboard's own screens the state as it is now. */
   refreshChrome: () => void;
+  /** The search addresses last offered as suggestions. A suggestion is opened only if it is one of these or a place already known. */
   offeredSearches: Set<string>;
+  /** What the search site suggests for the words being typed. Nothing when the setting is off, for an address, or in a private tab. */
   searchSuggestions: (typed: string) => Promise<string[]>;
   /** The pages that are still arriving: each is told, so it can show that, and the menu offers Stop. */
   arriving: WeakSet<Electron.WebContents>;
   /** The addresses of the tabs closed lately, newest last, so one can be opened again. Private tabs are never in it. */
   closedTabs: string[];
+  /** Everything Longboard's own screens need to draw themselves, as it is now. */
   chromeState: () => ChromeState;
+  /** True for an absolute path to a folder that is there. */
   isFolder: (path: unknown) => path is string;
+  /** The view that has the keys: Longboard's own screens on Home or while a panel is open, else the page. */
   active: () => WebContents;
 }
 
 export function createChromeState(core: Core): Omit<ChromeStatePart, 'offeredSearches'> {
-  // On, the words typed in the address field go to the search site as they
-  // are typed. Never an address, never from a private tab, with no cookies,
-  // and only the newest question is waited for.
+  // Search suggestions. With the setting on, the words typed in the address
+  // field go to the search site as they are typed. Never an address, never
+  // from a private tab, with no cookies, and only the newest question is
+  // waited for.
   core.offeredSearches = new Set<string>();
   let suggestAsk: AbortController | null = null;
   let suggestTimer: NodeJS.Timeout | undefined;
@@ -68,7 +77,6 @@ export function createChromeState(core: Core): Omit<ChromeStatePart, 'offeredSea
     });
   };
 
-  /** The pages that are still arriving: each is told, so it can show that, and the menu offers Stop. */
   const arriving = new WeakSet<WebContents>();
   /** The addresses of the tabs closed lately, newest last, so one can be opened again. Private tabs are never in it. */
   const closedTabs: string[] = [];
@@ -355,7 +363,6 @@ export function createChromeState(core: Core): Omit<ChromeStatePart, 'offeredSea
   };
 
   const active = (): WebContents => (core.surface === 'home' || core.panel ? core.chrome : core.page);
-  /** Sends Longboard's own screens the state as it is now. */
   const refreshChrome = (): void => {
     if (!core.chrome.isDestroyed()) core.chrome.send('longboard:chrome-state', chromeState());
   };

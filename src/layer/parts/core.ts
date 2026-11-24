@@ -1,15 +1,8 @@
 // The layer is one object, built from the parts in this folder. Each part's
 // file says what it adds; this file puts those together as one type, and
 // holds what every part may need: what the layer is started with, and a few constants.
-import {
-  type Action,
-  type BridgeMessage,
-  type EditView,
-  type LayerOptions,
-  type PointerSpot,
-} from '../../shared/actions';
-import { type SiteRules } from '../profile/rules';
-
+import type { Action, BridgeMessage, EditView, LayerOptions, PointerSpot } from '../../shared/actions';
+import type { SiteRules } from '../profile/rules';
 import type { PagePart } from './page';
 import type { MovingPart } from './moving';
 import type { FramesPart } from './frames';
@@ -22,11 +15,13 @@ import type { SearchPart } from './search';
 import type { DispatchPart } from './dispatch';
 import type { InputPart } from './input';
 
+/** What a layer is started with. */
 export interface LayerDeps {
   doc: Document;
   options: LayerOptions;
   /** What the profile for this site says, or the empty rules of generic mode. */
   rules: SiteRules;
+  /** Says something to the shell. */
   send: (msg: BridgeMessage) => void;
   /** Longboard's own screens answer some keys themselves. */
   hooks?: {
@@ -48,11 +43,12 @@ export interface LayerDeps {
 }
 
 /**
- * Controls that lead to search when the adapter names none, or names one the
+ * Controls that lead to search when the profile names none, or names one the
  * site has since renamed: a link whose address says search. Only a link, so
  * nothing is pressed whose effect is not written on it.
  */
 export const GENERIC_SEARCH_OPEN = ['a[href$="/search" i]', 'a[href*="/search?" i]'];
+/** Where a search field is looked for when the profile names none, or names one that is not showing. */
 export const GENERIC_SEARCH = [
   'input[type="search"]',
   '[role="search"] input',
@@ -63,6 +59,7 @@ export const GENERIC_SEARCH = [
 /** A frame showing over this share of the screen is where the page's business is: the arrows hand over to the pointer on it. */
 export const BIG_FRAME_SHARE = 0.4;
 
+/** True for something text is typed into: a text input of any kind, a text area, an editable region. */
 export function isTextEntry(el: Element | null): boolean {
   if (!el) return false;
   if (el instanceof HTMLTextAreaElement) return true;
@@ -72,7 +69,9 @@ export function isTextEntry(el: Element | null): boolean {
   return (el as HTMLElement).isContentEditable === true;
 }
 
+/** What a running layer answers to: the preload and Longboard's own screens call these. */
 export interface Layer {
+  /** Carries out one action, as if its key had been pressed. */
   dispatch: (a: Action) => void;
   /** The shell's answer after the highlight was asked into a frame: taken (`in`), nothing there to take it (`none`), or what had it is gone (`lost`). */
   frameIn: (state: 'in' | 'none' | 'lost', player?: boolean) => void;
@@ -114,6 +113,7 @@ export interface Layer {
   setRules: (next: SiteRules) => void;
   /** Under automation: may the pointer click at this point? Says so on screen when not. */
   mayClickAt: (x: number, y: number) => 'yes' | 'no' | 'frame';
+  /** Takes the layer's listeners and timers away. */
   stop: () => void;
 }
 

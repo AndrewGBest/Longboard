@@ -7,6 +7,7 @@ import { MAX_BLOCK_CHARS, MAX_BLOCKS, type Article, type ReaderBlock, type Reade
 /** Parts of a page that are never the article. */
 const NOT_ARTICLE =
   'nav, aside, footer, form, script, style, noscript, template, svg, canvas, video, audio, iframe, button, select, textarea, input, figure, dialog, [hidden], [aria-hidden="true"], [role="navigation"], [role="complementary"], [role="banner"], [role="contentinfo"], [role="search"], [role="dialog"]';
+/** What each tag is read as. Anything else is looked into for these. */
 const BLOCKS: Record<string, ReaderKind> = {
   H1: 'heading',
   H2: 'heading',

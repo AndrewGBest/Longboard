@@ -5,6 +5,7 @@
 import type { RecentSite } from './home';
 import type { BlockingMode, StartsOffEntry } from './adblock';
 
+/** The screens that can lie over Home or a page, one at a time. */
 export type Panel =
   | 'menu'
   | 'about'
@@ -20,6 +21,7 @@ export type Panel =
   | 'pin'
   | 'phone';
 
+/** Everything Longboard's own screens are told to draw. The shell sends it whole after each change. */
 export interface ChromeState {
   /** What fills the window behind any panel. */
   surface: 'home' | 'page';
@@ -27,11 +29,13 @@ export interface ChromeState {
   /** A site is arriving in place of another: its name, while the whole window is covered so the site being left is not seen. Null otherwise. */
   cover: string | null;
   version: string;
-  /** `profile` says what Longboard has for the site: a reviewed profile, the person's own, or nothing. */
   home: {
     /** Sites added as apps. `icon` is the site's own icon, fetched from the site when the app was added, as a data: address. */
     apps: Array<{ id: string; name: string; site: string; icon: string | null; ownSession: boolean }>;
-    /** `icon` is the site's own icon, fetched from the site while it was open, as a data: address. */
+    /**
+     * `icon` is the site's own icon, fetched from the site while it was open, as a data: address.
+     * `profile` says what Longboard has for the site: a reviewed profile, the person's own, or nothing.
+     */
     recents: Array<RecentSite & { profile: 'reviewed' | 'own' | null; icon: string | null }>;
     /** Pages the person asked to keep on Home. */
     saved: Array<{ url: string; title: string; icon: string | null }>;
@@ -201,6 +205,7 @@ export interface ChromeState {
     | null;
 }
 
+/** Every entry the menu can have. MENU_ACTIONS is the same list as values, for checking a message. */
 export type MenuAction =
   | 'open'
   | 'home'
@@ -282,13 +287,14 @@ export const MENU_ACTIONS: readonly MenuAction[] = [
   'close',
 ];
 
+/** What Longboard's own screens may send the shell. */
 export type ChromeMessage =
   /** Open what was typed: an address, or words to search for. */
   | { kind: 'open'; input: string }
   /** Open a Home tile. */
   | { kind: 'openRecent'; url: string }
   | { kind: 'openApp'; id: string }
-  /** Take a tile off Home. Removing an app also removes what `removeApp` in the menu does. */
+  /** Stop a download that is under way. */
   | { kind: 'cancelDownload'; id: number }
   /** A change made on the Settings screen: a setting by its config.json name; null puts it back to the usual. */
   | { kind: 'setting'; name: string; value: unknown }
@@ -322,6 +328,7 @@ export type ChromeMessage =
   | { kind: 'lock'; op: 'set' | 'remove' | 'homeOnly' }
   /** An installed extension: open its own page, or remove it. */
   | { kind: 'extension'; op: 'open' | 'remove'; id: string }
+  /** Take a tile off Home. Removing an app does what `removeApp` in the menu does. */
   | { kind: 'removeRecent'; url: string }
   | { kind: 'removeApp'; id: string }
   /** The profile editor's buttons. */
@@ -329,14 +336,17 @@ export type ChromeMessage =
   /** Add the site in front as an app. */
   | { kind: 'addApp'; name: string; ownSession: boolean; launcher: boolean }
   | { kind: 'menu'; action: MenuAction }
-  /** `remember` false is "not now": the question comes again another time. */
-  /** `never` with a no to keeping a password: do not offer for this site again. */
+  /**
+   * The answer to the question on screen. `remember` false is "not now": the question comes again another time.
+   * `never` with a no to keeping a password: do not offer for this site again.
+   */
   | { kind: 'answer'; allow: boolean; remember?: boolean; never?: boolean }
   /** Fill the page's sign-in form with a saved sign-in. */
   | { kind: 'fillLogin'; user: string }
   /** From Settings: forget one saved sign-in, offer again at a site, or forget them all. */
   | { kind: 'password'; op: 'remove' | 'offerAgain' | 'removeAll'; place?: string; user?: string };
 
+/** The buttons on the Settings screen that do something at once, as opposed to changing a setting. */
 export type SettingsAction =
   | 'clearSiteData'
   | 'clearCache'

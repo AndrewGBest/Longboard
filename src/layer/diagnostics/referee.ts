@@ -2,15 +2,17 @@
 // own Tab order is the list of everything a page declares as a control. A
 // script presses Tab through a page and this compares where Tab stopped
 // with what the highlight can reach. A stop the highlight cannot reach is a
-// fault of the kind found on a search engine's results on 2026-11-19, where
-// each result's title was a Tab stop and was not a target.
+// fault: on a search engine's results, each result's title was a Tab stop
+// and was not a target (see DECISIONS.md, 2026-11-19, "the Tab order is a
+// referee").
 //
 // What it reports is structure only: kinds of element, sizes and counts.
 // Never a page's words or addresses.
 import { boxOf } from '../spatial/box';
 import { deepActiveElement, deepContains } from '../spatial/deep';
-import { isVisible, onScreenish } from '../spatial/navigator';
+import { isVisible, onScreenish } from '../spatial/visibility';
 
+/** What the comparison found, as counts and kinds only. */
 export interface RefereeReport {
   /** Different places Tab stopped. */
   stops: number;
@@ -24,9 +26,10 @@ export interface RefereeReport {
   beyond: number;
 }
 
-/** A stop smaller than this either way is not a target by design (navigator.ts). */
+/** A stop smaller than this either way is not a target by design (`candidates` in spatial/navigator.ts). */
 const SMALLEST = 10;
 
+/** A stop by its kind only: tag, input type and role. */
 function describe(el: Element): string {
   const role = el.getAttribute('role');
   const type = el instanceof HTMLInputElement ? `[type=${el.type}]` : '';
@@ -102,6 +105,7 @@ export class Referee {
     return 'new';
   }
 
+  /** The comparison of every stop noted so far with what the highlight can reach now. */
   report(): RefereeReport {
     const view = this.doc.defaultView;
     if (!view) return { stops: this.stops.length, seen: 0, reached: 0, missed: [], beyond: 0 };

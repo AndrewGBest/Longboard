@@ -1,9 +1,12 @@
-// The layer's own on-screen elements: focus ring and toast. They live in a
-// closed shadow root so the site's styles cannot affect them and ours cannot
-// leak out. Styles use a constructed stylesheet, which page CSP does not block.
+// What the layer itself draws over a page: the focus ring, the on-screen
+// keyboard, the pointer, messages, the loading line and the profile
+// editor's marks. They live in a closed shadow root, so the site's styles
+// cannot affect them and theirs cannot leak out. The styles are a
+// constructed stylesheet, which a page's content security policy does not block.
 import type { OskKey } from '../../shared/osk';
 import { boxOf } from '../spatial/box';
 
+/** The tag of the one element the layer adds to a page. Everything it draws is inside it. */
 export const HOST_TAG = 'longboard-overlay';
 
 const CSS = `
@@ -79,6 +82,7 @@ const FOLLOW_MS = 700;
 /** How often a ring at rest is looked at. */
 const WATCH_MS = 500;
 
+/** Draws on one document. Nothing here decides what is highlighted or typed: the parts tell it. */
 export class Overlay {
   private readonly ring: HTMLElement;
   private readonly toastEl: HTMLElement;
@@ -171,6 +175,7 @@ export class Overlay {
     }
   }
 
+  /** Puts the overlay back in front of whatever else is in the browser's top layer. */
   private raise(): void {
     try {
       if (this.host.matches(':popover-open')) this.host.hidePopover();
@@ -180,6 +185,7 @@ export class Overlay {
     }
   }
 
+  /** Draws the ring round `el` and keeps it there as the element moves; `null` takes the ring away. */
   track(el: Element | null): void {
     this.target = el;
     // The ring's corners follow the corners of what it is round, so it sits evenly round a pill or a card.
@@ -334,6 +340,7 @@ export class Overlay {
     this.loadingEl.classList.toggle('show', on);
   }
 
+  /** Shows a short message at the bottom of the screen for `ms` milliseconds. */
   toast(message: string, ms = 2500): void {
     const view = this.doc.defaultView;
     this.toastEl.textContent = message;

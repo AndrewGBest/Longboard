@@ -5,21 +5,26 @@ import { menuPanel } from './menu';
 import {
   aboutPanel,
   downloadsPanel,
-  historyPanel,
-  tabsPanel,
   findPanel,
-  readerPanel,
-  pinPanel,
+  historyPanel,
   phonePanel,
+  pinPanel,
   promptPanel,
+  readerPanel,
+  tabsPanel,
 } from './panels';
-import { addAppPanel, editPanel } from './site-panels';
 import { settingsPanel } from './settings';
+import { addAppPanel, editPanel } from './site-panels';
 import { ui } from './ui';
 
 /** The panel last drawn: one that is already open does not slide in again each time something on it changes. */
 let drawnPanel: string | null = null;
 
+/**
+ * Draws everything again from `ui.state`: Home or the strip beside a website,
+ * and the open panel. The highlight goes back to the control it was on, by id,
+ * when that control is still there.
+ */
 export function render(): void {
   const s = ui.state;
   if (!s) return;
@@ -93,9 +98,10 @@ export function render(): void {
   const inScope = same && (!panel || panel.contains(same)) && !(same as HTMLButtonElement).disabled;
   if (inScope) ui.layer.focus(same);
   else if (panel) {
-    // Not the text field: landing on it would put the keyboard up before anything was asked for.
     // A question starts on the answer that changes nothing: a page can time
     // its request for when OK is about to be pressed for something else.
+    // Any other panel starts on its first button, not a text field: landing
+    // on a field would put the keyboard up before anything was asked for.
     const first =
       document.getElementById('prompt-deny') ?? [...panel.querySelectorAll('button')].find((b) => !b.disabled);
     if (first) ui.layer.focus(first);

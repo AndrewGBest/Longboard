@@ -32,6 +32,7 @@ export const NEVER_ASKABLE = [
   'midi',
   'pointerLock',
 ] as const;
+/** The settings `parseConfig` knows by name, besides the eight it lists itself in its unknown-setting check. */
 const SETTING_KEYS = [
   'adBlockingStartsOff',
   'adBlockingStartsOn',
@@ -54,6 +55,7 @@ const SETTING_KEYS = [
   'searchSuggestions',
 ] as const;
 
+/** What a key or button can be mapped to in config.json. "none" makes the key do nothing. */
 export const ACTION_NAMES = [
   'up',
   'down',
@@ -302,6 +304,7 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
   return { config, problems };
 }
 
+/** Seconds skipped by "seekBack" and "seekForward". */
 const SEEK_STEP = 10;
 
 /** The action a configured name stands for; `null` for "none" (the key does nothing in the layer). */

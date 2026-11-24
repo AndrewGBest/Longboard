@@ -14,6 +14,7 @@ import { FiltersEngine, Request } from '@ghostery/adblocker';
 import { listsDue, looksLikeFilterList } from '../shared/adblock';
 import { readJson, writeJson } from './store';
 
+/** The most one fetched list may weigh; a bigger answer is not taken. */
 const MAX_LIST_BYTES = 30_000_000;
 
 /**
@@ -83,6 +84,7 @@ export class FilterSet {
   }
 }
 
+/** What the store needs from outside, so the unit tests can stand in for the clock and the network. */
 export interface FilterStoreDeps {
   /** Where the lists and the prepared filters are kept. */
   folder: string;

@@ -6,6 +6,7 @@ import { PRODUCT } from '../shared/product';
 import { onHomeSite } from '../shared/lock';
 import { extensionOfPage } from '../shared/extensions';
 
+/** Why an address is not opened. Each has its own words in `blockedMessage`. */
 export type BlockReason = 'not-web' | 'credentials' | 'automation-spend' | 'not-secure' | 'locked';
 
 /**

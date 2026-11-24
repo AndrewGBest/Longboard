@@ -6,6 +6,7 @@
 import type { PickedStep } from '../../shared/editor';
 import { composedParent, deepQueryAll } from '../spatial/deep';
 
+/** How many containers out from the element the chain goes. */
 const MAX_CHAIN = 6;
 /** A class or id that looks made by hand, not generated: generated ones change with every build of a site. */
 const PLAIN = /^[A-Za-z][A-Za-z0-9_-]{0,40}$/;
@@ -20,6 +21,7 @@ function looksGenerated(token: string): boolean {
   });
 }
 
+/** Up to two of the element's classes that look written by hand and are not Longboard's own. */
 function usableClasses(el: Element): string[] {
   return [...el.classList].filter((c) => PLAIN.test(c) && !looksGenerated(c) && !c.startsWith('longboard')).slice(0, 2);
 }

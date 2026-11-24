@@ -24,6 +24,7 @@ export interface Keyring {
   decrypt: (secret: Buffer) => Promise<string>;
 }
 
+/** The vault in memory and on disk. Only `save` and `reveal` ever hold a password in the clear. */
 export class Passwords {
   private vault: Vault = emptyVault();
   private ok = false;
@@ -62,14 +63,17 @@ export class Passwords {
     }
   }
 
+  /** The user names saved for a place, newest first. */
   users(place: string | null): string[] {
     return usersAt(this.vault, place);
   }
 
+  /** The places the person said never to offer for. */
   never(): string[] {
     return [...this.vault.never];
   }
 
+  /** Every saved sign-in, for Settings. No passwords. */
   list(): Array<{ place: string; site: string; user: string }> {
     return listLogins(this.vault);
   }

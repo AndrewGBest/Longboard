@@ -5,10 +5,10 @@
 
 /**
  * The viewport, in CSS pixels, the site should think it has. 960x540 is the
- * usual canvas for couch-distance layouts (a 1080p screen at 2x). On the live
- * site it still shows the full navigation bar and four cards to a row; at 865
- * wide (seen on a 16:10 screen) the site collapses its navigation into a
- * menu, so the width is a floor as well as the height.
+ * usual canvas for couch-distance layouts (a 1080p screen at 2x). The site
+ * it was tuned on still shows its full navigation bar and four cards to a
+ * row at that size; at 865 wide (seen on a 16:10 screen) it folds its
+ * navigation into a menu, so the width is a floor as well as the height.
  */
 export const TARGET_VIEWPORT = { width: 960, height: 540 } as const;
 /**
@@ -18,6 +18,7 @@ export const TARGET_VIEWPORT = { width: 960, height: 540 } as const;
  * only given more room, as it would be in a wider window.
  */
 export const DESKTOP_VIEWPORT = { width: 1280, height: 720 } as const;
+/** The limits of the TV scale: never zoomed out, and never past four times. */
 export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 4;
 

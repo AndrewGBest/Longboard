@@ -2,16 +2,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { boxOf } from '../src/layer/spatial/box';
 import { compareWithTabStops } from '../src/layer/diagnostics/referee';
-import {
-  coveredByScreen,
-  coveringLayer,
-  edgeControl,
-  FOCUS_ATTR,
-  openDialog,
-  scrollWithinList,
-  SpatialNavigator,
-  ZOOM_ATTR,
-} from '../src/layer/spatial/navigator';
+import { ZOOM_ATTR } from '../src/layer/spatial/controls';
+import { coveredByScreen, coveringLayer, openDialog } from '../src/layer/spatial/dialogs';
+import { FOCUS_ATTR, SpatialNavigator } from '../src/layer/spatial/navigator';
+import { edgeControl, scrollWithinList } from '../src/layer/spatial/scrolling';
 
 // jsdom has no layout engine, so each element's rectangle is read from data-rect="left,top,width,height".
 function installLayout(): void {

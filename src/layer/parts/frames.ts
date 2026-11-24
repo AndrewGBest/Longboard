@@ -1,5 +1,8 @@
-// Frames inside the page: handing the highlight in and taking it back, and full screen.
-import { type Direction } from '../../shared/actions';
+// Frames inside the page: handing the highlight into one and taking it
+// back, and putting a frame full screen while a player in it has the keys.
+// A frame has a layer of its own (the preload starts it); the two speak
+// through the shell.
+import type { Direction } from '../../shared/actions';
 import { scrollBy } from '../generic/scroll';
 import { deepContains } from '../spatial/deep';
 import type { LayerCore } from './core';
@@ -15,20 +18,15 @@ export interface FramesPart {
    * inside it to take the highlight. `stay`: carry on where it was.
    */
   enterFrame: (el: HTMLIFrameElement, stay: boolean) => void;
+  /** The shell's answer: something in the frame took the highlight, nothing did, or what had it is gone. */
   frameIn: (state: 'in' | 'none' | 'lost', player?: boolean) => void;
   /** The highlight has left a frame of this page by `how`: carry on from the frame, that way. */
   frameExit: (how: Direction | 'back') => void;
 }
 
 export function createFrames(core: LayerCore): Omit<FramesPart, 'frameInside' | 'frameAsked'> {
-  /** The highlight is inside this frame of the page (the frame has the keys and its own layer). */
   core.frameInside = null;
-  /** A frame the highlight has been asked into, until the shell says whether anything in it took it. */
   core.frameAsked = null;
-  /**
-   * Into a frame: it is given the cursor, and the shell tells the layer
-   * inside it to take the highlight. `stay`: carry on where it was.
-   */
   const enterFrame = (el: HTMLIFrameElement, stay: boolean): void => {
     core.frameAsked = el;
     try {
@@ -47,7 +45,6 @@ export function createFrames(core: LayerCore): Omit<FramesPart, 'frameInside' | 
       },
     });
   };
-  /** The shell's answer: something in the frame took the highlight, nothing did, or what had it is gone. */
   /** The frame this page has put in full screen because a player in it took the keys. */
   let frameFull: HTMLIFrameElement | null = null;
   const leaveFull = (): void => {
@@ -70,7 +67,7 @@ export function createFrames(core: LayerCore): Omit<FramesPart, 'frameInside' | 
   };
   // While something of the page is shown full screen, a highlight on what
   // lies underneath is not drawn: the ring is drawn above everything, and
-  // showed round an element behind the picture. (Andrew, at a TV, with a
+  // showed round an element behind the picture. (Seen at a TV, with a
   // player put full screen by its own button.) A frame or a video that is
   // itself the thing full screen gets no ring round the whole screen either.
   // The highlight is kept, and drawn again when the full screen ends.
@@ -139,7 +136,6 @@ export function createFrames(core: LayerCore): Omit<FramesPart, 'frameInside' | 
       });
     }
   };
-  /** The highlight has left a frame of this page by `how`: carry on from the frame, that way. */
   const frameExit = (how: Direction | 'back'): void => {
     const el =
       core.frameInside ?? (core.doc.activeElement instanceof HTMLIFrameElement ? core.doc.activeElement : null);

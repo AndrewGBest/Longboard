@@ -7,12 +7,13 @@ export interface SiteSettings extends SitePermissions {
   zoom?: number;
   /** The person's own choice for the ad-blocking switch on this site. Absent until they make one. */
   adBlocking?: boolean;
-  /** True when the person asked for this site at the width of a desk screen (zoom.ts, DESKTOP_VIEWPORT). */
+  /** True when the person asked for this site at the width of a desk screen (main/zoom.ts, DESKTOP_VIEWPORT). */
   desktop?: boolean;
   /** False when the person switched this site's profile off: the site is then driven in generic mode, as if there were none. */
   profile?: false;
 }
 
+/** The sizes "bigger" and "smaller" in a site's menu step through. */
 export const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const;
 
 /** The next step up or down from `current`; stays put at either end. */

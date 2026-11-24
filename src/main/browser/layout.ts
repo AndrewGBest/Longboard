@@ -1,5 +1,6 @@
-// Where the views sit in the window, the loading cover, notices, zoom, and saving Home's lists.
-
+// Where the views sit in the window (layout), the cover shown while another
+// site is on its way, telling each view whether it is in front, and notices.
+// Also the saving of Home's lists and the sites' settings, and zoom.
 import { readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { siteName } from '../../shared/address';
@@ -10,30 +11,38 @@ import { PANEL_WIDTH } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface LayoutPart {
+  /** The name of the site the cover is up for, or null when there is no cover. */
   covering: string | null;
+  /** Takes the cover down if nothing else has by then. */
   coverTimer: NodeJS.Timeout | undefined;
+  /** Covers the window with Longboard's own screen, naming the site at this address, until its first page is there. */
   coverFor: (url: string) => void;
+  /** True when two addresses are on different hosts, or either is not an address. */
   otherSite: (from: string, to: string) => boolean;
-  /** Whether the app's window is the one in front, as far as the shell has heard. */
+  /** True while another program's window is in front, as far as the shell has heard. */
   windowAway: boolean;
+  /** Tells each view whether it is the one in front. */
   tellFront: () => void;
+  /** Sizes and shows the views for the current state, and gives the keys to the one in front. */
   layout: () => void;
   /** A line of text over whatever is in front. */
   notify: (text: string) => void;
+  /** Writes Home's lists (recent sites and saved pages), and drops the icons of sites no longer on Home. */
   saveRecents: () => void;
   saveSites: () => void;
   saveApps: () => void;
+  /** Sets the page in front to the screen's zoom times the person's own for the site. */
   applyZoom: () => void;
+  /** One step in or out for the site in front, or back to its usual size with 0. Remembered for the site. */
   changeZoom: (direction: 1 | -1 | 0) => void;
 }
 
 export function createLayout(core: Core): Omit<LayoutPart, 'covering' | 'coverTimer' | 'windowAway'> {
-  /** Sizes and shows the views for the current state, and gives the keys to the one in front. */
   // While one site is opened in place of another (an app started, a tile
   // chosen on Home, an address typed), the site being left would stay on
   // screen until the new one's first page came. The whole window is covered
-  // by Longboard's own screen meanwhile, saying which site is coming.
-  // (Andrew, 2026-11-23.) The keys stay with the page: Back still works.
+  // by Longboard's own screen meanwhile, saying which site is coming (see
+  // DECISIONS.md, 2026-11-23). The keys stay with the page: Back still works.
   core.covering = null;
   core.coverTimer = undefined;
   const COVER_MOST_MS = 12_000;
@@ -68,16 +77,16 @@ export function createLayout(core: Core): Omit<LayoutPart, 'covering' | 'coverTi
       if (wc === core.page && isMainFrame) uncover();
     });
   });
-  /** Whether the app's window is the one in front, as far as the shell has heard. */
+  /** True while another program's window is in front, as far as the shell has heard. */
   core.windowAway = false;
   // Each view is told whether it is the one in front. A game controller is
-  // read by the views themselves, and each used to go by whether its own
-  // window had heard it was focused; that is not always heard.
+  // read by the views themselves, and a view cannot go by whether its own
+  // window has heard it is focused: that is not always heard.
   const tellFront = (): void => {
     const front = core.active();
     for (const wc of [core.chrome, core.page]) {
       if (wc.isDestroyed()) continue;
-      // With the app's window itself not in front, the view goes by what its own window hears, as before.
+      // With the app's window itself not in front, null: the view goes by what its own window hears.
       const on = wc !== front ? false : core.windowAway ? null : true;
       wc.send('longboard:front', on);
       if (wc === core.page)
@@ -131,7 +140,6 @@ export function createLayout(core: Core): Omit<LayoutPart, 'covering' | 'coverTi
     tellFront();
   };
 
-  /** A line of text over whatever is in front. */
   const notify = (text: string): void => {
     const front = core.active();
     if (!front.isDestroyed()) front.send('longboard:notice', text);

@@ -44,8 +44,20 @@ export interface Profile {
   version: string;
   authors: string[];
   licence: string;
+  /** The sites the profile is for ("example.com", "*.example.com") and, optionally, the paths on them. */
   match: { hosts: string[]; paths?: string[] };
-  view?: { canvas?: string; safeMargin?: number; device?: 'tv' | 'tv-browser'; entry?: string; carry?: string[] };
+  view?: {
+    /** The size the site is drawn at before being scaled to the screen, such as "960x540". */
+    canvas?: string;
+    /** The share of the screen kept clear at every edge, 0 to 0.15. */
+    safeMargin?: number;
+    /** The site has a layout for TVs and gives it to what says it is one (`wantsTv`, `deviceOf`). */
+    device?: 'tv' | 'tv-browser';
+    /** The path on the site where that layout lives (`entryFor`). */
+    entry?: string;
+    /** The query parameters copied across when an address is opened at `entry` instead. */
+    carry?: string[];
+  };
   focus?: {
     /** Elements that can take the highlight, added to what generic mode finds. */
     include?: string[];
@@ -376,11 +388,13 @@ export function matchScore(profile: Profile, url: string): number {
 export const PROFILE_SOURCES = ['local', 'imported', 'catalogue', 'builtin'] as const;
 export type ProfileSource = (typeof PROFILE_SOURCES)[number];
 
+/** A validated profile and where it came from. */
 export interface StoredProfile {
   profile: Profile;
   source: ProfileSource;
 }
 
+/** What `chooseProfile` decides for an address. */
 export type ProfileChoice =
   | { kind: 'use'; profile: Profile; source: ProfileSource }
   /** An imported profile nobody has said yes or no to yet: ask once before using it. */

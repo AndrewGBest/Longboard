@@ -3,6 +3,7 @@
 // shell as ordinary text input.
 import type { Direction } from './actions';
 
+/** What a key does: types its character, or one of the keyboard's own jobs. */
 export type OskKind = 'char' | 'space' | 'backspace' | 'submit' | 'shift' | 'symbols' | 'letters' | 'left' | 'right';
 
 export interface OskKey {
@@ -11,7 +12,7 @@ export interface OskKey {
   label: string;
   /** What a char key types. */
   text?: string;
-  /** Width in columns; the grid is COLUMNS wide. */
+  /** Width in columns; the grid is OSK_COLUMNS wide. */
   span: number;
 }
 
@@ -26,7 +27,7 @@ const DELETE: OskKey = { kind: 'backspace', label: 'delete', span: 2 };
 const SUBMIT: OskKey = { kind: 'submit', label: 'enter', span: 2 };
 // These move the cursor in the field being typed into, one place a press: the
 // only way to put right a letter in the middle, or to bring the cursor back
-// when a site has moved it. (Asked for by Andrew at the TV, 2026-11-22.)
+// when a site has moved it (DECISIONS.md, 2026-11-22).
 const CURSOR: OskKey[] = [
   { kind: 'left', label: '\u25C0', span: 1 },
   { kind: 'right', label: '\u25B6', span: 1 },
@@ -77,6 +78,7 @@ function starts(row: readonly OskKey[]): number[] {
   });
 }
 
+/** Which face is showing and which key has the highlight. */
 export class OskModel {
   page: OskPage = 'lower';
   row = 0;
@@ -153,7 +155,7 @@ export function typableText(text: unknown): string | null {
 /**
  * True for password and one-time-code fields. A person may type these with
  * the on-screen keyboard, which passes each pick straight to the page and
- * keeps nothing. A scripted run never does (Hard rule 9): under --automation
+ * keeps nothing. A scripted run never does (Hard rule 10): under --automation
  * the keyboard stays out of these fields.
  */
 export function isSecretField(type: string | null, autocomplete: string | null, name: string | null = null): boolean {

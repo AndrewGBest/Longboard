@@ -3,6 +3,7 @@
 // turns the result into ordinary mouse events.
 import type { Direction } from '../shared/actions';
 
+/** The size of the view the pointer moves in, in pixels. */
 export interface Size {
   width: number;
   height: number;
@@ -34,6 +35,7 @@ const UNIT: Record<Direction, { x: number; y: number }> = {
   right: { x: 1, y: 0 },
 };
 
+/** Where the pointer ends up after one movement. */
 export interface PointerStep {
   x: number;
   y: number;
@@ -106,12 +108,13 @@ export const KEY_FORGET_MS = 1200;
 /**
  * Which directions are held, worked out from what actually arrives.
  *
- * A game controller reports what is held, so that is simply kept. A keyboard
- * or remote is different: the shell takes the arrow keys before the page sees
- * them, and the browser then never reports the key being let go (seen with
- * real key events, 2026-11-18). What does arrive is the key repeating while
- * it is held. So the first press is one small step, the pointer starts to
- * travel when the repeats start, and it stops when they stop coming.
+ * A game controller reports what is held, so that is kept as it is. A
+ * keyboard or remote is different: the shell takes the arrow keys before the
+ * page sees them, and the browser then never reports the key being let go
+ * (measured with real key events, 2026-11-18; docs/DECISIONS.md). What does
+ * arrive is the key repeating while it is held. So the first press is one
+ * small step, the pointer starts to travel when the repeats start, and it
+ * stops when they stop coming.
  */
 export class PointerHolds {
   private readonly keys = new Map<Direction, { since: number; last: number; repeating: boolean }>();

@@ -4,6 +4,7 @@
 // rules are empty and everything is worked out from the page (generic mode).
 import { validateProfile, type PlayerKeyName, type Profile, type ProfileGroup } from '../../shared/profile';
 
+/** What the layer goes by on one site. Every string in `selectors` is a CSS selector. */
 export interface SiteRules {
   /** The profile's id, or "none" in generic mode. */
   id: string;
@@ -40,6 +41,7 @@ export interface SiteRules {
   playerKeys: { playPause: PlayerKeyName; back: PlayerKeyName; forward: PlayerKeyName };
 }
 
+/** The selector lists, in the order rulesReport prints them. */
 const LISTS = [
   'extraFocusable',
   'exclude',
@@ -53,6 +55,7 @@ const LISTS = [
   'dismiss',
 ] as const;
 
+/** The rules for a site with no profile: nothing named, the player's usual keys. */
 export function genericRules(): SiteRules {
   return {
     id: 'none',
@@ -141,7 +144,7 @@ export function rulesReport(rules: SiteRules, doc: Document): string {
       try {
         n += doc.querySelectorAll(sel).length;
       } catch {
-        // counted as no match
+        // A selector this browser cannot parse counts as no match.
       }
     }
     return `${key}=${n}`;
@@ -149,6 +152,7 @@ export function rulesReport(rules: SiteRules, doc: Document): string {
   return `profile ${rules.id} ${rules.version}: ${counts.join(' ') || 'no selectors'}`;
 }
 
+/** The first element any of the selectors matches, in the order given. */
 export function firstMatch(doc: Document, selectors: readonly string[]): Element | null {
   for (const sel of selectors) {
     try {

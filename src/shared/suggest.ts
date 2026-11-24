@@ -1,8 +1,11 @@
-// Suggestions under the address field: places the person already knows,
-// found in what is kept on this machine (saved pages, apps, recently opened
-// sites, history). Nothing typed is sent anywhere to get them. Pure.
+// Suggestions under the address field. The first half finds places the
+// person already knows in what is kept on this machine (saved pages, apps,
+// recently opened sites, history): nothing typed is sent anywhere to get
+// them. The second half is the search site's own suggestions, which are off
+// unless the person turns them on. Pure.
 import { DEFAULT_SEARCH, resolveAddress, searchUrl, siteName } from './address';
 
+/** A place on this machine's lists that a suggestion can be made from. */
 export interface Known {
   url: string;
   title: string;
@@ -46,11 +49,11 @@ export function suggest(typed: string, known: readonly Known[]): Suggestion[] {
     .map((f) => f.s);
 }
 
-// ---- Suggestions from the search site ---------------------------------------
-// Off as shipped (DECISIONS.md, 2026-11-19). On, the words typed in the
-// address field are sent to the search site as they are typed, and what it
-// suggests is offered under the places already known. Addresses are never
-// sent: only what would be searched for.
+// Suggestions from the search site, from here down. Off as shipped
+// (DECISIONS.md, 2026-11-19). On, the words typed in the address field are
+// sent to the search site as they are typed, and what it suggests is offered
+// under the places already known. Addresses are never sent: only what would
+// be searched for.
 
 /** Where each search site answers with suggestions, by the site's search address. */
 const SUGGEST_AT: Readonly<Record<string, string>> = {

@@ -1,10 +1,11 @@
 // The window losing the screen to another program, and getting it back.
-
 import type { Core } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface AwayPart {
+  /** Minimises a full-screen window a moment after it loses the screen. */
   awayTimer: NodeJS.Timeout | undefined;
+  /** The window has the screen again: sound returns and the page wakes. */
   returned: () => void;
 }
 

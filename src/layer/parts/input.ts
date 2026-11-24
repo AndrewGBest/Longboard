@@ -1,18 +1,24 @@
-// Listening to the page: keys, focus, the mouse.
+// Listening to the page: keys, focus and the mouse. Every key pressed comes
+// to onKey first, which decides whether it is Longboard's or the site's.
+import { isNativePlayerKey } from '../../shared/player-keys';
 import { keyToAction, ownRemoteKey } from '../input/keys';
 import { deepActiveElement } from '../spatial/deep';
-import { isNativePlayerKey } from '../../shared/player-keys';
-
 import { HOST_TAG } from '../ui/overlay';
 import type { LayerCore } from './core';
 import { isTextEntry } from './core';
 
 /** What this part adds for the other parts to use. */
 export interface InputPart {
+  // The listeners, kept so that stopping the layer can take them off again.
+  /** A key was pressed: turned into an action and carried out, or left to the site. */
   onKey: (e: KeyboardEvent) => void;
+  /** Takes the keys back from an embedded frame that has taken them for itself. */
   reclaim: () => void;
+  /** A real click counts as a press: a text field focused just after it is one the person asked for. */
   onMouseDown: (e: MouseEvent) => void;
+  /** The page gave something its focus: the highlight goes along when that is what the page meant. */
   onFocusIn: (e: FocusEvent) => void;
+  /** The mouse moved: the real pointer is shown again. */
   onPointer: () => void;
 }
 
@@ -159,7 +165,7 @@ export function createInput(core: LayerCore): InputPart {
   adoptField(deepActiveElement(core.doc));
 
   const onPointer = (): void => {
-    // The shell's own nudge (see revealControls) is not the user reaching for a mouse.
+    // The shell's own nudge (revealControls in player-controls.ts, and the hover menus) is not the user reaching for a mouse.
     if (core.pointerOn || Date.now() < core.ignorePointerUntil) return;
     core.doc.documentElement.classList.remove('longboard-no-pointer');
   };

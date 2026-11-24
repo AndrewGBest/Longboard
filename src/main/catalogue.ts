@@ -16,6 +16,7 @@ import { readJson, writeJson } from './store';
 const MAX_INDEX = 2_000_000;
 const MAX_PROFILE = 200_000;
 
+/** What a refresh needs from outside, so the unit tests can stand in for the clock and the network. */
 export interface CatalogueDeps {
   /** Where the catalogue is kept. */
   folder: string;

@@ -1,13 +1,14 @@
 // Turns what a person typed into "go to address or search" into an address.
 // Pure, so every rule is unit-tested.
 
-/** `%s` is replaced by the words searched for. Google by Andrew's decision (DECISIONS.md, 2026-11-18); `"search"` in config.json changes it. */
+/** Where words are searched for as shipped; `%s` is replaced by the words. `"search"` in config.json changes it (DECISIONS.md, 2026-11-18). */
 export const DEFAULT_SEARCH = 'https://www.google.com/search?q=%s';
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 /** A host name: labels joined by dots, ending in a label that starts with a letter. */
 const HOSTNAME = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/i;
 
+/** This machine, or a bare network address: the hosts that are opened over http when no scheme is typed. */
 function isLocal(host: string): boolean {
   return host === 'localhost' || host.endsWith('.localhost') || IPV4.test(host) || host.startsWith('[');
 }
@@ -31,6 +32,7 @@ export function isSearchTemplate(value: unknown): value is string {
   }
 }
 
+/** The address that searches for `words`. A template that is not usable falls back to the shipped one. */
 export function searchUrl(words: string, template: string = DEFAULT_SEARCH): string {
   return (isSearchTemplate(template) ? template : DEFAULT_SEARCH).replace('%s', encodeURIComponent(words));
 }

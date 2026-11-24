@@ -1,7 +1,7 @@
 /*
  * Longboard TV stylesheet. Inserted by the main process as user-origin CSS.
  * Site-agnostic only: nothing in here may reference the streaming site's own
- * class names. Site-specific rules belong in a user style or the adapter.
+ * class names. Site-specific rules belong in a user style or the profile.
  */
 
 /* The focus ring is drawn by the overlay; suppress the site's own outline so there is one indicator. */

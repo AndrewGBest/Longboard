@@ -12,14 +12,15 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import AdmZip from 'adm-zip';
-import { openCrx } from './crx';
 import { ElectronChromeExtensions } from 'electron-chrome-extensions';
 import { loadAllExtensions, uninstallExtension, updateExtensions } from 'electron-chrome-web-store';
 import { extensionFacts, extensionName, isExtensionId, type ExtensionFacts } from '../shared/extensions';
+import { openCrx } from './crx';
 
 /** A manifest value as text; anything that is not text counts as missing. */
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 
+/** An extension as Settings lists it. */
 export interface InstalledExtension extends ExtensionFacts {
   id: string;
   name: string;
@@ -30,6 +31,7 @@ export interface DownloadedExtension extends InstalledExtension {
   path: string;
 }
 
+/** What the extensions need from the shell. */
 export interface ExtensionHooks {
   /** An extension asks for a page to be opened. */
   open: (url: string) => Electron.WebContents;
@@ -40,6 +42,7 @@ export interface ExtensionHooks {
 /** The most an extension may weigh as it comes from the store. */
 const MAX_EXTENSION_BYTES = 120_000_000;
 
+/** The extensions of one session: loading, downloading, switching on, removing and updating. */
 export class Extensions {
   private readonly api: ElectronChromeExtensions;
 
@@ -78,6 +81,7 @@ export class Extensions {
     }
   }
 
+  /** What is installed, in name order. */
   list(): InstalledExtension[] {
     return this.session.extensions
       .getAllExtensions()
