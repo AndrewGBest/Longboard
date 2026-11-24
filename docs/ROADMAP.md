@@ -44,7 +44,6 @@ For the code:
 - Narrow what each part of the shell and of the layer takes from `core`
   (ARCHITECTURE.md 2.1): the parts were separated on 2026-11-24 without
   being untangled.
-- Split `test/e2e/run.mjs` (one long file of scenarios) by subject.
 
 Then, as they are asked for:
 

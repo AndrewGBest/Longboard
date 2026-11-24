@@ -66,7 +66,7 @@ npm run format         # let Prettier lay the code out
   `src/shared/` and `src/layer/` as plain functions so they can be tested
   without a browser. Tests are in `test/`, one file per subject.
 - **Anything in the shell gets an end-to-end check** in
-  `test/e2e/run.mjs`: the real app, driven over the DevTools protocol,
+  `test/e2e/scenarios/` (one file per subject): the real app, driven over the DevTools protocol,
   against the made-up pages in `test/fixtures/`.
 - A bug fix comes with the test that would have caught it.
 - Fixtures are invented. Never copy a real site's page into the repository.
