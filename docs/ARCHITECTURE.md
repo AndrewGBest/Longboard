@@ -180,6 +180,15 @@ own pages, loaded from the app's files in a separate view from the website.
 They use the same navigation engine, so Longboard's own interface is the first
 and best-tested user of it.
 
+The code is `src/chrome/`: `index.ts` listens to the shell and starts the
+layer; `screens/render.ts` draws whichever screen the state calls for;
+each screen is a function in `screens/` (`home.ts`, `menu.ts`,
+`settings.ts`, `site-panels.ts`, `panels.ts`) that returns the elements to
+show; `screens/ui.ts` holds what they share; `parts.ts` has the pieces
+they are built from (rows, switches, icons). How they look is
+`chrome.html`. The shell sends one state object (`src/shared/chrome.ts`)
+and the screens send back messages; nothing else crosses.
+
 ## 5. Profiles in the shell
 
 - **Store:** local, imported, catalogue and built-in profiles on disk, each
