@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^22.10.0",
+    "@types/node": "^26.6.6",
     "electron": "github:castlabs/electron-releases#v45.2.1+wvcus",
     "electron-builder": "^26.0.0",
     "esbuild": "^0.25.0",
