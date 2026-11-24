@@ -98,17 +98,28 @@ do currently."
   none of the survey's 78 well-known sites. **Not checked:** a real
   harmful site was not opened, on purpose; the first fetch of all three
   on a TV box; how often the lists are wrong.
-- **Tests:** 656 unit tests; 641 end-to-end checks, passing from source.
+- **Tests:** 656 unit tests; 636 end-to-end checks, passing from source.
   Against the package with every fuse set: the 624 that existed before
   the warning was added.
-- **Open: the harmful-site question stayed up after "Go back", twice, on
-  the ARM builder only.** The same check passed on x64 each time, here
-  every time, and on ARM on the third run with nothing changed but a line
-  that prints what is on screen when it happens. So it is intermittent
-  there and its cause is not known: it may be the test pressing too soon
-  on a slow machine, or the question being put a second time. The
-  printing stays in, so the next failure says which. Until then the
-  warning should be treated as **not proven on ARM**.
+- **Found and fixed: Longboard's own screen stayed in front after "Go
+  back" on the warning.** This was the check that failed twice on the ARM
+  builder and then once on x64. It was not the question: the printing
+  showed the question gone and Longboard's screen still in front. That
+  screen was the cover put up while a site is on its way (DECISIONS.md,
+  2026-11-23), which comes down when the engine says the page is ready.
+  When a page sends its visitor on before it has finished arriving and
+  Longboard refuses, the engine never says so (observed here: no
+  `dom-ready` for that page, even seconds later), so the cover stayed for
+  its full 12 seconds. A slow builder made the test's link fire that
+  early; a real page that redirects at once to a listed site does it
+  every time. Now any refused navigation takes the cover down, and a
+  made-up page that redirects at once is in the suite: it failed every
+  time before the fix and passes after.
+- **Seen on the way, not changed:** because the engine does not say such
+  a page is ready, what Longboard does at that moment (its own style
+  sheet for TVs, the first telling of which view is in front) does not
+  happen for that page. A guess, not measured: little is lost, since
+  such a page is one the person is about to leave.
 - **Known about the tests:** with three parts of the suite running side
   by side on this machine, a part now and then fails with a page that
   did not answer in time (twice today, different scenarios each time,

@@ -755,11 +755,35 @@ export default async function run() {
   );
 
   await scenario(
+    'a page that sends its visitor straight on to a listed site',
+    { url: `${site.origin}/hop.html`, args: harmfulArgs },
+    async (app) => {
+      const chrome = await app.chrome();
+      const title = await until(
+        () => chrome.evaluate('document.querySelector("#panel h1")?.textContent ?? null'),
+        (t) => t === 'This site may be harmful',
+        80,
+      );
+      check('the question is put', title, 'This site may be harmful');
+      await sleep(700);
+      await chrome.press('Enter', 500);
+      check(
+        'and after "Go back" the page it came from is in front, not the screen that says a site is on its way',
+        await until(
+          () => chrome.evaluate('document.visibilityState'),
+          (v) => v === 'hidden',
+          30,
+        ),
+        'hidden',
+      );
+    },
+  );
+
+  await scenario(
     'no warning when it is switched off',
     { url: `${site.origin}/home.html`, args: harmfulArgs, config: { harmfulSites: false } },
     async (app) => {
       const page = await app.page(`${site.origin}/home.html`);
-      await sleep(1500);
       await page.evaluate(`location.href = "http://harmful.test:${port}/article.html"; 0`);
       const there = await app.page('http://harmful.test');
       check('the site opens, and the list was never fetched', [!!there, /harmful sites:/.test(app.log)], [true, false]);

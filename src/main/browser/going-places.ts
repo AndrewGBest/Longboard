@@ -443,6 +443,10 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
   const allowed = (url: string): boolean => {
     const reason = blockReason(url, core.navRules());
     if (!reason) return true;
+    // A page can send its visitor on before it has finished arriving, and
+    // after a refusal there the engine never says the page is ready. The
+    // cover would wait for that until it gave up; what is behind it is what stays.
+    core.uncover();
     // A link or a redirect to a listed site: the page stays where it is and the person is asked.
     if (reason === 'harmful' && askAboutHarm(url, false)) return false;
     console.error(`[longboard] blocked navigation (${reason}): ${describeBlockedUrl(url)}`);

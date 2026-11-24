@@ -36,6 +36,11 @@ New in 0.3.29 (not released yet):
   only the code in its own archive. Nothing Longboard does used them.
   Longboard's own screens are no longer a `file:` page, and `file:` pages
   get no special treatment.
+- **Longboard's "on its way" screen no longer hangs after a refused
+  redirect.** When a page sent its visitor on at once to an address
+  Longboard refuses (a site outside the lock, or now a listed one), the
+  screen that names the site being opened stayed in front for up to 12
+  seconds. It now comes down as soon as the address is refused.
 - Reader view puts a page's list items in a list, so a screen reader
   announces them as one.
 - In Settings, a "press again to clear" row no longer stays armed after a

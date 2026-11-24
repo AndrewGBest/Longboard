@@ -17,6 +17,8 @@ export interface LayoutPart {
   coverTimer: NodeJS.Timeout | undefined;
   /** Covers the window with Longboard's own screen, naming the site at this address, until its first page is there. */
   coverFor: (url: string) => void;
+  /** Takes the cover down now, if it is up. */
+  uncover: () => void;
   /** True when two addresses are on different hosts, or either is not an address. */
   otherSite: (from: string, to: string) => boolean;
   /** True while another program's window is in front, as far as the shell has heard. */
@@ -179,5 +181,17 @@ export function createLayout(core: Core): Omit<LayoutPart, 'covering' | 'coverTi
     saveSites();
     applyZoom();
   };
-  return { coverFor, otherSite, tellFront, layout, notify, saveRecents, saveSites, saveApps, applyZoom, changeZoom };
+  return {
+    coverFor,
+    uncover,
+    otherSite,
+    tellFront,
+    layout,
+    notify,
+    saveRecents,
+    saveSites,
+    saveApps,
+    applyZoom,
+    changeZoom,
+  };
 }

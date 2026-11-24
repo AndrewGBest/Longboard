@@ -134,6 +134,13 @@ export const site = await serveFixtures({
     res
       .writeHead(200, { 'content-type': 'text/plain' })
       .end('! Title: made-up list of harmful sites for the tests\n||harmful.test^\n||profile.test^*/form.html$doc\n'),
+  // A page that sends its visitor on to the listed site before it has finished arriving itself.
+  '/hop.html': (_req, res) =>
+    res
+      .writeHead(200, { 'content-type': 'text/html' })
+      .end(
+        '<!doctype html><title>Hop</title><script>location.href = "http://harmful.test:" + location.port + "/article.html";</script><p>On the way.</p>',
+      ),
   // A made-up filter list, and what the page with advertising asks for.
   '/filters.txt': (_req, res) =>
     res
