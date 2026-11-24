@@ -15,6 +15,10 @@ updates:
       runtime:
         dependency-type: production
         update-types: [minor, patch]
+    ignore:
+      # The types follow the Node the project is built with (22), not the newest.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
