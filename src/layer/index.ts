@@ -236,7 +236,9 @@ export function startLayer(deps: LayerDeps): Layer {
       core.view.clearInterval(core.searchPoll);
       core.view.clearInterval(core.controlsTimer);
       core.view.clearInterval(core.keepAlive);
+      core.view.clearInterval(core.reclaimTimer);
       core.view.clearTimeout(core.refocusTimer);
+      core.view.clearTimeout(core.followTimer);
       core.view.clearInterval(core.coverTimer);
       core.view.clearTimeout(core.dialogTimer);
       core.view.clearTimeout(core.hoverTimer);

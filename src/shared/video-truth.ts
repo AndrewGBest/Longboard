@@ -46,11 +46,11 @@ export function additionsCanBeMet(type: unknown, hdr: boolean): boolean {
       .trim()
       .replace(/^"|"$/g, '');
     const n = Number(value);
-    if (key === 'width' && !(n > 0 && n <= 7680)) return false;
-    if (key === 'height' && !(n > 0 && n <= 4320)) return false;
-    if (key === 'framerate' && !(n > 0 && n <= 120)) return false;
-    if (key === 'bitrate' && !(n > 0 && n <= 200_000_000)) return false;
-    if (key === 'channels' && !(n > 0 && n <= 8)) return false;
+    if (key === 'width' && !(n > 0 && n <= VIDEO_LIMITS.width)) return false;
+    if (key === 'height' && !(n > 0 && n <= VIDEO_LIMITS.height)) return false;
+    if (key === 'framerate' && !(n > 0 && n <= VIDEO_LIMITS.framerate)) return false;
+    if (key === 'bitrate' && !(n > 0 && n <= VIDEO_LIMITS.bitrate)) return false;
+    if (key === 'channels' && !(n > 0 && n <= VIDEO_LIMITS.channels)) return false;
     if (key === 'eotf' && !(value === 'bt709' || ((value === 'smpte2084' || value === 'arib-std-b67') && hdr)))
       return false;
     if (key === 'cryptoblockformat' && value !== 'subsample') return false;

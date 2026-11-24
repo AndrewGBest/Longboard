@@ -14,6 +14,8 @@ export interface InputPart {
   onKey: (e: KeyboardEvent) => void;
   /** Takes the keys back from an embedded frame that has taken them for itself. */
   reclaim: () => void;
+  /** The once-a-second look for a frame that took the keys without a blur being heard. */
+  reclaimTimer: number;
   /** A real click counts as a press: a text field focused just after it is one the person asked for. */
   onMouseDown: (e: MouseEvent) => void;
   /** The page gave something its focus: the highlight goes along when that is what the page meant. */
@@ -57,12 +59,12 @@ export function createInput(core: LayerCore): InputPart {
     // the browser's own input channel). A key event the page made up is not one.
     if (!e.isTrusted) return;
     // A key the layer asked the shell to press: it belongs to the site.
-    if (e.isTrusted && core.injected.consume(e.key, Date.now())) return;
+    if (core.injected.consume(e.key, Date.now())) return;
     // A real keyboard is in use: typing a character puts the on-screen one away.
     // Not Space: on some remotes that is the OK button, and it must press the highlighted key.
     // Backspace in a text field deletes, as it always has; it is only Back elsewhere.
-    if (e.isTrusted && e.key === 'Backspace' && !core.oskOpen && isTextEntry(deepActiveElement(core.doc))) return;
-    const typing = e.isTrusted && e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.altKey && !e.metaKey;
+    if (e.key === 'Backspace' && !core.oskOpen && isTextEntry(deepActiveElement(core.doc))) return;
+    const typing = e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.altKey && !e.metaKey;
     if (typing && isTextEntry(deepActiveElement(core.doc))) {
       // From here on the field has the keys, as in any browser, until focus moves.
       core.typedInto = deepActiveElement(core.doc);
@@ -115,7 +117,7 @@ export function createInput(core: LayerCore): InputPart {
   // page's window is the one in front. (Seen on a news site reached by a
   // redirect: an advertisement's frame had them from the start and no press
   // of the remote did anything.) So it is also looked for now and then.
-  core.view.setInterval(() => {
+  const reclaimTimer = core.view.setInterval(() => {
     if (
       !core.pointerOn &&
       !core.frameTyping &&
@@ -170,5 +172,5 @@ export function createInput(core: LayerCore): InputPart {
     core.doc.documentElement.classList.remove('longboard-no-pointer');
   };
   core.view.addEventListener('mousemove', onPointer, { passive: true });
-  return { onKey, reclaim, onMouseDown, onFocusIn, onPointer };
+  return { onKey, reclaim, reclaimTimer, onMouseDown, onFocusIn, onPointer };
 }

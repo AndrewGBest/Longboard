@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { siteKey } from '../../shared/address';
 import { type Panel } from '../../shared/chrome';
 import { type PickedStep } from '../../shared/editor';
-import { type Askable } from '../permissions';
+import { type Askable } from '../../shared/permissions';
 import { readJson, writeJson } from '../store';
 import { canvasOf, type Profile, type ProfileSource } from '../../shared/profile';
 import { desktopZoom, pageBounds, tvZoom } from '../zoom';

@@ -6,7 +6,7 @@ import {
   mayAsk,
   permissionDecision,
   withAnswers,
-} from '../src/main/permissions';
+} from '../src/shared/permissions';
 import { progressText, safeFileName, sizeText, uniqueName } from '../src/shared/downloads';
 
 describe('permissionDecision', () => {

@@ -6,7 +6,7 @@ import { rmSync } from 'node:fs';
 import { voiceModelSize } from '../../shared/voice';
 import { DECLINED, HAND_BACKS, steamAnswer } from '../handback';
 import { siteKey } from '../../shared/address';
-import { hasPermission, mayAsk, permissionDecision, withAnswers } from '../permissions';
+import { hasPermission, mayAsk, permissionDecision, withAnswers } from '../../shared/permissions';
 import { type Profile } from '../../shared/profile';
 import type { Core } from './core';
 

@@ -19,7 +19,7 @@ calendar in places** (the agent's slip; the commit dates are right).
   under `--automation`): Netflix, Prime Video, Disney+, Apple TV,
   Sportsnet+, TSN play; Rogers Xfinity Stream does not (issue 1).
 - **Tested by script signed out:** the 68-site survey (today's run below);
-  the end-to-end suite on invented pages; 636 unit tests.
+  the end-to-end suite on invented pages; 637 unit tests.
 - **Never tested by anyone:** an ARM TV box; Kinoite with Plasma
   Bigscreen after 0.3.18; the Steam hand-back signed in; anybody's TV but
   Andrew's.
@@ -30,6 +30,90 @@ calendar in places** (the agent's slip; the commit dates are right).
   highlight could not get into (pointer mode gets out of it).
 - **Waiting on others:** castLabs' December release (then the AC-3
   stopgap goes).
+
+## 2026-11-24: making it a proper project (0.3.28, not released)
+
+Andrew: research what makes a good project, set up everything GitHub
+offers, and clean the code so it is readable and can be contributed to.
+The choices and their reasons are in DECISIONS.md of this date.
+
+### What it was measured against
+
+A sub-agent read these today and gave back a checklist with the address
+of each item: GitHub's community-profile documents, the OpenSSF Scorecard's
+list of checks and the Best Practices badge's criteria, Electron's
+security checklist, typescript-eslint's and Prettier's documents,
+Google's TypeScript style guide and review guide (on comments), Keep a
+Changelog, the Contributor Covenant. The agent marked what it could not
+confirm from a primary source; none of those points was relied on.
+
+### The code
+
+- **Prettier and ESLint**, in `npm run check`. The linter's 58 findings
+  were fixed.
+- **The three longest files split by subject**, by a script working from
+  the compiler's symbol table so that statements keep their order:
+  the shell's window (4,100 lines, now `src/main/browser/`, 22 parts),
+  the layer (1,500, `src/layer/parts/`, 11) and Longboard's own screens
+  (1,950, `src/chrome/screens/`). Then by hand and by reviewers: Settings
+  became one function per page; the navigator's free helpers moved into
+  four modules beside it. Largest source file now: the navigator's class,
+  about 1,190 lines.
+- **A read-through of every source file** by four sub-agents, one per
+  area, under one written brief (comments say why; history goes to
+  DECISIONS.md; every file says what it is for; every shared member has a
+  line of documentation; stale references fixed). They were told to change
+  no behaviour and to report suspected faults instead. Their changes were
+  checked by the whole test suite, not read line by line by the agent
+  directing them: samples were read.
+- **Faults they reported, fixed:** the layer's `stop()` left two timers
+  running; "Clear site data" and "Clear cache" missed an open private
+  tab's session; three tests of a value that could no longer be false;
+  `src/shared/sites.ts` depended on a module in `src/main/` (the
+  permission rules, which are pure, moved to `src/shared/`); the video
+  limits were written out twice.
+- **Reported and left, for want of evidence that they matter:** in a
+  frame's text field a key other than Enter or Backspace sent from the
+  shell may let one real press through within a second
+  (`browser/layer-messages.ts`, `playerKey`); a "press again" row in
+  Settings stays armed across a visit to a chooser; reader view puts list
+  items straight into the article with no list around them; the catalogue
+  repeats the ad-block module's domain pattern; the outline's sanitiser and
+  the purchase guard's word list each carry one shop's own terms.
+- **Tests:** 637 unit tests; the whole end-to-end suite (615 checks) was
+  run after each step and passes. No fixture or check was changed to make
+  it pass. **Not tested:** anything at a TV, and no package was installed
+  and run by hand; "Build packages" ran green on GitHub with the updated
+  actions.
+
+### GitHub
+
+- **Found broken and fixed:** the "website does not work" issue form had
+  an unclosed quote, so GitHub was not offering it. It had been that way
+  since it was written the day before.
+- **Set up:** rules on `main` and on release tags; actions pinned to
+  commits, and required to be; Dependabot (weekly, grouped); CodeQL;
+  the OpenSSF Scorecard (badge in the README); a dependency review on pull
+  requests; Discussions; a code of conduct, SUPPORT.md, CODEOWNERS,
+  `.gitattributes`, `.editorconfig`; immutable releases; a release now
+  adds `SHA256SUMS.txt` and a build attestation. The community profile
+  reads 100%. CodeQL's first runs raised nothing.
+- **The Scorecard's open points** are the ones one person cannot meet
+  (review by somebody else, a second maintainer's approval on the branch,
+  fuzzing, the Best Practices badge).
+- **Dependencies:** vitest 5, esbuild 0.28, adm-zip 0.6.1.
+  `npm audit --omit=dev` is clean.
+- **Not exercised yet:** the release workflow's new steps (checksums,
+  attestation) and immutable releases run for the first time at the next
+  release.
+- **The profiles repository:** rules on `main` and private reporting are
+  on. Pinned actions, Dependabot, a code of conduct and a security file
+  are committed locally, behind the unpushed profile, and go out with it.
+
+### Left for Andrew
+
+Releasing 0.3.28 and pushing the profile (as before); the social preview
+image; the Best Practices badge; a funding file if wanted.
 
 ## 2026-11-23, evening: the cloud-gaming site's TV layout (0.3.28, not released)
 

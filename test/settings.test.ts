@@ -17,7 +17,7 @@ import {
   effectiveVerified,
   startsOffEntries,
 } from '../src/shared/adblock';
-import { permissionDecision } from '../src/main/permissions';
+import { permissionDecision } from '../src/shared/permissions';
 import { isSearchTemplate } from '../src/shared/address';
 
 describe('changing a setting', () => {

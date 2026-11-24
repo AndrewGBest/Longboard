@@ -307,9 +307,13 @@ export function createMenu(core: Core): MenuPart {
     );
   };
   const settingsAction = (action: SettingsAction): void => {
+    // Every session a site can have stored something in: the tabs' (a private tab has its own), and each app's.
     const webSessions = (): Electron.Session[] => [
-      (core.views.get(core.lastTab) ?? core.pageView).webContents.session,
-      ...core.apps.filter((a) => a.ownSession).map((a) => session.fromPartition(appPartition(a))),
+      ...new Set([
+        (core.views.get(core.lastTab) ?? core.pageView).webContents.session,
+        ...[...core.views.values()].map((view) => view.webContents.session),
+        ...core.apps.filter((a) => a.ownSession).map((a) => session.fromPartition(appPartition(a))),
+      ]),
     ];
     switch (action) {
       case 'clearSiteData':

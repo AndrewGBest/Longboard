@@ -1,6 +1,6 @@
 // Per-site settings the person has chosen: answers to permission questions
 // and a zoom adjustment. Pure; the shell reads and writes the file.
-import { ASKABLE_NAMES, type SitePermissions } from '../main/permissions';
+import { ASKABLE_NAMES, type SitePermissions } from './permissions';
 
 export interface SiteSettings extends SitePermissions {
   /** Zoom relative to the automatic TV scale: 1 is unchanged. */

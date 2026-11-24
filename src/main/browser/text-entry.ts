@@ -99,6 +99,8 @@ export function createTextEntry(core: Core): Omit<TextEntryPart, 'phoneHeld'> {
       if (message.t === 'text') typeHeld(message.v, 'phone');
       else if (message.t === 'key' && message.v === 'menu') core.toggleMenu();
       else if (message.t === 'key') {
+        // The name came over the network: one that is not on the list is no key at all.
+        if (!Object.hasOwn(PHONE_BUTTONS, message.v)) return;
         const keyCode = PHONE_BUTTONS[message.v as keyof typeof PHONE_BUTTONS];
         front.sendInputEvent({ type: 'keyDown', keyCode });
         if (keyCode === 'Return') front.sendInputEvent({ type: 'char', keyCode: '\r' });

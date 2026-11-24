@@ -11,7 +11,7 @@ import { HAND_BACKS } from '../handback';
 import { siteName, DEFAULT_SEARCH } from '../../shared/address';
 import { type ChromeState } from '../../shared/chrome';
 import { EDIT_MARKS, hasMark, marksOf } from '../../shared/editor';
-import { ASKABLE, describeAsk, type Askable } from '../permissions';
+import { ASKABLE, describeAsk, type Askable } from '../../shared/permissions';
 import { sizeText, progressText } from '../../shared/downloads';
 import { sourceLabel } from '../profiles';
 import { launcherFolder, removableFolders } from '../../platform';
