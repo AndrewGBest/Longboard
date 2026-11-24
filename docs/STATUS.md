@@ -101,6 +101,14 @@ do currently."
 - **Tests:** 656 unit tests; 641 end-to-end checks, passing from source.
   Against the package with every fuse set: the 624 that existed before
   the warning was added.
+- **Open: the harmful-site question stayed up after "Go back", twice, on
+  the ARM builder only.** The same check passed on x64 each time, here
+  every time, and on ARM on the third run with nothing changed but a line
+  that prints what is on screen when it happens. So it is intermittent
+  there and its cause is not known: it may be the test pressing too soon
+  on a slow machine, or the question being put a second time. The
+  printing stays in, so the next failure says which. Until then the
+  warning should be treated as **not proven on ARM**.
 - **Known about the tests:** with three parts of the suite running side
   by side on this machine, a part now and then fails with a page that
   did not answer in time (twice today, different scenarios each time,
