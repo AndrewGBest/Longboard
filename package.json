@@ -71,7 +71,7 @@
     "@types/node": "^22.10.0",
     "electron": "github:castlabs/electron-releases#v45.2.1+wvcus",
     "electron-builder": "^26.0.0",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.2",
     "eslint": "^10.15.0",
     "globals": "^17.14.0",
     "jsdom": "^26.0.0",
