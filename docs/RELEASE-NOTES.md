@@ -25,6 +25,8 @@ New in 0.3.29 (not released yet):
   runner.** The engine's switches for that (`ELECTRON_RUN_AS_NODE`,
   `NODE_OPTIONS`, `--inspect`) are turned off in the package, and it runs
   only the code in its own archive. Nothing Longboard does used them.
+  Longboard's own screens are no longer a `file:` page, and `file:` pages
+  get no special treatment.
 - Reader view puts a page's list items in a list, so a screen reader
   announces them as one.
 - In Settings, a "press again to clear" row no longer stays armed after a

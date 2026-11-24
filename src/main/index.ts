@@ -24,9 +24,12 @@ import { readJson, writeJson } from './store';
 import { Updater } from './update';
 import { browserUserAgent } from './useragent';
 
-// The listening page's own address (main/voice.ts). It has to be declared before the app is ready.
+// Addresses of Longboard's own: the listening page (main/voice.ts) and its
+// own screens (main/browser/shell.ts). They have to be declared before the
+// app is ready. Each is answered in one session only, never in a website's.
 protocol.registerSchemesAsPrivileged([
   { scheme: 'voice', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
+  { scheme: 'longboard', privileges: { standard: true, secure: true } },
 ]);
 
 // The command line: `--name` is a switch, `--name=value` carries a value.

@@ -41,7 +41,7 @@ agent's; Andrew asked for the roadmap's items to be worked through).
 | Run as Node (`ELECTRON_RUN_AS_NODE`) | off | With it on, anything that can set an environment variable can use Longboard's binary as a general script runner. Longboard never starts itself that way. Checked: 0.3.28's package ran a script given this way; the new one does not |
 | `NODE_OPTIONS`, `--inspect` | off | The same door by other names. The DevTools port the tests use is the browser's, not Node's, and still works |
 | Load the app only from its archive | on | The engine no longer looks for loose files beside the archive to run instead |
-| Extra privileges for `file:` pages | left on | Turned off, Longboard's own screens (a `file:` page inside the archive) do not load. Serving them from a protocol of Longboard's own would allow it: on the roadmap |
+| Extra privileges for `file:` pages | off | Longboard's own screens were a `file:` page inside the archive and did not load without them. They are now served from an address of Longboard's own (`longboard://screens/chrome.html`), answered only in their own view's session, as the checklist's item 18 advises; nothing in Longboard is a `file:` page any more |
 | Cookie encryption | left off | It ties the cookie file to the desktop's keyring. On a TV box without one, or after moving to this version, people could find themselves signed out everywhere. Not worth it without a way to test that |
 
 **Tested how.** The end-to-end harness can now drive a packaged build

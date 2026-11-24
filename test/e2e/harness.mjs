@@ -384,7 +384,7 @@ export async function launch({ url, config, args = [], width, height, seed, env 
     return null;
   };
   /** Longboard's own screens. */
-  app.chrome = () => app.view((u) => u.startsWith('file:') && u.endsWith('chrome.html'));
+  app.chrome = () => app.view((u) => u === 'longboard://screens/chrome.html');
   /** The website view, once it shows an address starting with `prefix`. */
   app.page = (prefix, tries) => app.view((u) => u.startsWith(prefix), tries);
   app.exited = new Promise((r) => child.once('exit', () => r(true)));

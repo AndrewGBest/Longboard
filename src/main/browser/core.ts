@@ -86,6 +86,8 @@ export interface BrowserDeps {
   };
 }
 
+/** Where Longboard's own screens live. Answered only in their own view's session (shell.ts). */
+export const SCREENS_URL = 'longboard://screens/chrome.html';
 /** Share of the window's width the menu panel takes over a website. */
 export const PANEL_WIDTH = 0.38;
 /** How long after a page is left it is frozen: time for the site's own pause key to be dealt with. */

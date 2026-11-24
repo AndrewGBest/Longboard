@@ -16,6 +16,7 @@ import { parseApps, type WebApp } from '../../shared/apps';
 import { Extensions } from '../extensions';
 import { PRODUCT } from '../../shared/product';
 import type { Core } from './core';
+import { SCREENS_URL } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
 export interface ShellPart {
@@ -144,6 +145,16 @@ export function createShell(
   });
   chromeView.setBackgroundColor('#0d1014');
   const chrome = chromeView.webContents;
+  // Longboard's own screens are one page, served from an address of its own
+  // and only in this view's session: a website's session has nothing at this
+  // address, and the page gets none of what a `file:` page is allowed.
+  chrome.session.protocol.handle('longboard', (request) =>
+    request.url === SCREENS_URL
+      ? new Response(readFileSync(join(__dirname, 'chrome.html')), {
+          headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+        })
+      : new Response('not found', { status: 404 }),
+  );
 
   // Website views: one for each tab, and one more while an app that keeps
   // its own sign-ins is open. Only one is ever the page in front; the parts

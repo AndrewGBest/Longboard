@@ -5,11 +5,11 @@
 // browser/, put together here in order. This file also decides what the
 // window opens with, and tidies up when it closes.
 import { rmSync } from 'node:fs';
-import { join } from 'node:path';
 import { ipcMain } from 'electron';
 import { DECLINED } from './handback';
 import { startingPageUrl } from './navigation';
 import type { Browser, BrowserDeps, Core } from './browser/core';
+import { SCREENS_URL } from './browser/core';
 import { createShell } from './browser/shell';
 import { createState } from './browser/state';
 import { createLock } from './browser/lock';
@@ -84,7 +84,7 @@ export function createBrowser(deps: BrowserDeps): Browser {
   });
 
   core.restoreTabs();
-  void core.chrome.loadFile(join(__dirname, 'chrome.html'));
+  void core.chrome.loadURL(SCREENS_URL);
   const startApp = core.deps.startApp ? core.apps.find((a) => a.id === core.deps.startApp) : undefined;
   if (core.deps.startApp && !startApp)
     console.error(`[longboard] there is no app called "${core.deps.startApp.slice(0, 80)}"`);

@@ -178,7 +178,8 @@ keyboard as drawn).
 ## 4. Chrome views
 
 Home, the menu, the on-screen keyboard and the profile editor are Longboard's
-own pages, loaded from the app's files in a separate view from the website.
+own page, served from an address of Longboard's own (`longboard://screens/`,
+answered only in that view's session) in a separate view from the website.
 They use the same navigation engine, so Longboard's own interface is the first
 and best-tested user of it.
 
