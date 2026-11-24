@@ -57,6 +57,7 @@ function maskToken(token: string): string {
   if (/\d{4,}/.test(token)) return ':id';
   if (/^[A-Z0-9]{8,}$/.test(token)) return ':id';
   if (/^[0-9a-f]{8,}$/i.test(token)) return ':id';
+  // One large shop's product and account ids, which the general shapes above let through.
   if (/^amzn|^B0[0-9A-Z]{6,}/i.test(token)) return ':id';
   return token;
 }

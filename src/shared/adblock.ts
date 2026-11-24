@@ -10,7 +10,8 @@ export const LISTS_KEPT_MS = 4 * 24 * 60 * 60 * 1000;
 /** The most lists the person may name in config.json. */
 export const MAX_LISTS = 8;
 
-const DOMAIN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+/** A plain domain name: lower case, dots, no port, path or address. Used wherever a list of sites is read. */
+export const DOMAIN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
 /** The domains in a verified-sites file: `{ "sites": ["example.com", ...] }`, or the repository's own form with `domain` fields. */
 export function parseVerified(raw: unknown): string[] {

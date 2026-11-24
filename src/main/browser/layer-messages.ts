@@ -140,7 +140,6 @@ export function createLayerMessages(core: Core): Omit<LayerMessagesPart, 'blocke
         const info = playerKeyInfo(msg.key);
         if (info && core.frameField && wc === core.page && core.attached) {
           // The keyboard's Enter and backspace, for a field inside a frame: the same channel as its letters.
-          core.sentKeys.push({ key: info.domKey, until: Date.now() + 1000 });
           const key = {
             key: info.domKey,
             code: info.domKey,
@@ -148,6 +147,7 @@ export function createLayerMessages(core: Core): Omit<LayerMessagesPart, 'blocke
             nativeVirtualKeyCode: info.domKey === 'Enter' ? 13 : 8,
           };
           if (info.domKey === 'Enter' || info.domKey === 'Backspace') {
+            core.sentKeys.push({ key: info.domKey, until: Date.now() + 1000 });
             void core.page.debugger
               .sendCommand('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key })
               .then(() =>

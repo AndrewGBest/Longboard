@@ -112,12 +112,19 @@ export function readerPanel(s: ChromeState): Node[] {
   };
   const tags = { heading: 'h2', text: 'p', item: 'li', quote: 'blockquote', code: 'pre' } as const;
   const minutes = Math.max(1, Math.round(r.blocks.reduce((n, b) => n + b.text.split(/\s+/).length, 0) / 220));
+  // Items that follow one another are one list, so a screen reader says "list" and counts them.
+  const body: HTMLElement[] = [];
+  for (const b of r.blocks.filter((b, i) => !(i === 0 && b.kind === 'heading' && b.text.trim() === r.title.trim()))) {
+    const block = el(tags[b.kind] ?? 'p', { text: b.text });
+    const last = body[body.length - 1];
+    if (b.kind !== 'item') body.push(block);
+    else if (last?.tagName === 'UL') last.append(block);
+    else body.push(el('ul', {}, [block]));
+  }
   const article = el('article', { id: 'reader-text' }, [
     el('h1', { text: r.title || r.site }),
     el('p', { cls: 'where', text: `${r.site} · about ${minutes === 1 ? '1 minute' : `${minutes} minutes`} to read` }),
-    ...r.blocks
-      .filter((b, i) => !(i === 0 && b.kind === 'heading' && b.text.trim() === r.title.trim()))
-      .map((b) => el(tags[b.kind] ?? 'p', { text: b.text })),
+    ...body,
   ]);
   article.style.fontSize = `${READER_SIZES[readerSize]}vh`;
   return [

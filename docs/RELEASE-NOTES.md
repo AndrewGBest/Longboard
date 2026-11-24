@@ -3,6 +3,15 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.29 (not released yet):
+
+- Reader view puts a page's list items in a list, so a screen reader
+  announces them as one.
+- In Settings, a "press again to clear" row no longer stays armed after a
+  visit to one of the pick-one lists.
+- While the on-screen keyboard types into a field inside a frame, a key
+  it does not send is no longer remembered as one it did.
+
 New in 0.3.28:
 
 - **An advertisement's frame at the top of a page no longer holds the

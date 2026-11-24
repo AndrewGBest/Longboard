@@ -1,6 +1,7 @@
 // The catalogue index: the one file Longboard downloads to learn which
 // reviewed profiles exist and which sites are verified. Pure checks only; the
 // downloading is in main/catalogue.ts.
+import { DOMAIN } from './adblock';
 
 export const INDEX_FORMAT = 1;
 /** Where the reviewed catalogue is published (docs/PROFILES.md section 4). */
@@ -23,7 +24,6 @@ export interface CatalogueIndex {
 }
 
 const PATH = /^profiles\/[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?\/profile\.json$/;
-const DOMAIN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const MAX_ENTRIES = 5000;
 
 /**

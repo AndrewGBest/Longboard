@@ -87,9 +87,10 @@ export function createShell(
   const homeFile = join(dataDir, 'home.json');
   const sitesFile = join(dataDir, 'sites.json');
   const complain = (file: string) => (why: string) => console.error(`[longboard] ${file} could not be read: ${why}`);
-  core.recents = parseRecents(readJson(homeFile, complain('home.json')));
+  const home = readJson(homeFile, complain('home.json'));
+  core.recents = parseRecents(home);
   /** Pages the person asked to keep on Home. */
-  core.saved = parseSaved(readJson(homeFile));
+  core.saved = parseSaved(home);
   const sites: Record<string, SiteSettings> = parseSites(readJson(sitesFile, complain('sites.json')));
   const appsFile = join(dataDir, 'apps.json');
   const iconsDir = join(dataDir, 'icons');

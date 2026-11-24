@@ -22,6 +22,7 @@ export const go = (page: SettingsPage) => (): void => {
 /** A press that opens one of the lists to choose one thing from. */
 export const pick = (what: NonNullable<typeof ui.choosing>) => (): void => {
   ui.choosing = what;
+  ui.confirming = null;
   render();
 };
 

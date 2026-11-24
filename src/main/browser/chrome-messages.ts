@@ -7,7 +7,7 @@ import { loginPlace } from '../../shared/passwords';
 import { searchUrl, siteName, DEFAULT_SEARCH } from '../../shared/address';
 import { EDIT_ACTIONS, MENU_ACTIONS, SETTINGS_ACTIONS, type ChromeMessage } from '../../shared/chrome';
 import { removeRecent, removeSaved } from '../../shared/home';
-import { writeJson } from '../store';
+
 import { isPin, waitAfter } from '../../shared/lock';
 import { checkPin, makeLock } from '../lock';
 import { cleanDomain, editStartsOff } from '../../shared/adblock';
@@ -206,7 +206,7 @@ export function createChromeMessages(core: Core): ChromeMessagesPart {
       case 'forgetVisit':
         if (core.panel === 'history' && typeof msg.url === 'string' && core.visits.some((v) => v.url === msg.url)) {
           core.visits = core.visits.filter((v) => v.url !== msg.url);
-          writeJson(core.historyFile, { visits: core.visits });
+          core.saveHistory();
           core.layout();
         }
         break;
