@@ -2,15 +2,16 @@
 
 Update this at the end of every working session. Newest first.
 
-## Where things stand (rewritten 2026-11-23, at 0.3.27)
+## Where things stand (rewritten 2026-11-24, at 0.3.28)
 
 A summary, so nobody has to read the whole file to know. The entries below
 it are the record. **Headings up to 0.3.27 run up to a day ahead of the
 calendar in places** (the agent's slip; the commit dates are right).
 
-- **Released:** 0.3.27, for Intel/AMD and ARM, as AppImage (updates
-  itself), a Flatpak file and tar.gz. **Built, not released:** 0.3.28
-  (below). Releases are made only at Andrew's word.
+- **Released:** 0.3.28, for Intel/AMD and ARM, as AppImage (updates
+  itself), a Flatpak file and tar.gz, with checksums and a build
+  attestation. **Built, not released:** 0.3.29 (below). Releases are made
+  only at Andrew's word.
 - **Tested by Andrew at his TV with a remote:** general browsing, and a
   number of well-known services signed in. What he reported is answered up
   to 0.3.27; whether each fix holds on his TV is known only where an entry
@@ -19,7 +20,8 @@ calendar in places** (the agent's slip; the commit dates are right).
   under `--automation`): Netflix, Prime Video, Disney+, Apple TV,
   Sportsnet+, TSN play; Rogers Xfinity Stream does not (issue 1).
 - **Tested by script signed out:** the 68-site survey (today's run below);
-  the end-to-end suite on invented pages; 637 unit tests.
+  the end-to-end suite on invented pages (624 checks, run against the
+  source and against the package); 649 unit tests.
 - **Never tested by anyone:** an ARM TV box; Kinoite with Plasma
   Bigscreen after 0.3.18; the Steam hand-back signed in; anybody's TV but
   Andrew's.
@@ -30,6 +32,80 @@ calendar in places** (the agent's slip; the commit dates are right).
   highlight could not get into (pointer mode gets out of it).
 - **Waiting on others:** castLabs' December release (then the AC-3
   stopgap goes).
+
+## 2026-11-24, later: 0.3.28 released; the roadmap's items (0.3.29, not released)
+
+Andrew: "Release it, push the profile, identity seems fine... Handle the
+code suspicions and get to work on the items in the road map that we can
+do currently."
+
+### Released
+
+- **0.3.28** is out. Before the tag, "Build packages" was run on the same
+  commit and its AppImage was unpacked and started here: it opened a site
+  and fetched the playback component. After: seven files on the release,
+  `SHA256SUMS.txt` matches the AppImage downloaded from the release page,
+  GitHub lists two attestations for it (the release's and the build's),
+  and the release is marked immutable. `gh attestation verify` itself was
+  **not run**: the `gh` on this machine is too old to have it.
+- **The profile for the cloud-gaming site** and the profiles repository's
+  tidy-up are pushed. Playing a game in that layout is still untried.
+- **Andrew confirmed** the second use of rule 3's exception ("identity
+  seems fine").
+
+### Built since, in 0.3.29
+
+- **The suspicions from the read-through**, dealt with: a key marked as
+  Longboard's own only when it is really sent into a frame's field; a
+  half-confirmed row in Settings disarmed by opening a chooser; reader
+  view's list items in a list; one domain pattern, one place that writes
+  history, Home's file read once. **Left on purpose:** the outline's
+  sanitiser and the purchase guard keep one large shop's own words (they
+  err wide, and the guard is not to be weakened: rule 11); "use this
+  profile, this once" is asked again on the next page, as written.
+- **Fuses** (DECISIONS.md): the package no longer runs as plain Node,
+  loads only its own archive, and gives `file:` pages nothing extra.
+  For the last, Longboard's own screens moved from a `file:` page to
+  `longboard://screens/chrome.html`, served only in their own session.
+- **The package itself is tested.** The harness can drive a packaged
+  build; "Build packages" and "Release" now run the end-to-end checks
+  against what they built. Passed on GitHub on both processors (before
+  the screens moved; a run with that is under way as this is written).
+- **The end-to-end scenarios are 15 files by subject**, not one of 5,500
+  lines. The same checks, in the same order.
+- **Tabs are kept for the next start** and **saved files' names are
+  remembered** (DECISIONS.md). Unit tests and end-to-end scenarios for
+  both.
+- **A real fault found by a flaky test.** "On a verified site nothing is
+  refused" failed about once in fifteen runs under load. Twice it was
+  put down to the test reading too early, and the test was given longer
+  waits; that was wrong. Caught with diagnostics: the site's first
+  advertisement was refused and the second allowed, with the verified
+  list in place. A view reports the page being left for a moment after
+  the new page starts asking for things, so those requests were judged
+  by the old site's switch. Fixed in `pageOfRequest`
+  (`src/shared/adblock.ts`), unit-tested. **Not proven by a
+  reproduction:** thirty more runs under load showed no recurrence, which
+  at one in fifteen is suggestive and no more. What the engine reports
+  about the requesting frame in that moment was never observed; the fix
+  relies on the request's referrer instead, and does nothing when unsure.
+- **Tests:** 649 unit tests; 624 end-to-end checks, passing from source
+  and against the package with every fuse set.
+- **Known about the tests:** with three parts of the suite running side
+  by side on this machine, a part now and then fails with a page that
+  did not answer in time (twice today, different scenarios each time,
+  passing when run again). GitHub's runs, which go one at a time, have
+  not shown it. Not looked into.
+
+### Not done, and why
+
+- **The social preview image.** GitHub has no interface for it but the
+  settings page, and the agent has no browser signed in as Andrew.
+- **A signature with a key of the project's own.** The key would have to
+  be made and kept by Andrew; one made and held by the agent, or stored
+  where the build can read it, adds nothing over the attestation.
+- **Narrowing what the parts share through `core`.** Not started.
+- **Safe Browsing.** Being researched (terms and lists); nothing built.
 
 ## 2026-11-24: making it a proper project (0.3.28, not released)
 
