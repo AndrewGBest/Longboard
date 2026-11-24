@@ -32,10 +32,10 @@ it needs features.
 3. **Signed releases.** From 0.3.28 a release carries checksums and a
    build attestation and cannot be altered once published; a signature
    with a key of the project's own is still to do.
-4. **Electron's fuses.** The packaged engine still accepts the switches
-   that make it run as plain Node (`ELECTRON_RUN_AS_NODE` and the like).
-   Electron's security checklist says to turn them off in the package;
-   that changes the package and needs a release's worth of testing.
+4. **Longboard's own screens from a protocol of their own**, not
+   `file:`, as Electron's security checklist advises. Then the last fuse
+   (extra privileges for `file:` pages) can be turned off too; turned off
+   today, the screens do not load from inside the package.
 5. **Safe Browsing or an equivalent**, if one can be had on terms an
    open-source project can meet. Until then the README says it is missing.
 

@@ -3,6 +3,27 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-24: the package's fuses, and testing the package itself
+
+Electron's security checklist (item 19) says to turn off, in the packaged
+engine, the switches an application does not use. **Assumption** (the
+agent's; Andrew asked for the roadmap's items to be worked through).
+
+| Fuse | Set to | Why |
+|---|---|---|
+| Run as Node (`ELECTRON_RUN_AS_NODE`) | off | With it on, anything that can set an environment variable can use Longboard's binary as a general script runner. Longboard never starts itself that way. Checked: 0.3.28's package ran a script given this way; the new one does not |
+| `NODE_OPTIONS`, `--inspect` | off | The same door by other names. The DevTools port the tests use is the browser's, not Node's, and still works |
+| Load the app only from its archive | on | The engine no longer looks for loose files beside the archive to run instead |
+| Extra privileges for `file:` pages | left on | Turned off, Longboard's own screens (a `file:` page inside the archive) do not load. Serving them from a protocol of Longboard's own would allow it: on the roadmap |
+| Cookie encryption | left off | It ties the cookie file to the desktop's keyring. On a TV box without one, or after moving to this version, people could find themselves signed out everywhere. Not worth it without a way to test that |
+
+**Tested how.** The end-to-end harness can now drive a packaged build
+(`LONGBOARD_APP=<binary>`; `npm run e2e:package`). All 615 checks pass
+against the package with these fuses, on x64, locally. The "Build
+packages" and "Release" workflows now run the end-to-end checks against
+the package they have just built, in place of the source tree, so a
+release is tested as shipped, on both kinds of processor.
+
 ## 2026-11-24: how the project is kept: tools, GitHub settings, and the shape of the code
 
 Andrew: "Research everything that makes a good project... Go through

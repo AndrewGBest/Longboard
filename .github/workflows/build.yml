@@ -28,8 +28,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: xvfb-run -a npm run e2e
       - run: npx electron-builder --linux --${{ matrix.arch }} --publish never
+      # The end-to-end checks run against the package that was just built,
+      # not the source tree, so what is tested is what is shipped.
+      - name: End-to-end on the package
+        run: LONGBOARD_APP="$(ls -d release/linux*-unpacked)/longboard" xvfb-run -a node test/e2e/run.mjs
       # The Flatpak bundle is built separately: it needs flatpak-builder and
       # the runtime it is built against, which the other packages do not. It
       # is built on a machine of the processor it is for.

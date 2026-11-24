@@ -147,6 +147,7 @@ necessary, not sufficient.
 npm run check        # typecheck + lint + format check + unit tests + build + rule checks
 npm run format       # lay the code out with Prettier
 npm run e2e          # the real app against the invented fixtures, driven over the DevTools protocol
+npm run e2e:package  # the same against a package built on the spot
 npm run scorecard    # generic mode against the fixed list of public sites (test/scorecard/)
 npm start            # a window; add an address to open it
 npm run tv           # full screen

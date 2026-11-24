@@ -11,6 +11,12 @@ import { fileURLToPath } from 'node:url';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const electronPath = createRequire(import.meta.url)('electron');
+// LONGBOARD_APP=<path to a packaged longboard binary> runs the same checks
+// against a package (after `npx electron-builder --linux dir`) instead of
+// the source tree, which is how the package's own settings get tested.
+const packaged = process.env.LONGBOARD_APP ? resolve(process.env.LONGBOARD_APP) : null;
+const appBinary = packaged ?? electronPath;
+const appFirst = packaged ? [] : [root];
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let failures = 0;
@@ -282,9 +288,9 @@ export async function launch({ url, config, args = [], width, height, seed, env 
   // Files a scenario wants in the data folder before the app starts.
   if (seed) seed(userData);
   const child = spawn(
-    electronPath,
+    appBinary,
     [
-      root,
+      ...appFirst,
       '--dev',
       '--automation',
       ...(width ? [`--size=${width}x${height}`] : []),
@@ -316,9 +322,9 @@ export async function launch({ url, config, args = [], width, height, seed, env 
   app.again = (more = []) =>
     new Promise((done) => {
       const copy = spawn(
-        electronPath,
+        appBinary,
         [
-          root,
+          ...appFirst,
           '--dev',
           '--automation',
           ...more,
