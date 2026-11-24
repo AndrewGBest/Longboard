@@ -3,7 +3,7 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
-New in 0.3.28 (not released yet):
+New in 0.3.28:
 
 - **An advertisement's frame at the top of a page no longer holds the
   highlight.** On a newspaper's front page, Up went round between the page
@@ -18,6 +18,15 @@ New in 0.3.28 (not released yet):
   games could not be reached; in the TV layout every row can. Checked by
   script, signed in, as far as a game's own panel. Playing a game has not
   been tried.
+- "Clear site data" and "Clear cache" in Settings now cover a private
+  tab that is open at the time.
+- The library that unpacks extension files is updated to a version with
+  no known vulnerabilities.
+- A release now comes with `SHA256SUMS.txt` and a build attestation (see
+  "Checking a file" below), and cannot be changed once published.
+- Inside, the code was reorganised into smaller files and is now checked
+  by a linter. Nothing is meant to behave differently for it; all the
+  automatic tests pass.
 
 New in 0.3.27:
 
