@@ -392,7 +392,15 @@ export async function launch({ url, config, args = [], width, height, seed, env 
     for (const view of open) view.close();
     child.kill();
     await sleep(300);
-    if (!keep) rmSync(userData, { recursive: true, force: true });
+    // The app may still be writing as it goes: the folder is tried a few times, and a throw-away folder that
+    // will not go is left for the system to clear, since it says nothing about Longboard.
+    if (!keep) {
+      try {
+        rmSync(userData, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+      } catch (err) {
+        console.error(`(left behind: ${userData}: ${String(err).slice(0, 120)})`);
+      }
+    }
   };
   return app;
 }
