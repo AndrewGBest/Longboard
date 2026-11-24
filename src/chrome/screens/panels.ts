@@ -244,6 +244,10 @@ export function downloadsPanel(s: ChromeState): Node[] {
         }),
       );
   }
+  if (s.pastDownloads.length) {
+    items.push(el('h2', { text: 'Saved earlier' }));
+    for (const name of s.pastDownloads) items.push(note(name));
+  }
   items.push(row('downloads-close', 'Close', () => tell({ kind: 'menu', action: 'close' }), { cls: 'quiet' }));
   return items;
 }

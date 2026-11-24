@@ -260,6 +260,7 @@ export function createChromeState(core: Core): Omit<ChromeStatePart, 'offeredSea
       state: d.state === 'asking' ? ('going' as const) : d.state,
       progress: d.state === 'going' ? progressText(d.item.getReceivedBytes(), d.item.getTotalBytes()) : '',
     })),
+    pastDownloads: core.pastDownloads().map((d) => d.name),
     edit: !core.edit
       ? null
       : {

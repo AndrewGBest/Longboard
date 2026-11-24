@@ -11,6 +11,10 @@ New in 0.3.29 (not released yet):
   it, not before. Private tabs are never kept. Settings, under Privacy,
   has the switch ("Keep the open tabs for next time"); nothing is kept
   while "clear what sites stored when Longboard closes" is on.
+- **The list of downloads remembers files saved earlier.** Their names
+  are under "Saved earlier" in the menu's Downloads list. Not kept while
+  history is switched off, nor for a file fetched in a private tab;
+  clearing the history clears them.
 - **The packaged program can no longer be used as a general script
   runner.** The engine's switches for that (`ELECTRON_RUN_AS_NODE`,
   `NODE_OPTIONS`, `--inspect`) are turned off in the package, and it runs

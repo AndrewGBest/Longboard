@@ -7,7 +7,15 @@ import {
   permissionDecision,
   withAnswers,
 } from '../src/shared/permissions';
-import { progressText, safeFileName, sizeText, uniqueName } from '../src/shared/downloads';
+import {
+  addPastDownload,
+  MAX_PAST_DOWNLOADS,
+  parsePastDownloads,
+  progressText,
+  safeFileName,
+  sizeText,
+  uniqueName,
+} from '../src/shared/downloads';
 
 describe('permissionDecision', () => {
   it('grants full screen and a copy button, without asking', () => {
@@ -176,5 +184,42 @@ describe('progressText', () => {
   it('says what has come so far when the size is not known', () => {
     expect(progressText(0, 0)).toBe('starting');
     expect(progressText(3_565_158, 0)).toBe('3.4 MB so far');
+  });
+});
+
+describe('the files saved in earlier runs', () => {
+  it('puts the newest first and forgets the oldest past the limit', () => {
+    let list = addPastDownload([], 'a.pdf', 1);
+    list = addPastDownload(list, 'b.pdf', 2);
+    expect(list).toEqual([
+      { name: 'b.pdf', at: 2 },
+      { name: 'a.pdf', at: 1 },
+    ]);
+    for (let i = 0; i < MAX_PAST_DOWNLOADS + 5; i++) list = addPastDownload(list, `f${i}.bin`, 10 + i);
+    expect(list).toHaveLength(MAX_PAST_DOWNLOADS);
+    expect(list[0]?.name).toBe(`f${MAX_PAST_DOWNLOADS + 4}.bin`);
+    expect(list.some((d) => d.name === 'a.pdf')).toBe(false);
+  });
+
+  it('reads back what was written, and makes a name from the file safe again', () => {
+    const list = addPastDownload([], 'report.pdf', 5);
+    expect(parsePastDownloads(JSON.parse(JSON.stringify({ saved: list })))).toEqual(list);
+    expect(parsePastDownloads({ saved: [{ name: '../../etc/passwd', at: 'x' }] })).toEqual([
+      { name: '_.._etc_passwd', at: 0 },
+    ]);
+  });
+
+  it('drops what is not a saved file, and never throws', () => {
+    for (const raw of [
+      undefined,
+      null,
+      3,
+      'x',
+      [],
+      {},
+      { saved: 'x' },
+      { saved: [null, 1, {}, { name: '' }, { name: 7 }] },
+    ])
+      expect(parsePastDownloads(raw)).toEqual([]);
   });
 });

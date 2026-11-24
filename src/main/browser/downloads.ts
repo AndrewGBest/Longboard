@@ -3,7 +3,8 @@ import { copyFileSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { siteName } from '../../shared/address';
-import { uniqueName } from '../../shared/downloads';
+import { addPastDownload, parsePastDownloads, uniqueName, type PastDownload } from '../../shared/downloads';
+import { readJson, writeJson } from '../store';
 import type { Core } from './core';
 import type { Download } from './types';
 
@@ -11,6 +12,10 @@ import type { Download } from './types';
 export interface DownloadsPart {
   /** Puts a finished download where the person will look for it. */
   keep: (d: Download) => void;
+  /** Files saved in earlier runs, newest first. Mutable: `forgetPastDownloads` empties it. */
+  pastDownloads: () => readonly PastDownload[];
+  /** Forgets the files saved in earlier runs (the files themselves stay where they are). */
+  forgetPastDownloads: () => void;
   /** Redraws the downloads list once a second while it is open and something is arriving. */
   downloadsTick: NodeJS.Timeout;
 }
@@ -24,6 +29,20 @@ export function createDownloads(core: Core): DownloadsPart {
   // to the downloads folder under a name that writes over nothing. Refused,
   // what arrived is deleted. Longboard never opens or runs what it downloads.
   const taken = (n: string): boolean => existsSync(join(core.downloadsDir(), n));
+  // The names of files saved are remembered between runs, so the list is not
+  // empty after a restart. Kept only while a history is kept, and never for a
+  // file fetched in a private tab.
+  const pastFile = join(core.dataDir, 'downloads.json');
+  let past: PastDownload[] = core.config.history === false ? [] : parsePastDownloads(readJson(pastFile));
+  /** What the file holds: the earlier runs' files, and this run's as they are saved. */
+  let written = past;
+  const pastDownloads = (): readonly PastDownload[] => past;
+  const forgetPastDownloads = (): void => {
+    past = [];
+    written = [];
+    rmSync(pastFile, { force: true });
+  };
+  if (core.config.history === false) rmSync(pastFile, { force: true });
   const keep = (d: Download): void => {
     try {
       mkdirSync(core.downloadsDir(), { recursive: true });
@@ -38,6 +57,11 @@ export function createDownloads(core: Core): DownloadsPart {
       }
       d.name = name;
       d.state = 'saved';
+      if (core.config.history !== false && !d.private) {
+        // Written down for the next run; this run's list already has it.
+        written = addPastDownload(written, name, Date.now());
+        writeJson(pastFile, { saved: written });
+      }
       core.notify(`Saved ${name} in ${core.downloadsDir()}`);
     } catch (err) {
       console.error(`[longboard] the downloads folder cannot be used: ${String(err).slice(0, 160)}`);
@@ -73,6 +97,7 @@ export function createDownloads(core: Core): DownloadsPart {
         id: ++core.lastDownload,
         name: uniqueName(item.getFilename(), taken),
         site: siteName(url) || 'this site',
+        private: core.isPrivate(core.partition),
         item,
         temp,
         state: 'asking',
@@ -113,5 +138,5 @@ export function createDownloads(core: Core): DownloadsPart {
   const downloadsTick = setInterval(() => {
     if (core.panel === 'downloads' && core.downloads.some((d) => d.state === 'going')) core.refreshChrome();
   }, 1000);
-  return { keep, downloadsTick };
+  return { keep, pastDownloads, forgetPastDownloads, downloadsTick };
 }

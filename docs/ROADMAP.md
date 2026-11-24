@@ -47,7 +47,6 @@ For the code:
 
 Then, as they are asked for:
 
-- A list of downloads that lasts beyond one run.
 - Frames from other origins driven by the highlight everywhere, not only
   for players.
 - More reviewed profiles, written from outlines by the people who use the

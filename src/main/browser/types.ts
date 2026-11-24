@@ -5,6 +5,8 @@ export interface Download {
   id: number;
   name: string;
   site: string;
+  /** Asked for in a private tab: never written down. */
+  private: boolean;
   item: Electron.DownloadItem;
   temp: string;
   state: 'asking' | 'going' | 'saved' | 'cancelled' | 'failed';

@@ -334,6 +334,7 @@ export function createMenu(core: Core): MenuPart {
         core.saveHistory();
         core.recents = [];
         core.saveRecents();
+        core.forgetPastDownloads();
         void clearSiteData().then(() => {
           if (core.surface === 'page' && !core.page.isDestroyed()) core.page.reload();
           core.layout();
@@ -343,6 +344,7 @@ export function createMenu(core: Core): MenuPart {
       case 'clearHistory':
         core.visits = [];
         core.saveHistory();
+        core.forgetPastDownloads();
         core.layout();
         core.notify('Cleared the history');
         break;

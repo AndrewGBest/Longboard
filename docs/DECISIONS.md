@@ -24,6 +24,12 @@ the agent's: **an assumption.**
 - The rules are pure (`src/shared/tabs.ts`, unit-tested); the wiring is in
   `src/main/browser/going-places.ts`; two end-to-end scenarios.
 
+**The names of saved files are remembered too** (`downloads.json`, the
+last 30), shown under "Saved earlier". The name only: not where it came
+from. They follow the history switch (off: nothing kept, the file
+removed), are never written for a private tab, and go when the history
+is cleared. Assumption, as above.
+
 ## 2026-11-24: the package's fuses, and testing the package itself
 
 Electron's security checklist (item 19) says to turn off, in the packaged

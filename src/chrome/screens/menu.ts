@@ -211,7 +211,7 @@ export function menuPanel(s: ChromeState): Node[] {
       ...(s.phoneOn ? { value: 'On' } : {}),
     }),
   );
-  if (s.downloads.length > 0) {
+  if (s.downloads.length > 0 || s.pastDownloads.length > 0) {
     const going = s.downloads.filter((d) => d.state === 'going').length;
     items.push(
       row('menu-downloads', 'Downloads', act('downloads'), {

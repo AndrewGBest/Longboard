@@ -55,3 +55,36 @@ export function progressText(received: number, total: number): string {
   if (total > 0) return `${Math.min(100, Math.max(0, Math.floor((received / total) * 100)))}% of ${sizeText(total)}`;
   return received > 0 ? `${sizeText(received)} so far` : 'starting';
 }
+
+/** A file saved in an earlier run: its name as saved, and when. */
+export interface PastDownload {
+  name: string;
+  /** When it was saved, milliseconds since 1970. */
+  at: number;
+}
+
+/** How many saved files are remembered from earlier runs. */
+export const MAX_PAST_DOWNLOADS = 30;
+
+/** Validates the saved list (downloads.json). Anything unusable is dropped, never thrown on. */
+export function parsePastDownloads(raw: unknown): PastDownload[] {
+  const list = raw && typeof raw === 'object' ? (raw as Record<string, unknown>)['saved'] : null;
+  if (!Array.isArray(list)) return [];
+  const out: PastDownload[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== 'object') continue;
+    const d = item as Record<string, unknown>;
+    if (typeof d['name'] !== 'string' || !d['name'].trim()) continue;
+    out.push({
+      name: safeFileName(d['name']),
+      at: typeof d['at'] === 'number' && Number.isFinite(d['at']) ? d['at'] : 0,
+    });
+    if (out.length >= MAX_PAST_DOWNLOADS) break;
+  }
+  return out;
+}
+
+/** The list with a newly saved file at the front, newest first, no longer than MAX_PAST_DOWNLOADS. */
+export function addPastDownload(list: readonly PastDownload[], name: string, at: number): PastDownload[] {
+  return [{ name: safeFileName(name), at }, ...list].slice(0, MAX_PAST_DOWNLOADS);
+}

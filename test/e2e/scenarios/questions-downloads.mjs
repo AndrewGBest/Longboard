@@ -1,5 +1,5 @@
 // Questions a site makes Longboard ask, and downloads.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { check, sleep, until } from '../harness.mjs';
 import { scenario, site, sayYes, siteMenu, asks } from './setup.mjs';
@@ -272,6 +272,11 @@ export default async function run() {
       ],
       [['slow.bin: Saved', 'made.bin: Saved', 'x.bin: Saved'], true],
     );
+    check(
+      'the names of the files saved are written down for the next run, newest first',
+      JSON.parse(readFileSync(join(app.userData, 'downloads.json'), 'utf8')).saved.map((d) => d.name),
+      ['slow.bin', 'made.bin', 'x.bin'],
+    );
     await chrome.press('Escape', 500);
 
     await page.evaluate('location.href = "/slow.bin"; 0');
@@ -293,4 +298,32 @@ export default async function run() {
     );
     asks.slow.pop()?.destroy();
   });
+
+  await scenario(
+    'files saved in an earlier run are still in the list',
+    {
+      url: `${site.origin}/home.html`,
+      seed: (data) =>
+        writeFileSync(
+          join(data, 'downloads.json'),
+          JSON.stringify({ saved: [{ name: 'holiday.pdf', at: 2 }, { name: 'timetable.pdf', at: 1 }, { at: 0 }] }),
+        ),
+    },
+    async (app) => {
+      const page = await app.page(`${site.origin}/home.html`);
+      const chrome = await app.chrome();
+      await sleep(800);
+      await page.press('ArrowDown');
+      await page.press('ContextMenu', 500);
+      for (let i = 0; i < 24 && (await chrome.focused()) !== 'menu-downloads'; i++) await chrome.press('ArrowDown');
+      await chrome.press('Enter', 500);
+      check(
+        'under their own heading, newest first',
+        await chrome.evaluate(
+          '[...document.querySelectorAll("#panel h2, #panel .where")].map((n) => n.ariaLabel ?? n.textContent)',
+        ),
+        ['Saved earlier', 'holiday.pdf', 'timetable.pdf'],
+      );
+    },
+  );
 }

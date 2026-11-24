@@ -81,6 +81,8 @@ export interface ChromeState {
   } | null;
   /** The downloads agreed to in this run, newest first. `progress` says how far one under way has got. */
   downloads: Array<{ id: number; name: string; state: 'going' | 'saved' | 'cancelled' | 'failed'; progress: string }>;
+  /** The names of files saved in earlier runs, newest first. */
+  pastDownloads: string[];
   /** The profile editor, while it is in use. */
   edit: {
     /** The site being edited for. */
