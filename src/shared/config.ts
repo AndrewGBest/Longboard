@@ -198,7 +198,7 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     'passwords',
   ] as const) {
     if (r[name] === undefined) continue;
-    if (typeof r[name] === 'boolean') config[name] = r[name] as boolean;
+    if (typeof r[name] === 'boolean') config[name] = r[name];
     else problems.push(`"${name}" must be true or false`);
   }
   if (r['theme'] !== undefined) {

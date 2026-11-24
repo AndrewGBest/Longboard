@@ -130,7 +130,7 @@ describe('SpatialNavigator', () => {
     Object.defineProperty(window, 'innerHeight', { value: 540, configurable: true });
     document.body.insertAdjacentHTML('beforeend', card('deep', 0, 900));
     const calls: unknown[] = [];
-    window.scrollTo = ((o: unknown) => calls.push(o)) as typeof window.scrollTo;
+    window.scrollTo = (o: unknown) => calls.push(o);
     const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
     nav.focus(document.getElementById('deep'));
     expect(calls).toEqual([]);
@@ -141,7 +141,7 @@ describe('SpatialNavigator', () => {
     expect(calls.at(-1)).toEqual({ top: 0, left: 0, behavior: 'instant' });
     // Still cut off a moment later (the app is taller than the screen): then the page is moved, just far enough.
     const by: unknown[] = [];
-    window.scrollBy = ((o: unknown) => by.push(o)) as typeof window.scrollBy;
+    window.scrollBy = (o: unknown) => by.push(o);
     vi.useFakeTimers();
     nav.focus(document.getElementById('b1'));
     document.body.style.overflowY = 'hidden';
@@ -900,7 +900,7 @@ describe('a held key on a page that loads more as it scrolls', () => {
     pageSize(4000, window.innerHeight);
     const el = document.scrollingElement ?? document.documentElement;
     el.scrollBy = ((o: ScrollToOptions) => void scrolled.push(o.top ?? 0)) as typeof el.scrollBy;
-    window.scrollTo = (() => undefined) as typeof window.scrollTo;
+    window.scrollTo = () => undefined;
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -1193,7 +1193,7 @@ describe('what a site has shut away or keeps in a pane of its own', () => {
     };
     Object.defineProperty(pane, 'scrollTop', { get: () => top, set: scrollTo, configurable: true });
     pane.scrollBy = ((o: ScrollToOptions) => scrollTo(top + (o.top ?? 0))) as typeof pane.scrollBy;
-    pane.scrollTo = (() => undefined) as typeof pane.scrollTo;
+    pane.scrollTo = () => undefined;
     const nav = new SpatialNavigator(document);
     nav.focus(document.getElementById('one'));
     // "two" is cut off below the pane, so the notice is nearest. It is offered once.
@@ -1283,8 +1283,8 @@ describe('what a site has shut away or keeps in a pane of its own', () => {
     Object.defineProperty(pane, 'scrollHeight', { value: 1000, configurable: true });
     Object.defineProperty(pane, 'clientHeight', { value: 400, configurable: true });
     Object.defineProperty(pane, 'scrollTop', { value: 0, writable: true, configurable: true });
-    pane.scrollBy = (() => undefined) as typeof pane.scrollBy;
-    pane.scrollTo = (() => undefined) as typeof pane.scrollTo;
+    pane.scrollBy = () => undefined;
+    pane.scrollTo = () => undefined;
     const nav = new SpatialNavigator(document);
     nav.focus(document.getElementById('one'));
     // "two" is below the pane's edge; the strip's button is in view.

@@ -340,7 +340,7 @@ describe('groups and the starting point', () => {
       };
     };
     Element.prototype.scrollIntoView = () => undefined;
-    window.scrollTo = (() => undefined) as typeof window.scrollTo;
+    window.scrollTo = () => undefined;
     // A menu down the left, and two rows beside it; the second row sits a little lower than the first's last card.
     document.body.innerHTML = `
       <nav class="menu">${at('m1', 0, 0)}${at('m2', 0, 80)}${at('m3', 0, 160)}</nav>

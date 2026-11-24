@@ -173,9 +173,9 @@ export function filterSession(
   ses.webRequest.onBeforeRequest(
     { urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] },
     (details, callback) => {
-      let cancel = false;
+      let cancel: boolean;
       try {
-        cancel = refuse(details.url, details.resourceType as RequestKind, details.webContents);
+        cancel = refuse(details.url, details.resourceType, details.webContents);
       } catch {
         cancel = false;
       }

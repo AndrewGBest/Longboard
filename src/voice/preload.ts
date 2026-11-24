@@ -5,7 +5,8 @@
 import { ipcRenderer } from 'electron';
 
 window.addEventListener('message', (e) => {
-  if (e.source !== window || !e.data || typeof e.data !== 'object' || e.data.from !== 'voice-page') return;
-  ipcRenderer.send('longboard:voice', e.data);
+  const data = e.data as { from?: unknown } | null;
+  if (e.source !== window || !data || typeof data !== 'object' || data.from !== 'voice-page') return;
+  ipcRenderer.send('longboard:voice', data);
 });
 ipcRenderer.on('longboard:voice-do', (_event, what: unknown) => window.postMessage({ from: 'voice-shell', what }, '*'));

@@ -100,7 +100,7 @@ export class ProfileStore {
     const saved = readJson(this.folders.answers);
     this.answers = {};
     if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
-      for (const [key, value] of Object.entries(saved))
+      for (const [key, value] of Object.entries(saved as Record<string, unknown>))
         if (value === 'yes' || value === 'no') this.answers[key] = value;
     }
   }

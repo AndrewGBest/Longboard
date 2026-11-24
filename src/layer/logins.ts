@@ -53,6 +53,8 @@ export function readLogin(doc: Document): { user: string; password: string } | n
 /** Puts text in a field the way typing does, so a page that watches its fields hears of it. */
 function setValue(field: HTMLInputElement, text: string): void {
   const view = field.ownerDocument.defaultView;
+  // The page's own setter is borrowed and called on the field itself, so `this` is right.
+  // eslint-disable-next-line @typescript-eslint/unbound-method
   const setter = view ? Object.getOwnPropertyDescriptor(view.HTMLInputElement.prototype, 'value')?.set : undefined;
   if (setter) setter.call(field, text);
   else field.value = text;

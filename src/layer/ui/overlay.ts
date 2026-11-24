@@ -118,7 +118,7 @@ export class Overlay {
     this.oskEl.setAttribute('aria-label', 'On-screen keyboard');
     // The pointer: a plain arrow drawn here, with its tip at the top-left corner.
     const SVG = 'http://www.w3.org/2000/svg';
-    this.pointerEl = doc.createElementNS(SVG, 'svg') as SVGSVGElement;
+    this.pointerEl = doc.createElementNS(SVG, 'svg');
     this.pointerEl.setAttribute('class', 'pointer');
     this.pointerEl.setAttribute('viewBox', '0 0 24 24');
     const arrow = doc.createElementNS(SVG, 'path');

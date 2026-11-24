@@ -10,12 +10,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm run test && npm run build && node scripts/check-rules.mjs",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build && node scripts/check-rules.mjs",
     "start": "npm run build && electron . --dev",
     "e2e": "npm run build && node test/e2e/run.mjs",
     "dist": "npm run build && electron-builder --linux",
     "tv": "npm run build && electron .",
-    "scorecard": "npm run build && node test/scorecard/run.mjs"
+    "scorecard": "npm run build && node test/scorecard/run.mjs",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "build": {
     "appId": "io.github.andrewgbest.Longboard",
@@ -64,13 +67,17 @@
     }
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.10.0",
     "electron": "github:castlabs/electron-releases#v45.2.1+wvcus",
     "electron-builder": "^26.0.0",
     "esbuild": "^0.25.0",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
     "jsdom": "^26.0.0",
     "prettier": "3.10.1",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.74.0",
     "vitest": "^3.0.0"
   },
   "author": "Longboard contributors",
@@ -83,5 +90,12 @@
     "electron-chrome-web-store": "^0.13.0",
     "qrcode-generator": "^2.0.4",
     "tweetnacl": "^1.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "homepage": "https://andrewgbest.github.io/Longboard/",
+  "bugs": {
+    "url": "https://github.com/AndrewGBest/Longboard/issues"
   }
 }

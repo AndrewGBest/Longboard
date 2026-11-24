@@ -55,7 +55,7 @@ export type IconName = keyof typeof ICONS;
 const SVG = 'http://www.w3.org/2000/svg';
 
 export function icon(name: IconName): SVGSVGElement {
-  const svg = document.createElementNS(SVG, 'svg') as SVGSVGElement;
+  const svg = document.createElementNS(SVG, 'svg');
   svg.setAttribute('class', 'ic');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
@@ -69,7 +69,7 @@ export function icon(name: IconName): SVGSVGElement {
 
 /** Longboard's own mark: a deck seen from above inside the highlight ring, as in assets/icon.svg. */
 export function logo(): SVGSVGElement {
-  const svg = document.createElementNS(SVG, 'svg') as SVGSVGElement;
+  const svg = document.createElementNS(SVG, 'svg');
   svg.setAttribute('class', 'logo');
   svg.setAttribute('viewBox', '0 0 48 48');
   svg.setAttribute('aria-hidden', 'true');

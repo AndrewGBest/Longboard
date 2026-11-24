@@ -1653,7 +1653,7 @@ function promptPanel(s: ChromeState): Node[] {
 function scanCode(rows: string[]): SVGSVGElement {
   const SVG = 'http://www.w3.org/2000/svg';
   const size = rows.length;
-  const svg = document.createElementNS(SVG, 'svg') as SVGSVGElement;
+  const svg = document.createElementNS(SVG, 'svg');
   svg.setAttribute('id', 'scan-code');
   svg.setAttribute('viewBox', `-4 -4 ${size + 8} ${size + 8}`);
   svg.setAttribute('shape-rendering', 'crispEdges');

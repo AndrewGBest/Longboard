@@ -12,7 +12,7 @@ function installLayout(): void {
     return { left, top, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON: () => ({}) };
   };
   Element.prototype.scrollIntoView = () => undefined;
-  window.scrollTo = (() => undefined) as typeof window.scrollTo;
+  window.scrollTo = () => undefined;
 }
 const ids = (els: Element[]): string[] => els.map((e) => e.id).sort();
 beforeEach(installLayout);

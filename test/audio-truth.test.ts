@@ -76,7 +76,6 @@ describe('the truth about AC-3 and E-AC-3 sound', () => {
 
   it('stands alone, so it can be handed to the page as text', () => {
     set(true);
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     new Function(`(${correctAudioAnswers.toString()})()`)();
     expect(
       (g['MediaSource'] as { isTypeSupported: (t: string) => boolean }).isTypeSupported('audio/mp4; codecs="ec-3"'),

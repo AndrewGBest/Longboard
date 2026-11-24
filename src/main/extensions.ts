@@ -17,6 +17,9 @@ import { ElectronChromeExtensions } from 'electron-chrome-extensions';
 import { loadAllExtensions, uninstallExtension, updateExtensions } from 'electron-chrome-web-store';
 import { extensionFacts, extensionName, isExtensionId, type ExtensionFacts } from '../shared/extensions';
 
+/** A manifest value as text; anything that is not text counts as missing. */
+const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+
 export interface InstalledExtension extends ExtensionFacts {
   id: string;
   name: string;
@@ -47,10 +50,7 @@ export class Extensions {
   ) {
     this.api = new ElectronChromeExtensions({
       session,
-      createTab: async (details) => [
-        hooks.open(details.url ?? 'about:blank'),
-        hooks.window() as unknown as Electron.BrowserWindow,
-      ],
+      createTab: (details) => Promise.resolve([hooks.open(details.url ?? 'about:blank'), hooks.window()]),
       selectTab: () => undefined,
       removeTab: () => undefined,
     });
@@ -90,7 +90,7 @@ export class Extensions {
 
   /** Tells the extension interfaces about a page view, and which one is in front. */
   addTab(wc: Electron.WebContents): void {
-    if (wc.session === this.session) this.api.addTab(wc, this.hooks.window() as unknown as Electron.BrowserWindow);
+    if (wc.session === this.session) this.api.addTab(wc, this.hooks.window());
   }
   selectTab(wc: Electron.WebContents): void {
     if (wc.session === this.session && !wc.isDestroyed()) this.api.selectTab(wc);
@@ -106,7 +106,7 @@ export class Extensions {
       // The name is a translation: taken from the extension's own default language.
       try {
         const words = JSON.parse(
-          readFileSync(join(path, '_locales', String(manifest['default_locale'] ?? 'en'), 'messages.json'), 'utf8'),
+          readFileSync(join(path, '_locales', text(manifest['default_locale']) || 'en', 'messages.json'), 'utf8'),
         ) as Record<string, { message?: unknown }>;
         const key = /^__MSG_(.+)__$/.exec(String(manifest['name']))?.[1] ?? '';
         const found = Object.entries(words).find(([k]) => k.toLowerCase() === key.toLowerCase())?.[1]?.message;
@@ -119,7 +119,7 @@ export class Extensions {
       id,
       path,
       name: name || id,
-      version: String(manifest['version'] ?? '').slice(0, 40),
+      version: text(manifest['version']).slice(0, 40),
       ...extensionFacts(manifest),
     };
   }
@@ -165,7 +165,7 @@ export class Extensions {
       // The key is what gives the extension its id when it is loaded from a folder.
       manifest['key'] = crx.key;
       writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
-      const version = String(manifest['version'] ?? '');
+      const version = text(manifest['version']);
       if (!/^[0-9.]{1,40}$/.test(version)) throw new Error('the extension has no version');
       const path = join(home, `${version}_0`);
       rmSync(path, { recursive: true, force: true });

@@ -5,11 +5,16 @@
 import { heardText, LISTEN, Listener, loudness, VOICE_MODEL_FILES } from '../shared/voice';
 // The engine as its package ships it, served beside this page.
 // @ts-expect-error the address is only real when the page is served
-import { ModelArch, Transcriber } from '/m/index.js';
+import * as moonshine from '/m/index.js';
 
 interface Engine {
   transcribe: (audio: Float32Array, options: { sampleRate: number }) => { lines: Array<{ text: string }> };
 }
+/** The two things used from the engine's package, which has no types at this address. */
+const { ModelArch, Transcriber } = moonshine as {
+  ModelArch: { TinyStreaming: unknown };
+  Transcriber: { load: (options: { files: Map<string, Uint8Array>; modelArch: unknown }) => Promise<Engine> };
+};
 
 const say = (message: Record<string, unknown>): void => window.postMessage({ from: 'voice-page', ...message }, '*');
 let engine: Promise<Engine> | null = null;
@@ -24,7 +29,7 @@ const ready = (): Promise<Engine> =>
       if (!got.ok) throw new Error('model');
       files.set(f.name, new Uint8Array(await got.arrayBuffer()));
     }
-    return (await Transcriber.load({ files, modelArch: ModelArch.TinyStreaming })) as Engine;
+    return Transcriber.load({ files, modelArch: ModelArch.TinyStreaming });
   })().catch((err) => {
     engine = null;
     throw err;
@@ -102,8 +107,9 @@ async function listen(): Promise<void> {
 }
 
 window.addEventListener('message', (e) => {
-  if (e.source !== window || !e.data || e.data.from !== 'voice-shell') return;
-  if (e.data.what === 'listen') void listen();
-  else if (e.data.what === 'stop') stop?.();
+  const data = e.data as { from?: unknown; what?: unknown } | null;
+  if (e.source !== window || data?.from !== 'voice-shell') return;
+  if (data.what === 'listen') void listen();
+  else if (data.what === 'stop') stop?.();
 });
 say({ kind: 'ready' });

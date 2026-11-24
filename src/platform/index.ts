@@ -15,8 +15,8 @@ export function removableFolders(): string[] {
     // no user name: only the shared mount points are looked at
   }
   const parents = [user && join('/run/media', user), user && join('/media', user), '/media', '/mnt'].filter(
-    Boolean,
-  ) as string[];
+    (folder): folder is string => Boolean(folder),
+  );
   const out: string[] = [];
   for (const parent of parents) {
     try {

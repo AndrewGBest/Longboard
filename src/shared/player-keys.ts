@@ -102,7 +102,7 @@ export function strayKeyCode(key: string): string | null {
     ' ': 'Space',
     Tab: 'Tab',
   };
-  if (named[key]) return named[key]!;
+  if (named[key]) return named[key];
   return /^[a-z0-9]$/i.test(key) ? key : null;
 }
 

@@ -123,7 +123,7 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
       bad(`"${where}" must be a list of at most ${MAX_LIST} selectors`);
       return undefined;
     }
-    return [...(v as string[])];
+    return [...v];
   };
   const section = (key: string): Record<string, unknown> | undefined => {
     const v = raw[key];

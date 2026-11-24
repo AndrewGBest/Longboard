@@ -11,7 +11,7 @@ describe('recently opened sites', () => {
   });
 
   it('keeps the title when the same address is opened again, and drops it for another page', () => {
-    let list = titleRecent(addRecent([], 'https://a.example/', 1), 'https://a.example/', '  A   Site ');
+    const list = titleRecent(addRecent([], 'https://a.example/', 1), 'https://a.example/', '  A   Site ');
     expect(list[0]!.title).toBe('A Site');
     expect(addRecent(list, 'https://a.example/', 2)[0]!.title).toBe('A Site');
     expect(addRecent(list, 'https://a.example/other', 2)[0]!.title).toBe('');

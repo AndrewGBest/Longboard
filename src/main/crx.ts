@@ -86,7 +86,7 @@ export function openCrx(file: Buffer, expectedId: string): Crx {
     const key = parts.get(1)?.[0];
     const signature = parts.get(2)?.[0];
     if (!key || !signature || extensionIdOf(key) !== expectedId) continue;
-    let good = false;
+    let good: boolean;
     try {
       good = verify('sha256', signed, createPublicKey({ key, format: 'der', type: 'spki' }), signature);
     } catch {
