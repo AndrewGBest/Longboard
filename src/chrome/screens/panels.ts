@@ -2,6 +2,7 @@
 import { aboutTitle, BACKGROUND, HELP, NOTICE, SHORTCUT_HELP } from '../../shared/about';
 import { type ChromeState } from '../../shared/chrome';
 import { PRODUCT } from '../../shared/product';
+import { HARMFUL_WORDS } from '../../shared/harmful';
 import { button, el, heading, icon, note, row } from '../parts';
 import { render } from './render';
 import { tell, ui } from './ui';
@@ -304,6 +305,15 @@ export function promptPanel(s: ChromeState): Node[] {
       }),
       yes('Add it'),
       no('Do not add it'),
+    ];
+  }
+  if (s.prompt?.what === 'harmful') {
+    return [
+      heading(HARMFUL_WORDS.title, 'warn'),
+      lead(HARMFUL_WORDS.lead(s.prompt.site)),
+      el('p', { text: HARMFUL_WORDS.more }),
+      no(HARMFUL_WORDS.no),
+      yes(HARMFUL_WORDS.yes),
     ];
   }
   if (s.prompt?.what === 'voiceModel') {

@@ -41,6 +41,7 @@ const SETTING_KEYS = [
   'neverAsk',
   'history',
   'keepTabs',
+  'harmfulSites',
   'downloads',
   'language',
   'httpsOnly',
@@ -126,6 +127,8 @@ export interface UserConfig {
   history?: boolean;
   /** Set to false to start with no tabs from the last time. */
   keepTabs?: boolean;
+  /** Set to false for no warning before sites on public lists of harmful sites, and no fetching of those lists. */
+  harmfulSites?: boolean;
   /** Where downloaded files are saved: a folder's full path. The desktop's Downloads folder without it. */
   downloads?: string;
   /** The language sites are asked for, such as "fr" or "en-GB". The system's without it. Read at start. */
@@ -221,6 +224,10 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
   if (r['keepTabs'] !== undefined) {
     if (typeof r['keepTabs'] === 'boolean') config.keepTabs = r['keepTabs'];
     else problems.push('"keepTabs" must be true or false');
+  }
+  if (r['harmfulSites'] !== undefined) {
+    if (typeof r['harmfulSites'] === 'boolean') config.harmfulSites = r['harmfulSites'];
+    else problems.push('"harmfulSites" must be true or false');
   }
   if (r['downloads'] !== undefined) {
     if (

@@ -128,6 +128,12 @@ export const site = await serveFixtures({
     head.writeUInt32LE(samples, 40);
     res.writeHead(200, { 'content-type': 'audio/wav' }).end(Buffer.concat([head, Buffer.alloc(samples, 128)]));
   },
+  // A made-up list of harmful sites: the made-up name harmful.test, and one part of profile.test
+  // (written with ^* because the test site has a port in its address, which real sites on such lists do not).
+  '/harmful.txt': (_req, res) =>
+    res
+      .writeHead(200, { 'content-type': 'text/plain' })
+      .end('! Title: made-up list of harmful sites for the tests\n||harmful.test^\n||profile.test^*/form.html$doc\n'),
   // A made-up filter list, and what the page with advertising asks for.
   '/filters.txt': (_req, res) =>
     res

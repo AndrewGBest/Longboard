@@ -32,8 +32,9 @@ it needs features.
 3. **Signed releases.** From 0.3.28 a release carries checksums and a
    build attestation and cannot be altered once published; a signature
    with a key of the project's own is still to do.
-4. **Safe Browsing or an equivalent**, if one can be had on terms an
-   open-source project can meet. Until then the README says it is missing.
+4. **More from the warning about harmful sites** (0.3.29 asks before a
+   site on three public lists): a choice of lists, fetching only what has
+   changed, and whatever people report about wrong warnings.
 
 For the code:
 

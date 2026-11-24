@@ -31,8 +31,10 @@ Said plainly, so nobody has to find out the hard way:
   repository's release workflow from the tagged commit:
   `gh attestation verify <file> -R AndrewGBest/Longboard`. Releases are
   immutable: once published, the tag and the files cannot be changed.
-- **There is no Safe Browsing.** Nothing warns about known phishing or
-  malware sites.
+- **There is no Safe Browsing service.** From 0.3.29 Longboard asks
+  before opening a site on one of three public lists of harmful sites
+  (named in the README), fetched whole twice a day and matched on the
+  machine. A site the lists do not know yet is not warned about.
 - **The engine comes from castLabs' build of Electron**, which follows
   Chromium's stable releases. Longboard moves to each stable release
   promptly, but there is a gap between a Chromium fix and a Longboard

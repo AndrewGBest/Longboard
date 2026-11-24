@@ -14,6 +14,7 @@ export const BACKGROUND =
   'Put "catalogue": false in config.json to stop it. ' +
   'For ad blocking it downloads a public filter list, EasyList, from its authors at easylist.to every four days, also whole. ' +
   'Put "adBlocking": false in config.json to leave ad blocking out and stop that download. ' +
+  'To warn before sites that may be harmful it downloads three public lists of such sites twice a day, each whole and from its own publisher (malware-filter.gitlab.io, ublockorigin.github.io, phishing.army); no address you open is sent anywhere. Settings, under Privacy, can stop that. ' +
   'If you turn on search suggestions (Settings, under Search and starting; off as shipped), the words you type in the address field are sent to your search site as you type them. ' +
   'The first time you use "Speak" it asks to fetch a speech model from its makers at download.moonshine.ai, once; what you say is then worked out on this machine and never sent anywhere. ' +
   `Once a day it asks GitHub whether there is a newer release of ${PRODUCT.name}; Settings, under New versions, can stop that. ` +

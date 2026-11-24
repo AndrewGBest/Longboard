@@ -153,6 +153,9 @@ export interface ChromeState {
     visits: number;
     /** Whether the tabs open at closing are offered again at the next start. */
     keepTabs: boolean;
+    /** Whether a warning comes before a site on a list of harmful sites, and the lists it goes by. */
+    harmfulSites: boolean;
+    harmfulLists: string[];
     /** The language sites are asked for, as a code; null for the system's. */
     language: string | null;
     /** The buttons the person has given to each action, and the action now waiting for a button to be pressed. */
@@ -206,6 +209,8 @@ export interface ChromeState {
       }
     /** Fetch the speech model, once? `size` in words. */
     | { what: 'voiceModel'; size: string }
+    /** The address being opened is on a list of harmful sites: open it anyway? */
+    | { what: 'harmful'; site: string }
     | null;
 }
 

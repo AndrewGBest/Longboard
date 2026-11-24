@@ -11,7 +11,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { FiltersEngine, Request } from '@ghostery/adblocker';
-import { listsDue, looksLikeFilterList } from '../shared/adblock';
+import { LISTS_KEPT_MS, listsDue, looksLikeFilterList } from '../shared/adblock';
 import { readJson, writeJson } from './store';
 
 /** The most one fetched list may weigh; a bigger answer is not taken. */
@@ -82,6 +82,19 @@ export class FilterSet {
       return false;
     }
   }
+
+  /**
+   * True when the lists name this address as a page: used for the warning
+   * before a site on a list of harmful sites (shared/harmful.ts), which is
+   * asked about the page the person is opening and nothing else.
+   */
+  listsPage(url: string): boolean {
+    try {
+      return this.engine.match(Request.fromRawDetails({ url, sourceUrl: url, type: 'mainFrame' })).match === true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 /** What the store needs from outside, so the unit tests can stand in for the clock and the network. */
@@ -93,6 +106,10 @@ export interface FilterStoreDeps {
   fetchBytes: (url: string, maxBytes: number) => Promise<Buffer>;
   now: () => number;
   note: (line: string) => void;
+  /** What the lists are for, in the lines written to the terminal. "ad blocking" without it. */
+  label?: string;
+  /** How long a fetched copy is used before it is fetched again. Four days without it. */
+  keptMs?: number;
 }
 
 /** The filters on this machine: read from disk at start, fetched again when old. */
@@ -114,7 +131,7 @@ export class FilterStore {
 
   /** Reads what an earlier run left. Never throws. */
   load(): void {
-    const { folder, note } = this.deps;
+    const { folder, note, label = 'ad blocking' } = this.deps;
     try {
       this.set = FilterSet.load(readFileSync(join(folder, 'filters.bin')));
       return;
@@ -126,7 +143,7 @@ export class FilterStore {
       writeFileSync(join(folder, 'filters.bin'), this.set.save());
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT')
-        note(`ad blocking: the saved lists could not be read (${String(err).slice(0, 120)})`);
+        note(`${label}: the saved lists could not be read (${String(err).slice(0, 120)})`);
     }
   }
 
@@ -135,11 +152,11 @@ export class FilterStore {
    * when new filters are in use. A failure of any kind keeps what was there.
    */
   async refresh(force = false): Promise<boolean> {
-    const { folder, lists, fetchBytes, now, note } = this.deps;
+    const { folder, lists, fetchBytes, now, note, label = 'ad blocking', keptMs = LISTS_KEPT_MS } = this.deps;
     const stateFile = join(folder, 'state.json');
     const state = readJson(stateFile) as { fetchedAt?: unknown; lists?: unknown } | undefined;
     const sameLists = JSON.stringify(state?.lists) === JSON.stringify(lists);
-    if (!force && this.set && sameLists && !listsDue(state?.fetchedAt, now())) return false;
+    if (!force && this.set && sameLists && !listsDue(state?.fetchedAt, now(), keptMs)) return false;
     try {
       const texts: string[] = [];
       for (const url of lists) {
@@ -154,10 +171,10 @@ export class FilterStore {
       writeFileSync(join(folder, 'filters.bin'), next.save());
       writeJson(stateFile, { fetchedAt: now(), lists });
       this.set = next;
-      note(`ad blocking: ${lists.length} filter list(s) fetched`);
+      note(`${label}: ${lists.length} filter list(s) fetched`);
       return true;
     } catch (err) {
-      note(`ad blocking: lists not updated (${String(err).slice(0, 160)}); keeping what is on disk`);
+      note(`${label}: lists not updated (${String(err).slice(0, 160)}); keeping what is on disk`);
       return false;
     }
   }

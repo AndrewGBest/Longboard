@@ -16,6 +16,7 @@ import { PRODUCT } from '../shared/product';
 import { changeSetting, resetSettings } from '../shared/settings';
 import { RELEASE_FEED, updateMode, updateWords, type UpdateState } from '../shared/update';
 import { FilterStore } from './adblock';
+import { HARMFUL_KEPT_MS, HARMFUL_LISTS, warnsOfHarm } from '../shared/harmful';
 import { createBrowser } from './browser';
 import { refreshCatalogue } from './catalogue';
 import { handBackFrom } from './handback';
@@ -186,6 +187,28 @@ async function main(): Promise<void> {
   };
   if (blockingMode(config.adBlocking) !== 'off') filterStore.load();
 
+  // The lists of harmful sites, for the warning before one is opened
+  // (shared/harmful.ts). Fetched whole from their publishers, like the
+  // filter lists and by the same means. A scripted run uses the list it is
+  // pointed at with --harmful=, and fetches none otherwise.
+  const harmfulStore = new FilterStore({
+    folder: join(data, 'harmful'),
+    get lists() {
+      return value('harmful') ? [value('harmful') as string] : HARMFUL_LISTS.map((list) => list.url);
+    },
+    fetchBytes,
+    now: () => Date.now(),
+    note,
+    label: 'harmful sites',
+    keptMs: HARMFUL_KEPT_MS,
+  });
+  const readyHarmful = async (force = false): Promise<boolean> => {
+    if (!warnsOfHarm(config)) return false;
+    if (!harmfulStore.filters) harmfulStore.load();
+    return !options.automation || value('harmful') !== undefined ? harmfulStore.refresh(force) : false;
+  };
+  if (warnsOfHarm(config)) harmfulStore.load();
+
   // The reviewed catalogue, fetched in the background and never in the way
   // of starting (DESIGN.md section 9). A scripted run does not fetch it
   // unless it is pointed at a catalogue of its own.
@@ -213,6 +236,8 @@ async function main(): Promise<void> {
     Object.assign(config, parsed);
     startsOff = effectiveVerified(reviewed, config.adBlockingStartsOff, config.adBlockingStartsOn);
     nativeTheme.themeSource = config.theme ?? 'system';
+    // Switched on in Settings: the lists are wanted now, not at the next start.
+    void readyHarmful();
     void readyFilters();
   };
   // The look sites are asked for (their dark or light one), when the person chose.
@@ -279,6 +304,7 @@ async function main(): Promise<void> {
       : undefined,
     ready: componentsReady,
     profiles,
+    harmful: { listsPage: (url) => harmfulStore.filters?.listsPage(url) === true },
     adBlock: {
       mode: () => blockingMode(config.adBlocking),
       filters: () => filterStore.filters,
@@ -304,6 +330,9 @@ async function main(): Promise<void> {
     },
   });
   void readyFilters(value('filters') !== undefined);
+  void readyHarmful(value('harmful') !== undefined);
+  // Looked at every hour; fetched only when the copy on disk is old.
+  setInterval(() => void readyHarmful(), 60 * 60 * 1000).unref();
   if (config.catalogue !== false) void fetchCatalogue(value('catalogue') !== undefined);
 
   const { win } = browser;

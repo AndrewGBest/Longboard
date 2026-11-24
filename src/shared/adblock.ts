@@ -157,8 +157,8 @@ export function parseDomains(raw: unknown): string[] | null {
 }
 
 /** True when the lists should be fetched again. `last` is when they last were, or undefined. */
-export function listsDue(last: unknown, now: number): boolean {
-  return typeof last !== 'number' || !Number.isFinite(last) || now - last >= LISTS_KEPT_MS || last > now;
+export function listsDue(last: unknown, now: number, keptMs: number = LISTS_KEPT_MS): boolean {
+  return typeof last !== 'number' || !Number.isFinite(last) || now - last >= keptMs || last > now;
 }
 
 /**

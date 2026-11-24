@@ -2,7 +2,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { check, sleep, until } from '../harness.mjs';
-import { scenario, site, siteMenu, asks } from './setup.mjs';
+import { scenario, site, siteMenu, asks, port } from './setup.mjs';
 
 /** Runs this file's scenarios, one after another. */
 export default async function run() {
@@ -647,4 +647,99 @@ export default async function run() {
     await four();
     check('the right PIN opens Settings', await title(), 'Settings');
   });
+
+  // Sites on a public list of harmful sites. The made-up list names
+  // harmful.test, which is this machine under another name.
+  const harmfulArgs = [
+    `--harmful=${site.origin}/harmful.txt`,
+    '--host-resolver-rules=MAP harmful.test 127.0.0.1, MAP profile.test 127.0.0.1',
+  ];
+  await scenario(
+    'a site on a list of harmful sites',
+    { url: `${site.origin}/home.html`, args: harmfulArgs },
+    async (app) => {
+      const page = await app.page(`${site.origin}/home.html`);
+      const chrome = await app.chrome();
+      const asked = () =>
+        until(
+          () => chrome.evaluate('document.querySelector("#panel h1")?.textContent ?? null'),
+          (t) => t === 'This site may be harmful',
+          50,
+        );
+      const fetched = await until(
+        () => app.log,
+        (log) => /harmful sites: 1 filter list\(s\) fetched/.test(log),
+        300,
+      );
+      check('the list is fetched in the background', /harmful sites: 1 filter list/.test(fetched ?? ''), true);
+      const bad = `http://harmful.test:${port}/article.html`;
+      await page.evaluate(`location.href = ${JSON.stringify(bad)}; 0`);
+      check('a link to a listed site puts a question on screen', await asked(), 'This site may be harmful');
+      check(
+        'which names the site, with the highlight on "Go back" and the page where it was',
+        [
+          (await chrome.evaluate('document.querySelector("#panel .lead")?.textContent ?? ""')).startsWith(
+            'harmful.test',
+          ),
+          await chrome.focused(),
+          await chrome.evaluate('document.getElementById("prompt-deny")?.textContent'),
+          await page.evaluate('location.pathname'),
+        ],
+        [true, 'prompt-deny', 'Go back', '/home.html'],
+      );
+      await sleep(700);
+      await chrome.press('Enter', 500);
+      check(
+        'Go back leaves the page as it was',
+        [await chrome.evaluate('document.visibilityState'), await page.evaluate('location.host + location.pathname')],
+        ['hidden', `127.0.0.1:${port}/home.html`],
+      );
+      await page.evaluate(`location.href = ${JSON.stringify(bad)}; 0`);
+      await asked();
+      await sleep(700);
+      await chrome.press('ArrowDown', 200);
+      check('the other answer is to open it anyway', await chrome.focused(), 'prompt-allow');
+      await chrome.press('Enter', 600);
+      const there = await app.page('http://harmful.test');
+      check('which opens it', !!there, true);
+      if (!there) return;
+      await there.evaluate(`location.href = "http://harmful.test:${port}/results.html"; 0`);
+      await until(
+        () => there.evaluate('location.pathname'),
+        (at) => at === '/results.html',
+        40,
+      );
+      check(
+        'and the question is not put again for other pages of that site',
+        [await there.evaluate('location.pathname'), await chrome.evaluate('document.visibilityState')],
+        ['/results.html', 'hidden'],
+      );
+      await there.evaluate(`location.href = "http://profile.test:${port}/form.html"; 0`);
+      check('a listed part of another site is asked about too', await asked(), 'This site may be harmful');
+      await sleep(700);
+      await chrome.press('Enter', 500);
+      await there.evaluate(`location.href = "http://profile.test:${port}/article.html"; 0`);
+      check(
+        'while the rest of that site opens without a question',
+        await until(
+          () => there.evaluate('location.host + location.pathname'),
+          (at) => at.startsWith('profile.test'),
+          40,
+        ),
+        `profile.test:${port}/article.html`,
+      );
+    },
+  );
+
+  await scenario(
+    'no warning when it is switched off',
+    { url: `${site.origin}/home.html`, args: harmfulArgs, config: { harmfulSites: false } },
+    async (app) => {
+      const page = await app.page(`${site.origin}/home.html`);
+      await sleep(1500);
+      await page.evaluate(`location.href = "http://harmful.test:${port}/article.html"; 0`);
+      const there = await app.page('http://harmful.test');
+      check('the site opens, and the list was never fetched', [!!there, /harmful sites:/.test(app.log)], [true, false]);
+    },
+  );
 }

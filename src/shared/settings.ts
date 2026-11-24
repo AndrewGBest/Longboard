@@ -39,6 +39,7 @@ export const SETTING_NAMES = [
   'neverAsk',
   'history',
   'keepTabs',
+  'harmfulSites',
   'downloads',
   'language',
   'httpsOnly',

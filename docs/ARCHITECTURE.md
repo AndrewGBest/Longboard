@@ -68,8 +68,15 @@ domains. Longboard loads anything, so the allowlist is replaced by:
 - a commitment to ship each new ECS stable release promptly, checked by a
   scheduled job. This is the main ongoing cost of being a browser.
 
-Longboard has no Safe Browsing service. That is a real gap compared with
-mainstream browsers and is stated in the README of the first release.
+Longboard has no Safe Browsing service, and may not use Google's (its
+terms forbid a key in open-source code). In its place, from 0.3.29: three
+public lists of harmful sites are fetched whole from their publishers
+twice a day (`src/shared/harmful.ts` names them), read by the same engine
+as the ad-blocking lists but kept apart from them, and asked one thing
+only: is the page being opened on a list. If it is, `blockReason`
+(`src/main/navigation.ts`) says "harmful" and the person is asked, with
+"Go back" as the answer under the highlight. It is a smaller thing than a
+service asked about every address, and the README says so.
 
 ### 2.1 How the shell's code is laid out
 

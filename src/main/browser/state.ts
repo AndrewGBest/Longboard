@@ -37,6 +37,7 @@ export interface StatePart {
     | { what: 'download'; download: Download }
     | { what: 'password'; place: string; user: string; password: string }
     | { what: 'voiceModel' }
+    | { what: 'harmful'; url: string; remember: boolean }
     | { what: 'handBack'; ask: HandBack; steamid: string; from: Electron.Session }
     | null;
   /** What the program that started Longboard asked to be handed back, until it is answered. */

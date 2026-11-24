@@ -60,6 +60,8 @@ export interface BrowserDeps {
   ready: Promise<void>;
   /** The profiles on this machine. */
   profiles: ProfileStore;
+  /** The lists of harmful sites: whether an address is on one. False until they have been fetched. */
+  harmful: { listsPage: (url: string) => boolean };
   /** Ad blocking: whether it is there at all, the filters (null until downloaded), and the verified sites. */
   adBlock: {
     /** The person's setting over all sites. */

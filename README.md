@@ -141,7 +141,11 @@ Names are used only to say what was tested; see the notice at the foot.
 
 Compared with a mainstream browser, today:
 
-- **No Safe Browsing.** Nothing warns about known phishing or malware sites.
+- **No Safe Browsing as the big browsers have it.** From 0.3.29 Longboard
+  asks before opening a site that is on one of three public lists of
+  harmful sites. That catches what the lists know about; a service that
+  is asked about every address, as Google's is, catches more and sooner.
+  Up to 0.3.28 nothing warns at all.
 - No sync between machines and no translation.
 - Passwords are kept only on a system with a keyring, and only filled in
   when asked; there is no other autofill. Speech is English only.
@@ -222,6 +226,14 @@ Ad blocking uses the request matcher from Ghostery's adblocker library
 program, and the EasyList filter list (https://easylist.to, by the EasyList
 authors, GPL-3.0 or CC BY-SA 3.0), which is not part of Longboard: each
 copy of Longboard downloads it from its authors.
+
+The warning before sites that may be harmful goes by three lists, none of
+them part of Longboard, each downloaded by each copy from its publisher:
+the Online Malicious URL Blocklist (malware-filter, from abuse.ch URLhaus;
+CC0, https://gitlab.com/malware-filter/urlhaus-filter), Badware risks
+(uBlock Origin; GPL-3.0, https://github.com/uBlockOrigin/uAssets) and the
+Phishing Army blocklist (Andrea Draghetti, https://phishing.army). None of
+their makers has endorsed Longboard.
 
 Longboard is an independent project. It is not affiliated with any website or
 streaming service it can display. It does not provide, unlock or bypass access

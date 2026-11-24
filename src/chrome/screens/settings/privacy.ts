@@ -113,6 +113,14 @@ export function privacyPage(st: Settings): Node[] {
       st.httpsOnly,
       set('httpsOnly', st.httpsOnly ? null : true),
     ),
+    flip(
+      'set-harmful',
+      'Warn before sites that may be harmful',
+      st.harmfulSites,
+      set('harmfulSites', st.harmfulSites ? false : null),
+      'Goes by public lists fetched twice a day. No address you open is sent anywhere',
+    ),
+    ...(st.harmfulSites ? st.harmfulLists.map((credit) => note(credit)) : []),
     el('h2', { text: 'What is kept' }),
     flip('set-history', 'Keep a history of pages opened', st.history, set('history', st.history ? false : null)),
     flip(

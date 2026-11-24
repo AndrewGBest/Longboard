@@ -5,6 +5,15 @@ edges.
 
 New in 0.3.29 (not released yet):
 
+- **A warning before sites that may be harmful.** Longboard now asks
+  before opening a site that is on a public list of sites that hand out
+  harmful software, imitate others to take passwords, or trick people.
+  "Go back" is under the highlight; "Open it anyway" opens it and does not
+  ask again for that site until Longboard is closed. It goes by three
+  lists, fetched whole twice a day from their publishers (about 16 MB in
+  all); no address you open is sent anywhere. Settings, under Privacy,
+  has the switch and names the lists. It is not Google's Safe Browsing:
+  it knows only what the lists know, and the lists can be wrong.
 - **Ad blocking no longer judges a new page's first requests by the page
   being left.** For a moment as a site arrived, a request or two could be
   decided by the previous site's switch: an advertisement refused on a

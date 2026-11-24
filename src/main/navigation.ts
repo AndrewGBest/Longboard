@@ -7,7 +7,7 @@ import { onHomeSite } from '../shared/lock';
 import { extensionOfPage } from '../shared/extensions';
 
 /** Why an address is not opened. Each has its own words in `blockedMessage`. */
-export type BlockReason = 'not-web' | 'credentials' | 'automation-spend' | 'not-secure' | 'locked';
+export type BlockReason = 'not-web' | 'credentials' | 'automation-spend' | 'not-secure' | 'locked' | 'harmful';
 
 /**
  * Longboard opens web addresses: http and https. Files on this machine,
@@ -23,6 +23,8 @@ export function blockReason(
     httpsOnly?: boolean;
     onlySites?: readonly string[] | null;
     extensions?: readonly string[];
+    /** True for an address on a list of harmful sites that the person has not said to open anyway (shared/harmful.ts). */
+    harmful?: (url: string) => boolean;
   },
 ): BlockReason | null {
   let u: URL;
@@ -52,6 +54,8 @@ export function blockReason(
     return 'not-secure';
   // The parental lock: only the sites on Home open until the PIN is given.
   if (opts.onlySites && !onHomeSite(url, opts.onlySites)) return 'locked';
+  // Last, so that what is refused outright is never offered as "open it anyway".
+  if (opts.harmful?.(url)) return 'harmful';
   return null;
 }
 
@@ -76,6 +80,7 @@ export function blockedMessage(reason: BlockReason): string {
   if (reason === 'automation-spend') return 'Blocked: automation mode never opens purchase or sign-up pages';
   if (reason === 'credentials') return 'Blocked: that address carries a user name or password';
   if (reason === 'locked') return 'Locked: only the sites on Home can be opened. The menu can unlock with the PIN';
+  if (reason === 'harmful') return 'Not opened: that site is on a list of sites that may be harmful';
   if (reason === 'not-secure')
     return 'Not opened: that page is not sent privately (http). Settings can allow such pages';
   return `Blocked: ${PRODUCT.name} only opens web addresses`;
@@ -135,9 +140,11 @@ export function noticePageUrl(reason: BlockReason, url: string): string {
         ? `The address carries a user name or password in front of the site name. ${PRODUCT.name} does not open such addresses.`
         : reason === 'locked'
           ? `${PRODUCT.name} is locked: only the sites on Home can be opened. Open the menu and choose "Unlock every site" to give the PIN.`
-          : reason === 'not-secure'
-            ? 'This page is sent over plain http, where anyone on the way can read or change it. Settings, under Privacy, has "Open only pages sent privately" turned on; turn it off to open pages like this one.'
-            : `${PRODUCT.name} only opens web addresses (http and https). Files on this machine and internal pages are not opened.`;
+          : reason === 'harmful'
+            ? 'This site is on a public list of sites that may be harmful. Open its address from Home or the menu to be asked whether to open it anyway. Settings, under Privacy, has the switch.'
+            : reason === 'not-secure'
+              ? 'This page is sent over plain http, where anyone on the way can read or change it. Settings, under Privacy, has "Open only pages sent privately" turned on; turn it off to open pages like this one.'
+              : `${PRODUCT.name} only opens web addresses (http and https). Files on this machine and internal pages are not opened.`;
   return noticePage('page blocked', 'This page was blocked', [why], {
     label: 'Blocked address',
     value: describeBlockedUrl(url),

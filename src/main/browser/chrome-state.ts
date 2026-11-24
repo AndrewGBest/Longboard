@@ -22,6 +22,7 @@ import { BUTTON_ACTIONS, searchName } from '../../shared/settings';
 import { canSuggest, parseSearchSuggestions, suggestAddress } from '../../shared/suggest';
 import { visitLine } from '../../shared/history';
 import { NEVER_ASKABLE } from '../../shared/config';
+import { HARMFUL_LISTS, warnsOfHarm } from '../../shared/harmful';
 import type { Core } from './core';
 import { isNotice } from './core';
 
@@ -222,6 +223,8 @@ export function createChromeState(core: Core): Omit<ChromeStatePart, 'offeredSea
             clearOnExit: core.config.clearOnExit === true,
             history: core.config.history !== false,
             keepTabs: core.config.keepTabs !== false,
+            harmfulSites: warnsOfHarm(core.config),
+            harmfulLists: HARMFUL_LISTS.map((list) => list.credit),
             visits: core.visits.length,
             language: core.config.language ?? null,
             buttons: BUTTON_ACTIONS.map((a) => ({
@@ -322,19 +325,21 @@ export function createChromeState(core: Core): Omit<ChromeStatePart, 'offeredSea
                 wants: HAND_BACKS[core.pending.ask.what].wants,
                 to: core.pending.ask.to,
               }
-            : core.pending.what === 'voiceModel'
-              ? { what: 'voiceModel', size: voiceModelSize() }
-              : core.pending.what === 'password'
-                ? { what: 'password', site: core.pending.place.replace(/^https?:\/\//, ''), user: core.pending.user }
-                : core.pending.what === 'download'
-                  ? {
-                      what: 'download',
-                      site: core.pending.download.site,
-                      name: core.pending.download.name,
-                      size: sizeText(core.pending.download.item.getTotalBytes()),
-                      folder: core.downloadsDir(),
-                    }
-                  : { what: 'permission', site: core.pending.site, wants: describeAsk(core.pending.names) },
+            : core.pending.what === 'harmful'
+              ? { what: 'harmful', site: siteName(core.pending.url) || 'This site' }
+              : core.pending.what === 'voiceModel'
+                ? { what: 'voiceModel', size: voiceModelSize() }
+                : core.pending.what === 'password'
+                  ? { what: 'password', site: core.pending.place.replace(/^https?:\/\//, ''), user: core.pending.user }
+                  : core.pending.what === 'download'
+                    ? {
+                        what: 'download',
+                        site: core.pending.download.site,
+                        name: core.pending.download.name,
+                        size: sizeText(core.pending.download.item.getTotalBytes()),
+                        folder: core.downloadsDir(),
+                      }
+                    : { what: 'permission', site: core.pending.site, wants: describeAsk(core.pending.names) },
   });
 
   /** What the folder chooser shows for a folder: the folders in it, the one above, and a few places to start from. */

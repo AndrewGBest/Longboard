@@ -290,6 +290,19 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
 
   /** Where an address of a site is opened instead, when the site's profile says its interface for a TV is elsewhere and the person has not switched the profile off. */
   const entryAt = (url: string): string | null => (core.profileOffAt(url) ? null : core.deps.profiles.entry(url));
+  /**
+   * Puts the question "this site may be harmful: open it anyway?". False
+   * when another question is already waiting; the address is then refused
+   * like any other and said so.
+   */
+  const askAboutHarm = (url: string, remember: boolean): boolean => {
+    if (core.pending) return false;
+    console.error(`[longboard] on a list of harmful sites: ${describeBlockedUrl(url)}`);
+    core.pending = { what: 'harmful', url, remember };
+    core.panel = 'prompt';
+    core.layout();
+    return true;
+  };
   const open = (asked: string, remember: boolean, inSession = core.lastTab): void => {
     // A site whose profile says its interface for a TV starts elsewhere: its front page opens there.
     const url = entryAt(asked) ?? asked;
@@ -302,6 +315,7 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
       });
       return;
     }
+    if (reason === 'harmful' && askAboutHarm(url, remember)) return;
     if (reason) {
       console.error(`[longboard] blocked navigation (${reason}): ${describeBlockedUrl(url)}`);
       if (pageShown || core.surface === 'home') {
@@ -429,6 +443,8 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
   const allowed = (url: string): boolean => {
     const reason = blockReason(url, core.navRules());
     if (!reason) return true;
+    // A link or a redirect to a listed site: the page stays where it is and the person is asked.
+    if (reason === 'harmful' && askAboutHarm(url, false)) return false;
     console.error(`[longboard] blocked navigation (${reason}): ${describeBlockedUrl(url)}`);
     if (pageShown) {
       // Said once, not for every try: a page that keeps asking would keep the message up.

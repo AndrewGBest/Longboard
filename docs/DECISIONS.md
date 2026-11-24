@@ -3,6 +3,61 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-24: a warning before sites on public lists of harmful sites
+
+The roadmap had "Safe Browsing or an equivalent, if one can be had on
+terms an open-source project can meet". A sub-agent read the terms and
+the lists' licences today (addresses in its report, kept in the session;
+the points relied on are below). The decisions are the agent's:
+**assumptions**, and this is the recorded decision Hard rule 12 asks for
+before a new background request.
+
+**Not Google's.** Its API terms say "Developer credentials may not be
+embedded in open source projects" (developers.google.com/terms), and
+Longboard has no server to keep a key on. The Safe Browsing terms also
+limit it to non-commercial use and want each verdict under thirty minutes
+old. GNOME Web dropped it for the same reason; LibreWolf ships it off.
+
+**Three lists, through the engine already there.** Fetched whole by each
+copy from the publisher, never part of the repository or a package (rule
+1), matched on the machine:
+
+| List | Covers | Licence, as its publisher states it |
+|---|---|---|
+| Online Malicious URL Blocklist (malware-filter, from abuse.ch URLhaus) | addresses seen handing out malware | CC0 and MIT |
+| Badware risks (uBlock Origin) | scam and fake-download sites, picked by hand | GPL-3.0 |
+| Phishing Army blocklist | sites imitating others to take passwords | "no restriction" of its own; it grants no rights over the reports it is built from |
+
+The first two are what uBlock Origin turns on for everybody. The third is
+the agent's addition, because signing in to things is most of what a TV
+browser is used for; its footing is the least firm of the three and it is
+the one to drop if its publisher objects.
+
+**What it does, and does not.** It is asked about the page being opened
+and nothing else: no request inside a page is refused because of these
+lists, so it is not ad blocking and Hard rule 5 is not in play. A listed
+page is not refused either: the person is asked, "Go back" is under the
+highlight, and "Open it anyway" holds for that site until Longboard
+closes. Nothing refused outright (a `file:` address, the parental lock)
+is ever offered that way.
+
+**Words.** "May be harmful", never "is": one list is of risks, all three
+can be wrong, and no wrong-warning rate is published for any of them.
+
+**Cost.** About 16 MB fetched twice a day, 17 MB of memory, a third of a
+second to read at start (measured here on x64). None of the 78 well-known
+sites in the survey lists is on them (checked offline, today's copies).
+
+**Rule 12.** On as shipped, said in About's list of what is fetched, with
+a switch in Settings (Privacy) that stops both the warning and the
+fetching. A scripted run fetches nothing unless pointed at a list with
+`--harmful=`.
+
+**Not done.** A choice of lists; fetching only changes; a permanent
+"never warn for this site"; telling the person which list named a site.
+If one of the three publishers is down, none of the lists is renewed
+until it is back (the old copy stays in use).
+
 ## 2026-11-24: tabs are kept for the next start
 
 From the roadmap, at Andrew's "work on the items we can do". The shape is

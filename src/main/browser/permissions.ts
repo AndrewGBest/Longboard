@@ -8,6 +8,7 @@ import { DECLINED, HAND_BACKS, steamAnswer } from '../handback';
 import { siteKey } from '../../shared/address';
 import { hasPermission, mayAsk, permissionDecision, withAnswers } from '../../shared/permissions';
 import { type Profile } from '../../shared/profile';
+import { harmKey } from '../../shared/harmful';
 import type { Core } from './core';
 
 /** What this part adds to the browser for the other parts to use. */
@@ -108,6 +109,15 @@ export function createPermissions(core: Core): PermissionsPart {
           core.writeHandBack(asked.ask, DECLINED);
           core.notify(`The list could not be fetched from ${HAND_BACKS[asked.ask.what].site}, so nothing was shared`);
         });
+      return;
+    }
+    if (asked.what === 'harmful') {
+      core.layout();
+      if (!allow) return;
+      // For this site, until Longboard is closed: the question is not put again on every page of it.
+      const key = harmKey(asked.url);
+      if (key) core.openedAnyway.add(key);
+      core.open(asked.url, asked.remember);
       return;
     }
     if (asked.what === 'voiceModel') {

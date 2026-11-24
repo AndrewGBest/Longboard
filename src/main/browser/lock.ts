@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { noticePageUrl } from '../navigation';
 import { readJson, writeJson } from '../store';
 import { homeSites, onHomeSite, parseLock, type Lock } from '../../shared/lock';
+import { harmKey, warnsOfHarm } from '../../shared/harmful';
 import type { Core } from './core';
 import { isNotice } from './core';
 
@@ -22,7 +23,15 @@ export interface LockPart {
     { title: string; note: string; then: () => void; back?: 'settings' } | { set: true; first: string | null } | null;
   saveLock: () => void;
   /** What blockReason (main/navigation.ts) needs to decide whether an address may open. */
-  navRules: () => { automation: boolean; httpsOnly: boolean; onlySites: string[] | null; extensions: string[] };
+  navRules: () => {
+    automation: boolean;
+    httpsOnly: boolean;
+    onlySites: string[] | null;
+    extensions: string[];
+    harmful: (url: string) => boolean;
+  };
+  /** The sites the person said to open in spite of the warning, for this run (shared/harmful.ts). */
+  openedAnyway: Set<string>;
   /**
    * Locking: a page that is not on one of Home's sites gives way to the
    * notice saying so, in every tab, and Back leads to nothing opened while
@@ -58,12 +67,16 @@ export function createLock(
     httpsOnly: boolean;
     onlySites: string[] | null;
     extensions: string[];
+    harmful: (url: string) => boolean;
   } => ({
     automation: core.options.automation,
     httpsOnly: core.config.httpsOnly === true,
     onlySites: onlySites(),
     extensions: core.extensions.ids(),
+    harmful: (url) =>
+      warnsOfHarm(core.config) && !openedAnyway.has(harmKey(url) ?? '') && core.deps.harmful.listsPage(url),
   });
+  const openedAnyway = new Set<string>();
   const lockViews = (): void => {
     const sites = onlySites();
     if (!sites) return;
@@ -91,5 +104,5 @@ export function createLock(
   };
   const withPinForHome = (then: () => void): void =>
     core.lock?.homeOnly && !core.unlocked ? withPin('Enter the PIN to change what is on Home', then) : then();
-  return { saveLock, navRules, lockViews, withPin, withPinForHome };
+  return { saveLock, navRules, openedAnyway, lockViews, withPin, withPinForHome };
 }
