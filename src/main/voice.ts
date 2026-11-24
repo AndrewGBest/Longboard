@@ -9,18 +9,31 @@ import { basename, extname, join, normalize } from 'node:path';
 import { session, WebContentsView, type WebContents } from 'electron';
 import { VOICE_MODEL_FILES, VOICE_MODEL_URL } from '../shared/voice';
 
-const TYPES: Record<string, string> = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.wasm': 'application/wasm', '.json': 'application/json' };
-const PAGE = '<!doctype html><meta charset="utf-8"><title>Longboard: listening</title><script type="module" src="/voice.js"></script>';
+const TYPES: Record<string, string> = {
+  '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
+  '.wasm': 'application/wasm',
+  '.json': 'application/json',
+};
+const PAGE =
+  '<!doctype html><meta charset="utf-8"><title>Longboard: listening</title><script type="module" src="/voice.js"></script>';
 // Threads in the engine need the page set apart from every other origin.
 const HEADERS = {
   // Its own files only: no other site can be fetched from, sent to, or shown. The engine's own loader builds
   // functions from text, which is why "unsafe-eval" is allowed here, on a page that loads nothing from anywhere else.
-  'content-security-policy': "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self'; media-src 'self' blob:; base-uri 'none'; form-action 'none'",
-  'cross-origin-opener-policy': 'same-origin', 'cross-origin-embedder-policy': 'require-corp', 'cross-origin-resource-policy': 'same-origin',
+  'content-security-policy':
+    "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self'; media-src 'self' blob:; base-uri 'none'; form-action 'none'",
+  'cross-origin-opener-policy': 'same-origin',
+  'cross-origin-embedder-policy': 'require-corp',
+  'cross-origin-resource-policy': 'same-origin',
   'cache-control': 'no-store',
 };
 
-export type VoiceEvent = { kind: 'listening' } | { kind: 'working' } | { kind: 'heard'; text: string } | { kind: 'failed'; why: 'microphone' | 'nothing' | 'engine' };
+export type VoiceEvent =
+  | { kind: 'listening' }
+  | { kind: 'working' }
+  | { kind: 'heard'; text: string }
+  | { kind: 'failed'; why: 'microphone' | 'nothing' | 'engine' };
 
 export interface VoiceOptions {
   /** Where the model is kept. */
@@ -64,7 +77,8 @@ export class Voice {
           const response = await this.o.fetch(VOICE_MODEL_URL + f.name);
           if (!response.ok) throw new Error(`${f.name}: ${response.status}`);
           const bytes = Buffer.from(await response.arrayBuffer());
-          if (bytes.length !== f.size || createHash('sha256').update(bytes).digest('hex') !== f.sha256) throw new Error(`${f.name} is not the file expected`);
+          if (bytes.length !== f.size || createHash('sha256').update(bytes).digest('hex') !== f.sha256)
+            throw new Error(`${f.name} is not the file expected`);
           writeFileSync(`${to}.part`, bytes);
           renameSync(`${to}.part`, to);
         }
@@ -84,7 +98,10 @@ export class Voice {
   }
 
   private serve(path: string): Response {
-    const send = (body: Buffer | string, type: string): Response => new Response(typeof body === 'string' ? body : new Uint8Array(body), { headers: { ...HEADERS, 'content-type': type } });
+    const send = (body: Buffer | string, type: string): Response =>
+      new Response(typeof body === 'string' ? body : new Uint8Array(body), {
+        headers: { ...HEADERS, 'content-type': type },
+      });
     try {
       if (path === '/') return send(PAGE, 'text/html; charset=utf-8');
       if (path === '/voice.js') return send(readFileSync(join(this.o.distDir, 'voice.js')), 'text/javascript');
@@ -109,9 +126,20 @@ export class Voice {
     const ses = session.fromPartition('longboard-voice');
     ses.protocol.handle('voice', (request) => this.serve(new URL(request.url).pathname));
     // The microphone and nothing else. That the page reaches nothing but its own files is its content policy (HEADERS).
-    ses.setPermissionRequestHandler((_wc, permission, done, details) => done(permission === 'media' && !(details as { mediaTypes?: string[] }).mediaTypes?.includes('video')));
+    ses.setPermissionRequestHandler((_wc, permission, done, details) =>
+      done(permission === 'media' && !(details as { mediaTypes?: string[] }).mediaTypes?.includes('video')),
+    );
     ses.setPermissionCheckHandler((_wc, permission) => permission === 'media');
-    this.view = new WebContentsView({ webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false, preload: join(this.o.distDir, 'voice-preload.js') } });
+    this.view = new WebContentsView({
+      webPreferences: {
+        session: ses,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        backgroundThrottling: false,
+        preload: join(this.o.distDir, 'voice-preload.js'),
+      },
+    });
     const wc = this.view.webContents;
     wc.setWindowOpenHandler(() => ({ action: 'deny' }));
     wc.on('will-navigate', (e) => e.preventDefault());
@@ -134,13 +162,15 @@ export class Voice {
       this.o.event({ kind: m['kind'] });
       // An engine that never answers must not leave "Speak" stuck.
       clearTimeout(this.giveUp);
-      this.giveUp = setTimeout(() => {
-        if (!this.wanted) return;
-        this.close();
-        this.o.event({ kind: 'failed', why: 'engine' });
-      }, m['kind'] === 'working' ? 30_000 : 50_000);
-    }
-    else if (m['kind'] === 'heard') {
+      this.giveUp = setTimeout(
+        () => {
+          if (!this.wanted) return;
+          this.close();
+          this.o.event({ kind: 'failed', why: 'engine' });
+        },
+        m['kind'] === 'working' ? 30_000 : 50_000,
+      );
+    } else if (m['kind'] === 'heard') {
       clearTimeout(this.giveUp);
       this.wanted = false;
       this.o.event({ kind: 'heard', text: typeof m['text'] === 'string' ? m['text'].slice(0, 500) : '' });

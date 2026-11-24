@@ -24,7 +24,8 @@ describe('keyboard shortcuts', () => {
     expect(shortcutFor({ key: '0', control: true })).toBe('zoomReset');
   });
   it('leaves plain keys, the arrows and what Longboard already uses alone', () => {
-    for (const key of ['l', 't', 'ArrowLeft', 'Enter', 'Tab', 'Backspace', ' ']) expect(shortcutFor({ key })).toBeNull();
+    for (const key of ['l', 't', 'ArrowLeft', 'Enter', 'Tab', 'Backspace', ' '])
+      expect(shortcutFor({ key })).toBeNull();
     // Ctrl+O is the menu, Ctrl+Q quits, Ctrl+Shift+D saves an outline: none is a shortcut here.
     expect(shortcutFor({ key: 'o', control: true })).toBeNull();
     expect(shortcutFor({ key: 'q', control: true })).toBeNull();
@@ -32,7 +33,7 @@ describe('keyboard shortcuts', () => {
     expect(shortcutFor({ key: 'ArrowLeft', alt: true, control: true })).toBeNull();
     expect(shortcutFor({ key: 't', control: true, meta: true })).toBeNull();
   });
-  it("gives way to a button the person gave a job of their own", () => {
+  it('gives way to a button the person gave a job of their own', () => {
     expect(shortcutFor({ key: 't', control: true }, { 'Ctrl+t': 'menu' })).toBeNull();
     expect(shortcutFor({ key: 'F5' }, { F5: 'playPause' })).toBeNull();
     expect(shortcutFor({ key: 'w', control: true }, { 'Ctrl+t': 'menu' })).toBe('closeTab');

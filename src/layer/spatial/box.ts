@@ -21,7 +21,13 @@ export function boxOf(el: Element, view: Window | null = el.ownerDocument.defaul
   const take = (parent: Element, depth: number): void => {
     for (const child of parent.children) {
       const style = view.getComputedStyle(child);
-      if (style.display === 'none' || style.visibility === 'hidden' || style.position === 'absolute' || style.position === 'fixed') continue;
+      if (
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        style.position === 'absolute' ||
+        style.position === 'fixed'
+      )
+        continue;
       const c = child.getBoundingClientRect();
       if (c.width > 0 && c.height > 0) {
         box.left = Math.min(box.left, c.left);

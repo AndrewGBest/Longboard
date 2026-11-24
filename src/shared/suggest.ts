@@ -35,9 +35,15 @@ export function suggest(typed: string, known: readonly Known[]): Suggestion[] {
     if (!words.every((w) => hay.includes(w))) return;
     seen.add(k.url);
     const starts = site.toLowerCase().startsWith(words[0]!) ? 0 : 1;
-    found.push({ s: { url: k.url, text: k.title ? `${k.title} (${site})` : site || k.url }, rank: starts * 10_000 + order });
+    found.push({
+      s: { url: k.url, text: k.title ? `${k.title} (${site})` : site || k.url },
+      rank: starts * 10_000 + order,
+    });
   });
-  return found.sort((a, b) => a.rank - b.rank).slice(0, MAX_SUGGESTIONS).map((f) => f.s);
+  return found
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, MAX_SUGGESTIONS)
+    .map((f) => f.s);
 }
 
 // ---- Suggestions from the search site ---------------------------------------
@@ -61,7 +67,9 @@ export function isSuggestTemplate(value: unknown): value is string {
   if (typeof value !== 'string' || value.length > 500 || value.split('%s').length !== 2) return false;
   try {
     const u = new URL(value.replace('%s', 'x'));
-    return u.protocol === 'https:' || (u.protocol === 'http:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost'));
+    return (
+      u.protocol === 'https:' || (u.protocol === 'http:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost'))
+    );
   } catch {
     return false;
   }
@@ -78,7 +86,11 @@ export function canSuggest(setting: boolean | string | undefined, searchTemplate
  * one that is known, there is too little typed, or what is typed is an
  * address and not words to search for.
  */
-export function suggestAddress(typed: string, setting: boolean | string | undefined, searchTemplate: string = DEFAULT_SEARCH): string | null {
+export function suggestAddress(
+  typed: string,
+  setting: boolean | string | undefined,
+  searchTemplate: string = DEFAULT_SEARCH,
+): string | null {
   if (setting !== true && !isSuggestTemplate(setting)) return null;
   const text = typed.trim();
   if (text.length < 2 || text.length > 100) return null;
@@ -95,7 +107,10 @@ export function parseSearchSuggestions(body: unknown, typed: string): string[] {
   const same = typed.trim().toLowerCase();
   for (const item of body[1] as unknown[]) {
     if (typeof item !== 'string') continue;
-    const text = item.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+    const text = item
+      .replace(/[\u0000-\u001f\u007f]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
     if (!text || text.length > 100 || text.toLowerCase() === same || out.includes(text)) continue;
     out.push(text);
     if (out.length >= MAX_SEARCH_SUGGESTIONS) break;

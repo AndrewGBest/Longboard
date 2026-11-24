@@ -52,7 +52,15 @@ export function browserUserAgent(defaultUa: string, product: string = PRODUCT.na
  * A profile cannot change a letter of it: all a profile can say is "tv".
  * It is never used to get past DRM, a paywall or a region limit (rule 2).
  */
-export function tvUserAgent(honest: string, product: string, version: string, system: string, chip: string, year: string, v8: string): string {
+export function tvUserAgent(
+  honest: string,
+  product: string,
+  version: string,
+  system: string,
+  chip: string,
+  year: string,
+  v8: string,
+): string {
   const os = /^Mozilla\/5\.0 \(([^)]*)\)/.exec(honest)?.[1] ?? 'X11; Linux x86_64';
   return `Mozilla/5.0 (${os}) ${TV_ENGINE} (unlike Gecko) v8/${v8}-jit gles ${TV_ENGINE_API}, ${product}_TV_${chip}_${year}/${version} (${product}, ${system})`;
 }
@@ -101,12 +109,20 @@ export function chipName(arch: string): string {
 declare const LONGBOARD_BUILD_YEAR: string | undefined;
 /** The year this copy was built (set by scripts/build.mjs); this year, when run from source without a build. */
 export function buildYear(): string {
-  return typeof LONGBOARD_BUILD_YEAR === 'string' && /^\d{4}$/.test(LONGBOARD_BUILD_YEAR) ? LONGBOARD_BUILD_YEAR : String(new Date().getUTCFullYear());
+  return typeof LONGBOARD_BUILD_YEAR === 'string' && /^\d{4}$/.test(LONGBOARD_BUILD_YEAR)
+    ? LONGBOARD_BUILD_YEAR
+    : String(new Date().getUTCFullYear());
 }
 
 /** The system's plain name, as the honest identity already says it. */
 export function systemName(honest: string): string {
-  return /Linux/.test(honest) ? 'Linux' : /Mac OS X/.test(honest) ? 'macOS' : /Windows/.test(honest) ? 'Windows' : 'Unknown';
+  return /Linux/.test(honest)
+    ? 'Linux'
+    : /Mac OS X/.test(honest)
+      ? 'macOS'
+      : /Windows/.test(honest)
+        ? 'Windows'
+        : 'Unknown';
 }
 
 /**
@@ -115,9 +131,19 @@ export function systemName(honest: string): string {
  * for, if either ("tv": `tv`; "tv-browser": `tvBrowser`). This is the one place a view's identity is set; the checker
  * (scripts/check-rules.mjs) refuses it anywhere else.
  */
-export function identityFor(honest: string, tv: string, tvBrowser: string, deviceFor: (url: string) => 'tv' | 'tv-browser' | null): {
+export function identityFor(
+  honest: string,
+  tv: string,
+  tvBrowser: string,
+  deviceFor: (url: string) => 'tv' | 'tv-browser' | null,
+): {
   of: (url: string) => string;
-  header: (details: { url: string; resourceType: string; webContents?: Electron.WebContents | undefined; requestHeaders: Record<string, string> }) => Record<string, string>;
+  header: (details: {
+    url: string;
+    resourceType: string;
+    webContents?: Electron.WebContents | undefined;
+    requestHeaders: Record<string, string>;
+  }) => Record<string, string>;
   follow: (wc: Electron.WebContents, url: string) => void;
 } {
   const of = (url: string): string => {
@@ -129,11 +155,17 @@ export function identityFor(honest: string, tv: string, tvBrowser: string, devic
     // What a request says: the page it is for decides, so everything such a
     // page fetches says the same as the page did.
     header: (details) => {
-      const page = details.resourceType === 'mainFrame' ? details.url : details.webContents && !details.webContents.isDestroyed() ? details.webContents.getURL() : '';
+      const page =
+        details.resourceType === 'mainFrame'
+          ? details.url
+          : details.webContents && !details.webContents.isDestroyed()
+            ? details.webContents.getURL()
+            : '';
       const want = page ? of(page) : honest;
       if (want === honest) return details.requestHeaders;
       const out: Record<string, string> = {};
-      for (const [name, value] of Object.entries(details.requestHeaders)) if (name.toLowerCase() !== 'user-agent') out[name] = value;
+      for (const [name, value] of Object.entries(details.requestHeaders))
+        if (name.toLowerCase() !== 'user-agent') out[name] = value;
       out['User-Agent'] = want;
       return out;
     },

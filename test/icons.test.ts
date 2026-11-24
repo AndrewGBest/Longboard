@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { declaredSize, iconCandidates, iconDataUrl, manifestIcons, manifestLink, MAX_ICON_BYTES, parseIconLinks, pngFromDataUrl } from '../src/shared/icons';
+import {
+  declaredSize,
+  iconCandidates,
+  iconDataUrl,
+  manifestIcons,
+  manifestLink,
+  MAX_ICON_BYTES,
+  parseIconLinks,
+  pngFromDataUrl,
+} from '../src/shared/icons';
 
 const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(40, 7)]);
 
@@ -50,24 +59,51 @@ describe("which of a site's icons is fetched for its tile", () => {
     expect(declaredSize('big')).toBe(0);
   });
   it('takes only web addresses from what a page reports, and never throws', () => {
-    expect(parseIconLinks([{ href: 'javascript:alert(1)', rel: 'icon' }, { href: 'file:///etc/passwd', rel: 'icon' }, { href: 'https://a.example/i.png' }, null, 5])).toEqual([]);
+    expect(
+      parseIconLinks([
+        { href: 'javascript:alert(1)', rel: 'icon' },
+        { href: 'file:///etc/passwd', rel: 'icon' },
+        { href: 'https://a.example/i.png' },
+        null,
+        5,
+      ]),
+    ).toEqual([]);
     for (const bad of [null, undefined, 'x', {}, 5]) expect(parseIconLinks(bad)).toEqual([]);
-    expect(parseIconLinks(Array.from({ length: 100 }, () => ({ href: 'https://a.example/i.png', rel: 'icon', sizes: '' }))).length).toBeLessThanOrEqual(24);
+    expect(
+      parseIconLinks(Array.from({ length: 100 }, () => ({ href: 'https://a.example/i.png', rel: 'icon', sizes: '' })))
+        .length,
+    ).toBeLessThanOrEqual(24);
   });
   it('finds the manifest', () => {
     expect(manifestLink(links)).toBe('https://news.example/app.webmanifest');
     expect(manifestLink([])).toBeNull();
   });
   it("reads a manifest's icons relative to the manifest, and leaves out ones made only for cutting to a shape", () => {
-    const manifest = { icons: [{ src: 'icons/192.png', sizes: '192x192' }, { src: '/m.png', sizes: '512x512', purpose: 'maskable' }, { src: 'javascript:1', sizes: '64x64' }, { src: 5 }, { src: 'both.png', sizes: '256x256', purpose: 'any maskable' }] };
+    const manifest = {
+      icons: [
+        { src: 'icons/192.png', sizes: '192x192' },
+        { src: '/m.png', sizes: '512x512', purpose: 'maskable' },
+        { src: 'javascript:1', sizes: '64x64' },
+        { src: 5 },
+        { src: 'both.png', sizes: '256x256', purpose: 'any maskable' },
+      ],
+    };
     expect(manifestIcons(manifest, 'https://news.example/pwa/app.webmanifest')).toEqual([
       { url: 'https://news.example/pwa/icons/192.png', size: 192 },
       { url: 'https://news.example/pwa/both.png', size: 256 },
     ]);
-    for (const bad of [null, 5, 'x', [], { icons: 'all' }]) expect(manifestIcons(bad, 'https://news.example/m.json')).toEqual([]);
+    for (const bad of [null, 5, 'x', [], { icons: 'all' }])
+      expect(manifestIcons(bad, 'https://news.example/m.json')).toEqual([]);
   });
   it('tries the smallest picture big enough for a tile first, then smaller ones, then what the browser found, then the usual place', () => {
-    expect(iconCandidates(links, [{ url: 'https://news.example/m192.png', size: 192 }], ['https://news.example/f16.png', 'https://news.example/other.ico'], page)).toEqual([
+    expect(
+      iconCandidates(
+        links,
+        [{ url: 'https://news.example/m192.png', size: 192 }],
+        ['https://news.example/f16.png', 'https://news.example/other.ico'],
+        page,
+      ),
+    ).toEqual([
       'https://news.example/touch.png',
       'https://news.example/m192.png',
       'https://news.example/f512.png',

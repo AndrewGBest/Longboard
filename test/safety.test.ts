@@ -2,7 +2,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { installPurchaseGuard, isSpendControl, looksLikeSpendUrl } from '../src/layer/guard/purchase-guard';
 import { buildOutline, maskIdentifier, sanitizeUrl } from '../src/layer/diagnostics/outline';
-import { browserUserAgent, buildYear, chipName, identityFor, systemName, tvBrowserUserAgent, tvUserAgent } from '../src/main/useragent';
+import {
+  browserUserAgent,
+  buildYear,
+  chipName,
+  identityFor,
+  systemName,
+  tvBrowserUserAgent,
+  tvUserAgent,
+} from '../src/main/useragent';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { aboutTitle, NOTICE } from '../src/shared/about';
@@ -81,7 +89,14 @@ describe('purchase guard', () => {
 
 describe('identifier masking', () => {
   it('keeps ordinary structural identifiers', () => {
-    for (const id of ['card', 'pv-nav-home', 'dp-atf-play-button', 'thumbUpOutlined', 'DVWebNode-detail-wrapper', 'ep-title-episode-3']) {
+    for (const id of [
+      'card',
+      'pv-nav-home',
+      'dp-atf-play-button',
+      'thumbUpOutlined',
+      'DVWebNode-detail-wrapper',
+      'ep-title-episode-3',
+    ]) {
       expect(maskIdentifier(id)).toBe(id);
     }
   });
@@ -106,7 +121,9 @@ describe('identifier masking', () => {
 
   it('is applied to ids and test ids in the outline', () => {
     const out = buildOutline(
-      html('<div id="active-profile-Jane" data-testid="active-profile-Jane Doe" data-automation-id="account-jdoe"></div>'),
+      html(
+        '<div id="active-profile-Jane" data-testid="active-profile-Jane Doe" data-automation-id="account-jdoe"></div>',
+      ),
     );
     expect(out).not.toMatch(/Jane|Doe|jdoe/);
     expect(out).toContain('[data-testid="active-profile-:text"]');
@@ -156,7 +173,7 @@ describe('diagnostics outline', () => {
 });
 
 describe('user agent', () => {
-  it('keeps the real engine and OS, drops the toolkit\'s tokens, and says its own name once, at the end', () => {
+  it("keeps the real engine and OS, drops the toolkit's tokens, and says its own name once, at the end", () => {
     const ua =
       'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) longboard/0.0.1 Chrome/146.0.0.0 Electron/44.10.1 Safari/537.36';
     expect(browserUserAgent(ua, 'Longboard', '1.2.3')).toBe(
@@ -209,11 +226,25 @@ describe('the guard, after an independent review', () => {
     const submit = el('<form><button>Continue</button></form>');
     expect(isSpendControl(submit, [], 'https://shop.example/checkout/step-2')).toBe(true);
     expect(isSpendControl(submit, [], 'https://shop.example/search')).toBe(false);
-    expect(isSpendControl(el('<form><button type="button">Continue</button></form>'), [], 'https://shop.example/checkout')).toBe(false);
+    expect(
+      isSpendControl(el('<form><button type="button">Continue</button></form>'), [], 'https://shop.example/checkout'),
+    ).toBe(false);
   });
 
   it('knows more of the words, a price, and a picture button', () => {
-    for (const text of ['Rentals', 'Register', 'Join now', 'Get started', 'Try free', 'Order now', 'Pay $3.99', 'Sign-up', 'Signup', '$3.99', '3,99 €']) {
+    for (const text of [
+      'Rentals',
+      'Register',
+      'Join now',
+      'Get started',
+      'Try free',
+      'Order now',
+      'Pay $3.99',
+      'Sign-up',
+      'Signup',
+      '$3.99',
+      '3,99 €',
+    ]) {
       expect(isSpendControl(el(`<button>${text}</button>`)), text).toBe(true);
     }
     expect(isSpendControl(el('<button><img alt="Buy"></button>'))).toBe(true);
@@ -243,19 +274,35 @@ describe('the guard, after an independent review', () => {
 });
 
 describe('what Longboard says it is to a site with an interface for TVs (rule 3, amended 2026-11-21 and 2026-11-23)', () => {
-  const honest = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Longboard/1.2.3';
+  const honest =
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Longboard/1.2.3';
   const tv = tvUserAgent(honest, 'Longboard', '1.2.3', systemName(honest), chipName('x64'), '2026', '15.6.1');
   const big = tvBrowserUserAgent(honest);
-  const id = identityFor(honest, tv, big, (url) => (new URL(url).pathname.startsWith('/tv') ? 'tv' : new URL(url).hostname === 'games.example' ? 'tv-browser' : null));
+  const id = identityFor(honest, tv, big, (url) =>
+    new URL(url).pathname.startsWith('/tv') ? 'tv' : new URL(url).hostname === 'games.example' ? 'tv-browser' : null,
+  );
 
   it('adds only that it is Longboard running as a TV', () => {
-    expect(tv).toBe('Mozilla/5.0 (X11; Linux x86_64) Cobalt/27.lts.3.1040976-gold (unlike Gecko) v8/15.6.1-jit gles Starboard/18, Longboard_TV_x8664_2026/1.2.3 (Longboard, Linux)');
-    expect([chipName('x64'), chipName('arm64'), chipName('ia32'), chipName('')]).toEqual(['x8664', 'arm64', 'ia32', 'unknown']);
+    expect(tv).toBe(
+      'Mozilla/5.0 (X11; Linux x86_64) Cobalt/27.lts.3.1040976-gold (unlike Gecko) v8/15.6.1-jit gles Starboard/18, Longboard_TV_x8664_2026/1.2.3 (Longboard, Linux)',
+    );
+    expect([chipName('x64'), chipName('arm64'), chipName('ia32'), chipName('')]).toEqual([
+      'x8664',
+      'arm64',
+      'ia32',
+      'unknown',
+    ]);
     expect(buildYear()).toMatch(/^20\d\d$/);
     // The engine is the one thing said that is not so (Andrew, 2026-11-23). No other maker's device is named, and the device part is Longboard's own.
     expect(tv).not.toMatch(/Tizen|Web0S|SMART|PlayStation|Xbox|Android|Chrome|Safari/i);
     expect(tv.endsWith(', Longboard_TV_x8664_2026/1.2.3 (Longboard, Linux)')).toBe(true);
-    expect(browserUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Electron/45.2.1 Safari/537.36', 'Longboard', '1.2.3')).toBe(honest);
+    expect(
+      browserUserAgent(
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Electron/45.2.1 Safari/537.36',
+        'Longboard',
+        '1.2.3',
+      ),
+    ).toBe(honest);
     expect(systemName('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBe('macOS');
   });
 
@@ -265,20 +312,53 @@ describe('what Longboard says it is to a site with an interface for TVs (rule 3,
     expect(big).not.toMatch(/Tizen|Web0S|PlayStation|Xbox|Android|Cobalt/i);
     expect(id.of('https://games.example/play')).toBe(big);
     const headers = { 'user-agent': honest, Accept: '*/*' };
-    expect(id.header({ url: 'https://games.example/', resourceType: 'mainFrame', requestHeaders: headers })).toEqual({ Accept: '*/*', 'User-Agent': big });
-    const on = (url: string): Electron.WebContents => ({ isDestroyed: () => false, getURL: () => url }) as unknown as Electron.WebContents;
-    expect(id.header({ url: 'https://pictures.example/a.png', resourceType: 'image', webContents: on('https://games.example/x'), requestHeaders: headers })['User-Agent']).toBe(big);
+    expect(id.header({ url: 'https://games.example/', resourceType: 'mainFrame', requestHeaders: headers })).toEqual({
+      Accept: '*/*',
+      'User-Agent': big,
+    });
+    const on = (url: string): Electron.WebContents =>
+      ({ isDestroyed: () => false, getURL: () => url }) as unknown as Electron.WebContents;
+    expect(
+      id.header({
+        url: 'https://pictures.example/a.png',
+        resourceType: 'image',
+        webContents: on('https://games.example/x'),
+        requestHeaders: headers,
+      })['User-Agent'],
+    ).toBe(big);
   });
 
   it('says so only for the pages a profile names, and for what those pages fetch', () => {
     expect(id.of('https://video.example/tv')).toBe(tv);
     expect(id.of('https://video.example/')).toBe(honest);
     const headers = { 'user-agent': honest, Accept: '*/*' };
-    expect(id.header({ url: 'https://video.example/tv', resourceType: 'mainFrame', requestHeaders: headers })).toEqual({ Accept: '*/*', 'User-Agent': tv });
-    expect(id.header({ url: 'https://video.example/', resourceType: 'mainFrame', requestHeaders: headers })).toBe(headers);
-    const on = (url: string): Electron.WebContents => ({ isDestroyed: () => false, getURL: () => url }) as unknown as Electron.WebContents;
-    expect(id.header({ url: 'https://pictures.example/a.png', resourceType: 'image', webContents: on('https://video.example/tv#/'), requestHeaders: headers })['User-Agent']).toBe(tv);
-    expect(id.header({ url: 'https://pictures.example/a.png', resourceType: 'image', webContents: on('https://video.example/watch'), requestHeaders: headers })).toBe(headers);
-    expect(id.header({ url: 'https://pictures.example/a.png', resourceType: 'image', requestHeaders: headers })).toBe(headers);
+    expect(id.header({ url: 'https://video.example/tv', resourceType: 'mainFrame', requestHeaders: headers })).toEqual({
+      Accept: '*/*',
+      'User-Agent': tv,
+    });
+    expect(id.header({ url: 'https://video.example/', resourceType: 'mainFrame', requestHeaders: headers })).toBe(
+      headers,
+    );
+    const on = (url: string): Electron.WebContents =>
+      ({ isDestroyed: () => false, getURL: () => url }) as unknown as Electron.WebContents;
+    expect(
+      id.header({
+        url: 'https://pictures.example/a.png',
+        resourceType: 'image',
+        webContents: on('https://video.example/tv#/'),
+        requestHeaders: headers,
+      })['User-Agent'],
+    ).toBe(tv);
+    expect(
+      id.header({
+        url: 'https://pictures.example/a.png',
+        resourceType: 'image',
+        webContents: on('https://video.example/watch'),
+        requestHeaders: headers,
+      }),
+    ).toBe(headers);
+    expect(id.header({ url: 'https://pictures.example/a.png', resourceType: 'image', requestHeaders: headers })).toBe(
+      headers,
+    );
   });
 });

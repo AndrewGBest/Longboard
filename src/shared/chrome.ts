@@ -5,7 +5,20 @@
 import type { RecentSite } from './home';
 import type { BlockingMode, StartsOffEntry } from './adblock';
 
-export type Panel = 'menu' | 'about' | 'prompt' | 'addApp' | 'edit' | 'downloads' | 'settings' | 'history' | 'tabs' | 'find' | 'reader' | 'pin' | 'phone';
+export type Panel =
+  | 'menu'
+  | 'about'
+  | 'prompt'
+  | 'addApp'
+  | 'edit'
+  | 'downloads'
+  | 'settings'
+  | 'history'
+  | 'tabs'
+  | 'find'
+  | 'reader'
+  | 'pin'
+  | 'phone';
 
 export interface ChromeState {
   /** What fills the window behind any panel. */
@@ -69,7 +82,13 @@ export interface ChromeState {
     /** The site being edited for. */
     site: string;
     /** What was pointed at, at the level now chosen; null before anything is picked. */
-    picked: { selector: string; matches: number; canWiden: boolean; canNarrow: boolean; marks: Record<'include' | 'exclude' | 'row' | 'player', boolean> } | null;
+    picked: {
+      selector: string;
+      matches: number;
+      canWiden: boolean;
+      canNarrow: boolean;
+      marks: Record<'include' | 'exclude' | 'row' | 'player', boolean>;
+    } | null;
     /** How many things are marked in all. */
     marked: number;
   } | null;
@@ -107,7 +126,12 @@ export interface ChromeState {
     /** Whether the speech model has been fetched. */
     voiceModel: boolean;
     /** Saved sign-ins: whether the system has a keyring to keep them with, whether they are offered, and what is saved (never the passwords). */
-    passwords: { available: boolean; offer: boolean; logins: Array<{ place: string; site: string; user: string }>; never: string[] };
+    passwords: {
+      available: boolean;
+      offer: boolean;
+      logins: Array<{ place: string; site: string; user: string }>;
+      never: string[];
+    };
     /** New versions: where things stand, the setting, and whether this copy can replace itself. */
     update: { words: string; mode: 'install' | 'tell' | 'off'; canInstall: boolean };
     /** The parental lock, when a PIN is set. */
@@ -127,7 +151,12 @@ export interface ChromeState {
     buttons: Array<{ action: string; words: string; keys: string[] }>;
     capturing: string | null;
     /** The folder chooser, while it is open: where it is, the folder above, and the folders in it. */
-    folders: { path: string; up: string | null; inside: string[]; places: Array<{ name: string; path: string }> } | null;
+    folders: {
+      path: string;
+      up: string | null;
+      inside: string[];
+      places: Array<{ name: string; path: string }>;
+    } | null;
   } | null;
   /** The tabs that are open, in the order they were opened. A tab with nothing in it yet has no title or site. */
   tabs: Array<{ id: string; title: string; site: string; current: boolean; private: boolean }>;
@@ -143,7 +172,11 @@ export interface ChromeState {
   /** The PIN being asked for, while panel is 'pin': what for, and how long until another try is taken. */
   pin: { title: string; note: string; waitSeconds: number } | null;
   /** The article being read, while the reader view is open. */
-  reader: { title: string; site: string; blocks: Array<{ kind: 'heading' | 'text' | 'item' | 'quote' | 'code'; text: string }> } | null;
+  reader: {
+    title: string;
+    site: string;
+    blocks: Array<{ kind: 'heading' | 'text' | 'item' | 'quote' | 'code'; text: string }>;
+  } | null;
   /** The question being asked, while panel is 'prompt'. */
   prompt:
     /** A site wants something it has to be allowed: `wants` says what, in plain words. */
@@ -157,18 +190,96 @@ export interface ChromeState {
     /** Keep the password just typed for this site? */
     | { what: 'password'; site: string; user: string }
     /** Another program on this machine asked for something from a site the person is signed in to: share it? */
-    | { what: 'handBack'; site: string; wants: string; /** The file the answer goes to: the one thing known about who is asking. */ to: string }
+    | {
+        what: 'handBack';
+        site: string;
+        wants: string;
+        /** The file the answer goes to: the one thing known about who is asking. */ to: string;
+      }
     /** Fetch the speech model, once? `size` in words. */
     | { what: 'voiceModel'; size: string }
     | null;
 }
 
 export type MenuAction =
-  | 'open' | 'home' | 'resume' | 'back' | 'forward' | 'stop' | 'reload' | 'zoomIn' | 'zoomOut' | 'zoomReset'
-  | 'pointer' | 'outline' | 'exportProfile' | 'importProfiles' | 'editProfile' | 'addApp' | 'removeApp' | 'forgetAnswers' | 'adBlocking' | 'desktop' | 'siteProfile' | 'reader' | 'lock' | 'addExtension' | 'settings' | 'history' | 'tabs' | 'find' | 'voice' | 'phone' | 'phoneOff' | 'savePassword' | 'savePage' | 'unsavePage' | 'downloads' | 'about' | 'quit' | 'close';
+  | 'open'
+  | 'home'
+  | 'resume'
+  | 'back'
+  | 'forward'
+  | 'stop'
+  | 'reload'
+  | 'zoomIn'
+  | 'zoomOut'
+  | 'zoomReset'
+  | 'pointer'
+  | 'outline'
+  | 'exportProfile'
+  | 'importProfiles'
+  | 'editProfile'
+  | 'addApp'
+  | 'removeApp'
+  | 'forgetAnswers'
+  | 'adBlocking'
+  | 'desktop'
+  | 'siteProfile'
+  | 'reader'
+  | 'lock'
+  | 'addExtension'
+  | 'settings'
+  | 'history'
+  | 'tabs'
+  | 'find'
+  | 'voice'
+  | 'phone'
+  | 'phoneOff'
+  | 'savePassword'
+  | 'savePage'
+  | 'unsavePage'
+  | 'downloads'
+  | 'about'
+  | 'quit'
+  | 'close';
 
 export const MENU_ACTIONS: readonly MenuAction[] = [
-  'open', 'home', 'resume', 'back', 'forward', 'stop', 'reload', 'zoomIn', 'zoomOut', 'zoomReset', 'pointer', 'outline', 'exportProfile', 'importProfiles', 'editProfile', 'addApp', 'removeApp', 'forgetAnswers', 'adBlocking', 'desktop', 'siteProfile', 'reader', 'lock', 'addExtension', 'settings', 'history', 'tabs', 'find', 'voice', 'phone', 'phoneOff', 'savePassword', 'savePage', 'unsavePage', 'downloads', 'about', 'quit', 'close',
+  'open',
+  'home',
+  'resume',
+  'back',
+  'forward',
+  'stop',
+  'reload',
+  'zoomIn',
+  'zoomOut',
+  'zoomReset',
+  'pointer',
+  'outline',
+  'exportProfile',
+  'importProfiles',
+  'editProfile',
+  'addApp',
+  'removeApp',
+  'forgetAnswers',
+  'adBlocking',
+  'desktop',
+  'siteProfile',
+  'reader',
+  'lock',
+  'addExtension',
+  'settings',
+  'history',
+  'tabs',
+  'find',
+  'voice',
+  'phone',
+  'phoneOff',
+  'savePassword',
+  'savePage',
+  'unsavePage',
+  'downloads',
+  'about',
+  'quit',
+  'close',
 ];
 
 export type ChromeMessage =
@@ -226,8 +337,42 @@ export type ChromeMessage =
   /** From Settings: forget one saved sign-in, offer again at a site, or forget them all. */
   | { kind: 'password'; op: 'remove' | 'offerAgain' | 'removeAll'; place?: string; user?: string };
 
-export type SettingsAction = 'clearSiteData' | 'clearCache' | 'clearHome' | 'clearHistory' | 'clearAll' | 'forgetSites' | 'updateFilters' | 'updateCatalogue' | 'checkUpdate' | 'removeVoiceModel' | 'reset';
-export const SETTINGS_ACTIONS: readonly SettingsAction[] = ['clearSiteData', 'clearCache', 'clearHome', 'clearHistory', 'clearAll', 'forgetSites', 'updateFilters', 'updateCatalogue', 'checkUpdate', 'removeVoiceModel', 'reset'];
+export type SettingsAction =
+  | 'clearSiteData'
+  | 'clearCache'
+  | 'clearHome'
+  | 'clearHistory'
+  | 'clearAll'
+  | 'forgetSites'
+  | 'updateFilters'
+  | 'updateCatalogue'
+  | 'checkUpdate'
+  | 'removeVoiceModel'
+  | 'reset';
+export const SETTINGS_ACTIONS: readonly SettingsAction[] = [
+  'clearSiteData',
+  'clearCache',
+  'clearHome',
+  'clearHistory',
+  'clearAll',
+  'forgetSites',
+  'updateFilters',
+  'updateCatalogue',
+  'checkUpdate',
+  'removeVoiceModel',
+  'reset',
+];
 
-export type EditAction = 'include' | 'exclude' | 'row' | 'player' | 'wider' | 'narrower' | 'pickAgain' | 'save' | 'discard';
-export const EDIT_ACTIONS: readonly EditAction[] = ['include', 'exclude', 'row', 'player', 'wider', 'narrower', 'pickAgain', 'save', 'discard'];
+export type EditAction =
+  'include' | 'exclude' | 'row' | 'player' | 'wider' | 'narrower' | 'pickAgain' | 'save' | 'discard';
+export const EDIT_ACTIONS: readonly EditAction[] = [
+  'include',
+  'exclude',
+  'row',
+  'player',
+  'wider',
+  'narrower',
+  'pickAgain',
+  'save',
+  'discard',
+];

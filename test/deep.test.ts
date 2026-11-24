@@ -12,7 +12,8 @@ beforeEachForget(() => forgetHosts(document));
 // nested open shadow roots, each real button hidden from assistive technology
 // inside a wrapper that carries the role.
 function build(): { outer: HTMLElement; play: HTMLElement; mute: HTMLElement } {
-  document.body.innerHTML = '<a href="#" id="page" data-rect="0,0,100,60">x</a><div id="player" data-rect="0,0,960,540"><x-ui></x-ui></div>';
+  document.body.innerHTML =
+    '<a href="#" id="page" data-rect="0,0,100,60">x</a><div id="player" data-rect="0,0,960,540"><x-ui></x-ui></div>';
   const ui = document.querySelector('x-ui')!;
   const outer = ui.attachShadow({ mode: 'open' });
   outer.innerHTML = '<div id="bar"><x-play></x-play><x-mute></x-mute></div>';
@@ -21,7 +22,11 @@ function build(): { outer: HTMLElement; play: HTMLElement; mute: HTMLElement } {
     root.innerHTML = `<div role="button" data-rect="${x},460,40,40"><button aria-hidden="true" data-rect="${x},460,40,40">x</button></div>`;
     return root.querySelector('[role="button"]')!;
   };
-  return { outer: ui as HTMLElement, play: make(outer.querySelector('x-play')!, 400), mute: make(outer.querySelector('x-mute')!, 500) };
+  return {
+    outer: ui as HTMLElement,
+    play: make(outer.querySelector('x-play')!, 400),
+    mute: make(outer.querySelector('x-mute')!, 500),
+  };
 }
 
 beforeEach(() => {

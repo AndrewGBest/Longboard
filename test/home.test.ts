@@ -65,7 +65,11 @@ describe('per-site settings', () => {
   it('reads a saved file and drops what it cannot use', () => {
     expect(
       parseSites({
-        'example.com': { answers: { camera: 'granted', location: 'denied', teleport: 'granted', midi: 'maybe' }, zoom: 1.25, extra: true },
+        'example.com': {
+          answers: { camera: 'granted', location: 'denied', teleport: 'granted', midi: 'maybe' },
+          zoom: 1.25,
+          extra: true,
+        },
         'b.example': { answers: { camera: 'maybe' }, zoom: 40 },
         'Bad Host': { zoom: 1.1 },
         'c.example': 'x',

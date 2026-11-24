@@ -40,7 +40,18 @@ export interface SiteRules {
   playerKeys: { playPause: PlayerKeyName; back: PlayerKeyName; forward: PlayerKeyName };
 }
 
-const LISTS = ['extraFocusable', 'exclude', 'searchInput', 'searchOpen', 'rowPrev', 'rowNext', 'playerRoot', 'playerClose', 'purchaseControls', 'dismiss'] as const;
+const LISTS = [
+  'extraFocusable',
+  'exclude',
+  'searchInput',
+  'searchOpen',
+  'rowPrev',
+  'rowNext',
+  'playerRoot',
+  'playerClose',
+  'purchaseControls',
+  'dismiss',
+] as const;
 
 export function genericRules(): SiteRules {
   return {
@@ -48,7 +59,18 @@ export function genericRules(): SiteRules {
     name: '',
     version: '',
     generic: true,
-    selectors: { extraFocusable: [], exclude: [], searchInput: [], searchOpen: [], rowPrev: [], rowNext: [], playerRoot: [], playerClose: [], purchaseControls: [], dismiss: [] },
+    selectors: {
+      extraFocusable: [],
+      exclude: [],
+      searchInput: [],
+      searchOpen: [],
+      rowPrev: [],
+      rowNext: [],
+      playerRoot: [],
+      playerClose: [],
+      purchaseControls: [],
+      dismiss: [],
+    },
     initial: null,
     groups: [],
     ownRemote: false,
@@ -72,7 +94,8 @@ function usable(sel: string, doc?: Document): boolean {
 
 /** The rules a validated profile gives. Selectors this browser cannot parse are dropped, never thrown on. */
 export function rulesFrom(profile: Profile, doc?: Document): SiteRules {
-  const ok = (list: readonly (string | undefined)[]): string[] => list.filter((s): s is string => typeof s === 'string' && usable(s, doc));
+  const ok = (list: readonly (string | undefined)[]): string[] =>
+    list.filter((s): s is string => typeof s === 'string' && usable(s, doc));
   const rules = genericRules();
   rules.id = profile.id;
   rules.name = profile.name;

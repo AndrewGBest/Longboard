@@ -47,7 +47,7 @@ export function deepQueryAll(root: ParentNode, selector: string): Element[] {
 
 /** `el.closest(selector)`, carried on out through shadow hosts. */
 export function deepClosest(el: Element, selector: string): Element | null {
-  for (let node: Element | null = el; node; ) {
+  for (let node: Element | null = el; node;) {
     const hit = node.closest(selector);
     if (hit) return hit;
     const root = node.getRootNode();
@@ -60,7 +60,7 @@ export function deepClosest(el: Element, selector: string): Element | null {
 export function deepContains(outer: Element, inner: Element): boolean {
   // One native check per shadow root on the way out, not one per ancestor:
   // this runs for every pair of candidates on every move.
-  for (let node: Element | null = inner; node; ) {
+  for (let node: Element | null = inner; node;) {
     if (outer.contains(node)) return true;
     const root = node.getRootNode();
     node = root instanceof ShadowRoot ? root.host : null;

@@ -27,7 +27,32 @@ export function searchName(template: string | undefined): string {
 export const PAGE_SIZES = [0.8, 0.9, 1, 1.1, 1.25, 1.5] as const;
 
 /** The settings the screen may change, and nothing else in the file. */
-export const SETTING_NAMES = ['search', 'startWith', 'pageSize', 'adBlocking', 'adBlockingStartsOff', 'adBlockingStartsOn', 'catalogue', 'hardwareDecode', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress', 'updates', 'extensionUpdates', 'passwords', 'searchSuggestions', 'keys'] as const;
+export const SETTING_NAMES = [
+  'search',
+  'startWith',
+  'pageSize',
+  'adBlocking',
+  'adBlockingStartsOff',
+  'adBlockingStartsOn',
+  'catalogue',
+  'hardwareDecode',
+  'neverAsk',
+  'history',
+  'downloads',
+  'language',
+  'httpsOnly',
+  'theme',
+  'autoplay',
+  'clearOnExit',
+  'doNotTrack',
+  'blockTrackers',
+  'hideLocalAddress',
+  'updates',
+  'extensionUpdates',
+  'passwords',
+  'searchSuggestions',
+  'keys',
+] as const;
 export type SettingName = (typeof SETTING_NAMES)[number];
 
 /**
@@ -38,7 +63,8 @@ export type SettingName = (typeof SETTING_NAMES)[number];
  */
 export function changeSetting(raw: unknown, name: unknown, value: unknown): Record<string, unknown> | null {
   if (typeof name !== 'string' || !(SETTING_NAMES as readonly string[]).includes(name)) return null;
-  const next: Record<string, unknown> = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...(raw as Record<string, unknown>) } : {};
+  const next: Record<string, unknown> =
+    raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...(raw as Record<string, unknown>) } : {};
   if (value === null || value === undefined) delete next[name];
   else next[name] = value;
   // Judged by the same rules as the file itself.
@@ -49,7 +75,8 @@ export function changeSetting(raw: unknown, name: unknown, value: unknown): Reco
 
 /** config.json with every setting the screen can change taken out: key mappings and the rest stay. */
 export function resetSettings(raw: unknown): Record<string, unknown> {
-  const next: Record<string, unknown> = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...(raw as Record<string, unknown>) } : {};
+  const next: Record<string, unknown> =
+    raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...(raw as Record<string, unknown>) } : {};
   // Button mappings are the person's remote, not a preference: they stay.
   for (const name of SETTING_NAMES) if (name !== 'keys') delete next[name];
   return next;
@@ -92,8 +119,19 @@ const KEPT_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', '
  * Ctrl was held) is given to `action`, or null when that key cannot be
  * reassigned or is no real key.
  */
-export function mapButton(keys: Readonly<Record<string, string>>, key: string, ctrl: boolean, action: string): Record<string, string> | null {
-  if (!key || key.length > 40 || KEPT_KEYS.includes(key) || ['Control', 'Shift', 'Alt', 'Meta', 'Unidentified', 'Dead'].includes(key)) return null;
+export function mapButton(
+  keys: Readonly<Record<string, string>>,
+  key: string,
+  ctrl: boolean,
+  action: string,
+): Record<string, string> | null {
+  if (
+    !key ||
+    key.length > 40 ||
+    KEPT_KEYS.includes(key) ||
+    ['Control', 'Shift', 'Alt', 'Meta', 'Unidentified', 'Dead'].includes(key)
+  )
+    return null;
   if (!BUTTON_ACTIONS.some((a) => a.action === action)) return null;
   // A plain letter or digit is for typing; with Ctrl it can be a button.
   if (key.length === 1 && !ctrl) return null;

@@ -16,7 +16,10 @@ describe('address suggestions', () => {
     expect(suggest('tonight', known).map((s) => s.url)).toEqual(['https://video.example/watch']);
   });
   it('wants every word, and puts a site whose name starts with the first word ahead', () => {
-    expect(suggest('video', known).map((s) => s.url)).toEqual(['https://video.example/watch', 'https://www.example.org/videos']);
+    expect(suggest('video', known).map((s) => s.url)).toEqual([
+      'https://video.example/watch',
+      'https://www.example.org/videos',
+    ]);
     expect(suggest('old video', known).map((s) => s.url)).toEqual(['https://www.example.org/videos']);
     expect(suggest('video cooking', known)).toEqual([]);
   });
@@ -34,12 +37,19 @@ describe('saved pages', () => {
     let list = addSaved([], 'https://a.example/page', 'A page');
     list = addSaved(list, 'https://b.example/', 'B');
     list = addSaved(list, 'https://a.example/page', 'A page, again');
-    expect(list).toEqual([{ url: 'https://a.example/page', title: 'A page, again' }, { url: 'https://b.example/', title: 'B' }]);
+    expect(list).toEqual([
+      { url: 'https://a.example/page', title: 'A page, again' },
+      { url: 'https://b.example/', title: 'B' },
+    ]);
     expect(removeSaved(list, 'https://a.example/page')).toEqual([{ url: 'https://b.example/', title: 'B' }]);
   });
   it('take only web pages, and the saved file is read with care', () => {
     expect(addSaved([], 'data:text/html,x', 'x')).toEqual([]);
-    expect(parseSaved({ saved: [{ url: 'https://a.example/', title: 'A' }, { url: 'file:///x' }, 5, { url: 'https://a.example/' }] })).toEqual([{ url: 'https://a.example/', title: 'A' }]);
+    expect(
+      parseSaved({
+        saved: [{ url: 'https://a.example/', title: 'A' }, { url: 'file:///x' }, 5, { url: 'https://a.example/' }],
+      }),
+    ).toEqual([{ url: 'https://a.example/', title: 'A' }]);
     expect(parseSaved(null)).toEqual([]);
   });
 });

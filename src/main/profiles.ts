@@ -4,7 +4,17 @@
 import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { chooseProfile, exportName, importKey, validateProfile, type Profile, type ProfileChoice, type ProfileSource, type StoredProfile, entryFor } from '../shared/profile';
+import {
+  chooseProfile,
+  exportName,
+  importKey,
+  validateProfile,
+  type Profile,
+  type ProfileChoice,
+  type ProfileSource,
+  type StoredProfile,
+  entryFor,
+} from '../shared/profile';
 import { readJson, writeJson } from './store';
 
 export interface ProfileFolders {
@@ -79,15 +89,19 @@ export class ProfileStore {
       const profile = readProfile(file, this.note);
       if (profile) stored.push({ profile, source });
     };
-    for (const name of listDir(this.folders.local)) if (name.endsWith('.json')) add('local', join(this.folders.local, name));
-    for (const name of listDir(this.folders.imported)) if (name.endsWith('.json')) add('imported', join(this.folders.imported, name));
-    for (const name of listDir(join(this.folders.catalogue, 'profiles'))) add('catalogue', join(this.folders.catalogue, 'profiles', name, 'profile.json'));
+    for (const name of listDir(this.folders.local))
+      if (name.endsWith('.json')) add('local', join(this.folders.local, name));
+    for (const name of listDir(this.folders.imported))
+      if (name.endsWith('.json')) add('imported', join(this.folders.imported, name));
+    for (const name of listDir(join(this.folders.catalogue, 'profiles')))
+      add('catalogue', join(this.folders.catalogue, 'profiles', name, 'profile.json'));
     for (const name of listDir(this.folders.builtin)) add('builtin', join(this.folders.builtin, name, 'profile.json'));
     this.stored = stored;
     const saved = readJson(this.folders.answers);
     this.answers = {};
     if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
-      for (const [key, value] of Object.entries(saved)) if (value === 'yes' || value === 'no') this.answers[key] = value;
+      for (const [key, value] of Object.entries(saved))
+        if (value === 'yes' || value === 'no') this.answers[key] = value;
     }
   }
 
@@ -187,5 +201,11 @@ export class ProfileStore {
 
 /** How a profile's source is said on screen. */
 export function sourceLabel(source: ProfileSource): string {
-  return source === 'local' ? 'your own' : source === 'imported' ? 'imported, not reviewed' : source === 'catalogue' ? 'reviewed' : 'reviewed, built in';
+  return source === 'local'
+    ? 'your own'
+    : source === 'imported'
+      ? 'imported, not reviewed'
+      : source === 'catalogue'
+        ? 'reviewed'
+        : 'reviewed, built in';
 }

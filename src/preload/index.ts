@@ -44,33 +44,53 @@ function guardFrame(): void {
 function watchFrameFields(): (el: Element) => void {
   const isField = (el: EventTarget | null): el is HTMLElement => {
     if (el instanceof HTMLTextAreaElement) return true;
-    if (el instanceof HTMLInputElement) return !['button', 'submit', 'checkbox', 'radio', 'range', 'reset', 'file', 'image', 'color', 'hidden'].includes(el.type);
+    if (el instanceof HTMLInputElement)
+      return !['button', 'submit', 'checkbox', 'radio', 'range', 'reset', 'file', 'image', 'color', 'hidden'].includes(
+        el.type,
+      );
     return el instanceof HTMLElement && el.isContentEditable;
   };
   let pressedAt = 0;
   let told = false;
-  window.addEventListener('mousedown', (e) => {
-    if (e.isTrusted) pressedAt = Date.now();
-  }, true);
+  window.addEventListener(
+    'mousedown',
+    (e) => {
+      if (e.isTrusted) pressedAt = Date.now();
+    },
+    true,
+  );
   const say = (el: HTMLElement): void => {
     const box = el.getBoundingClientRect();
     told = true;
     ipcRenderer.send('longboard:frame', {
       field: 'in',
-      secret: isSecretField(el.getAttribute('type'), el.getAttribute('autocomplete'), `${el.getAttribute('name') ?? ''} ${el.id}`),
+      secret: isSecretField(
+        el.getAttribute('type'),
+        el.getAttribute('autocomplete'),
+        `${el.getAttribute('name') ?? ''} ${el.id}`,
+      ),
       hint: (el.getAttribute('enterkeyhint') ?? '').toLowerCase().slice(0, 10),
       top: Math.round(box.top),
       bottom: Math.round(box.bottom),
     });
   };
-  window.addEventListener('focusin', (e) => {
-    // Only a field a click just went to, or the next one while the keyboard is already up for this frame.
-    if (isField(e.target) && (told || Date.now() - pressedAt < 1500)) say(e.target);
-  }, true);
+  window.addEventListener(
+    'focusin',
+    (e) => {
+      // Only a field a click just went to, or the next one while the keyboard is already up for this frame.
+      if (isField(e.target) && (told || Date.now() - pressedAt < 1500)) say(e.target);
+    },
+    true,
+  );
   // A click on a field that already had the cursor.
-  window.addEventListener('mouseup', (e) => {
-    if (e.isTrusted && !told && isField(document.activeElement) && document.activeElement.contains(e.target as Node)) say(document.activeElement);
-  }, true);
+  window.addEventListener(
+    'mouseup',
+    (e) => {
+      if (e.isTrusted && !told && isField(document.activeElement) && document.activeElement.contains(e.target as Node))
+        say(document.activeElement);
+    },
+    true,
+  );
   const gone = (): void => {
     if (!told) return;
     // The cursor may be on its way to the next field: wait and see.
@@ -103,26 +123,28 @@ function frameLayer(sayField: (el: Element) => void): void {
     return made;
   };
   const begin = (): Layer =>
-    (layer ??= started(startLayer({
-      doc: document,
-      options: { dev: false, automation: process.argv.includes('--longboard-automation') },
-      rules: rulesFromUntrusted(null, document),
-      // Of all a layer may ask the shell, a frame's may ask for these only.
-      send: (msg) => {
-        if (msg.kind === 'frameEnter') tell({ enter: true, stay: msg.stay === true });
-        else if (msg.kind === 'menu') tell({ menu: true });
-        else if (msg.kind === 'pointer' && msg.x === undefined) tell({ pointer: true });
-        // A player inside the frame: its keys are pressed by the shell, as on
-        // any page, and its controls are brought up by a pointer movement.
-        else if (msg.kind === 'playerKey') tell({ playerKey: msg.key });
-        else if (msg.kind === 'revealControls') tell({ reveal: true });
-        else if (msg.kind === 'pictureClick') tell({ click: true });
-      },
-      frame: {
-        exit: (how) => tell({ exit: how }),
-        field: sayField,
-      },
-    })));
+    (layer ??= started(
+      startLayer({
+        doc: document,
+        options: { dev: false, automation: process.argv.includes('--longboard-automation') },
+        rules: rulesFromUntrusted(null, document),
+        // Of all a layer may ask the shell, a frame's may ask for these only.
+        send: (msg) => {
+          if (msg.kind === 'frameEnter') tell({ enter: true, stay: msg.stay === true });
+          else if (msg.kind === 'menu') tell({ menu: true });
+          else if (msg.kind === 'pointer' && msg.x === undefined) tell({ pointer: true });
+          // A player inside the frame: its keys are pressed by the shell, as on
+          // any page, and its controls are brought up by a pointer movement.
+          else if (msg.kind === 'playerKey') tell({ playerKey: msg.key });
+          else if (msg.kind === 'revealControls') tell({ reveal: true });
+          else if (msg.kind === 'pictureClick') tell({ click: true });
+        },
+        frame: {
+          exit: (how) => tell({ exit: how }),
+          field: sayField,
+        },
+      }),
+    ));
   // The shell asks every frame; the one that has the cursor answers.
   ipcRenderer.on('longboard:frame-enter', (_event, stay: unknown) => {
     if (!document.hasFocus() || document.activeElement instanceof HTMLIFrameElement) return;
@@ -153,7 +175,10 @@ function frameLayer(sayField: (el: Element) => void): void {
 // And on every system it says yes to any picture size or frame rate a page
 // names, the impossible included (shared/video-truth.ts).
 try {
-  const inPage = (func: () => void): void => (contextBridge as unknown as { executeInMainWorld: (script: { func: () => void }) => void }).executeInMainWorld({ func });
+  const inPage = (func: () => void): void =>
+    (contextBridge as unknown as { executeInMainWorld: (script: { func: () => void }) => void }).executeInMainWorld({
+      func,
+    });
   if (process.platform === 'linux') inPage(correctAudioAnswers);
   inPage(correctVideoAnswers);
 } catch {
@@ -169,13 +194,17 @@ if (scripted && window.top === window) installPurchaseGuard(document, guarded, (
 function replaceKeys(into: Record<string, string>, keys: unknown): void {
   if (!into || !keys || typeof keys !== 'object') return;
   for (const key of Object.keys(into)) delete into[key];
-  for (const [key, action] of Object.entries(keys as Record<string, unknown>).slice(0, 200)) if (typeof action === 'string') into[key] = action;
+  for (const [key, action] of Object.entries(keys as Record<string, unknown>).slice(0, 200))
+    if (typeof action === 'string') into[key] = action;
 }
 
 const start = (): void => {
   if (window.top !== window) return;
   // Asked for when the page starts, so the shell can choose by the page's address.
-  const boot = (ipcRenderer.sendSync('longboard:boot') as BootData | null) ?? { options: { dev: false, automation: process.argv.includes('--longboard-automation') }, profile: null };
+  const boot = (ipcRenderer.sendSync('longboard:boot') as BootData | null) ?? {
+    options: { dev: false, automation: process.argv.includes('--longboard-automation') },
+    profile: null,
+  };
   const send = (msg: BridgeMessage): void => ipcRenderer.send('longboard:msg', msg);
   // The one object of button mappings the layer reads; Settings can change what is in it.
   const held = ((boot.options as { keys?: Record<string, string> }).keys ??= {});
@@ -190,7 +219,11 @@ const start = (): void => {
   let saidIcons = '';
   const sayIcons = (): void => {
     const list = [...document.querySelectorAll<HTMLLinkElement>('link[rel][href]')]
-      .filter((l) => /(^|\s)(icon|apple-touch-icon|apple-touch-icon-precomposed|manifest)(\s|$)/i.test(l.rel) && /^https?:/i.test(l.href))
+      .filter(
+        (l) =>
+          /(^|\s)(icon|apple-touch-icon|apple-touch-icon-precomposed|manifest)(\s|$)/i.test(l.rel) &&
+          /^https?:/i.test(l.href),
+      )
       .slice(0, 24)
       .map((l) => ({ href: l.href, rel: l.rel.toLowerCase(), sizes: l.getAttribute('sizes') ?? '' }));
     const key = JSON.stringify(list);
@@ -208,11 +241,16 @@ const start = (): void => {
     // own scripts cannot see or call it, and only in a scripted run.
     const referee = new Referee(document, () => layer.candidates(), HOST_TAG);
     // `targets` says what the highlight can reach now, as kinds and boxes only: for working out why a page goes wrong.
-    const targets = (): string[] => layer.candidates().map((el) => {
-      const r = el.getBoundingClientRect();
-      return `${el.tagName.toLowerCase()}${el.getAttribute('role') ? `[${el.getAttribute('role')}]` : ''} ${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`;
-    });
-    (globalThis as { longboardReferee?: unknown }).longboardReferee = { note: () => referee.note(), report: () => referee.report(), targets };
+    const targets = (): string[] =>
+      layer.candidates().map((el) => {
+        const r = el.getBoundingClientRect();
+        return `${el.tagName.toLowerCase()}${el.getAttribute('role') ? `[${el.getAttribute('role')}]` : ''} ${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`;
+      });
+    (globalThis as { longboardReferee?: unknown }).longboardReferee = {
+      note: () => referee.note(),
+      report: () => referee.report(),
+      targets,
+    };
     // The profile's own list of purchase controls joins the early guard.
     guarded.push(...rulesFromUntrusted(boot.profile, document).selectors.purchaseControls);
     sayBlocked = () => layer.notice('Blocked: automation mode never activates purchase or sign-up controls');
@@ -227,7 +265,11 @@ const start = (): void => {
   // A text field inside an embedded frame has the cursor (or no longer has): the keyboard comes up for it here.
   ipcRenderer.on('longboard:frame-field', (_event, field: unknown) => {
     const f = field as { hint?: unknown; top?: unknown; bottom?: unknown } | null;
-    layer.frameField(f && typeof f === 'object' ? { hint: typeof f.hint === 'string' ? f.hint : '', top: Number(f.top) || 0, bottom: Number(f.bottom) || 0 } : null);
+    layer.frameField(
+      f && typeof f === 'object'
+        ? { hint: typeof f.hint === 'string' ? f.hint : '', top: Number(f.top) || 0, bottom: Number(f.bottom) || 0 }
+        : null,
+    );
   });
   // The highlight was asked into a frame, or has come out of one.
   ipcRenderer.on('longboard:frame-in', (_event, state: unknown, player: unknown) => {
@@ -239,7 +281,8 @@ const start = (): void => {
   // A key the shell took while that keyboard is up (the frame has the keys, not this page).
   ipcRenderer.on('longboard:frame-key', (_event, action: unknown) => {
     const a = action as Action | null;
-    if (a && typeof a === 'object' && (a.type === 'move' || a.type === 'select' || a.type === 'back')) layer.dispatch(a.type === 'move' ? { type: 'move', dir: a.dir } : { type: a.type });
+    if (a && typeof a === 'object' && (a.type === 'move' || a.type === 'select' || a.type === 'back'))
+      layer.dispatch(a.type === 'move' ? { type: 'move', dir: a.dir } : { type: a.type });
   });
   ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
     if (typeof text === 'string') layer.notice(text.slice(0, 200));
@@ -247,9 +290,13 @@ const start = (): void => {
   // Saved sign-ins, only where the shell says they are on (never in a scripted run, Hard rule 10):
   // the shell is told there is a sign-in form and what was typed into it when it is sent, and may fill it in.
   if (boot.options.logins === true && !scripted) {
-    watchLogins(document, { seen: () => send({ kind: 'loginSeen' }), sent: (login) => send({ kind: 'credentials', ...login }) });
+    watchLogins(document, {
+      seen: () => send({ kind: 'loginSeen' }),
+      sent: (login) => send({ kind: 'credentials', ...login }),
+    });
     ipcRenderer.on('longboard:fill', (_event, login: { user?: unknown; password?: unknown }) => {
-      if (login && typeof login.user === 'string' && typeof login.password === 'string') fillLogin(document, login.user, login.password);
+      if (login && typeof login.user === 'string' && typeof login.password === 'string')
+        fillLogin(document, login.user, login.password);
     });
   }
   // A page is arriving: this one until it has all come, or the one that will replace it.
@@ -280,16 +327,24 @@ const start = (): void => {
     if (at && typeof at.x === 'number' && typeof at.y === 'number') layer.editPick(at.x, at.y);
   });
   ipcRenderer.on('longboard:edit-show', (_event, view: EditView | null) => {
-    const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(0, 60) : []);
+    const list = (v: unknown): string[] =>
+      Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(0, 60) : [];
     if (!view || typeof view !== 'object') layer.editShow(null);
     else {
       layer.editShow({
         picked: typeof view.picked === 'string' ? view.picked : null,
-        marks: { include: list(view.marks?.include), exclude: list(view.marks?.exclude), row: list(view.marks?.row), player: list(view.marks?.player) },
+        marks: {
+          include: list(view.marks?.include),
+          exclude: list(view.marks?.exclude),
+          row: list(view.marks?.row),
+          player: list(view.marks?.player),
+        },
       });
     }
   });
-  ipcRenderer.on('longboard:rules', (_event, profile: unknown) => layer.setRules(rulesFromUntrusted(profile, document)));
+  ipcRenderer.on('longboard:rules', (_event, profile: unknown) =>
+    layer.setRules(rulesFromUntrusted(profile, document)),
+  );
   // A menu entry that stands for a key.
   ipcRenderer.on('longboard:action', (_event, name: unknown) => {
     // Reader view: the article's words are read here and shown on a screen of Longboard's own.

@@ -1,8 +1,25 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { coversPicture, findMainVideo, pageVideo, passedOver, isPlayerActive, playControl, playerScope, isSeekBar, playerIsOwnPage } from '../src/layer/player';
+import {
+  coversPicture,
+  findMainVideo,
+  pageVideo,
+  passedOver,
+  isPlayerActive,
+  playControl,
+  playerScope,
+  isSeekBar,
+  playerIsOwnPage,
+} from '../src/layer/player';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
-import { cdpKey, strayKeyCode, InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo } from '../src/shared/player-keys';
+import {
+  cdpKey,
+  strayKeyCode,
+  InjectedKeys,
+  isNativePlayerKey,
+  playerKeyFor,
+  playerKeyInfo,
+} from '../src/shared/player-keys';
 import { PLAYER_KEY_NAMES } from '../src/shared/profile';
 
 // jsdom has no layout, so each test gives its videos a size by hand.
@@ -17,7 +34,17 @@ function mount(markup: string): void {
   for (const v of document.querySelectorAll('video')) {
     const w = Number(v.dataset['w']);
     const h = Number(v.dataset['h']);
-    v.getBoundingClientRect = () => ({ width: w, height: h, left: 0, top: 0, right: w, bottom: h, x: 0, y: 0, toJSON: () => ({}) });
+    v.getBoundingClientRect = () => ({
+      width: w,
+      height: h,
+      left: 0,
+      top: 0,
+      right: w,
+      bottom: h,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
     v.muted = v.hasAttribute('muted');
     const playing = v.dataset['playing'] === 'true';
     Object.defineProperty(v, 'paused', { value: !playing, configurable: true });
@@ -47,7 +74,9 @@ describe('findMainVideo', () => {
 
   // Shape seen on the live site: a title page with an unmuted-able trailer and an empty player container.
   it('with a player root, only videos inside it count', () => {
-    mount(`<div class="hero">${video('trailer', 1280, 660)}</div><div id="player">${video('real', 0, 0, { playing: false })}</div>`);
+    mount(
+      `<div class="hero">${video('trailer', 1280, 660)}</div><div id="player">${video('real', 0, 0, { playing: false })}</div>`,
+    );
     expect(findMainVideo(document, ['#player'])).toBeNull();
     mount(`<div class="hero">${video('trailer', 1280, 660)}</div><div id="player">${video('real', 1280, 720)}</div>`);
     expect(findMainVideo(document, ['#player'])?.id).toBe('real');
@@ -118,7 +147,17 @@ describe('player keys', () => {
 
 describe('player scope', () => {
   const size = (el: Element, w: number, h: number, left = 0, top = 0): void => {
-    el.getBoundingClientRect = () => ({ width: w, height: h, left, top, right: left + w, bottom: top + h, x: left, y: top, toJSON: () => ({}) });
+    el.getBoundingClientRect = () => ({
+      width: w,
+      height: h,
+      left,
+      top,
+      right: left + w,
+      bottom: top + h,
+      x: left,
+      y: top,
+      toJSON: () => ({}),
+    });
   };
 
   it('is the adapter root when the video is inside it', () => {
@@ -137,7 +176,9 @@ describe('player scope', () => {
   });
 
   it('keeps navigation inside the scope and can start from a point', () => {
-    mount(`<a href="#x" id="behind">x</a><div id="player"><button id="left">a</button><button id="mid">b</button></div>`);
+    mount(
+      `<a href="#x" id="behind">x</a><div id="player"><button id="left">a</button><button id="mid">b</button></div>`,
+    );
     size(document.getElementById('behind')!, 100, 40, 600, 300);
     size(document.getElementById('left')!, 40, 40, 100, 650);
     size(document.getElementById('mid')!, 40, 40, 620, 650);
@@ -156,7 +197,9 @@ describe('playerIsOwnPage', () => {
     expect(playerIsOwnPage('https://example.com/browse/title-1', 'https://example.com/play/abc')).toBe(true);
   });
   it('is false for a player laid over the page it was started from', () => {
-    expect(playerIsOwnPage('https://example.com/detail/1?x=1', 'https://example.com/detail/1?autoplay=1#t')).toBe(false);
+    expect(playerIsOwnPage('https://example.com/detail/1?x=1', 'https://example.com/detail/1?autoplay=1#t')).toBe(
+      false,
+    );
   });
   it('is false when nothing was browsed first, or an address cannot be read', () => {
     expect(playerIsOwnPage(null, 'https://example.com/play/abc')).toBe(false);
@@ -168,7 +211,17 @@ describe('isSeekBar', () => {
   const sized = (markup: string, width: number): Element => {
     document.body.innerHTML = markup;
     const el = document.body.firstElementChild!;
-    el.getBoundingClientRect = () => ({ left: 0, top: 0, right: width, bottom: 20, width, height: 20, x: 0, y: 0, toJSON: () => ({}) });
+    el.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      right: width,
+      bottom: 20,
+      width,
+      height: 20,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
     return el;
   };
   it('is a slider that spans most of the screen', () => {
@@ -197,7 +250,17 @@ describe('landing in a player', () => {
     holder.innerHTML = html;
     const el = holder.firstElementChild as Element;
     const [left, top, width, height] = rect;
-    el.getBoundingClientRect = () => ({ left, top, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON: () => ({}) });
+    el.getBoundingClientRect = () => ({
+      left,
+      top,
+      width,
+      height,
+      right: left + width,
+      bottom: top + height,
+      x: left,
+      y: top,
+      toJSON: () => ({}),
+    });
     return el;
   };
   const w = window.innerWidth;
@@ -233,10 +296,32 @@ describe('landing in a player', () => {
 
 describe('a player key for the channel that reaches frames', () => {
   it('names the key, its code and its number, with the character where the browser acts on one', () => {
-    expect(cdpKey(playerKeyInfo('playPause'))).toEqual({ key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32, text: ' ' });
-    expect(cdpKey(playerKeyInfo('seekBack'))).toEqual({ key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37, nativeVirtualKeyCode: 37 });
-    expect(cdpKey(playerKeyInfo('close'))).toEqual({ key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
-    expect(cdpKey({ domKey: 'k' })).toEqual({ key: 'k', code: 'KeyK', windowsVirtualKeyCode: 75, nativeVirtualKeyCode: 75, text: 'k' });
+    expect(cdpKey(playerKeyInfo('playPause'))).toEqual({
+      key: ' ',
+      code: 'Space',
+      windowsVirtualKeyCode: 32,
+      nativeVirtualKeyCode: 32,
+      text: ' ',
+    });
+    expect(cdpKey(playerKeyInfo('seekBack'))).toEqual({
+      key: 'ArrowLeft',
+      code: 'ArrowLeft',
+      windowsVirtualKeyCode: 37,
+      nativeVirtualKeyCode: 37,
+    });
+    expect(cdpKey(playerKeyInfo('close'))).toEqual({
+      key: 'Escape',
+      code: 'Escape',
+      windowsVirtualKeyCode: 27,
+      nativeVirtualKeyCode: 27,
+    });
+    expect(cdpKey({ domKey: 'k' })).toEqual({
+      key: 'k',
+      code: 'KeyK',
+      windowsVirtualKeyCode: 75,
+      nativeVirtualKeyCode: 75,
+      text: 'k',
+    });
   });
   it('is nothing for no key or one it does not know', () => {
     expect(cdpKey(null)).toBe(null);
@@ -246,9 +331,16 @@ describe('a player key for the channel that reaches frames', () => {
 
 describe('a key passed on from the page to the screen in front', () => {
   it('is named the way the app sends keys, and only the keys a screen uses', () => {
-    expect(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'Backspace', ' '].map(strayKeyCode)).toEqual(['Up', 'Down', 'Left', 'Right', 'Enter', 'Escape', 'Backspace', 'Space']);
+    expect(
+      ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'Backspace', ' '].map(strayKeyCode),
+    ).toEqual(['Up', 'Down', 'Left', 'Right', 'Enter', 'Escape', 'Backspace', 'Space']);
     expect(strayKeyCode('a')).toBe('a');
-    expect([strayKeyCode('Shift'), strayKeyCode('F5'), strayKeyCode('ContextMenu'), strayKeyCode('')]).toEqual([null, null, null, null]);
+    expect([strayKeyCode('Shift'), strayKeyCode('F5'), strayKeyCode('ContextMenu'), strayKeyCode('')]).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ]);
   });
 });
 
@@ -264,9 +356,19 @@ describe('a big player in a longer page', () => {
     expect(passedOver({ top: 899, bottom: 950 }, { top: 110, bottom: 130 }, picture, 'down')).toBe(false);
   });
 
-  it('finds the page\'s big video by its whole box, scrolled away or not, and no small or muted one', () => {
+  it("finds the page's big video by its whole box, scrolled away or not, and no small or muted one", () => {
     const size = (v: Element, top: number, w: number, h: number): void => {
-      v.getBoundingClientRect = () => ({ left: 0, top, width: w, height: h, right: w, bottom: top + h, x: 0, y: top, toJSON: () => ({}) });
+      v.getBoundingClientRect = () => ({
+        left: 0,
+        top,
+        width: w,
+        height: h,
+        right: w,
+        bottom: top + h,
+        x: 0,
+        y: top,
+        toJSON: () => ({}),
+      });
     };
     document.body.innerHTML = '<video id="small"></video><video id="big"></video><video id="quiet" muted></video>';
     const [small, big, quiet] = [...document.querySelectorAll('video')] as HTMLVideoElement[];

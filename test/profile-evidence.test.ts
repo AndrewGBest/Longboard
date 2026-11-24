@@ -67,7 +67,11 @@ describe('the built-in profile is backed by outlines', () => {
   it('every selector in the profile matches something in the outlines', () => {
     const all = [...pages.keys()].map((name) => fromOutline(name));
     for (const [list, selectors] of Object.entries(adapter.selectors)) {
-      for (const sel of selectors) expect(all.some((dom) => dom.querySelector(sel) !== null), `${list}: ${sel}`).toBe(true);
+      for (const sel of selectors)
+        expect(
+          all.some((dom) => dom.querySelector(sel) !== null),
+          `${list}: ${sel}`,
+        ).toBe(true);
     }
   });
 

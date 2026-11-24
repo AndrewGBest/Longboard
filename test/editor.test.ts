@@ -2,7 +2,16 @@
 import { describe, expect, it } from 'vitest';
 import { matchesOf, pickChain, selectorLike } from '../src/layer/edit/selector';
 import { forgetShadowHosts } from '../src/layer/spatial/deep';
-import { hasContent, hasMark, localProfileId, marksOf, nextVersion, parsePicked, startDraft, toggleMark } from '../src/shared/editor';
+import {
+  hasContent,
+  hasMark,
+  localProfileId,
+  marksOf,
+  nextVersion,
+  parsePicked,
+  startDraft,
+  toggleMark,
+} from '../src/shared/editor';
 import { validateProfile, type Profile } from '../src/shared/profile';
 
 const page = (html: string): void => void (document.body.innerHTML = html);
@@ -55,11 +64,17 @@ describe('writing a selector for what was pointed at', () => {
 
   it('never reads text into a selector', () => {
     page('<div class="card" title="A Secret Title" aria-label="Secret"><span>Secret words</span></div>');
-    expect(pickChain($('span')).map((s) => s.selector).join(' ')).not.toMatch(/Secret/i);
+    expect(
+      pickChain($('span'))
+        .map((s) => s.selector)
+        .join(' '),
+    ).not.toMatch(/Secret/i);
   });
 
   it('gives the chain outward, with how many each step matches', () => {
-    page('<main class="page"><div class="row"><div class="tile"><span class="label">x</span></div><div class="tile"></div></div><div class="row"></div></main>');
+    page(
+      '<main class="page"><div class="row"><div class="tile"><span class="label">x</span></div><div class="tile"></div></div><div class="row"></div></main>',
+    );
     expect(pickChain($('.label'))).toEqual([
       { selector: 'span.label', matches: 1 },
       { selector: 'div.tile', matches: 2 },
@@ -75,15 +90,31 @@ describe('the draft profile', () => {
 
   it('starts empty for a site with no profile, named after the site', () => {
     const draft = fresh();
-    expect(draft).toMatchObject({ id: 'example-com', name: 'example.com', version: '1.0.0', match: { hosts: ['example.com', '*.example.com'] }, evidence: { outline: 'example-com.outline.txt' } });
+    expect(draft).toMatchObject({
+      id: 'example-com',
+      name: 'example.com',
+      version: '1.0.0',
+      match: { hosts: ['example.com', '*.example.com'] },
+      evidence: { outline: 'example-com.outline.txt' },
+    });
     expect(validateProfile(draft).problems).toEqual([]);
     expect(hasContent(draft)).toBe(false);
   });
 
   it('starts from the profile in use, with its version raised', () => {
-    const current = validateProfile({ ...fresh(), id: 'reviewed-one', version: '2.4.9', focus: { include: ['a.card'] } }).profile!;
+    const current = validateProfile({
+      ...fresh(),
+      id: 'reviewed-one',
+      version: '2.4.9',
+      focus: { include: ['a.card'] },
+    }).profile!;
     const draft = startDraft(url, current)!;
-    expect(draft).toMatchObject({ id: 'reviewed-one', version: '2.4.10', focus: { include: ['a.card'] }, evidence: { outline: 'reviewed-one.outline.txt' } });
+    expect(draft).toMatchObject({
+      id: 'reviewed-one',
+      version: '2.4.10',
+      focus: { include: ['a.card'] },
+      evidence: { outline: 'reviewed-one.outline.txt' },
+    });
     expect(current.version).toBe('2.4.9');
     expect(nextVersion('nonsense')).toBe('1.0.0');
   });
@@ -121,7 +152,12 @@ describe('the draft profile', () => {
       { name: 'row-1', selector: 'div.strip', axis: 'horizontal', remember: true },
       { name: 'row-2', selector: 'ul.list', axis: 'horizontal', remember: true },
     ]);
-    expect(marksOf(draft)).toEqual({ include: [], exclude: ['div.banner'], row: ['div.strip', 'ul.list'], player: ['div.player'] });
+    expect(marksOf(draft)).toEqual({
+      include: [],
+      exclude: ['div.banner'],
+      row: ['div.strip', 'ul.list'],
+      player: ['div.player'],
+    });
     draft = toggleMark(draft, 'row', 'div.strip');
     draft = toggleMark(draft, 'player', 'div.player');
     expect(draft.focus?.groups).toHaveLength(1);
@@ -141,7 +177,15 @@ describe('the draft profile', () => {
 
 describe('what the layer says was picked', () => {
   it('is checked before it is believed', () => {
-    expect(parsePicked([{ selector: 'div.tile', matches: 5 }, { selector: '', matches: 1 }, { selector: 'a', matches: 'many' }, 'text', { selector: 'x'.repeat(301) }])).toEqual([
+    expect(
+      parsePicked([
+        { selector: 'div.tile', matches: 5 },
+        { selector: '', matches: 1 },
+        { selector: 'a', matches: 'many' },
+        'text',
+        { selector: 'x'.repeat(301) },
+      ]),
+    ).toEqual([
       { selector: 'div.tile', matches: 5 },
       { selector: 'a', matches: 0 },
     ]);

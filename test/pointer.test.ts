@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { cdpPoint, KEY_FORGET_MS, POINTER, PointerHolds, pointerGlide, pointerSpeed, pointerTap, REPEAT_GRACE_MS, startPoint } from '../src/main/pointer';
+import {
+  cdpPoint,
+  KEY_FORGET_MS,
+  POINTER,
+  PointerHolds,
+  pointerGlide,
+  pointerSpeed,
+  pointerTap,
+  REPEAT_GRACE_MS,
+  startPoint,
+} from '../src/main/pointer';
 import type { Direction } from '../src/shared/actions';
 
 const tv = { width: 1920, height: 1080 };
@@ -50,7 +60,12 @@ describe('pointer movement', () => {
   });
 
   it('stands still when opposite directions are held, or none', () => {
-    expect(pointerGlide({ x: 5, y: 5 }, held('left', 'right'), 400, 16, tv)).toEqual({ x: 5, y: 5, scrollX: 0, scrollY: 0 });
+    expect(pointerGlide({ x: 5, y: 5 }, held('left', 'right'), 400, 16, tv)).toEqual({
+      x: 5,
+      y: 5,
+      scrollX: 0,
+      scrollY: 0,
+    });
     expect(pointerGlide({ x: 5, y: 5 }, held(), 400, 16, tv)).toEqual({ x: 5, y: 5, scrollX: 0, scrollY: 0 });
   });
 
@@ -144,7 +159,7 @@ describe('what is held', () => {
 });
 
 describe('cdpPoint', () => {
-  it('turns screen pixels into the page\'s own', () => {
+  it("turns screen pixels into the page's own", () => {
     expect(cdpPoint(200, 100, 2)).toEqual({ x: 100, y: 50 });
     expect(cdpPoint(200, 100, 1)).toEqual({ x: 200, y: 100 });
   });

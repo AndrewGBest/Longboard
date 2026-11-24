@@ -4,7 +4,8 @@
 // nothing typed tells the site Escape, which is how a search box that has
 // spread itself over the page's menu is closed again.
 
-const SELECTOR = 'input[type="search"], [role="searchbox"], [role="search"] input, [role="search"] textarea, input[enterkeyhint="search"]';
+const SELECTOR =
+  'input[type="search"], [role="searchbox"], [role="search"] input, [role="search"] textarea, input[enterkeyhint="search"]';
 /** Attributes that are read for the word; what was typed (`value`) and addresses are not. */
 const SKIP = new Set(['value', 'href', 'src', 'style', 'autocomplete', 'type']);
 

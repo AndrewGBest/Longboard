@@ -11,7 +11,18 @@
 import nacl from 'tweetnacl';
 
 export type PhoneKey = 'up' | 'down' | 'left' | 'right' | 'ok' | 'back' | 'menu' | 'delete' | 'enter' | 'playPause';
-export const PHONE_KEYS: readonly PhoneKey[] = ['up', 'down', 'left', 'right', 'ok', 'back', 'menu', 'delete', 'enter', 'playPause'];
+export const PHONE_KEYS: readonly PhoneKey[] = [
+  'up',
+  'down',
+  'left',
+  'right',
+  'ok',
+  'back',
+  'menu',
+  'delete',
+  'enter',
+  'playPause',
+];
 
 export type PhoneMessage = { t: 'hello' } | { t: 'text'; v: string } | { t: 'key'; v: PhoneKey };
 
@@ -20,7 +31,11 @@ export const MAX_PHONE_TEXT = 2000;
 export const MAX_SEALED = 12_000;
 
 const b64 = {
-  to: (bytes: Uint8Array): string => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
+  to: (bytes: Uint8Array): string =>
+    btoa(String.fromCharCode(...bytes))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, ''),
   from: (text: string): Uint8Array | null => {
     if (!/^[A-Za-z0-9_-]*$/.test(text)) return null;
     try {
@@ -56,12 +71,20 @@ export function sealPhoneMessage(key: string, n: number, message: PhoneMessage):
  * its number is higher than the last one taken, and it is one of the few
  * things a phone may say.
  */
-export function openPhoneMessage(key: string, sealed: string, lastN: number): { n: number; message: PhoneMessage } | null {
+export function openPhoneMessage(
+  key: string,
+  sealed: string,
+  lastN: number,
+): { n: number; message: PhoneMessage } | null {
   const k = keyBytes(key);
   if (!k || typeof sealed !== 'string' || sealed.length > MAX_SEALED) return null;
   const all = b64.from(sealed);
   if (!all || all.length <= nacl.secretbox.nonceLength) return null;
-  const plain = nacl.secretbox.open(all.subarray(nacl.secretbox.nonceLength), all.subarray(0, nacl.secretbox.nonceLength), k);
+  const plain = nacl.secretbox.open(
+    all.subarray(nacl.secretbox.nonceLength),
+    all.subarray(0, nacl.secretbox.nonceLength),
+    k,
+  );
   if (!plain) return null;
   let raw: unknown;
   try {
@@ -74,8 +97,10 @@ export function openPhoneMessage(key: string, sealed: string, lastN: number): { 
   const n = r['n'];
   if (typeof n !== 'number' || !Number.isSafeInteger(n) || n <= lastN) return null;
   if (r['t'] === 'hello') return { n, message: { t: 'hello' } };
-  if (r['t'] === 'key' && (PHONE_KEYS as readonly unknown[]).includes(r['v'])) return { n, message: { t: 'key', v: r['v'] as PhoneKey } };
-  if (r['t'] === 'text' && typeof r['v'] === 'string' && r['v'].length >= 1 && r['v'].length <= MAX_PHONE_TEXT) return { n, message: { t: 'text', v: r['v'] } };
+  if (r['t'] === 'key' && (PHONE_KEYS as readonly unknown[]).includes(r['v']))
+    return { n, message: { t: 'key', v: r['v'] as PhoneKey } };
+  if (r['t'] === 'text' && typeof r['v'] === 'string' && r['v'].length >= 1 && r['v'].length <= MAX_PHONE_TEXT)
+    return { n, message: { t: 'text', v: r['v'] } };
   return null;
 }
 
@@ -91,7 +116,9 @@ export interface NetAddress {
  * the ranges home networks use. Null when there is no network.
  */
 export function homeAddress(interfaces: Readonly<Record<string, readonly NetAddress[] | undefined>>): string | null {
-  const all = Object.values(interfaces).flatMap((list) => list ?? []).filter((a) => !a.internal && (a.family === 'IPv4' || a.family === 4) && !a.address.startsWith('169.254.'));
+  const all = Object.values(interfaces)
+    .flatMap((list) => list ?? [])
+    .filter((a) => !a.internal && (a.family === 'IPv4' || a.family === 4) && !a.address.startsWith('169.254.'));
   const home = all.find((a) => /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a.address));
   return (home ?? all[0])?.address ?? null;
 }

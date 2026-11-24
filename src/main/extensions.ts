@@ -47,7 +47,10 @@ export class Extensions {
   ) {
     this.api = new ElectronChromeExtensions({
       session,
-      createTab: async (details) => [hooks.open(details.url ?? 'about:blank'), hooks.window() as unknown as Electron.BrowserWindow],
+      createTab: async (details) => [
+        hooks.open(details.url ?? 'about:blank'),
+        hooks.window() as unknown as Electron.BrowserWindow,
+      ],
       selectTab: () => undefined,
       removeTab: () => undefined,
     });
@@ -58,7 +61,12 @@ export class Extensions {
   }
 
   private describe(extension: { id: string; name: string; version: string; manifest: unknown }): InstalledExtension {
-    return { id: extension.id, name: extensionName(extension.manifest) || extension.name, version: extension.version, ...extensionFacts(extension.manifest) };
+    return {
+      id: extension.id,
+      name: extensionName(extension.manifest) || extension.name,
+      version: extension.version,
+      ...extensionFacts(extension.manifest),
+    };
   }
 
   /** Loads the extensions installed in earlier runs. Never throws. */
@@ -97,7 +105,9 @@ export class Extensions {
     if (!name) {
       // The name is a translation: taken from the extension's own default language.
       try {
-        const words = JSON.parse(readFileSync(join(path, '_locales', String(manifest['default_locale'] ?? 'en'), 'messages.json'), 'utf8')) as Record<string, { message?: unknown }>;
+        const words = JSON.parse(
+          readFileSync(join(path, '_locales', String(manifest['default_locale'] ?? 'en'), 'messages.json'), 'utf8'),
+        ) as Record<string, { message?: unknown }>;
         const key = /^__MSG_(.+)__$/.exec(String(manifest['name']))?.[1] ?? '';
         const found = Object.entries(words).find(([k]) => k.toLowerCase() === key.toLowerCase())?.[1]?.message;
         if (typeof found === 'string') name = found.replace(/\s+/g, ' ').trim().slice(0, 80);
@@ -105,7 +115,13 @@ export class Extensions {
         // left without a name
       }
     }
-    return { id, path, name: name || id, version: String(manifest['version'] ?? '').slice(0, 40), ...extensionFacts(manifest) };
+    return {
+      id,
+      path,
+      name: name || id,
+      version: String(manifest['version'] ?? '').slice(0, 40),
+      ...extensionFacts(manifest),
+    };
   }
 
   /**
@@ -128,7 +144,8 @@ export class Extensions {
 
     const zip = new AdmZip(crx.archive);
     const entries = zip.getEntries();
-    if (entries.length > 20_000 || entries.reduce((n, e) => n + e.header.size, 0) > MAX_EXTENSION_BYTES * 4) throw new Error('the extension is too big');
+    if (entries.length > 20_000 || entries.reduce((n, e) => n + e.header.size, 0) > MAX_EXTENSION_BYTES * 4)
+      throw new Error('the extension is too big');
     const home = join(this.folder, id);
     const fresh = join(home, `.new-${Date.now().toString(36)}`);
     rmSync(fresh, { recursive: true, force: true });
@@ -166,7 +183,9 @@ export class Extensions {
     const manifest = extension.manifest as { manifest_version?: number; background?: { service_worker?: string } };
     if (manifest.manifest_version === 3 && manifest.background?.service_worker) {
       // Refused when the worker is already on its way up, which is the usual case just after loading.
-      await this.session.serviceWorkers.startWorkerForScope(`chrome-extension://${extension.id}`).catch(() => undefined);
+      await this.session.serviceWorkers
+        .startWorkerForScope(`chrome-extension://${extension.id}`)
+        .catch(() => undefined);
     }
   }
 

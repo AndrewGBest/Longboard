@@ -13,10 +13,19 @@ describe('"ask sites not to track"', () => {
     const before = { Accept: 'text/html', Cookie: 'a=b', Referer: 'https://news.example/', 'X-Site-Own': 'kept' };
     const after = withSignals(before);
     expect(after).toEqual({ ...before, DNT: '1', 'Sec-GPC': '1' });
-    expect(before).toEqual({ Accept: 'text/html', Cookie: 'a=b', Referer: 'https://news.example/', 'X-Site-Own': 'kept' });
+    expect(before).toEqual({
+      Accept: 'text/html',
+      Cookie: 'a=b',
+      Referer: 'https://news.example/',
+      'X-Site-Own': 'kept',
+    });
   });
   it('does not send a signal twice when a page set one itself', () => {
-    expect(withSignals({ dnt: '0', 'sec-gpc': '0', Accept: '*/*' })).toEqual({ Accept: '*/*', DNT: '1', 'Sec-GPC': '1' });
+    expect(withSignals({ dnt: '0', 'sec-gpc': '0', Accept: '*/*' })).toEqual({
+      Accept: '*/*',
+      DNT: '1',
+      'Sec-GPC': '1',
+    });
   });
   it('is off unless asked for, and is a yes or a no', () => {
     expect(parseConfig({}).config.doNotTrack).toBeUndefined();
@@ -29,7 +38,7 @@ describe('"ask sites not to track"', () => {
 
 describe('the filter lists in use', () => {
   const usual = ['https://lists.example/ads.txt'];
-  it('are the usual one, or the person\'s own', () => {
+  it("are the usual one, or the person's own", () => {
     expect(listsInUse(usual, undefined, false)).toEqual(usual);
     expect(listsInUse(usual, ['https://mine.example/l.txt'], false)).toEqual(['https://mine.example/l.txt']);
   });
@@ -51,6 +60,12 @@ describe('desktop site', () => {
     expect(desktopZoom({ width: 1920, height: 1080 }, 1)).toBe(1);
   });
   it('is kept with the site, and only a yes is kept', () => {
-    expect(parseSites({ 'news.example': { desktop: true }, 'b.example': { desktop: false }, 'c.example': { desktop: 'yes' } })).toEqual({ 'news.example': { desktop: true } });
+    expect(
+      parseSites({
+        'news.example': { desktop: true },
+        'b.example': { desktop: false },
+        'c.example': { desktop: 'yes' },
+      }),
+    ).toEqual({ 'news.example': { desktop: true } });
   });
 });

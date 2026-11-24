@@ -49,7 +49,8 @@ const FOCUSABLE = [
 ].join(',');
 
 /** Elements that are often made clickable with a script and nothing in the markup to say so. */
-const MAYBE_CLICKABLE = 'div, span, li, img, svg, td, article, section, figure, picture, p, h1, h2, h3, h4, h5, h6, i, b, em, strong';
+const MAYBE_CLICKABLE =
+  'div, span, li, img, svg, td, article, section, figure, picture, p, h1, h2, h3, h4, h5, h6, i, b, em, strong';
 /** How many such elements are looked at in one pass: the look costs a style lookup each. */
 const MAX_STYLE_LOOKS = 2500;
 
@@ -108,7 +109,8 @@ const PICTURE = 'img, picture, video, canvas, svg';
  * picture counts as a card: grown text lies over its neighbours.
  */
 export function shouldZoom(el: Element, view: Window, picturesOnly = false): boolean {
-  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) return false;
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement)
+    return false;
   if (view.getComputedStyle(el).display === 'inline') return false;
   const r = el.getBoundingClientRect();
   if (picturesOnly) {
@@ -129,9 +131,16 @@ export function shouldZoom(el: Element, view: Window, picturesOnly = false): boo
 export function zoomTarget(el: Element): Element {
   const box = el.getBoundingClientRect();
   const same = (r: DOMRect): boolean =>
-    Math.abs(r.left - box.left) <= 6 && Math.abs(r.top - box.top) <= 6 && Math.abs(r.right - box.right) <= 6 && Math.abs(r.bottom - box.bottom) <= 6;
+    Math.abs(r.left - box.left) <= 6 &&
+    Math.abs(r.top - box.top) <= 6 &&
+    Math.abs(r.right - box.right) <= 6 &&
+    Math.abs(r.bottom - box.bottom) <= 6;
   let target = el;
-  for (let node = el.parentElement, i = 0; node && i < 6 && same(node.getBoundingClientRect()); node = node.parentElement, i++) {
+  for (
+    let node = el.parentElement, i = 0;
+    node && i < 6 && same(node.getBoundingClientRect());
+    node = node.parentElement, i++
+  ) {
     target = node;
   }
   return target;
@@ -143,7 +152,10 @@ export function zoomTarget(el: Element): Element {
  */
 export function press(el: Element): void {
   if (typeof (el as HTMLElement).click === 'function') (el as HTMLElement).click();
-  else el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, view: el.ownerDocument.defaultView }));
+  else
+    el.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, view: el.ownerDocument.defaultView }),
+    );
 }
 
 export interface NavigatorOptions {
@@ -273,7 +285,11 @@ function collapsed(node: Element, style: CSSStyleDeclaration): boolean {
  * another strip. The arrow only needs to be laid out: on the live site the
  * arrows are transparent until the pointer hovers, and still work.
  */
-export function edgeControl(from: Element, selectors: readonly string[], view: Window): { control: Element; container: Element } | null {
+export function edgeControl(
+  from: Element,
+  selectors: readonly string[],
+  view: Window,
+): { control: Element; container: Element } | null {
   const maxHeight = view.innerHeight * 1.2;
   let node = from.parentElement;
   for (let i = 0; node && i < 14; i++, node = node.parentElement) {
@@ -318,7 +334,11 @@ const PANE_ROOM = 8;
  */
 export function paneWithMore(el: Element, doc: Document, view: Window, dir: 'up' | 'down'): Element | null {
   const page = doc.scrollingElement ?? doc.documentElement;
-  for (let node = composedParent(el), i = 0; node && node !== page && node !== doc.body && node !== doc.documentElement && i < 40; node = composedParent(node), i++) {
+  for (
+    let node = composedParent(el), i = 0;
+    node && node !== page && node !== doc.body && node !== doc.documentElement && i < 40;
+    node = composedParent(node), i++
+  ) {
     const room = dir === 'down' ? node.scrollHeight - node.clientHeight - node.scrollTop : node.scrollTop;
     if (room <= PANE_ROOM) continue;
     const overflow = view.getComputedStyle(node).overflowY;
@@ -373,14 +393,24 @@ export function openDialog(doc: Document): Element | null {
       // A small notice in a corner that calls itself modal does not keep the
       // page from being used, so it does not keep the highlight either.
       // (Seen on a mail site: a 420 by 300 notice at the bottom right.)
-      const share = ((Math.min(r.right, view.innerWidth) - Math.max(r.left, 0)) * (Math.min(r.bottom, view.innerHeight) - Math.max(r.top, 0))) / (view.innerWidth * view.innerHeight);
-      const overMiddle = r.left <= view.innerWidth / 2 && r.right >= view.innerWidth / 2 && r.top <= view.innerHeight / 2 && r.bottom >= view.innerHeight / 2;
+      const share =
+        ((Math.min(r.right, view.innerWidth) - Math.max(r.left, 0)) *
+          (Math.min(r.bottom, view.innerHeight) - Math.max(r.top, 0))) /
+        (view.innerWidth * view.innerHeight);
+      const overMiddle =
+        r.left <= view.innerWidth / 2 &&
+        r.right >= view.innerWidth / 2 &&
+        r.top <= view.innerHeight / 2 &&
+        r.bottom >= view.innerHeight / 2;
       if (!overMiddle && share < 0.3) continue;
     }
     // It must really be in front. Seen on the live site: a station's pop-up
     // stays open underneath the player it started. Where the browser cannot
     // say what is on top (no layout), the dialog is taken at its word.
-    const top = typeof doc.elementFromPoint === 'function' ? doc.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2) : null;
+    const top =
+      typeof doc.elementFromPoint === 'function'
+        ? doc.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2)
+        : null;
     if (top && !el.contains(top) && !top.contains(el)) continue;
     found = el;
   }
@@ -403,9 +433,19 @@ export function coveringLayer(doc: Document): Element | null {
   const view = doc.defaultView;
   if (!view || typeof doc.elementFromPoint !== 'function' || view.innerWidth < 1 || view.innerHeight < 1) return null;
   let layer: Element | null = null;
-  for (const [x, y] of [[0.5, 0.5], [0.2, 0.2], [0.8, 0.2], [0.2, 0.8], [0.8, 0.8]] as const) {
+  for (const [x, y] of [
+    [0.5, 0.5],
+    [0.2, 0.2],
+    [0.8, 0.2],
+    [0.2, 0.8],
+    [0.8, 0.8],
+  ] as const) {
     let over: Element | null = null;
-    for (let node = doc.elementFromPoint(view.innerWidth * x, view.innerHeight * y), i = 0; node && node !== doc.body && node !== doc.documentElement && i < 60; node = composedParent(node), i++) {
+    for (
+      let node = doc.elementFromPoint(view.innerWidth * x, view.innerHeight * y), i = 0;
+      node && node !== doc.body && node !== doc.documentElement && i < 60;
+      node = composedParent(node), i++
+    ) {
       if (view.getComputedStyle(node).position !== 'fixed') continue;
       const r = node.getBoundingClientRect();
       if (r.left <= 2 && r.top <= 2 && r.right >= view.innerWidth - 2 && r.bottom >= view.innerHeight - 2) over = node;
@@ -413,7 +453,9 @@ export function coveringLayer(doc: Document): Element | null {
     if (!over || (layer && over !== layer)) return null;
     layer = over;
   }
-  return layer?.querySelector('a[href], button, input, select, textarea, [role="button"], [role="link"], [tabindex]') ? layer : null;
+  return layer?.querySelector('a[href], button, input, select, textarea, [role="button"], [role="link"], [tabindex]')
+    ? layer
+    : null;
 }
 
 /**
@@ -476,7 +518,9 @@ function outOfReach(el: Element, view: Window): boolean {
   for (let node = composedParent(el), i = 0; node && i < 40; node = composedParent(node), i++) {
     if (node.scrollTop > 0 || node.scrollLeft > 0) return false;
     const style = view.getComputedStyle(node);
-    const scrolls = (style.overflowY !== 'visible' && node.scrollHeight > node.clientHeight + 1) || (style.overflowX !== 'visible' && node.scrollWidth > node.clientWidth + 1);
+    const scrolls =
+      (style.overflowY !== 'visible' && node.scrollHeight > node.clientHeight + 1) ||
+      (style.overflowX !== 'visible' && node.scrollWidth > node.clientWidth + 1);
     if (scrolls && node !== el.ownerDocument.documentElement && node !== el.ownerDocument.body) return false;
     if (style.position === 'fixed') return true;
   }
@@ -500,7 +544,8 @@ function clippedAwayFrom(el: Element, from: Element, view: Window, vertical: boo
 
 /** True when `outer` wholly contains `inner` and is at least four times its area. */
 function covers(outer: Rect, inner: Rect): boolean {
-  if (inner.left < outer.left || inner.right > outer.right || inner.top < outer.top || inner.bottom > outer.bottom) return false;
+  if (inner.left < outer.left || inner.right > outer.right || inner.top < outer.top || inner.bottom > outer.bottom)
+    return false;
   const area = (r: Rect): number => (r.right - r.left) * (r.bottom - r.top);
   return area(outer) >= 4 * area(inner);
 }
@@ -541,7 +586,11 @@ export function coveredByScreen(el: Element, view: Window): boolean {
  */
 export function scrollWithinList(el: Element, view: Window): void {
   const body = el.ownerDocument.body;
-  for (let node = composedParent(el), i = 0; node && node !== body && node !== el.ownerDocument.documentElement && i < 12; node = composedParent(node), i++) {
+  for (
+    let node = composedParent(el), i = 0;
+    node && node !== body && node !== el.ownerDocument.documentElement && i < 12;
+    node = composedParent(node), i++
+  ) {
     if (node.scrollHeight <= node.clientHeight + 8) continue;
     const overflow = view.getComputedStyle(node).overflowY;
     if (overflow !== 'auto' && overflow !== 'scroll') continue;
@@ -555,7 +604,8 @@ export function scrollWithinList(el: Element, view: Window): void {
 const FOOTER = 'footer, [role="contentinfo"]';
 
 /** What a menu's entries are. */
-export const MENU_ENTRY = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], [role="radio"]';
+export const MENU_ENTRY =
+  '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], [role="radio"]';
 
 /** How far past the screen's edge a target may be, in screens, and still be jumped to while reading. */
 export const READING_REACH = 0.35;
@@ -613,7 +663,12 @@ export class SpatialNavigator {
     if (!this.lastBox || !view) return null;
     const held = this.focused;
     if (held && isLaidOut(held, view)) return null;
-    const box = { left: this.lastBox.left - view.scrollX, right: this.lastBox.right - view.scrollX, top: this.lastBox.top - view.scrollY, bottom: this.lastBox.bottom - view.scrollY };
+    const box = {
+      left: this.lastBox.left - view.scrollX,
+      right: this.lastBox.right - view.scrollX,
+      top: this.lastBox.top - view.scrollY,
+      bottom: this.lastBox.bottom - view.scrollY,
+    };
     if (box.bottom <= 0 || box.top >= view.innerHeight || box.right <= 0 || box.left >= view.innerWidth) return null;
     return box;
   }
@@ -656,7 +711,8 @@ export class SpatialNavigator {
     const seen = new Set<Element>();
     const faded = new Map<Element, boolean>();
     const found = deepQueryAll(scope ?? this.doc, selector);
-    if (this.opts.looksClickable) found.push(...this.handCursorTargets(scope ?? this.doc, near ? { above, below } : null));
+    if (this.opts.looksClickable)
+      found.push(...this.handCursorTargets(scope ?? this.doc, near ? { above, below } : null));
     for (const el of found) {
       if (this.opts.ignoreWithin && deepClosest(el, this.opts.ignoreWithin)) continue;
       if (skip && el.matches(skip)) continue;
@@ -700,7 +756,14 @@ export class SpatialNavigator {
       for (const label of el.labels ?? []) {
         const r = label.getBoundingClientRect();
         const style = view.getComputedStyle(label);
-        if (r.width >= 4 && r.height >= 4 && style.visibility !== 'hidden' && style.display !== 'none' && style.opacity !== '0') seen.add(label);
+        if (
+          r.width >= 4 &&
+          r.height >= 4 &&
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          style.opacity !== '0'
+        )
+          seen.add(label);
       }
     }
     // Drop wrappers that contain another candidate, so a card and the link
@@ -752,7 +815,8 @@ export class SpatialNavigator {
     // link and a transparent button over it), keep the one that can be seen,
     // and a link before anything else.
     const bySpot = new Map<string, Element>();
-    const rank = (el: Element): number => (view.getComputedStyle(el).opacity === '0' ? 0 : 2) + (el.matches('a[href]') ? 1 : 0);
+    const rank = (el: Element): number =>
+      (view.getComputedStyle(el).opacity === '0' ? 0 : 2) + (el.matches('a[href]') ? 1 : 0);
     for (const el of front) {
       const r = el.getBoundingClientRect();
       const spot = [r.left, r.top, r.right, r.bottom].map((v) => Math.round(v / 6)).join(',');
@@ -1013,7 +1077,12 @@ export class SpatialNavigator {
     // What came up only because the highlight rested here, and closed when
     // the highlight stepped into it, is passed over.
     const few = this.withoutFleeting(near);
-    const moved = this.besideSlider(dir, near) ?? (few ? this.step(dir, few) : null) ?? this.step(dir, near) ?? this.step(dir, this.candidates()) ?? false;
+    const moved =
+      this.besideSlider(dir, near) ??
+      (few ? this.step(dir, few) : null) ??
+      this.step(dir, near) ??
+      this.step(dir, this.candidates()) ??
+      false;
     const now = this.focused;
     if (now && now !== before) {
       this.arrival = before && beforeBox ? { from: before, fromBox: beforeBox, known: this.knownHere } : null;
@@ -1033,7 +1102,12 @@ export class SpatialNavigator {
   private inWindow(box: Rect): Rect | null {
     const view = this.doc.defaultView;
     if (!view) return null;
-    const r = { left: box.left - view.scrollX, right: box.right - view.scrollX, top: box.top - view.scrollY, bottom: box.bottom - view.scrollY };
+    const r = {
+      left: box.left - view.scrollX,
+      right: box.right - view.scrollX,
+      top: box.top - view.scrollY,
+      bottom: box.bottom - view.scrollY,
+    };
     return r.bottom <= 0 || r.top >= view.innerHeight || r.right <= 0 || r.left >= view.innerWidth ? null : r;
   }
 
@@ -1189,7 +1263,12 @@ export class SpatialNavigator {
       const mine = toRect(from);
       // From such a small control, what holds it is not above or below it either.
       // Nor is a small control inside the focused one's own box below it.
-      const whole = others.filter((_, i) => !covers(rects[i]!, mine) && !covers(mine, rects[i]!) && !rects.some((outer, j) => j !== i && covers(outer, rects[i]!)));
+      const whole = others.filter(
+        (_, i) =>
+          !covers(rects[i]!, mine) &&
+          !covers(mine, rects[i]!) &&
+          !rects.some((outer, j) => j !== i && covers(outer, rects[i]!)),
+      );
       if (whole.length < others.length && pickNext(mine, whole.map(toRect), dir) !== -1) others = whole;
     }
     // Up and down inside a menu stay in the menu while it has an entry that
@@ -1241,7 +1320,9 @@ export class SpatialNavigator {
             if (el === from || !deepContains(box, el) || !isVisible(el, view)) continue;
             const r = el.getBoundingClientRect();
             if (dir === 'right' ? r.left < f.right - 1 : r.right > f.left + 1) continue;
-            const gap = (dir === 'right' ? r.left - f.right : f.left - r.right) + 2 * Math.abs((r.top + r.bottom) / 2 - (f.top + f.bottom) / 2);
+            const gap =
+              (dir === 'right' ? r.left - f.right : f.left - r.right) +
+              2 * Math.abs((r.top + r.bottom) / 2 - (f.top + f.bottom) / 2);
             if (gap < least) {
               least = gap;
               best = el;
@@ -1318,7 +1399,8 @@ export class SpatialNavigator {
       if (pane && deepContains(pane, target)) {
         const p = pane.getBoundingClientRect();
         const t = target.getBoundingClientRect();
-        const unseen = dir === 'down' ? t.top >= Math.min(p.bottom, view.innerHeight) - 1 : t.bottom <= Math.max(p.top, 0) + 1;
+        const unseen =
+          dir === 'down' ? t.top >= Math.min(p.bottom, view.innerHeight) - 1 : t.bottom <= Math.max(p.top, 0) + 1;
         if (unseen) {
           const beside = all.filter((el) => {
             if (el === from || deepContains(pane, el) || !isOnScreen(el, view) || !isVisible(el, view)) return false;
@@ -1341,7 +1423,9 @@ export class SpatialNavigator {
       }
       if (pane && !deepContains(pane, target) && !firstTime) {
         pane.scrollBy({ top: (dir === 'down' ? 0.8 : -0.8) * pane.clientHeight, behavior: 'instant' });
-        const inside = this.candidates(true).filter((el) => el !== from && deepContains(pane, el) && shownIn(el, pane, view) >= 0.99);
+        const inside = this.candidates(true).filter(
+          (el) => el !== from && deepContains(pane, el) && shownIn(el, pane, view) >= 0.99,
+        );
         const j = pickNext(toRect(from), inside.map(toRect), dir);
         if (j !== -1) return this.focus(inside[j] ?? null, { scroll: false });
         if (shownIn(from, pane, view) < 0.5) this.focusOnScreen(dir, pane);
@@ -1356,7 +1440,13 @@ export class SpatialNavigator {
     // a target far outside the screen may only be the next thing loaded so
     // far (the footer, with rows still to come before it). Scroll toward it
     // and let the next repeat decide again.
-    if (target && view && !this.straight && (this.rapid || this.opts.readingScroll) && (dir === 'up' || dir === 'down')) {
+    if (
+      target &&
+      view &&
+      !this.straight &&
+      (this.rapid || this.opts.readingScroll) &&
+      (dir === 'up' || dir === 'down')
+    ) {
       const r = target.getBoundingClientRect();
       // A single press on a page being read jumps to what is just past the
       // edge: bringing it to the middle then moves the page by less than a
@@ -1422,11 +1512,22 @@ export class SpatialNavigator {
     if (!view) return false;
     const cache = new Map<Element, boolean>();
     // Only what the scrolling brought: inside the pane that scrolled, when it was a pane.
-    const pane = within && within !== this.doc.scrollingElement && within !== this.doc.documentElement && within !== this.doc.body ? within : null;
-    const inPane = this.candidates(true).filter((el) => (!pane || deepContains(pane, el)) && !isPinned(el, view, cache));
+    const pane =
+      within && within !== this.doc.scrollingElement && within !== this.doc.documentElement && within !== this.doc.body
+        ? within
+        : null;
+    const inPane = this.candidates(true).filter(
+      (el) => (!pane || deepContains(pane, el)) && !isPinned(el, view, cache),
+    );
     let onScreen = inPane.filter((el) => {
       const r = el.getBoundingClientRect();
-      return r.top >= 0 && r.bottom <= view.innerHeight && r.left >= 0 && r.right <= view.innerWidth && (!pane || shownIn(el, pane, view) >= 0.99);
+      return (
+        r.top >= 0 &&
+        r.bottom <= view.innerHeight &&
+        r.left >= 0 &&
+        r.right <= view.innerWidth &&
+        (!pane || shownIn(el, pane, view) >= 0.99)
+      );
     });
     // A pane shorter than its cards may show none of them whole: then what is mostly in view.
     if (onScreen.length === 0 && pane) onScreen = inPane.filter((el) => shownIn(el, pane, view) >= 0.5);

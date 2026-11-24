@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { heardText, LISTEN, Listener, loudness, VOICE_MODEL_BYTES, VOICE_MODEL_FILES, VOICE_MODEL_URL, voiceModelSize } from '../src/shared/voice';
+import {
+  heardText,
+  LISTEN,
+  Listener,
+  loudness,
+  VOICE_MODEL_BYTES,
+  VOICE_MODEL_FILES,
+  VOICE_MODEL_URL,
+  voiceModelSize,
+} from '../src/shared/voice';
 
 /** Feeds a listener `seconds` of sound at one loudness; the last verdict, or the first that is not "go on". */
 const feed = (l: Listener, rms: number, seconds: number): string => {

@@ -8,20 +8,44 @@ import { CHECK_EVERY_MS, checkDue, folderOf, parseIndex } from '../src/shared/ca
 
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
 const profile = (id: string, extra: Record<string, unknown> = {}): string =>
-  JSON.stringify({ longboard: 1, id, name: id, version: '1.0.0', authors: ['a'], licence: 'CC0-1.0', match: { hosts: ['example.com'] }, evidence: { outline: 'outline.txt' }, ...extra });
+  JSON.stringify({
+    longboard: 1,
+    id,
+    name: id,
+    version: '1.0.0',
+    authors: ['a'],
+    licence: 'CC0-1.0',
+    match: { hosts: ['example.com'] },
+    evidence: { outline: 'outline.txt' },
+    ...extra,
+  });
 
 describe('parseIndex', () => {
   const entry = { id: 'example', version: '1.0.0', path: 'profiles/example.com/profile.json', sha256: 'a'.repeat(64) };
 
   it('reads a good index', () => {
-    expect(parseIndex({ 'longboard-index': 1, profiles: [entry], verifiedSites: ['example.com', 'example.com', 'Not A Domain'] })).toEqual({
+    expect(
+      parseIndex({
+        'longboard-index': 1,
+        profiles: [entry],
+        verifiedSites: ['example.com', 'example.com', 'Not A Domain'],
+      }),
+    ).toEqual({
       profiles: [entry],
       verifiedSites: ['example.com'],
     });
   });
 
   it('refuses another format outright', () => {
-    for (const raw of [null, [], 'x', { 'longboard-index': 2, profiles: [] }, { profiles: [entry] }, { 'longboard-index': 1 }]) expect(parseIndex(raw)).toBeNull();
+    for (const raw of [
+      null,
+      [],
+      'x',
+      { 'longboard-index': 2, profiles: [] },
+      { profiles: [entry] },
+      { 'longboard-index': 1 },
+    ])
+      expect(parseIndex(raw)).toBeNull();
   });
 
   it('drops entries that are malformed or point anywhere but a profile file in the catalogue', () => {
@@ -73,10 +97,18 @@ describe('refreshCatalogue', () => {
       },
       force,
     );
-  const index = (entries: Array<{ id: string; folder: string; body: string; sha256?: string }>, verified: string[] = []): string =>
+  const index = (
+    entries: Array<{ id: string; folder: string; body: string; sha256?: string }>,
+    verified: string[] = [],
+  ): string =>
     JSON.stringify({
       'longboard-index': 1,
-      profiles: entries.map((e) => ({ id: e.id, version: '1.0.0', path: `profiles/${e.folder}/profile.json`, sha256: e.sha256 ?? sha(e.body) })),
+      profiles: entries.map((e) => ({
+        id: e.id,
+        version: '1.0.0',
+        path: `profiles/${e.folder}/profile.json`,
+        sha256: e.sha256 ?? sha(e.body),
+      })),
       verifiedSites: verified,
     });
   const at = (folder: string): string => `https://catalogue.test/repo/profiles/${folder}/profile.json`;
@@ -111,10 +143,14 @@ describe('refreshCatalogue', () => {
     expect(changed).toBe(true);
     expect(readdirSync(join(dir, 'catalogue/profiles'))).toEqual(['good.example']);
     expect(readFileSync(join(dir, 'catalogue/profiles/good.example/profile.json'), 'utf8')).toBe(good);
-    expect(JSON.parse(readFileSync(join(dir, 'catalogue/verified-sites.json'), 'utf8'))).toEqual({ sites: ['example.com'] });
+    expect(JSON.parse(readFileSync(join(dir, 'catalogue/verified-sites.json'), 'utf8'))).toEqual({
+      sites: ['example.com'],
+    });
     expect(notes.join('\n')).toMatch(/tampered\.example\/profile\.json does not match its checksum/);
     expect(notes.join('\n')).toMatch(/renamed\.example\/profile\.json is not a usable profile/);
-    expect(notes.join('\n')).toMatch(/scripted\.example\/profile\.json is not a usable profile \(profiles cannot contain scripts/);
+    expect(notes.join('\n')).toMatch(
+      /scripted\.example\/profile\.json is not a usable profile \(profiles cannot contain scripts/,
+    );
     expect(existsSync(join(dir, 'catalogue.new'))).toBe(false);
   });
 

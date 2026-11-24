@@ -73,7 +73,12 @@ export function askablesFor(permission: string, mediaTypes: readonly string[] = 
  *   and screen capture (each needs a chooser Longboard does not have),
  *   opening other programs, and anything not known here.
  */
-export function permissionDecision(permission: string, saved: SitePermissions | undefined, mediaTypes: readonly string[] = [], never: readonly string[] = []): PermissionDecision {
+export function permissionDecision(
+  permission: string,
+  saved: SitePermissions | undefined,
+  mediaTypes: readonly string[] = [],
+  never: readonly string[] = [],
+): PermissionDecision {
   if (permission === 'fullscreen' || permission === 'clipboard-sanitized-write') return { kind: 'grant' };
   const names = askablesFor(permission, mediaTypes);
   if (!names) return { kind: 'deny' };
@@ -91,13 +96,22 @@ export function permissionDecision(permission: string, saved: SitePermissions | 
  * playback is the exception, because there "not asked yet" must not read as
  * refused before the site has made its request.
  */
-export function hasPermission(permission: string, saved: SitePermissions | undefined, mediaTypes: readonly string[] = [], never: readonly string[] = []): boolean {
+export function hasPermission(
+  permission: string,
+  saved: SitePermissions | undefined,
+  mediaTypes: readonly string[] = [],
+  never: readonly string[] = [],
+): boolean {
   const decision = permissionDecision(permission, saved, mediaTypes, never);
   return decision.kind === 'grant' || (decision.kind === 'ask' && permission === 'mediaKeySystem');
 }
 
 /** The saved answers with new ones added. */
-export function withAnswers(saved: SitePermissions | undefined, names: readonly Askable[], allow: boolean): SitePermissions {
+export function withAnswers(
+  saved: SitePermissions | undefined,
+  names: readonly Askable[],
+  allow: boolean,
+): SitePermissions {
   const answers = { ...saved?.answers };
   for (const name of names) answers[name] = allow ? 'granted' : 'denied';
   return { ...saved, answers };
@@ -113,7 +127,9 @@ export function describeAsk(names: readonly Askable[]): string {
 export function mayAsk(url: string): boolean {
   try {
     const u = new URL(url);
-    return u.protocol === 'https:' || (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1'));
+    return (
+      u.protocol === 'https:' || (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1'))
+    );
   } catch {
     return false;
   }

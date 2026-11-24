@@ -18,14 +18,21 @@ export const failureCount = () => failures;
 export function check(name, actual, expected) {
   const ok = JSON.stringify(actual) === JSON.stringify(expected);
   if (!ok) failures += 1;
-  console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : `\n     expected ${JSON.stringify(expected)}\n     actual   ${JSON.stringify(actual)}`}`);
+  console.log(
+    `${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : `\n     expected ${JSON.stringify(expected)}\n     actual   ${JSON.stringify(actual)}`}`,
+  );
 }
 export function fail(what) {
   failures += 1;
   console.log(`FAIL ${what}`);
 }
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+};
 
 /**
  * Serves test/fixtures on 127.0.0.1. `routes` adds made-up addresses:
@@ -76,7 +83,10 @@ function connect(url) {
               pending.delete(mine);
               reject(new Error(`no answer to ${method} after 15 seconds`));
             }, 15000);
-            pending.set(mine, { resolve: (v) => (clearTimeout(timer), resolve2(v)), reject: (e) => (clearTimeout(timer), reject(e)) });
+            pending.set(mine, {
+              resolve: (v) => (clearTimeout(timer), resolve2(v)),
+              reject: (e) => (clearTimeout(timer), reject(e)),
+            });
             ws.send(JSON.stringify({ id: mine, method, params }));
           }),
         /** Calls `hear(method, params)` for everything the app says unasked. */
@@ -87,15 +97,35 @@ function connect(url) {
 }
 
 const VK = {
-  ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39, Enter: 13, '/': 191, Escape: 27, ' ': 32, Backspace: 8,
-  ContextMenu: 93, BrowserHome: 172, Tab: 9, F2: 113, F4: 115, F6: 117, F7: 118,
+  ArrowUp: 38,
+  ArrowDown: 40,
+  ArrowLeft: 37,
+  ArrowRight: 39,
+  Enter: 13,
+  '/': 191,
+  Escape: 27,
+  ' ': 32,
+  Backspace: 8,
+  ContextMenu: 93,
+  BrowserHome: 172,
+  Tab: 9,
+  F2: 113,
+  F4: 115,
+  F6: 117,
+  F7: 118,
 };
 
 /** One view of the app (a DevTools target), with the helpers the tests use. */
 async function attach(target) {
   const cdp = await connect(target.webSocketDebuggerUrl);
-  const evaluate = async (expression) => (await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.value;
-  const key = (name) => ({ key: name, code: name === ' ' ? 'Space' : name, windowsVirtualKeyCode: VK[name], nativeVirtualKeyCode: VK[name] });
+  const evaluate = async (expression) =>
+    (await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.value;
+  const key = (name) => ({
+    key: name,
+    code: name === ' ' ? 'Space' : name,
+    windowsVirtualKeyCode: VK[name],
+    nativeVirtualKeyCode: VK[name],
+  });
   const press = async (name, wait = 150) => {
     await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key(name) });
     await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...key(name) });
@@ -134,15 +164,32 @@ async function attach(target) {
       // Frames inside the page have such a world too; only the page's own counts.
       const top = (await cdp.send('Page.getFrameTree')).frameTree.frame.id;
       cdp.listen((method, params) => {
-        if (method === 'Runtime.executionContextCreated' && /isolated/i.test(params.context.name) && params.context.auxData?.isDefault === false && params.context.auxData?.frameId === top) layerWorld = params.context.id;
+        if (
+          method === 'Runtime.executionContextCreated' &&
+          /isolated/i.test(params.context.name) &&
+          params.context.auxData?.isDefault === false &&
+          params.context.auxData?.frameId === top
+        )
+          layerWorld = params.context.id;
         if (method === 'Runtime.executionContextsCleared') layerWorld = undefined;
       });
       await cdp.send('Runtime.enable');
       await sleep(200);
     }
     if (layerWorld === undefined) throw new Error("the layer's world was not found");
-    const answer = await cdp.send('Runtime.evaluate', { expression, contextId: layerWorld, returnByValue: true, awaitPromise: true });
-    if (answer.exceptionDetails) throw new Error(`in the layer's world: ${answer.exceptionDetails.exception?.description ?? answer.exceptionDetails.text}`.slice(0, 200));
+    const answer = await cdp.send('Runtime.evaluate', {
+      expression,
+      contextId: layerWorld,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    if (answer.exceptionDetails)
+      throw new Error(
+        `in the layer's world: ${answer.exceptionDetails.exception?.description ?? answer.exceptionDetails.text}`.slice(
+          0,
+          200,
+        ),
+      );
     return answer.result.value;
   };
   return {
@@ -158,7 +205,10 @@ async function attach(target) {
         const dx = x - at.x;
         const dy = y - at.y;
         if (Math.abs(dx) <= 6 && Math.abs(dy) <= 6) return true;
-        await press(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft') : dy > 0 ? 'ArrowDown' : 'ArrowUp', 20);
+        await press(
+          Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft') : dy > 0 ? 'ArrowDown' : 'ArrowUp',
+          20,
+        );
       }
       return false;
     },
@@ -170,7 +220,7 @@ async function attach(target) {
     hold: async (name, ms) => {
       await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key(name) });
       await sleep(250);
-      for (const end = Date.now() + ms - 250; Date.now() < end; ) {
+      for (const end = Date.now() + ms - 250; Date.now() < end;) {
         await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key(name), autoRepeat: true });
         await sleep(33);
       }
@@ -198,7 +248,8 @@ async function attach(target) {
     focused: () => evaluate('document.querySelector("[data-longboard-focus]")?.id ?? null'),
     ringClass: () => overlay(({ cls }) => (/\bring\b/.test(cls) ? cls : undefined)),
     toastText: () => overlay(({ cls, text }) => (/\btoast\b/.test(cls) && /\bshow\b/.test(cls) ? text() : undefined)),
-    keyboardShown: async () => (await overlay(({ cls }) => (/\bosk\b/.test(cls) ? /\bshow\b/.test(cls) : undefined))) === true,
+    keyboardShown: async () =>
+      (await overlay(({ cls }) => (/\bosk\b/.test(cls) ? /\bshow\b/.test(cls) : undefined))) === true,
     /** Where the on-screen pointer is drawn (page pixels), or null when pointer mode is off. */
     pointerAt,
     overlay,
@@ -224,14 +275,37 @@ export async function launch({ url, config, args = [], width, height, seed, env 
   // pass: a person signed in there by hand). It is never deleted here.
   const userData = keep ?? mkdtempSync(join(tmpdir(), 'longboard-e2e-'));
   // Searches go to a name that can never resolve, so a test never contacts a search engine.
-  writeFileSync(join(userData, 'config.json'), JSON.stringify({ search: 'https://search.invalid/find?q=%s', ...config }));
+  writeFileSync(
+    join(userData, 'config.json'),
+    JSON.stringify({ search: 'https://search.invalid/find?q=%s', ...config }),
+  );
   // Files a scenario wants in the data folder before the app starts.
   if (seed) seed(userData);
   const child = spawn(
     electronPath,
-    [root, '--dev', '--automation', ...(width ? [`--size=${width}x${height}`] : []), ...(url ? [`--url=${url}`] : []), `--downloads=${join(userData, 'downloads')}`, ...args, `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, '--password-store=basic', ...(sandbox ? [] : ['--no-sandbox']), '--disable-gpu'],
+    [
+      root,
+      '--dev',
+      '--automation',
+      ...(width ? [`--size=${width}x${height}`] : []),
+      ...(url ? [`--url=${url}`] : []),
+      `--downloads=${join(userData, 'downloads')}`,
+      ...args,
+      `--remote-debugging-port=${port}`,
+      `--user-data-dir=${userData}`,
+      '--password-store=basic',
+      ...(sandbox ? [] : ['--no-sandbox']),
+      '--disable-gpu',
+    ],
     // The desktop's app list is kept inside the throw-away folder too: a test never writes to the real one.
-    { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, XDG_DATA_HOME: join(userData, 'xdg'), ...(typeof env === 'function' ? env(userData) : env) } },
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        XDG_DATA_HOME: join(userData, 'xdg'),
+        ...(typeof env === 'function' ? env(userData) : env),
+      },
+    },
   );
   const app = { child, userData, log: '' };
   /**
@@ -241,10 +315,27 @@ export async function launch({ url, config, args = [], width, height, seed, env 
    */
   app.again = (more = []) =>
     new Promise((done) => {
-      const copy = spawn(electronPath, [root, '--dev', '--automation', ...more, `--user-data-dir=${userData}`, '--password-store=basic', ...(sandbox ? [] : ['--no-sandbox']), '--disable-gpu'], {
-        stdio: 'ignore',
-        env: { ...process.env, XDG_DATA_HOME: join(userData, 'xdg'), ...(typeof env === 'function' ? env(userData) : env) },
-      });
+      const copy = spawn(
+        electronPath,
+        [
+          root,
+          '--dev',
+          '--automation',
+          ...more,
+          `--user-data-dir=${userData}`,
+          '--password-store=basic',
+          ...(sandbox ? [] : ['--no-sandbox']),
+          '--disable-gpu',
+        ],
+        {
+          stdio: 'ignore',
+          env: {
+            ...process.env,
+            XDG_DATA_HOME: join(userData, 'xdg'),
+            ...(typeof env === 'function' ? env(userData) : env),
+          },
+        },
+      );
       copy.on('exit', done);
     });
   child.stdout.on('data', (d) => (app.log += d));

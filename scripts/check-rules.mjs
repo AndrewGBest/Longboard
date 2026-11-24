@@ -12,7 +12,21 @@ const problems = [];
 const fail = (rule, file, why) => problems.push(`rule ${rule}: ${file}: ${why}`);
 
 // Rule 1: no binaries or fonts that could be someone else's, no CDM.
-const BANNED_EXT = new Set(['.so', '.dll', '.dylib', '.ttf', '.otf', '.woff', '.woff2', '.mp4', '.webm', '.mp3', '.wav', '.har', '.crx']);
+const BANNED_EXT = new Set([
+  '.so',
+  '.dll',
+  '.dylib',
+  '.ttf',
+  '.otf',
+  '.woff',
+  '.woff2',
+  '.mp4',
+  '.webm',
+  '.mp3',
+  '.wav',
+  '.har',
+  '.crx',
+]);
 // Rule 10: nothing captured from a session.
 const BANNED_NAMES = /(^|\/)(cookies?(\.txt|\.json|\.sqlite)?|Login Data|Local State|spike-report\.json)$/i;
 
@@ -25,9 +39,17 @@ const IDENTITY_MODULE = 'src/main/useragent.ts';
 
 const CODE_CHECKS = [
   // Rule 2
-  [2, /libwidevine|widevinecdm|content_decryption_module|pywidevine|license_?server|getLicense|keyStatuses|MediaKeySession\b.*\.update/i, 'touches the CDM or licence exchange'],
+  [
+    2,
+    /libwidevine|widevinecdm|content_decryption_module|pywidevine|license_?server|getLicense|keyStatuses|MediaKeySession\b.*\.update/i,
+    'touches the CDM or licence exchange',
+  ],
   // Rule 3
-  [3, /SMART-TV|Smart-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|AFT[A-Z]|Android TV|PlayStation|Xbox|Windows NT|Macintosh|CrOS/, 'looks like a spoofed device or OS identity'],
+  [
+    3,
+    /SMART-TV|Smart-TV|SmartTV|Tizen|Web0S|webOS|BRAVIA|AFT[A-Z]|Android TV|PlayStation|Xbox|Windows NT|Macintosh|CrOS/,
+    'looks like a spoofed device or OS identity',
+  ],
   // Rule 3 as amended 2026-11-23: the TV engine may be named, in the one identity module and nowhere else.
   [3, /Cobalt\/|Starboard\//, 'names the TV engine outside the one module that may'],
   // Rule 3: what a view says it is, is decided in one module (see IDENTITY_MODULE below).
@@ -37,7 +59,11 @@ const CODE_CHECKS = [
   // Rule 12
   [12, /sentry|google-analytics|gtag\(|posthog|mixpanel|crashReporter\.start/i, 'telemetry or crash upload'],
   // Rule 13
-  [13, /contextIsolation:\s*false|sandbox:\s*false|nodeIntegration:\s*true|webSecurity:\s*false|exposeInMainWorld|allowRunningInsecureContent|certificate-error|setCertificateVerifyProc|ignore-certificate-errors/, 'weakens the shell sandbox'],
+  [
+    13,
+    /contextIsolation:\s*false|sandbox:\s*false|nodeIntegration:\s*true|webSecurity:\s*false|exposeInMainWorld|allowRunningInsecureContent|certificate-error|setCertificateVerifyProc|ignore-certificate-errors/,
+    'weakens the shell sandbox',
+  ],
 ];
 
 for (const file of files) {
@@ -53,9 +79,13 @@ for (const file of files) {
     if (inTests && rule !== 13) continue;
     // The one module that may say what a view is. It is still held to the
     // other rule-3 check: no other maker's device, system or browser is named in it.
-    if (file === IDENTITY_MODULE && (pattern.source.startsWith('setUserAgent') || pattern.source.startsWith('Cobalt'))) continue;
+    if (file === IDENTITY_MODULE && (pattern.source.startsWith('setUserAgent') || pattern.source.startsWith('Cobalt')))
+      continue;
     // The words for a browser on a TV: once, in that module, as a named constant (rule 3's second measured use).
-    const own = file === IDENTITY_MODULE && pattern.source.startsWith('SMART-TV') ? text.replace("TV_BROWSER_WORDS = 'Smart-TV'", '') : text;
+    const own =
+      file === IDENTITY_MODULE && pattern.source.startsWith('SMART-TV')
+        ? text.replace("TV_BROWSER_WORDS = 'Smart-TV'", '')
+        : text;
     const m = pattern.exec(own);
     if (m) fail(rule, file, `${why} (matched "${m[0]}")`);
   }
@@ -69,11 +99,16 @@ for (const file of files) {
   if (file === SELF || file.startsWith('docs/') || file.endsWith('.md') || file.startsWith('test/')) continue;
   if (!TEXT_EXT.has(extname(file).toLowerCase())) continue;
   const text = readFileSync(file, 'utf8');
-  if (/adblocker-electron|adblocker-webextension|adblocker-puppeteer|adblocker-playwright/.test(text)) fail(5, file, 'uses a filtering wrapper that changes pages, not only the request matcher');
+  if (/adblocker-electron|adblocker-webextension|adblocker-puppeteer|adblocker-playwright/.test(text))
+    fail(5, file, 'uses a filtering wrapper that changes pages, not only the request matcher');
   if (file === 'package-lock.json') continue;
-  if (file !== FILTER_MODULE && /onBeforeRequest|@ghostery\/adblocker/.test(text) && file !== 'package.json') fail(5, file, 'filters requests outside the ad-blocking module');
+  if (file !== FILTER_MODULE && /onBeforeRequest|@ghostery\/adblocker/.test(text) && file !== 'package.json')
+    fail(5, file, 'filters requests outside the ad-blocking module');
   if (file === FILTER_MODULE) {
-    const m = /redirectURL|responseHeaders|requestHeaders|insertCSS|executeJavaScript|getCosmeticsFilters|load(Cosmetic|GenericCosmetics|CSP)Filters:\s*true|enableHtmlFiltering:\s*true|loadExtendedSelectors:\s*true/.exec(text);
+    const m =
+      /redirectURL|responseHeaders|requestHeaders|insertCSS|executeJavaScript|getCosmeticsFilters|load(Cosmetic|GenericCosmetics|CSP)Filters:\s*true|enableHtmlFiltering:\s*true|loadExtendedSelectors:\s*true/.exec(
+        text,
+      );
     if (m) fail(5, file, `the request filter does more than refuse requests (matched "${m[0]}")`);
   }
 }
@@ -81,8 +116,10 @@ for (const file of files) {
 // Rule 3: a profile says "tv" and nothing more. The format has no key that carries an identity.
 {
   const format = readFileSync('src/shared/profile.ts', 'utf8');
-  if (/userAgent|user_agent|['"]identity['"]/.test(format)) fail(3, 'src/shared/profile.ts', 'the profile format must not carry a user agent or an identity of its own');
-  if (!/view\['device'\] !== 'tv' && view\['device'\] !== 'tv-browser'\)\s*bad/.test(format)) fail(3, 'src/shared/profile.ts', '"view.device" must be checked to be exactly "tv" or "tv-browser"');
+  if (/userAgent|user_agent|['"]identity['"]/.test(format))
+    fail(3, 'src/shared/profile.ts', 'the profile format must not carry a user agent or an identity of its own');
+  if (!/view\['device'\] !== 'tv' && view\['device'\] !== 'tv-browser'\)\s*bad/.test(format))
+    fail(3, 'src/shared/profile.ts', '"view.device" must be checked to be exactly "tv" or "tv-browser"');
 }
 
 // Rule 6: branding.
@@ -93,7 +130,10 @@ for (const [key, val] of Object.entries({
   appId: pkg.build?.appId,
   artifactName: pkg.build?.artifactName,
 })) {
-  if (typeof val === 'string' && /prime|amazon|amzn|fire\s?tv|netflix|youtube|google|disney|hulu|chrome|firefox|safari/i.test(val)) {
+  if (
+    typeof val === 'string' &&
+    /prime|amazon|amzn|fire\s?tv|netflix|youtube|google|disney|hulu|chrome|firefox|safari/i.test(val)
+  ) {
     fail(6, 'package.json', `${key} contains a trademark: "${val}"`);
   }
 }
@@ -107,11 +147,15 @@ for (const file of files.filter((f) => /^profiles\/[^/]+\/profile\.json$/.test(f
   if ('scripts' in p) fail(7, file, 'a version 1 profile cannot contain scripts');
   const outline = p.evidence?.outline;
   const folder = file.slice(0, file.lastIndexOf('/'));
-  if (typeof outline !== 'string' || !files.includes(`${folder}/${outline}`)) fail(8, file, 'names no outline file that is in the repository');
+  if (typeof outline !== 'string' || !files.includes(`${folder}/${outline}`))
+    fail(8, file, 'names no outline file that is in the repository');
   else {
-    const lines = readFileSync(`${folder}/${outline}`, 'utf8').split('\n').filter((l) => l.trim() && !l.startsWith('#'));
+    const lines = readFileSync(`${folder}/${outline}`, 'utf8')
+      .split('\n')
+      .filter((l) => l.trim() && !l.startsWith('#'));
     // An outline line is one token: free text, which would have spaces, cannot be in one.
-    if (lines.some((l) => l.trim().includes(' '))) fail(8, `${folder}/${outline}`, 'has a line with a space in it: outlines hold structure only');
+    if (lines.some((l) => l.trim().includes(' ')))
+      fail(8, `${folder}/${outline}`, 'has a line with a space in it: outlines hold structure only');
     if (lines.length === 0) fail(8, `${folder}/${outline}`, 'is empty');
   }
 }

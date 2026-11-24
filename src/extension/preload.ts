@@ -16,7 +16,8 @@ function fill(): void {
   if (!from || !to || from === to) return;
   for (const name of Object.keys(from)) {
     try {
-      if (to[name] !== from[name]) Object.defineProperty(to, name, { value: from[name], enumerable: true, configurable: true });
+      if (to[name] !== from[name])
+        Object.defineProperty(to, name, { value: from[name], enumerable: true, configurable: true });
     } catch {
       // one that cannot be set is left as the engine made it
     }
@@ -26,7 +27,9 @@ function fill(): void {
 const extensionPage = typeof location !== 'undefined' && location.protocol === 'chrome-extension:';
 if ((process as unknown as { type?: string }).type === 'service-worker' || extensionPage) {
   try {
-    (contextBridge as unknown as { executeInMainWorld: (script: { func: () => void }) => void }).executeInMainWorld({ func: fill });
+    (contextBridge as unknown as { executeInMainWorld: (script: { func: () => void }) => void }).executeInMainWorld({
+      func: fill,
+    });
   } catch {
     // an engine without this call: extensions that use `browser` stay as they were
   }

@@ -15,7 +15,13 @@ mkdirSync(out, { recursive: true });
 const site = await serveFixtures();
 // The whole window as the display shows it: page, highlight and Longboard's screens together.
 const shot = (name) => execFileSync('import', ['-window', 'root', join(out, `${name}.png`)]);
-const apps = ['Films', 'Music', 'News', 'Sport', 'Games', 'Weather'].map((name) => ({ id: name.toLowerCase(), url: `http://${name.toLowerCase()}.test/`, name, ownSession: false, launcher: false }));
+const apps = ['Films', 'Music', 'News', 'Sport', 'Games', 'Weather'].map((name) => ({
+  id: name.toLowerCase(),
+  url: `http://${name.toLowerCase()}.test/`,
+  name,
+  ownSession: false,
+  launcher: false,
+}));
 const seed = (dir) => writeFileSync(join(dir, 'apps.json'), JSON.stringify({ apps }));
 
 {

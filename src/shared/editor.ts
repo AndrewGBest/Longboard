@@ -26,7 +26,10 @@ export function parsePicked(raw: unknown): PickedStep[] {
     if (!item || typeof item !== 'object') continue;
     const r = item as Record<string, unknown>;
     if (typeof r['selector'] !== 'string' || !r['selector'].trim() || r['selector'].length > 300) continue;
-    const matches = typeof r['matches'] === 'number' && Number.isFinite(r['matches']) ? Math.max(0, Math.min(100000, Math.round(r['matches']))) : 0;
+    const matches =
+      typeof r['matches'] === 'number' && Number.isFinite(r['matches'])
+        ? Math.max(0, Math.min(100000, Math.round(r['matches'])))
+        : 0;
     out.push({ selector: r['selector'], matches });
   }
   return out;
@@ -36,7 +39,12 @@ export function parsePicked(raw: unknown): PickedStep[] {
 export function localProfileId(url: string): string | null {
   const site = siteKey(url);
   if (!site) return null;
-  return site.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || null;
+  return (
+    site
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || null
+  );
 }
 
 /** "1.2.3" -> "1.2.4". Anything else starts again at 1.0.0. */
@@ -56,13 +64,23 @@ export function startDraft(url: string, current: Profile | null): Profile | null
   if (!site || !id) return null;
   const draft: Profile = current
     ? { ...structuredClone(current), version: nextVersion(current.version) }
-    : { longboard: 1, id, name: site, version: '1.0.0', authors: ['made on this TV'], licence: 'CC0-1.0', match: { hosts: [site, `*.${site}`] }, evidence: { outline: `${id}.outline.txt` } };
+    : {
+        longboard: 1,
+        id,
+        name: site,
+        version: '1.0.0',
+        authors: ['made on this TV'],
+        licence: 'CC0-1.0',
+        match: { hosts: [site, `*.${site}`] },
+        evidence: { outline: `${id}.outline.txt` },
+      };
   draft.evidence = { outline: `${draft.id}.outline.txt` };
   // A profile names sites by domain; a host it cannot name cannot have one.
   return validateProfile(draft).profile;
 }
 
-const without = (list: readonly string[] | undefined, selector: string): string[] => (list ?? []).filter((s) => s !== selector);
+const without = (list: readonly string[] | undefined, selector: string): string[] =>
+  (list ?? []).filter((s) => s !== selector);
 
 /** Whether `selector` carries `mark` in the draft. */
 export function hasMark(draft: Profile, mark: EditMark, selector: string): boolean {
@@ -120,5 +138,8 @@ export function marksOf(draft: Profile): Record<EditMark, string[]> {
 /** True when the draft says anything a profile is for. */
 export function hasContent(draft: Profile): boolean {
   const m = marksOf(draft);
-  return EDIT_MARKS.some((mark) => m[mark].length > 0) || Object.keys(draft).some((k) => ['text', 'dismiss', 'guard', 'view'].includes(k));
+  return (
+    EDIT_MARKS.some((mark) => m[mark].length > 0) ||
+    Object.keys(draft).some((k) => ['text', 'dismiss', 'guard', 'view'].includes(k))
+  );
 }

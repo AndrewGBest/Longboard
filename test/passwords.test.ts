@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { addLogin, cleanCredentials, emptyVault, listLogins, loginPlace, parseVault, removeLogin, setNever, shouldOffer, usersAt, MAX_LOGINS_PER_SITE } from '../src/shared/passwords';
+import {
+  addLogin,
+  cleanCredentials,
+  emptyVault,
+  listLogins,
+  loginPlace,
+  parseVault,
+  removeLogin,
+  setNever,
+  shouldOffer,
+  usersAt,
+  MAX_LOGINS_PER_SITE,
+} from '../src/shared/passwords';
 
 describe('where a sign-in belongs', () => {
   it('is the scheme, the name and the port of a page sent privately', () => {
@@ -8,7 +20,15 @@ describe('where a sign-in belongs', () => {
     expect(loginPlace('http://127.0.0.1:9000/form.html')).toBe('http://127.0.0.1:9000');
   });
   it('is nowhere for plain http, other schemes, or an address that carries a password', () => {
-    for (const url of ['http://a.example/', 'file:///etc/passwd', 'data:text/html,x', 'chrome-extension://abc/x.html', 'https://me:secret@a.example/', 'nonsense']) expect(loginPlace(url)).toBeNull();
+    for (const url of [
+      'http://a.example/',
+      'file:///etc/passwd',
+      'data:text/html,x',
+      'chrome-extension://abc/x.html',
+      'https://me:secret@a.example/',
+      'nonsense',
+    ])
+      expect(loginPlace(url)).toBeNull();
   });
   it('does not treat a name that ends the same as the same place', () => {
     expect(loginPlace('https://a.example.evil.test/')).not.toBe(loginPlace('https://a.example/'));
@@ -18,11 +38,25 @@ describe('where a sign-in belongs', () => {
 
 describe('what a page says was typed', () => {
   it('is taken when it has the right shape', () => {
-    expect(cleanCredentials({ user: '  me@a.example ', password: 'p w' })).toEqual({ user: 'me@a.example', password: 'p w' });
+    expect(cleanCredentials({ user: '  me@a.example ', password: 'p w' })).toEqual({
+      user: 'me@a.example',
+      password: 'p w',
+    });
     expect(cleanCredentials({ user: '', password: 'x' })).toEqual({ user: '', password: 'x' });
   });
   it('is refused otherwise', () => {
-    for (const raw of [null, 'x', {}, { user: 'a' }, { user: 'a', password: '' }, { user: 'a', password: 5 }, { user: 'a', password: 'x'.repeat(501) }, { user: 'a'.repeat(201), password: 'x' }, { user: 'a', password: 'x\ny' }]) expect(cleanCredentials(raw)).toBeNull();
+    for (const raw of [
+      null,
+      'x',
+      {},
+      { user: 'a' },
+      { user: 'a', password: '' },
+      { user: 'a', password: 5 },
+      { user: 'a', password: 'x'.repeat(501) },
+      { user: 'a'.repeat(201), password: 'x' },
+      { user: 'a', password: 'x\ny' },
+    ])
+      expect(cleanCredentials(raw)).toBeNull();
   });
 });
 
@@ -58,28 +92,48 @@ describe('the vault', () => {
   it('reads its file back, dropping anything unusable', () => {
     const v = parseVault({
       sites: {
-        'https://a.example': [{ user: 'one', secret: 'QQ==', at: 5 }, { user: 'one', secret: 'Qg==' }, { user: 'bad', secret: 'not base64!' }, 'x'],
+        'https://a.example': [
+          { user: 'one', secret: 'QQ==', at: 5 },
+          { user: 'one', secret: 'Qg==' },
+          { user: 'bad', secret: 'not base64!' },
+          'x',
+        ],
         'http://plain.example': [{ user: 'u', secret: 'QQ==' }],
         'https://a.example/path': [{ user: 'u', secret: 'QQ==' }],
       },
       never: ['https://n.example', 'nonsense', 'https://n.example'],
     });
-    expect(v).toEqual({ sites: { 'https://a.example': [{ user: 'one', secret: 'QQ==', at: 5 }] }, never: ['https://n.example'] });
+    expect(v).toEqual({
+      sites: { 'https://a.example': [{ user: 'one', secret: 'QQ==', at: 5 }] },
+      never: ['https://n.example'],
+    });
     expect(parseVault(null)).toEqual(emptyVault());
     expect(parseVault({ sites: [] })).toEqual(emptyVault());
   });
   it('lists what is saved for Settings, without the secrets', () => {
     let v = addLogin(emptyVault(), 'https://b.example', 'bee', 'QQ==', 1)!;
     v = addLogin(v, 'https://a.example', 'ay', 'Qg==', 2)!;
-    expect(listLogins(v)).toEqual([{ place: 'https://a.example', site: 'a.example', user: 'ay' }, { place: 'https://b.example', site: 'b.example', user: 'bee' }]);
+    expect(listLogins(v)).toEqual([
+      { place: 'https://a.example', site: 'a.example', user: 'ay' },
+      { place: 'https://b.example', site: 'b.example', user: 'bee' },
+    ]);
     expect(JSON.stringify(listLogins(v))).not.toContain('QQ==');
   });
 });
 
 describe('offering to keep a password', () => {
-  const yes = { automation: false, privateTab: false, enabled: true, available: true, place: 'https://a.example', never: [], alreadyKept: false };
+  const yes = {
+    automation: false,
+    privateTab: false,
+    enabled: true,
+    available: true,
+    place: 'https://a.example',
+    never: [],
+    alreadyKept: false,
+  };
   it('is done for an ordinary sign-in', () => expect(shouldOffer(yes)).toBe(true));
-  it('is never done in a scripted run (Hard rule 10)', () => expect(shouldOffer({ ...yes, automation: true })).toBe(false));
+  it('is never done in a scripted run (Hard rule 10)', () =>
+    expect(shouldOffer({ ...yes, automation: true })).toBe(false));
   it('is not done in a private tab, when turned off, without a keyring, off https, where told never, or when already kept', () => {
     expect(shouldOffer({ ...yes, privateTab: true })).toBe(false);
     expect(shouldOffer({ ...yes, enabled: false })).toBe(false);
@@ -97,7 +151,11 @@ import { Passwords, type Keyring } from '../src/main/passwords';
 
 describe('the saved sign-ins on disk', () => {
   // A stand-in for the system's keyring: it turns the text round, which is enough to show nothing is written as typed.
-  const keyring = (on = true): Keyring => ({ available: async () => on, encrypt: async (t) => Buffer.from([...t].reverse().join(''), 'utf8'), decrypt: async (b) => [...b.toString('utf8')].reverse().join('') });
+  const keyring = (on = true): Keyring => ({
+    available: async () => on,
+    encrypt: async (t) => Buffer.from([...t].reverse().join(''), 'utf8'),
+    decrypt: async (b) => [...b.toString('utf8')].reverse().join(''),
+  });
   const file = (): string => join(mkdtempSync(join(tmpdir(), 'longboard-pw-')), 'passwords.json');
   const place = 'https://a.example';
 

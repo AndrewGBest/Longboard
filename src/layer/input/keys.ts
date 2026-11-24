@@ -22,7 +22,11 @@ const SEEK_STEP = 10;
  * can be remapped, so a mapping never eats a letter. An override of "none"
  * hands the key to the page untouched.
  */
-export function keyToAction(e: KeyLike, mode: Mode, overrides: Readonly<Record<string, ActionName>> = {}): Action | null {
+export function keyToAction(
+  e: KeyLike,
+  mode: Mode,
+  overrides: Readonly<Record<string, ActionName>> = {},
+): Action | null {
   if (e.altKey || e.metaKey) return null;
 
   const spec = e.ctrlKey ? `Ctrl+${e.key.length === 1 ? e.key.toLowerCase() : e.key}` : e.key;
@@ -113,7 +117,22 @@ export function keyToAction(e: KeyLike, mode: Mode, overrides: Readonly<Record<s
 }
 
 /** The keys an app made for TVs is left to answer by itself. */
-const OWN_REMOTE_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' ', 'MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaStop', 'MediaTrackNext', 'MediaTrackPrevious', 'MediaFastForward', 'MediaRewind']);
+const OWN_REMOTE_KEYS = new Set([
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'Enter',
+  ' ',
+  'MediaPlayPause',
+  'MediaPlay',
+  'MediaPause',
+  'MediaStop',
+  'MediaTrackNext',
+  'MediaTrackPrevious',
+  'MediaFastForward',
+  'MediaRewind',
+]);
 
 /**
  * True when a key press belongs to a site that answers the remote itself

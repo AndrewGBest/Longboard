@@ -14,7 +14,8 @@ function looksGenerated(token: string): boolean {
   return token.split(/[-_]/).some((part) => {
     // Letters and digits shuffled together ("1a2b3c4"), or a run of mixed-case letters ("UEsHTy").
     const shuffled = part.length >= 5 && (part.match(/\d/g)?.length ?? 0) >= 2 && /[A-Za-z]/.test(part);
-    const mixedCase = part.length >= 6 && /^[A-Za-z0-9]+$/.test(part) && /[a-z]/.test(part) && /[A-Z]/.test(part.slice(1));
+    const mixedCase =
+      part.length >= 6 && /^[A-Za-z0-9]+$/.test(part) && /[a-z]/.test(part) && /[A-Z]/.test(part.slice(1));
     return shuffled || mixedCase;
   });
 }
@@ -55,7 +56,10 @@ export function selectorLike(el: Element): string {
   if (own) return own;
   const tag = el.tagName.toLowerCase();
   const parent = el.parentElement;
-  const around = parent && parent !== el.ownerDocument.body && parent !== el.ownerDocument.documentElement ? byKind(parent, false) : null;
+  const around =
+    parent && parent !== el.ownerDocument.body && parent !== el.ownerDocument.documentElement
+      ? byKind(parent, false)
+      : null;
   return around ? `${around} > ${tag}` : tag;
 }
 
@@ -89,7 +93,11 @@ export function elementAt(doc: Document, x: number, y: number): Element | null {
 export function pickChain(el: Element): PickedStep[] {
   const doc = el.ownerDocument;
   const chain: PickedStep[] = [];
-  for (let node: Element | null = el; node && node !== doc.body && node !== doc.documentElement && chain.length < MAX_CHAIN; node = composedParent(node)) {
+  for (
+    let node: Element | null = el;
+    node && node !== doc.body && node !== doc.documentElement && chain.length < MAX_CHAIN;
+    node = composedParent(node)
+  ) {
     const selector = selectorLike(node);
     if (chain[chain.length - 1]?.selector === selector) continue;
     const matches = matchesOf(doc, selector).length;

@@ -9,17 +9,30 @@ const varint = (n: number): Buffer => {
   out.push(n);
   return Buffer.from(out);
 };
-const field = (number: number, bytes: Buffer): Buffer => Buffer.concat([varint(number * 8 + 2), varint(bytes.length), bytes]);
+const field = (number: number, bytes: Buffer): Buffer =>
+  Buffer.concat([varint(number * 8 + 2), varint(bytes.length), bytes]);
 
-function makeCrx(archive: Buffer, o: { signWith?: ReturnType<typeof generateKeyPairSync>; claim?: Buffer; ec?: boolean } = {}): { file: Buffer; id: string } {
-  const pair = o.ec ? generateKeyPairSync('ec', { namedCurve: 'prime256v1' }) : generateKeyPairSync('rsa', { modulusLength: 2048 });
+function makeCrx(
+  archive: Buffer,
+  o: { signWith?: ReturnType<typeof generateKeyPairSync>; claim?: Buffer; ec?: boolean } = {},
+): { file: Buffer; id: string } {
+  const pair = o.ec
+    ? generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+    : generateKeyPairSync('rsa', { modulusLength: 2048 });
   const key = pair.publicKey.export({ type: 'spki', format: 'der' });
   const id = extensionIdOf(key);
   const signedPart = field(1, o.claim ?? createHash('sha256').update(key).digest().subarray(0, 16));
   const length = Buffer.alloc(4);
   length.writeUInt32LE(signedPart.length);
-  const signature = sign('sha256', Buffer.concat([Buffer.from('CRX3 SignedData\0', 'latin1'), length, signedPart, archive]), (o.signWith ?? pair).privateKey);
-  const header = Buffer.concat([field(o.ec ? 3 : 2, Buffer.concat([field(1, key), field(2, signature)])), field(10000, signedPart)]);
+  const signature = sign(
+    'sha256',
+    Buffer.concat([Buffer.from('CRX3 SignedData\0', 'latin1'), length, signedPart, archive]),
+    (o.signWith ?? pair).privateKey,
+  );
+  const header = Buffer.concat([
+    field(o.ec ? 3 : 2, Buffer.concat([field(1, key), field(2, signature)])),
+    field(10000, signedPart),
+  ]);
   const start = Buffer.alloc(12);
   start.write('Cr24', 'latin1');
   start.writeUInt32LE(3, 4);

@@ -2,7 +2,16 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { blockingOn, blockingStartsOn, isVerified, listsDue, LISTS_KEPT_MS, looksLikeFilterList, parseFilterLists, parseVerified } from '../src/shared/adblock';
+import {
+  blockingOn,
+  blockingStartsOn,
+  isVerified,
+  listsDue,
+  LISTS_KEPT_MS,
+  looksLikeFilterList,
+  parseFilterLists,
+  parseVerified,
+} from '../src/shared/adblock';
 import { FilterSet, FilterStore } from '../src/main/adblock';
 import { parseSites } from '../src/shared/sites';
 
@@ -43,7 +52,13 @@ describe('whether blocking is on for a site now', () => {
     expect(blockingOn(null, true, verified)).toBe(false);
   });
   it('the choice is kept with the site, and only a yes or a no is kept', () => {
-    expect(parseSites({ 'news.example': { adBlocking: false }, 'video.example': { adBlocking: true }, 'x.example': { adBlocking: 'yes' } })).toEqual({
+    expect(
+      parseSites({
+        'news.example': { adBlocking: false },
+        'video.example': { adBlocking: true },
+        'x.example': { adBlocking: 'yes' },
+      }),
+    ).toEqual({
       'news.example': { adBlocking: false },
       'video.example': { adBlocking: true },
     });
@@ -53,10 +68,14 @@ describe('whether blocking is on for a site now', () => {
 describe('the verified-sites file', () => {
   it('is read in the form Longboard saves and the form the repository keeps', () => {
     expect(parseVerified({ sites: ['video.example', 'clips.example.org'] })).toEqual(verified);
-    expect(parseVerified({ 'longboard-verified': 1, sites: [{ domain: 'video.example', reviewedBy: 'someone' }] })).toEqual(['video.example']);
+    expect(
+      parseVerified({ 'longboard-verified': 1, sites: [{ domain: 'video.example', reviewedBy: 'someone' }] }),
+    ).toEqual(['video.example']);
   });
   it('drops what is not a domain, and never throws', () => {
-    expect(parseVerified({ sites: ['video.example', 'HTTP://x', '*', 5, null, { domain: 'a b' }, 'video.example'] })).toEqual(['video.example']);
+    expect(
+      parseVerified({ sites: ['video.example', 'HTTP://x', '*', 5, null, { domain: 'a b' }, 'video.example'] }),
+    ).toEqual(['video.example']);
     for (const bad of [null, undefined, 5, 'x', [], { sites: 'all' }]) expect(parseVerified(bad)).toEqual([]);
   });
   it('the copy that ships with Longboard is valid and names sites', () => {
@@ -80,9 +99,19 @@ describe('fetching the lists', () => {
     expect(looksLikeFilterList('[Adblock Plus 2.0]\n! only comments\n! here and nothing else\n')).toBe(false);
   });
   it('takes only https addresses from config.json', () => {
-    expect(parseFilterLists(['https://lists.example/a.txt', 'https://lists.example/a.txt'])).toEqual(['https://lists.example/a.txt']);
+    expect(parseFilterLists(['https://lists.example/a.txt', 'https://lists.example/a.txt'])).toEqual([
+      'https://lists.example/a.txt',
+    ]);
     const tooMany = Array.from({ length: 9 }, (_, i) => `https://l.example/${i}`);
-    for (const bad of [[], ['http://lists.example/a.txt'], ['file:///etc/passwd'], ['nonsense'], 'https://x.example/a.txt', [5], tooMany]) {
+    for (const bad of [
+      [],
+      ['http://lists.example/a.txt'],
+      ['file:///etc/passwd'],
+      ['nonsense'],
+      'https://x.example/a.txt',
+      [5],
+      tooMany,
+    ]) {
       expect(parseFilterLists(bad)).toBeNull();
     }
   });
@@ -155,8 +184,15 @@ describe('the filters on this machine', () => {
     return { store, folder, notes, asked, tick: (ms: number) => (clock += ms) };
   };
   const reader = (folder: string, body = '', notes: string[] = []) =>
-    new FilterStore({ folder, lists: ['https://lists.example/one.txt'], fetchBytes: async () => Buffer.from(body), now: () => 9e15, note: (l) => notes.push(l) });
-  const ad = (store: FilterStore) => store.filters?.refuses('https://ads.example/a.js', 'https://news.example/', 'script');
+    new FilterStore({
+      folder,
+      lists: ['https://lists.example/one.txt'],
+      fetchBytes: async () => Buffer.from(body),
+      now: () => 9e15,
+      note: (l) => notes.push(l),
+    });
+  const ad = (store: FilterStore) =>
+    store.filters?.refuses('https://ads.example/a.js', 'https://news.example/', 'script');
 
   it('has nothing before the lists are fetched, and says nothing about it', () => {
     const { store, notes } = make();

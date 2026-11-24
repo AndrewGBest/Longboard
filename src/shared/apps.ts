@@ -18,7 +18,14 @@ export interface WebApp {
 
 export const MAX_APPS = 60;
 const ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const cleanName = (text: unknown): string => (typeof text === 'string' ? text.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) : '');
+const cleanName = (text: unknown): string =>
+  typeof text === 'string'
+    ? text
+        .replace(/[\u0000-\u001f\u007f]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 60)
+    : '';
 
 /** Validates the saved list. Anything unusable is dropped. */
 export function parseApps(raw: unknown): WebApp[] {
@@ -28,9 +35,16 @@ export function parseApps(raw: unknown): WebApp[] {
   for (const item of list) {
     if (!item || typeof item !== 'object') continue;
     const r = item as Record<string, unknown>;
-    if (typeof r['id'] !== 'string' || !ID.test(r['id']) || r['id'].length > 80 || out.some((a) => a.id === r['id'])) continue;
+    if (typeof r['id'] !== 'string' || !ID.test(r['id']) || r['id'].length > 80 || out.some((a) => a.id === r['id']))
+      continue;
     if (typeof r['url'] !== 'string' || r['url'].length > 2000 || !siteKey(r['url'])) continue;
-    out.push({ id: r['id'], url: r['url'], name: cleanName(r['name']) || siteKey(r['url'])!, ownSession: r['ownSession'] === true, launcher: r['launcher'] === true });
+    out.push({
+      id: r['id'],
+      url: r['url'],
+      name: cleanName(r['name']) || siteKey(r['url'])!,
+      ownSession: r['ownSession'] === true,
+      launcher: r['launcher'] === true,
+    });
     if (out.length >= MAX_APPS) break;
   }
   return out;
@@ -38,17 +52,27 @@ export function parseApps(raw: unknown): WebApp[] {
 
 /** An id for a new app, made from its site's name and unlike any in `taken`. */
 export function newAppId(url: string, taken: readonly string[]): string {
-  const base = (siteKey(url) ?? 'app').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'app';
+  const base =
+    (siteKey(url) ?? 'app')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'app';
   if (!taken.includes(base)) return base;
   for (let n = 2; ; n++) if (!taken.includes(`${base}-${n}`)) return `${base}-${n}`;
 }
 
 /** The list with a new app at the end, and the app. Null when the address is not a web address or the list is full. */
-export function addApp(list: readonly WebApp[], wanted: { url: string; name: string; ownSession: boolean; launcher: boolean }): { list: WebApp[]; app: WebApp } | null {
+export function addApp(
+  list: readonly WebApp[],
+  wanted: { url: string; name: string; ownSession: boolean; launcher: boolean },
+): { list: WebApp[]; app: WebApp } | null {
   const site = siteKey(wanted.url);
   if (!site || list.length >= MAX_APPS) return null;
   const app: WebApp = {
-    id: newAppId(wanted.url, list.map((a) => a.id)),
+    id: newAppId(
+      wanted.url,
+      list.map((a) => a.id),
+    ),
     url: wanted.url,
     name: cleanName(wanted.name) || site,
     ownSession: wanted.ownSession,

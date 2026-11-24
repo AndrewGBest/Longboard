@@ -35,7 +35,13 @@ describe('resolveAddress', () => {
   });
 
   it('never opens another scheme: it is searched for instead', () => {
-    for (const text of ['javascript:alert(1)', 'file:///etc/passwd', 'data:text/html,<p>x</p>', 'chrome://settings', 'about:blank']) {
+    for (const text of [
+      'javascript:alert(1)',
+      'file:///etc/passwd',
+      'data:text/html,<p>x</p>',
+      'chrome://settings',
+      'about:blank',
+    ]) {
       expect(resolveAddress(text)!.startsWith('https://www.google.com/search?q='), text).toBe(true);
     }
   });
@@ -45,7 +51,9 @@ describe('resolveAddress', () => {
   });
 
   it('uses the configured search address, and the built-in one when that is unusable', () => {
-    expect(resolveAddress('two words', 'https://search.example/find?text=%s')).toBe('https://search.example/find?text=two%20words');
+    expect(resolveAddress('two words', 'https://search.example/find?text=%s')).toBe(
+      'https://search.example/find?text=two%20words',
+    );
     expect(resolveAddress('two words', 'http://insecure.example/?q=%s')).toBe(searchUrl('two words', DEFAULT_SEARCH));
   });
 });
@@ -69,7 +77,8 @@ describe('site names and keys', () => {
   });
 
   it('has no key for anything that is not a web address', () => {
-    for (const url of ['file:///x', 'data:text/html,x', 'about:blank', 'nonsense', '']) expect(siteKey(url), url).toBeNull();
+    for (const url of ['file:///x', 'data:text/html,x', 'about:blank', 'nonsense', ''])
+      expect(siteKey(url), url).toBeNull();
     expect(siteName('nonsense')).toBe('');
   });
 });

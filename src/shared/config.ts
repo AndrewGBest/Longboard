@@ -23,12 +23,53 @@ import { UPDATE_MODES, type UpdateMode } from './update';
 import { BLOCKING_MODES, blockingMode, MAX_LISTS, parseDomains, parseFilterLists, type BlockingMode } from './adblock';
 
 /** The kinds of access the person can say no site may ask for (the names main/permissions.ts asks about). */
-export const NEVER_ASKABLE = ['camera', 'microphone', 'location', 'notifications', 'clipboard', 'midi', 'pointerLock'] as const;
-const SETTING_KEYS = ['adBlockingStartsOff', 'adBlockingStartsOn', 'startWith', 'pageSize', 'neverAsk', 'history', 'downloads', 'language', 'httpsOnly', 'theme', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress', 'updates', 'extensionUpdates', 'passwords', 'searchSuggestions'] as const;
+export const NEVER_ASKABLE = [
+  'camera',
+  'microphone',
+  'location',
+  'notifications',
+  'clipboard',
+  'midi',
+  'pointerLock',
+] as const;
+const SETTING_KEYS = [
+  'adBlockingStartsOff',
+  'adBlockingStartsOn',
+  'startWith',
+  'pageSize',
+  'neverAsk',
+  'history',
+  'downloads',
+  'language',
+  'httpsOnly',
+  'theme',
+  'autoplay',
+  'clearOnExit',
+  'doNotTrack',
+  'blockTrackers',
+  'hideLocalAddress',
+  'updates',
+  'extensionUpdates',
+  'passwords',
+  'searchSuggestions',
+] as const;
 
 export const ACTION_NAMES = [
-  'up', 'down', 'left', 'right', 'select', 'back', 'playPause',
-  'seekBack', 'seekForward', 'search', 'menu', 'pointer', 'voice', 'quit', 'none',
+  'up',
+  'down',
+  'left',
+  'right',
+  'select',
+  'back',
+  'playPause',
+  'seekBack',
+  'seekForward',
+  'search',
+  'menu',
+  'pointer',
+  'voice',
+  'quit',
+  'none',
 ] as const;
 export type ActionName = (typeof ACTION_NAMES)[number];
 
@@ -102,7 +143,8 @@ export function normaliseKey(spec: string): string | null {
   const key = parts.pop() ?? '';
   if (!key || key.length > 40) return null;
   if (parts.length === 0) return key === 'Space' ? ' ' : key;
-  if (parts.length === 1 && parts[0]!.toLowerCase() === 'ctrl') return `Ctrl+${key.length === 1 ? key.toLowerCase() : key}`;
+  if (parts.length === 1 && parts[0]!.toLowerCase() === 'ctrl')
+    return `Ctrl+${key.length === 1 ? key.toLowerCase() : key}`;
   return null; // only Ctrl is supported as a modifier
 }
 
@@ -111,7 +153,8 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
   const config: UserConfig = { keys: {} };
   const problems: string[] = [];
   if (raw === undefined || raw === null) return { config, problems };
-  if (typeof raw !== 'object' || Array.isArray(raw)) return { config, problems: ['the file must contain a JSON object'] };
+  if (typeof raw !== 'object' || Array.isArray(raw))
+    return { config, problems: ['the file must contain a JSON object'] };
   const r = raw as Record<string, unknown>;
 
   if (r['zoom'] !== undefined) {
@@ -125,7 +168,8 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
   }
 
   if (r['adBlocking'] !== undefined) {
-    if (typeof r['adBlocking'] === 'boolean' || (BLOCKING_MODES as readonly unknown[]).includes(r['adBlocking'])) config.adBlocking = blockingMode(r['adBlocking']);
+    if (typeof r['adBlocking'] === 'boolean' || (BLOCKING_MODES as readonly unknown[]).includes(r['adBlocking']))
+      config.adBlocking = blockingMode(r['adBlocking']);
     else problems.push('"adBlocking" must be "sites", "everywhere" or "off"');
   }
   for (const name of ['adBlockingStartsOff', 'adBlockingStartsOn'] as const) {
@@ -139,10 +183,20 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     else problems.push('"startWith" must be "home" or "last"');
   }
   if (r['pageSize'] !== undefined) {
-    if (typeof r['pageSize'] === 'number' && r['pageSize'] >= 0.5 && r['pageSize'] <= 2) config.pageSize = r['pageSize'];
+    if (typeof r['pageSize'] === 'number' && r['pageSize'] >= 0.5 && r['pageSize'] <= 2)
+      config.pageSize = r['pageSize'];
     else problems.push('"pageSize" must be a number from 0.5 to 2');
   }
-  for (const name of ['httpsOnly', 'autoplay', 'clearOnExit', 'doNotTrack', 'blockTrackers', 'hideLocalAddress', 'extensionUpdates', 'passwords'] as const) {
+  for (const name of [
+    'httpsOnly',
+    'autoplay',
+    'clearOnExit',
+    'doNotTrack',
+    'blockTrackers',
+    'hideLocalAddress',
+    'extensionUpdates',
+    'passwords',
+  ] as const) {
     if (r[name] === undefined) continue;
     if (typeof r[name] === 'boolean') config[name] = r[name] as boolean;
     else problems.push(`"${name}" must be true or false`);
@@ -160,15 +214,26 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     else problems.push('"history" must be true or false');
   }
   if (r['downloads'] !== undefined) {
-    if (typeof r['downloads'] === 'string' && r['downloads'].startsWith('/') && r['downloads'].length <= 1000 && !r['downloads'].includes('\u0000')) config.downloads = r['downloads'];
+    if (
+      typeof r['downloads'] === 'string' &&
+      r['downloads'].startsWith('/') &&
+      r['downloads'].length <= 1000 &&
+      !r['downloads'].includes('\u0000')
+    )
+      config.downloads = r['downloads'];
     else problems.push('"downloads" must be the full path of a folder');
   }
   if (r['language'] !== undefined) {
-    if (typeof r['language'] === 'string' && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/.test(r['language'])) config.language = r['language'];
+    if (typeof r['language'] === 'string' && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/.test(r['language']))
+      config.language = r['language'];
     else problems.push('"language" must be a language code such as "fr" or "en-GB"');
   }
   if (r['neverAsk'] !== undefined) {
-    if (Array.isArray(r['neverAsk']) && r['neverAsk'].every((n) => typeof n === 'string' && (NEVER_ASKABLE as readonly string[]).includes(n))) config.neverAsk = [...new Set(r['neverAsk'] as string[])];
+    if (
+      Array.isArray(r['neverAsk']) &&
+      r['neverAsk'].every((n) => typeof n === 'string' && (NEVER_ASKABLE as readonly string[]).includes(n))
+    )
+      config.neverAsk = [...new Set(r['neverAsk'] as string[])];
     else problems.push(`"neverAsk" must be a list from: ${NEVER_ASKABLE.join(', ')}`);
   }
   if (r['filterLists'] !== undefined) {
@@ -182,7 +247,8 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
   }
 
   if (r['searchSuggestions'] !== undefined) {
-    if (typeof r['searchSuggestions'] === 'boolean' || isSuggestTemplate(r['searchSuggestions'])) config.searchSuggestions = r['searchSuggestions'];
+    if (typeof r['searchSuggestions'] === 'boolean' || isSuggestTemplate(r['searchSuggestions']))
+      config.searchSuggestions = r['searchSuggestions'];
     else problems.push('"searchSuggestions" must be true, false, or an https address containing %s once');
   }
   if (r['search'] !== undefined) {
@@ -210,7 +276,8 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
       const buttons: Record<string, ActionName> = {};
       for (const [spec, action] of Object.entries(r['buttons']).slice(0, MAX_KEYS)) {
         const n = Number(spec);
-        if (!/^\d{1,2}$/.test(spec) || n > 31) problems.push(`button "${spec.slice(0, 40)}" must be a number from 0 to 31`);
+        if (!/^\d{1,2}$/.test(spec) || n > 31)
+          problems.push(`button "${spec.slice(0, 40)}" must be a number from 0 to 31`);
         else if (typeof action !== 'string' || !(ACTION_NAMES as readonly string[]).includes(action)) {
           problems.push(`button ${n}: unknown action (use one of ${ACTION_NAMES.join(', ')})`);
         } else buttons[String(n)] = action as ActionName;
@@ -219,7 +286,18 @@ export function parseConfig(raw: unknown): { config: UserConfig; problems: strin
     }
   }
   for (const name of Object.keys(r)) {
-    if (name !== 'zoom' && name !== 'keys' && name !== 'buttons' && name !== 'hardwareDecode' && name !== 'search' && name !== 'catalogue' && name !== 'adBlocking' && name !== 'filterLists' && !(SETTING_KEYS as readonly string[]).includes(name)) problems.push(`unknown setting "${name.slice(0, 40)}"`);
+    if (
+      name !== 'zoom' &&
+      name !== 'keys' &&
+      name !== 'buttons' &&
+      name !== 'hardwareDecode' &&
+      name !== 'search' &&
+      name !== 'catalogue' &&
+      name !== 'adBlocking' &&
+      name !== 'filterLists' &&
+      !(SETTING_KEYS as readonly string[]).includes(name)
+    )
+      problems.push(`unknown setting "${name.slice(0, 40)}"`);
   }
   return { config, problems };
 }

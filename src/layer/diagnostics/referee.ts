@@ -37,11 +37,21 @@ function describe(el: Element): string {
 function sameSpot(a: Element, b: Element): boolean {
   const p = boxOf(a);
   const q = boxOf(b);
-  return Math.abs(p.left - q.left) <= 6 && Math.abs(p.top - q.top) <= 6 && Math.abs(p.right - q.right) <= 6 && Math.abs(p.bottom - q.bottom) <= 6;
+  return (
+    Math.abs(p.left - q.left) <= 6 &&
+    Math.abs(p.top - q.top) <= 6 &&
+    Math.abs(p.right - q.right) <= 6 &&
+    Math.abs(p.bottom - q.bottom) <= 6
+  );
 }
 
 /** Compares the places Tab stopped with the highlight's targets. */
-export function compareWithTabStops(stops: readonly Element[], candidates: readonly Element[], view: Window, ignoreWithin?: string): RefereeReport {
+export function compareWithTabStops(
+  stops: readonly Element[],
+  candidates: readonly Element[],
+  view: Window,
+  ignoreWithin?: string,
+): RefereeReport {
   const report: RefereeReport = { stops: stops.length, seen: 0, reached: 0, missed: [], beyond: 0 };
   const related = new Set<Element>();
   for (const stop of stops) {
@@ -54,7 +64,14 @@ export function compareWithTabStops(stops: readonly Element[], candidates: reado
     const visible = Math.min(r.width, r.height) >= SMALLEST && isVisible(stop, view) && onScreenish(stop, view);
     if (!visible && !stands.some((label) => candidates.includes(label))) continue;
     report.seen += 1;
-    const hits = candidates.filter((c) => c === stop || stands.includes(c as HTMLLabelElement) || deepContains(stop, c) || deepContains(c, stop) || sameSpot(c, stop));
+    const hits = candidates.filter(
+      (c) =>
+        c === stop ||
+        stands.includes(c as HTMLLabelElement) ||
+        deepContains(stop, c) ||
+        deepContains(c, stop) ||
+        sameSpot(c, stop),
+    );
     if (hits.length) {
       report.reached += 1;
       for (const c of hits) related.add(c);

@@ -2,7 +2,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { boxOf } from '../src/layer/spatial/box';
 import { compareWithTabStops } from '../src/layer/diagnostics/referee';
-import { coveredByScreen, coveringLayer, edgeControl, FOCUS_ATTR, openDialog, scrollWithinList, SpatialNavigator, ZOOM_ATTR } from '../src/layer/spatial/navigator';
+import {
+  coveredByScreen,
+  coveringLayer,
+  edgeControl,
+  FOCUS_ATTR,
+  openDialog,
+  scrollWithinList,
+  SpatialNavigator,
+  ZOOM_ATTR,
+} from '../src/layer/spatial/navigator';
 
 // jsdom has no layout engine, so each element's rectangle is read from data-rect="left,top,width,height".
 function installLayout(): void {
@@ -40,7 +49,10 @@ describe('SpatialNavigator', () => {
 
   it('starts at the top-left and walks the grid', () => {
     const seen: string[] = [];
-    const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay', onFocusChange: (el) => seen.push(el?.id ?? '-') });
+    const nav = new SpatialNavigator(document, {
+      ignoreWithin: 'longboard-overlay',
+      onFocusChange: (el) => seen.push(el?.id ?? '-'),
+    });
     nav.move('down');
     nav.move('down');
     nav.move('right');
@@ -98,7 +110,8 @@ describe('SpatialNavigator', () => {
     nav.focus(document.getElementById('home'));
     nav.move('down');
     expect(nav.focused?.id).toBe('a1');
-    const open = (): void => document.body.insertAdjacentHTML('beforeend', `<div id="pop">${card('follow', 10, 165)}</div>`);
+    const open = (): void =>
+      document.body.insertAdjacentHTML('beforeend', `<div id="pop">${card('follow', 10, 165)}</div>`);
     open();
     nav.move('down');
     expect(nav.focused?.id).toBe('follow');
@@ -159,7 +172,8 @@ describe('SpatialNavigator', () => {
 
 describe('row memory', () => {
   // Two sideways-scrolling rows and a plain grid row under them. Row A has been scrolled: its first card is off to the left.
-  const strip = (id: string, cards: string, top: number): string => `<div id="${id}" data-rect="0,${top},400,60" style="overflow-x: auto">${cards}</div>`;
+  const strip = (id: string, cards: string, top: number): string =>
+    `<div id="${id}" data-rect="0,${top},400,60" style="overflow-x: auto">${cards}</div>`;
   const scrollable = (id: string): void => {
     const el = document.getElementById(id)!;
     Object.defineProperty(el, 'scrollWidth', { value: 2000, configurable: true });
@@ -168,7 +182,11 @@ describe('row memory', () => {
 
   beforeEach(() => {
     document.body.innerHTML =
-      strip('rowA', `${card('a0', -130, 100)}${card('a1', 0, 100)}${card('a2', 120, 100)}${card('a3', 240, 100)}`, 100) +
+      strip(
+        'rowA',
+        `${card('a0', -130, 100)}${card('a1', 0, 100)}${card('a2', 120, 100)}${card('a3', 240, 100)}`,
+        100,
+      ) +
       strip('rowB', `${card('b0', 0, 200)}${card('b1', 120, 200)}${card('b2', 240, 200)}`, 200) +
       `<div id="grid">${card('g0', 0, 300)}${card('g1', 120, 300)}${card('g2', 240, 300)}</div>`;
     scrollable('rowA');
@@ -255,14 +273,19 @@ describe('carousels', () => {
   });
 
   it('ignores a backdrop link stretched behind other controls', () => {
-    document.getElementById('hero')!.insertAdjacentHTML('beforeend', '<a href="#" id="backdrop" data-rect="0,40,960,360">x</a>');
+    document
+      .getElementById('hero')!
+      .insertAdjacentHTML('beforeend', '<a href="#" id="backdrop" data-rect="0,40,960,360">x</a>');
     const nav = new SpatialNavigator(document);
     expect(ids(nav.candidates())).not.toContain('backdrop');
     expect(ids(nav.candidates())).toContain('s2');
   });
 
   it('keeps a link that has one small control inside its box', () => {
-    document.body.insertAdjacentHTML('beforeend', '<a href="#" id="title" data-rect="84,600,534,44">x</a><button id="dots" data-rect="254,605,34,20">.</button>');
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<a href="#" id="title" data-rect="84,600,534,44">x</a><button id="dots" data-rect="254,605,34,20">.</button>',
+    );
     const nav = new SpatialNavigator(document);
     expect(ids(nav.candidates())).toEqual(expect.arrayContaining(['title', 'dots']));
   });
@@ -299,7 +322,10 @@ describe('carousels', () => {
       '<div role="button" id="shell" data-rect="500,63,300,200"><a href="#" id="link" style="display:block" data-rect="500,63,300,200">x</a></div>';
     const nav = new SpatialNavigator(document);
     expect(ids(nav.candidates())).toEqual(['link', 'more', 'story']);
-    document.body.insertAdjacentHTML('beforeend', '<a href="#" id="next" style="display:block" data-rect="84,420,316,100">x</a>');
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<a href="#" id="next" style="display:block" data-rect="84,420,316,100">x</a>',
+    );
     nav.focus(document.getElementById('story'));
     nav.move('down');
     expect(nav.focused?.id).toBe('next');
@@ -341,7 +367,8 @@ describe('carousels', () => {
 
   // Seen on the live site: the arrows sit in a transparent wrapper until hovered, and a tall list lies between the slide and them.
   it('uses an arrow that is laid out but transparent, past a tall ancestor without arrows', () => {
-    document.getElementById('next')!.outerHTML = '<span style="opacity: 0"><button id="next" class="arrow next" data-rect="925,200,30,30">n</button></span>';
+    document.getElementById('next')!.outerHTML =
+      '<span style="opacity: 0"><button id="next" class="arrow next" data-rect="925,200,30,30">n</button></span>';
     document.querySelector('#hero ul')!.setAttribute('data-rect', '0,40,960,1083');
     expect(edgeControl(document.getElementById('s2more')!, ['.next'], window)?.control.id).toBe('next');
   });
@@ -380,7 +407,8 @@ describe('focus zoom', () => {
   });
 
   it('grows the whole card when the focused link is a layer over it', () => {
-    document.body.innerHTML = '<section data-rect="0,0,960,200"><article id="cardbox" data-rect="10,10,200,113"><img data-rect="10,10,200,113"><a href="#" id="layer" data-rect="10,10,200,113">x</a></article></section>';
+    document.body.innerHTML =
+      '<section data-rect="0,0,960,200"><article id="cardbox" data-rect="10,10,200,113"><img data-rect="10,10,200,113"><a href="#" id="layer" data-rect="10,10,200,113">x</a></article></section>';
     const nav = new SpatialNavigator(document);
     nav.focus(document.getElementById('layer'));
     expect(document.getElementById('cardbox')!.hasAttribute(ZOOM_ATTR)).toBe(true);
@@ -390,7 +418,8 @@ describe('focus zoom', () => {
   });
 
   it('does not grow a link in running text', () => {
-    document.body.innerHTML = '<p data-rect="0,0,900,30"><a href="#" id="word" style="display:inline" data-rect="40,4,80,22">word</a></p>';
+    document.body.innerHTML =
+      '<p data-rect="0,0,900,30"><a href="#" id="word" style="display:inline" data-rect="40,4,80,22">word</a></p>';
     const nav = new SpatialNavigator(document);
     nav.focus(document.getElementById('word'));
     expect(document.querySelectorAll(`[${ZOOM_ATTR}]`)).toHaveLength(0);
@@ -537,7 +566,8 @@ describe('a body with no height that clips', () => {
   it('hides nothing: what is pinned inside it shows', () => {
     document.body.setAttribute('style', 'overflow-y: hidden');
     document.body.setAttribute('data-rect', '0,0,960,0');
-    document.body.innerHTML = '<div style="position: fixed" data-rect="0,0,960,540"><button id="play" data-rect="20,480,40,40">p</button></div>';
+    document.body.innerHTML =
+      '<div style="position: fixed" data-rect="0,0,960,540"><button id="play" data-rect="20,480,40,40">p</button></div>';
     const nav = new SpatialNavigator(document);
     expect(ids(nav.candidates())).toEqual(['play']);
     document.body.removeAttribute('style');
@@ -545,14 +575,15 @@ describe('a body with no height that clips', () => {
   });
 
   it('while a clipped box of no height inside the page still hides what is in it', () => {
-    document.body.innerHTML = '<div style="overflow-y: hidden" data-rect="0,0,960,0"><button id="gone" data-rect="20,480,40,40">p</button></div><button id="here" data-rect="20,20,40,40">h</button>';
+    document.body.innerHTML =
+      '<div style="overflow-y: hidden" data-rect="0,0,960,0"><button id="gone" data-rect="20,480,40,40">p</button></div><button id="here" data-rect="20,20,40,40">h</button>';
     const nav = new SpatialNavigator(document);
     expect(ids(nav.candidates())).toEqual(['here']);
   });
 });
 
 describe('an embedded frame under a pinned bar', () => {
-  it('stays a target when the page\'s controls pass over its box', () => {
+  it("stays a target when the page's controls pass over its box", () => {
     document.body.innerHTML = `
       <iframe id="player" src="about:blank" data-rect="8,107,939,528"></iframe>
       <button id="one" data-rect="194,479,189,54">1</button>
@@ -618,7 +649,8 @@ describe('a thin slider', () => {
 
 describe('transparent hit areas', () => {
   it('does not take a transparent link put behind the page (a hidden "skip" link) for one', () => {
-    document.body.innerHTML = '<a href="#main" id="skip" style="opacity: 0; z-index: -1; position: absolute" data-rect="24,14,193,52">s</a><a href="#" id="real" data-rect="24,100,193,52">r</a>';
+    document.body.innerHTML =
+      '<a href="#main" id="skip" style="opacity: 0; z-index: -1; position: absolute" data-rect="24,14,193,52">s</a><a href="#" id="real" data-rect="24,100,193,52">r</a>';
     const nav = new SpatialNavigator(document);
     expect(ids(nav.candidates())).toEqual(['real']);
   });
@@ -723,7 +755,9 @@ describe('the first press on a page', () => {
   });
 
   it('prefers the main button to a small icon above it', () => {
-    document.getElementById('play')!.insertAdjacentHTML('beforebegin', '<button id="mute" data-rect="850,135,56,56">x</button>');
+    document
+      .getElementById('play')!
+      .insertAdjacentHTML('beforebegin', '<button id="mute" data-rect="850,135,56,56">x</button>');
     const nav = new SpatialNavigator(document);
     nav.move('down');
     expect(nav.focused?.id).toBe('play');
@@ -739,7 +773,10 @@ describe('the first press on a page', () => {
   });
 
   it('never offers a dot too small to aim at', () => {
-    document.body.insertAdjacentHTML('beforeend', '<button id="dot" data-rect="500,300,6,6">x</button><button id="dash" data-rect="520,300,28,9">x</button>');
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<button id="dot" data-rect="500,300,6,6">x</button><button id="dash" data-rect="520,300,28,9">x</button>',
+    );
     const ids = new SpatialNavigator(document).candidates().map((el) => el.id);
     expect(ids).not.toContain('dot');
     expect(ids).not.toContain('dash');
@@ -1009,7 +1046,11 @@ describe('the referee', () => {
       '<a href="#" id="speck" data-rect="0,300,1,1">skip</a>' +
       '<span id="hand" data-rect="0,400,100,40">x</span>';
     const el = (id: string): Element => document.getElementById(id)!;
-    const said = compareWithTabStops([el('plain'), el('shell'), el('lost'), el('speck')], [el('plain'), el('inside'), el('hand')], window);
+    const said = compareWithTabStops(
+      [el('plain'), el('shell'), el('lost'), el('speck')],
+      [el('plain'), el('inside'), el('hand')],
+      window,
+    );
     expect(said).toEqual({ stops: 4, seen: 3, reached: 2, missed: [{ what: 'a', size: '200x40' }], beyond: 1 });
     expect(JSON.stringify(said)).not.toContain('secret');
   });
@@ -1017,13 +1058,15 @@ describe('the referee', () => {
 
 describe('a link parked above the top of the page', () => {
   it('is not somewhere the highlight can go', () => {
-    document.body.innerHTML = '<a href="#main" id="skip" data-rect="16,-1000,128,40">Skip</a><input id="q" data-rect="278,16,308,24"><a href="#a" id="a" data-rect="278,100,100,30">A</a>';
+    document.body.innerHTML =
+      '<a href="#main" id="skip" data-rect="16,-1000,128,40">Skip</a><input id="q" data-rect="278,16,308,24"><a href="#a" id="a" data-rect="278,100,100,30">A</a>';
     const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
     expect(nav.candidates().map((el) => el.id)).toEqual(['q', 'a']);
   });
 
   it('but something scrolled out of a list of its own still is', () => {
-    document.body.innerHTML = '<div id="list" data-rect="0,0,300,200"><a href="#a" id="gone" data-rect="0,-60,100,30">A</a><a href="#b" id="b" data-rect="0,20,100,30">B</a></div>';
+    document.body.innerHTML =
+      '<div id="list" data-rect="0,0,300,200"><a href="#a" id="gone" data-rect="0,-60,100,30">A</a><a href="#b" id="b" data-rect="0,20,100,30">B</a></div>';
     Object.defineProperty(document.getElementById('list')!, 'scrollTop', { value: 80 });
     const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
     expect(nav.candidates().map((el) => el.id)).toEqual(['gone', 'b']);
@@ -1034,7 +1077,8 @@ describe('a link cut off at the bottom of a banner fixed to the screen', () => {
   it('is not somewhere the highlight can go, while one on screen in the same banner is', () => {
     Object.defineProperty(window, 'innerHeight', { value: 540, configurable: true });
     Object.defineProperty(window, 'innerWidth', { value: 960, configurable: true });
-    document.body.innerHTML = '<a href="#p" id="page" data-rect="20,100,200,30">P</a><div id="banner" style="position: fixed" data-rect="450,90,500,700"><a href="#a" id="shown" data-rect="460,120,200,30">A</a><a href="#b" id="cut" data-rect="460,700,200,30">B</a></div><a href="#q" id="below" data-rect="20,900,200,30">Q</a>';
+    document.body.innerHTML =
+      '<a href="#p" id="page" data-rect="20,100,200,30">P</a><div id="banner" style="position: fixed" data-rect="450,90,500,700"><a href="#a" id="shown" data-rect="460,120,200,30">A</a><a href="#b" id="cut" data-rect="460,700,200,30">B</a></div><a href="#q" id="below" data-rect="20,900,200,30">Q</a>';
     const nav = new SpatialNavigator(document, { ignoreWithin: 'longboard-overlay' });
     expect(nav.candidates().map((el) => el.id)).toEqual(['page', 'shown', 'below']);
   });
@@ -1047,12 +1091,14 @@ describe('what counts as a dialog in front of the page', () => {
   };
   it('not a side menu parked off the edge of the screen, though it says it is modal', () => {
     size(960, 540);
-    document.body.innerHTML = '<div id="side" role="dialog" aria-modal="true" data-rect="-365,0,365,540"><a href="#x" data-rect="-340,20,200,30">X</a></div>';
+    document.body.innerHTML =
+      '<div id="side" role="dialog" aria-modal="true" data-rect="-365,0,365,540"><a href="#x" data-rect="-340,20,200,30">X</a></div>';
     expect(openDialog(document)).toBeNull();
   });
   it('not a small notice in a corner', () => {
     size(960, 540);
-    document.body.innerHTML = '<div id="note" role="dialog" aria-modal="true" data-rect="524,224,420,300"><a href="#x" data-rect="540,300,200,30">X</a></div>';
+    document.body.innerHTML =
+      '<div id="note" role="dialog" aria-modal="true" data-rect="524,224,420,300"><a href="#x" data-rect="540,300,200,30">X</a></div>';
     expect(openDialog(document)).toBeNull();
   });
   it('but one over the middle of the screen, however small, and one that takes much of it', () => {
@@ -1098,14 +1144,17 @@ describe('a layer fixed over the whole screen with nothing to say it is a dialog
   });
   it('is what is in front when the pointer meets it everywhere and it has something to press', () => {
     size();
-    document.body.innerHTML = '<a href="#p" id="behind" data-rect="20,100,200,30">P</a><div id="gate" style="position: fixed" data-rect="0,0,960,540"><button id="yes" data-rect="300,200,300,44">Yes</button></div>';
+    document.body.innerHTML =
+      '<a href="#p" id="behind" data-rect="20,100,200,30">P</a><div id="gate" style="position: fixed" data-rect="0,0,960,540"><button id="yes" data-rect="300,200,300,44">Yes</button></div>';
     (document as { elementFromPoint?: unknown }).elementFromPoint = () => document.getElementById('gate');
     expect(coveringLayer(document)?.id).toBe('gate');
   });
   it('is not, when the page shows through somewhere, or it holds nothing to press', () => {
     size();
-    document.body.innerHTML = '<a href="#p" id="behind" data-rect="20,100,200,30">P</a><div id="gate" style="position: fixed" data-rect="0,0,960,540"><button id="yes" data-rect="300,200,300,44">Yes</button></div>';
-    (document as { elementFromPoint?: unknown }).elementFromPoint = (x: number) => (x < 300 ? document.getElementById('behind') : document.getElementById('gate'));
+    document.body.innerHTML =
+      '<a href="#p" id="behind" data-rect="20,100,200,30">P</a><div id="gate" style="position: fixed" data-rect="0,0,960,540"><button id="yes" data-rect="300,200,300,44">Yes</button></div>';
+    (document as { elementFromPoint?: unknown }).elementFromPoint = (x: number) =>
+      x < 300 ? document.getElementById('behind') : document.getElementById('gate');
     expect(coveringLayer(document)).toBeNull();
     document.getElementById('yes')!.remove();
     (document as { elementFromPoint?: unknown }).elementFromPoint = () => document.getElementById('gate');
@@ -1135,7 +1184,8 @@ describe('what a site has shut away or keeps in a pane of its own', () => {
     let top = 0;
     Object.defineProperty(pane, 'scrollHeight', { value: 1000, configurable: true });
     Object.defineProperty(pane, 'clientHeight', { value: 400, configurable: true });
-    const place = (id: string, y: number): void => document.getElementById(id)!.setAttribute('data-rect', `0,${y - top},100,60`);
+    const place = (id: string, y: number): void =>
+      document.getElementById(id)!.setAttribute('data-rect', `0,${y - top},100,60`);
     const scrollTo = (y: number): void => {
       top = Math.max(0, Math.min(600, y));
       place('one', 300);

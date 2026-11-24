@@ -36,10 +36,23 @@ const electron = createRequire(import.meta.url)('electron');
 let n = 0;
 for (const site of list) {
   n += 1;
-  console.log(`${n} of ${list.length}: ${new URL(site.app ?? site.url).hostname} opened (${site.account === 'paid' ? 'paid for' : 'free'})`);
+  console.log(
+    `${n} of ${list.length}: ${new URL(site.app ?? site.url).hostname} opened (${site.account === 'paid' ? 'paid for' : 'free'})`,
+  );
   const started = Date.now();
   // The same password-store setting as the survey, or the cookies kept here could not be read there.
-  const child = spawn(electron, [root, '--dev', `--size=${opt('size') ?? '1240x720'}`, `--url=${site.app ?? site.url}`, `--user-data-dir=${data}`, '--password-store=basic'], { stdio: 'ignore', env: { ...process.env, XDG_DATA_HOME: join(data, 'xdg') } });
+  const child = spawn(
+    electron,
+    [
+      root,
+      '--dev',
+      `--size=${opt('size') ?? '1240x720'}`,
+      `--url=${site.app ?? site.url}`,
+      `--user-data-dir=${data}`,
+      '--password-store=basic',
+    ],
+    { stdio: 'ignore', env: { ...process.env, XDG_DATA_HOME: join(data, 'xdg') } },
+  );
   await new Promise((r) => child.once('exit', r));
   console.log(`${n} of ${list.length}: closed after ${Math.round((Date.now() - started) / 1000)} s`);
 }

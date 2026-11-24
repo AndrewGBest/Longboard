@@ -3,9 +3,23 @@
 // A remote never sends these; the person's own button mappings win over them.
 
 export type Shortcut =
-  | 'address' | 'newTab' | 'privateTab' | 'closeTab' | 'reopenTab' | 'nextTab' | 'previousTab'
-  | 'reload' | 'back' | 'forward' | 'find' | 'history' | 'downloads' | 'savePage'
-  | 'zoomIn' | 'zoomOut' | 'zoomReset';
+  | 'address'
+  | 'newTab'
+  | 'privateTab'
+  | 'closeTab'
+  | 'reopenTab'
+  | 'nextTab'
+  | 'previousTab'
+  | 'reload'
+  | 'back'
+  | 'forward'
+  | 'find'
+  | 'history'
+  | 'downloads'
+  | 'savePage'
+  | 'zoomIn'
+  | 'zoomOut'
+  | 'zoomReset';
 
 export interface ShortcutKey {
   key: string;
@@ -41,27 +55,47 @@ export function shortcutFor(e: ShortcutKey, taken: Readonly<Record<string, unkno
   if (!e.control) return key === 'F5' && !e.shift ? 'reload' : null;
   if (e.shift) {
     switch (key) {
-      case 'n': return 'privateTab';
-      case 't': return 'reopenTab';
-      case 'Tab': return 'previousTab';
+      case 'n':
+        return 'privateTab';
+      case 't':
+        return 'reopenTab';
+      case 'Tab':
+        return 'previousTab';
       // On most keyboards "+" is Shift and "=".
-      case '+': case '=': return 'zoomIn';
-      default: return null;
+      case '+':
+      case '=':
+        return 'zoomIn';
+      default:
+        return null;
     }
   }
   switch (key) {
-    case 'l': return 'address';
-    case 't': return 'newTab';
-    case 'w': return 'closeTab';
-    case 'Tab': return 'nextTab';
-    case 'r': return 'reload';
-    case 'f': return 'find';
-    case 'h': return 'history';
-    case 'j': return 'downloads';
-    case 'd': return 'savePage';
-    case '+': case '=': return 'zoomIn';
-    case '-': return 'zoomOut';
-    case '0': return 'zoomReset';
-    default: return null;
+    case 'l':
+      return 'address';
+    case 't':
+      return 'newTab';
+    case 'w':
+      return 'closeTab';
+    case 'Tab':
+      return 'nextTab';
+    case 'r':
+      return 'reload';
+    case 'f':
+      return 'find';
+    case 'h':
+      return 'history';
+    case 'j':
+      return 'downloads';
+    case 'd':
+      return 'savePage';
+    case '+':
+    case '=':
+      return 'zoomIn';
+    case '-':
+      return 'zoomOut';
+    case '0':
+      return 'zoomReset';
+    default:
+      return null;
   }
 }

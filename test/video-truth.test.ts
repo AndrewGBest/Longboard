@@ -14,9 +14,29 @@ const vp9 = (more: string): string => `video/webm; codecs="vp9"; ${more}`;
 
 describe('the truth about what picture can be played', () => {
   it('says no to what is beyond the engine and yes to the rest', () => {
-    for (const more of ['width=99999', 'height=99999', 'framerate=9999', 'bitrate=2000000000', 'eotf=catavision', 'cryptoblockformat=invalidformat', 'decode-to-texture=nope', 'width=0', 'framerate=-1']) expect(additionsCanBeMet(vp9(more), false)).toBe(false);
+    for (const more of [
+      'width=99999',
+      'height=99999',
+      'framerate=9999',
+      'bitrate=2000000000',
+      'eotf=catavision',
+      'cryptoblockformat=invalidformat',
+      'decode-to-texture=nope',
+      'width=0',
+      'framerate=-1',
+    ])
+      expect(additionsCanBeMet(vp9(more), false)).toBe(false);
     expect(additionsCanBeMet('audio/webm; codecs="opus"; channels=99', false)).toBe(false);
-    for (const more of ['width=640', `width=${VIDEO_LIMITS.width}; height=${VIDEO_LIMITS.height}; framerate=60; bitrate=30000000`, 'eotf=bt709', 'cryptoblockformat=subsample', 'decode-to-texture=true', 'experimental=allowed', 'tunnelmode=true']) expect(additionsCanBeMet(vp9(more), false)).toBe(true);
+    for (const more of [
+      'width=640',
+      `width=${VIDEO_LIMITS.width}; height=${VIDEO_LIMITS.height}; framerate=60; bitrate=30000000`,
+      'eotf=bt709',
+      'cryptoblockformat=subsample',
+      'decode-to-texture=true',
+      'experimental=allowed',
+      'tunnelmode=true',
+    ])
+      expect(additionsCanBeMet(vp9(more), false)).toBe(true);
     expect(additionsCanBeMet('video/mp4', false)).toBe(true);
     expect(additionsCanBeMet(undefined, false)).toBe(true);
   });
@@ -53,6 +73,14 @@ describe('the truth about what picture can be played', () => {
     engine(false);
     new Function(`(${correctVideoAnswers.toString()})()`)();
     const source = g['MediaSource'] as { isTypeSupported: (t: string) => boolean };
-    for (const more of ['width=99999', 'framerate=9999', 'width=640', 'bitrate=2000000000', 'eotf=bt709', 'decode-to-texture=nope']) expect(source.isTypeSupported(vp9(more))).toBe(additionsCanBeMet(vp9(more), false));
+    for (const more of [
+      'width=99999',
+      'framerate=9999',
+      'width=640',
+      'bitrate=2000000000',
+      'eotf=bt709',
+      'decode-to-texture=nope',
+    ])
+      expect(source.isTypeSupported(vp9(more))).toBe(additionsCanBeMet(vp9(more), false));
   });
 });

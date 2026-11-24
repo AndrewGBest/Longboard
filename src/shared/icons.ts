@@ -25,7 +25,12 @@ export function pngFromDataUrl(value: unknown): Buffer | null {
   const body = value.slice(prefix.length);
   if (body.length === 0 || body.length > MAX_PNG_BYTES * 1.4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(body)) return null;
   const bytes = Buffer.from(body, 'base64');
-  if (bytes.length > MAX_PNG_BYTES || bytes.length < PNG_SIGNATURE.length + 12 || !bytes.subarray(0, 8).equals(PNG_SIGNATURE)) return null;
+  if (
+    bytes.length > MAX_PNG_BYTES ||
+    bytes.length < PNG_SIGNATURE.length + 12 ||
+    !bytes.subarray(0, 8).equals(PNG_SIGNATURE)
+  )
+    return null;
   return bytes;
 }
 
@@ -38,7 +43,8 @@ export interface IconLink {
   sizes: string;
 }
 const MAX_LINKS = 24;
-const isWeb = (url: unknown): url is string => typeof url === 'string' && url.length <= 2000 && /^https?:\/\//i.test(url);
+const isWeb = (url: unknown): url is string =>
+  typeof url === 'string' && url.length <= 2000 && /^https?:\/\//i.test(url);
 
 /** What a page reported about its icons, checked. Anything unusable is dropped. */
 export function parseIconLinks(raw: unknown): IconLink[] {
@@ -48,7 +54,11 @@ export function parseIconLinks(raw: unknown): IconLink[] {
     if (!item || typeof item !== 'object') continue;
     const r = item as Record<string, unknown>;
     if (!isWeb(r['href']) || typeof r['rel'] !== 'string') continue;
-    out.push({ href: r['href'], rel: r['rel'].toLowerCase().slice(0, 80), sizes: typeof r['sizes'] === 'string' ? r['sizes'].slice(0, 80) : '' });
+    out.push({
+      href: r['href'],
+      rel: r['rel'].toLowerCase().slice(0, 80),
+      sizes: typeof r['sizes'] === 'string' ? r['sizes'].slice(0, 80) : '',
+    });
   }
   return out;
 }
@@ -96,7 +106,12 @@ export function manifestIcons(manifest: unknown, manifestUrl: string): Array<{ u
  * at least that big; after those come the smaller ones, biggest first, then
  * what the browser itself found, and last the place icons have always been.
  */
-export function iconCandidates(links: readonly IconLink[], fromManifest: ReadonlyArray<{ url: string; size: number }>, favicons: readonly string[], pageUrl: string): string[] {
+export function iconCandidates(
+  links: readonly IconLink[],
+  fromManifest: ReadonlyArray<{ url: string; size: number }>,
+  favicons: readonly string[],
+  pageUrl: string,
+): string[] {
   const sized: Array<{ url: string; size: number }> = [...fromManifest];
   for (const link of links) {
     const touch = relHas(link.rel, 'apple-touch-icon') || relHas(link.rel, 'apple-touch-icon-precomposed');

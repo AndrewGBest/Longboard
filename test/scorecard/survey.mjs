@@ -23,7 +23,10 @@ const keep = opt('data');
 const [part, parts] = (opt('part') ?? '1/1').split('/').map(Number);
 const only = args.filter((a) => !a.startsWith('--'));
 const { sites } = JSON.parse(readFileSync(join(root, opt('list') ?? 'test/scorecard/survey-sites.json'), 'utf8'));
-const list = sites.filter((s) => !keep || s.account).map((s) => (keep && s.app ? { ...s, url: s.app } : s)).filter((s, i) => (only.length === 0 || only.some((o) => s.url.includes(o))) && i % parts === part - 1);
+const list = sites
+  .filter((s) => !keep || s.account)
+  .map((s) => (keep && s.app ? { ...s, url: s.app } : s))
+  .filter((s, i) => (only.length === 0 || only.some((o) => s.url.includes(o))) && i % parts === part - 1);
 if (shots) mkdirSync(shots, { recursive: true });
 
 const STATE = `(() => {
@@ -56,15 +59,41 @@ const STATE = `(() => {
 })()`;
 
 async function survey(site) {
-  const row = { site: new URL(site.url).hostname, kind: site.kind, loaded: false, endedAt: '', elements: 0, dialog: false, first: '-', topIn: null, topFault: '', down: { moved: 0, stuckWithRoom: 0, loop: 0, offScreen: 0, small: 0, leftSite: false }, side: 0, tab: '-', missed: '-', beyond: 0, note: '' };
+  const row = {
+    site: new URL(site.url).hostname,
+    kind: site.kind,
+    loaded: false,
+    endedAt: '',
+    elements: 0,
+    dialog: false,
+    first: '-',
+    topIn: null,
+    topFault: '',
+    down: { moved: 0, stuckWithRoom: 0, loop: 0, offScreen: 0, small: 0, leftSite: false },
+    side: 0,
+    tab: '-',
+    missed: '-',
+    beyond: 0,
+    note: '',
+  };
   const app = await launch({ url: site.url, args: ['--zoom=2'], width: 1920, height: 1080, keep });
   try {
     const page = await app.page('http', 150);
     if (!page) throw new Error('no page');
-    const ready = await until(() => page.evaluate('document.readyState'), (s) => s === 'complete', 100, 200);
+    const ready = await until(
+      () => page.evaluate('document.readyState'),
+      (s) => s === 'complete',
+      100,
+      200,
+    );
     row.loaded = ready === 'complete' || ready === 'interactive';
     await sleep(4000);
-    const shot = async (name) => shots && writeFileSync(join(shots, `${row.site}-${name}.png`), Buffer.from((await page.cdp.send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+    const shot = async (name) =>
+      shots &&
+      writeFileSync(
+        join(shots, `${row.site}-${name}.png`),
+        Buffer.from((await page.cdp.send('Page.captureScreenshot', { format: 'png' })).data, 'base64'),
+      );
     const state = () => page.evaluate(STATE);
     const press = async (key, wait = 650) => {
       await answer();
@@ -78,7 +107,11 @@ async function survey(site) {
     // starts and is remembered, so a site that asks again is not asked about again.
     const chrome = await app.chrome();
     const answer = async () => {
-      for (let i = 0; i < 3 && (await chrome.evaluate('document.activeElement?.id === "prompt-deny"').catch(() => false)); i++) {
+      for (
+        let i = 0;
+        i < 3 && (await chrome.evaluate('document.activeElement?.id === "prompt-deny"').catch(() => false));
+        i++
+      ) {
         row.asked = (row.asked ?? 0) + 1;
         await chrome.press('Enter', 700);
       }
@@ -98,7 +131,20 @@ async function survey(site) {
     if (answerGate) {
       const YES = `(() => { const t = (document.querySelector('[data-longboard-focus]')?.textContent ?? '').trim().toLowerCase(); return t.length < 60 && /(18|eighteen|adult|older|enter|agree|accept|yes)/.test(t) && !/(leave|exit|under|not |no,|decline|sign|log ?in|join|parent)/.test(t); })()`;
       row.gate = 'no such button found';
-      for (const key of ['ArrowDown', 'ArrowDown', 'ArrowRight', 'ArrowLeft', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown']) {
+      for (const key of [
+        'ArrowDown',
+        'ArrowDown',
+        'ArrowRight',
+        'ArrowLeft',
+        'ArrowLeft',
+        'ArrowDown',
+        'ArrowRight',
+        'ArrowDown',
+        'ArrowLeft',
+        'ArrowUp',
+        'ArrowRight',
+        'ArrowDown',
+      ]) {
         await page.press(key, 500);
         if (await page.evaluate(YES)) {
           await page.press('Enter', 5000);
@@ -124,7 +170,9 @@ async function survey(site) {
       row.opened = 'no large card found';
       for (let i = 0; i < 14; i++) {
         await page.press('ArrowDown', 600);
-        const big = await page.evaluate(`(() => { const f = document.querySelector('[data-longboard-focus]'); const r = f?.getBoundingClientRect(); return !!f && f.tagName === 'A' && r.width >= 140 && r.height >= 80; })()`);
+        const big = await page.evaluate(
+          `(() => { const f = document.querySelector('[data-longboard-focus]'); const r = f?.getBoundingClientRect(); return !!f && f.tagName === 'A' && r.width >= 140 && r.height >= 80; })()`,
+        );
         if (big) {
           const from = await page.evaluate('location.pathname.length');
           await page.press('Enter', 7000);
@@ -195,13 +243,24 @@ async function survey(site) {
       row.tab = `${said.reached} of ${said.seen}`;
       const kinds = {};
       for (const m of said.missed) kinds[`${m.what} ${m.size}`] = (kinds[`${m.what} ${m.size}`] ?? 0) + 1;
-      row.missed = Object.entries(kinds).slice(0, 8).map(([what, n]) => `${n}x ${what}`).join('; ') || '-';
+      row.missed =
+        Object.entries(kinds)
+          .slice(0, 8)
+          .map(([what, n]) => `${n}x ${what}`)
+          .join('; ') || '-';
       row.beyond = said.beyond;
     } catch (err) {
       row.tab = 'not measured';
       row.missed = String(err).slice(0, 80);
     }
-    if (/blocked navigation|renderer exited/.test(app.log)) row.note = app.log.split('\n').filter((l) => /blocked navigation|renderer exited/.test(l)).slice(0, 2).join('; ').replace(/https?:\/\/\S+/g, '(address)').slice(0, 160);
+    if (/blocked navigation|renderer exited/.test(app.log))
+      row.note = app.log
+        .split('\n')
+        .filter((l) => /blocked navigation|renderer exited/.test(l))
+        .slice(0, 2)
+        .join('; ')
+        .replace(/https?:\/\/\S+/g, '(address)')
+        .slice(0, 160);
   } catch (err) {
     row.note = String(err).slice(0, 160);
   } finally {
@@ -212,7 +271,10 @@ async function survey(site) {
 }
 
 for (const site of list) {
-  const row = await Promise.race([survey(site), sleep(150000).then(() => ({ site: new URL(site.url).hostname, kind: site.kind, note: 'gave up after 150 s' }))]);
+  const row = await Promise.race([
+    survey(site),
+    sleep(150000).then(() => ({ site: new URL(site.url).hostname, kind: site.kind, note: 'gave up after 150 s' })),
+  ]);
   const line = JSON.stringify(row);
   console.log(line);
   if (out) appendFileSync(out, `${line}\n`);

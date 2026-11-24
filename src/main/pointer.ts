@@ -62,7 +62,13 @@ export function pointerTap(from: { x: number; y: number }, dir: Direction, size:
  * given (milliseconds, same clock as `now`). Opposite directions cancel;
  * a diagonal is no faster than a straight line.
  */
-export function pointerGlide(from: { x: number; y: number }, held: ReadonlyMap<Direction, number>, now: number, dtMs: number, size: Size): PointerStep {
+export function pointerGlide(
+  from: { x: number; y: number },
+  held: ReadonlyMap<Direction, number>,
+  now: number,
+  dtMs: number,
+  size: Size,
+): PointerStep {
   let dx = 0;
   let dy = 0;
   let longest = 0;
@@ -79,7 +85,11 @@ export function pointerGlide(from: { x: number; y: number }, held: ReadonlyMap<D
 }
 
 /** Validates a point a layer asked to start pointer mode at (CSS pixels) and converts it to view pixels. Null when unusable. */
-export function startPoint(request: { x?: unknown; y?: unknown }, zoom: number, size: Size): { x: number; y: number } | null {
+export function startPoint(
+  request: { x?: unknown; y?: unknown },
+  zoom: number,
+  size: Size,
+): { x: number; y: number } | null {
   if (typeof request.x !== 'number' || typeof request.y !== 'number') return null;
   if (!Number.isFinite(request.x) || !Number.isFinite(request.y) || !(zoom > 0)) return null;
   const x = Math.round(request.x * zoom);
@@ -131,7 +141,8 @@ export class PointerHolds {
   held(now: number): Map<Direction, number> {
     const out = new Map<Direction, number>(this.pad);
     for (const [dir, key] of this.keys) {
-      if (key.repeating && now - key.last <= REPEAT_GRACE_MS) out.set(dir, Math.min(key.since, out.get(dir) ?? Infinity));
+      if (key.repeating && now - key.last <= REPEAT_GRACE_MS)
+        out.set(dir, Math.min(key.since, out.get(dir) ?? Infinity));
     }
     return out;
   }

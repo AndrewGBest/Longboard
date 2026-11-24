@@ -9,12 +9,16 @@ const page = (html: string): Document => {
 
 describe('finding a sign-in form', () => {
   it('finds the password field and the name before it', () => {
-    const doc = page('<form><input type="search" id="q"><input type="email" id="who"><input type="password" id="pw"><input type="text" id="after"></form>');
+    const doc = page(
+      '<form><input type="search" id="q"><input type="email" id="who"><input type="password" id="pw"><input type="text" id="after"></form>',
+    );
     const found = findLogin(doc);
     expect([found?.user?.id, found?.pass.id]).toEqual(['who', 'pw']);
   });
   it('prefers the field that says it is the user name', () => {
-    const doc = page('<form><input type="text" name="username" id="u"><input type="text" id="code"><input type="password" id="pw"></form>');
+    const doc = page(
+      '<form><input type="text" name="username" id="u"><input type="text" id="code"><input type="password" id="pw"></form>',
+    );
     expect(findLogin(doc)?.user?.id).toBe('u');
   });
   it('works with no form element, as many sites are built', () => {
@@ -26,7 +30,9 @@ describe('finding a sign-in form', () => {
     expect(findLogin(page('<form><input type="text"></form>'))).toBeNull();
   });
   it('does not count fields that are hidden or cannot be typed in', () => {
-    const doc = page('<form><input id="who"><input type="password" id="trap" hidden><input type="password" id="off" disabled><input type="password" id="pw"></form>');
+    const doc = page(
+      '<form><input id="who"><input type="password" id="trap" hidden><input type="password" id="off" disabled><input type="password" id="pw"></form>',
+    );
     expect(findLogin(doc)?.pass.id).toBe('pw');
   });
 });
@@ -45,7 +51,10 @@ describe('reading and filling', () => {
     doc.addEventListener('input', (e) => heard.push((e.target as HTMLElement).id));
     doc.querySelector('form')!.addEventListener('submit', () => (submitted = true));
     expect(fillLogin(doc, 'me', 'pw words')).toBe(true);
-    expect([(doc.getElementById('who') as HTMLInputElement).value, (doc.getElementById('pw') as HTMLInputElement).value]).toEqual(['me', 'pw words']);
+    expect([
+      (doc.getElementById('who') as HTMLInputElement).value,
+      (doc.getElementById('pw') as HTMLInputElement).value,
+    ]).toEqual(['me', 'pw words']);
     expect(heard).toEqual(['who', 'pw']);
     expect(submitted).toBe(false);
     expect(fillLogin(page('<p>nothing</p>'), 'me', 'x')).toBe(false);
@@ -54,7 +63,9 @@ describe('reading and filling', () => {
 
 describe('watching a page', () => {
   it('says once that there is a form, and what was typed when it is sent', () => {
-    const doc = page('<form onsubmit="return false"><input id="who" value="me"><input type="password" id="pw"><button id="go" type="button">Sign in</button></form>');
+    const doc = page(
+      '<form onsubmit="return false"><input id="who" value="me"><input type="password" id="pw"><button id="go" type="button">Sign in</button></form>',
+    );
     let seen = 0;
     const sent: Array<{ user: string; password: string }> = [];
     watchLogins(doc, { seen: () => (seen += 1), sent: (l) => sent.push(l) });

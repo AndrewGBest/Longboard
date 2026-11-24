@@ -4,7 +4,16 @@
 // asks. The file is passwords.json in Longboard's own folder, readable only
 // by the person; nothing here is logged, synced or sent anywhere.
 import { chmodSync, readFileSync, writeFileSync } from 'node:fs';
-import { addLogin, emptyVault, listLogins, parseVault, removeLogin, setNever, usersAt, type Vault } from '../shared/passwords';
+import {
+  addLogin,
+  emptyVault,
+  listLogins,
+  parseVault,
+  removeLogin,
+  setNever,
+  usersAt,
+  type Vault,
+} from '../shared/passwords';
 
 /** The system's keyring, as Electron's safeStorage gives it. A stand-in is used by the unit tests. */
 export interface Keyring {
@@ -21,7 +30,10 @@ export class Passwords {
   /** Done when the keyring has been asked whether it is there. */
   readonly ready: Promise<void>;
 
-  constructor(private readonly file: string, private readonly keyring: Keyring) {
+  constructor(
+    private readonly file: string,
+    private readonly keyring: Keyring,
+  ) {
     try {
       this.vault = parseVault(JSON.parse(readFileSync(file, 'utf8')));
     } catch {
@@ -29,7 +41,10 @@ export class Passwords {
     }
     this.ready = Promise.resolve()
       .then(() => keyring.available())
-      .then((ok) => void (this.ok = ok === true), () => undefined);
+      .then(
+        (ok) => void (this.ok = ok === true),
+        () => undefined,
+      );
   }
 
   /** Whether the system has a keyring. False until `ready`. */

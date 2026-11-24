@@ -83,7 +83,10 @@ export function score(from: Rect, to: Rect, dir: Direction): number | null {
   // below it. (Seen on a video site: a button and the search field next to
   // it in the top bar were each "up" from the other, without end.)
   // "Below" starts lower and ends lower; "above" starts higher and ends higher.
-  const beside = dir === 'down' ? to.top <= from.top + 1 || to.bottom <= from.bottom + 1 : to.bottom >= from.bottom - 1 || to.top >= from.top - 1;
+  const beside =
+    dir === 'down'
+      ? to.top <= from.top + 1 || to.bottom <= from.bottom + 1
+      : to.bottom >= from.bottom - 1 || to.top >= from.top - 1;
   if (aligned(from, to, dir) && beside) return null;
   if (aligned(from, to, dir)) return Math.max(dir === 'down' ? to.top - from.top : from.bottom - to.bottom, 0);
   // Off-axis fallback for up/down. The candidate must sit wholly beyond the
@@ -130,7 +133,8 @@ export function pickNext(from: Rect, candidates: readonly Rect[], dir: Direction
       const between = dir === 'down' ? c.bottom <= far.top + 2 : c.top >= far.bottom - 2;
       if (!between || crossGap(from, c, dir) > NEAR_SIDE) return;
       const held = nearer === -1 ? null : candidates[nearer]!;
-      if (!held || lead(c) < lead(held) - LEVEL || (Math.abs(lead(c) - lead(held)) <= LEVEL && c.left < held.left - 1)) nearer = i;
+      if (!held || lead(c) < lead(held) - LEVEL || (Math.abs(lead(c) - lead(held)) <= LEVEL && c.left < held.left - 1))
+        nearer = i;
     });
     if (nearer !== -1) best = nearer;
   }

@@ -98,7 +98,10 @@ export class Overlay {
     const host = doc.createElement(HOST_TAG);
     const root = host.attachShadow({ mode: 'closed' });
     const view = doc.defaultView;
-    const Sheet = view && 'CSSStyleSheet' in view ? (view as unknown as { CSSStyleSheet: typeof CSSStyleSheet }).CSSStyleSheet : undefined;
+    const Sheet =
+      view && 'CSSStyleSheet' in view
+        ? (view as unknown as { CSSStyleSheet: typeof CSSStyleSheet }).CSSStyleSheet
+        : undefined;
     if (Sheet && 'adoptedStyleSheets' in root) {
       const sheet = new Sheet();
       sheet.replaceSync(CSS);
@@ -130,7 +133,13 @@ export class Overlay {
     this.host = host;
     // Anything that scrolls may be carrying the target (a row, a list); the
     // page's own scrolling needs nothing, since the ring scrolls with it.
-    doc.addEventListener('scroll', (e) => { if (e.target !== doc) this.wake(); }, { capture: true, passive: true });
+    doc.addEventListener(
+      'scroll',
+      (e) => {
+        if (e.target !== doc) this.wake();
+      },
+      { capture: true, passive: true },
+    );
     view?.addEventListener('resize', () => this.wake(), { passive: true });
     // When the site puts its player in fullscreen, only that element and the
     // browser's top layer are drawn, so the ring and keyboard would vanish.
@@ -146,12 +155,17 @@ export class Overlay {
       // on a film service's sign-in prompt, a modal dialog: the highlight,
       // the pointer and the keyboard were all drawn underneath it.)
       const lift = (): void => void view?.setTimeout(() => this.raise(), 0);
-      doc.addEventListener('toggle', (e) => {
-        if (e.target !== host && (e as Event & { newState?: string }).newState === 'open') lift();
-      }, true);
+      doc.addEventListener(
+        'toggle',
+        (e) => {
+          if (e.target !== host && (e as Event & { newState?: string }).newState === 'open') lift();
+        },
+        true,
+      );
       if (typeof MutationObserver === 'function') {
         new MutationObserver((records) => {
-          if (records.some((r) => r.target instanceof HTMLDialogElement && r.target.open && r.target.matches(':modal'))) lift();
+          if (records.some((r) => r.target instanceof HTMLDialogElement && r.target.open && r.target.matches(':modal')))
+            lift();
         }).observe(doc.documentElement, { subtree: true, attributes: true, attributeFilter: ['open'] });
       }
     }

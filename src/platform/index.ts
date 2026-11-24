@@ -14,7 +14,9 @@ export function removableFolders(): string[] {
   } catch {
     // no user name: only the shared mount points are looked at
   }
-  const parents = [user && join('/run/media', user), user && join('/media', user), '/media', '/mnt'].filter(Boolean) as string[];
+  const parents = [user && join('/run/media', user), user && join('/media', user), '/media', '/mnt'].filter(
+    Boolean,
+  ) as string[];
   const out: string[] = [];
   for (const parent of parents) {
     try {
@@ -46,7 +48,10 @@ export function flatpakId(env: NodeJS.ProcessEnv = process.env): string | null {
  * is used, which Flatpak names in HOST_XDG_DATA_HOME and which the package
  * asks to be let into (`--filesystem=xdg-data/applications:create`).
  */
-export function launcherFolder(env: NodeJS.ProcessEnv = process.env, platform: string = process.platform): string | null {
+export function launcherFolder(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: string = process.platform,
+): string | null {
   if (platform !== 'linux') return null;
   const home = env['HOME'] ? join(env['HOME'], '.local', 'share') : '';
   const data = flatpakId(env) ? env['HOST_XDG_DATA_HOME'] || home : env['XDG_DATA_HOME'] || home;
@@ -82,7 +87,12 @@ export function removeLauncher(fileName: string): void {
  * program unpacked from it; a copy run from source needs the folder it is
  * run from.
  */
-export function launchCommand(execPath: string, appPath: string, packaged: boolean, env: NodeJS.ProcessEnv = process.env): string[] {
+export function launchCommand(
+  execPath: string,
+  appPath: string,
+  packaged: boolean,
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
   // A Flatpak's own program is a path inside its box that the desktop cannot run; Flatpak starts it by name.
   const flatpak = flatpakId(env);
   if (flatpak) return ['flatpak', 'run', flatpak];

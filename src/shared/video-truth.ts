@@ -41,14 +41,18 @@ export function additionsCanBeMet(type: unknown, hdr: boolean): boolean {
     const at = part.indexOf('=');
     if (at === -1) continue;
     const key = part.slice(0, at).trim().toLowerCase();
-    const value = part.slice(at + 1).trim().replace(/^"|"$/g, '');
+    const value = part
+      .slice(at + 1)
+      .trim()
+      .replace(/^"|"$/g, '');
     const n = Number(value);
     if (key === 'width' && !(n > 0 && n <= 7680)) return false;
     if (key === 'height' && !(n > 0 && n <= 4320)) return false;
     if (key === 'framerate' && !(n > 0 && n <= 120)) return false;
     if (key === 'bitrate' && !(n > 0 && n <= 200_000_000)) return false;
     if (key === 'channels' && !(n > 0 && n <= 8)) return false;
-    if (key === 'eotf' && !(value === 'bt709' || ((value === 'smpte2084' || value === 'arib-std-b67') && hdr))) return false;
+    if (key === 'eotf' && !(value === 'bt709' || ((value === 'smpte2084' || value === 'arib-std-b67') && hdr)))
+      return false;
     if (key === 'cryptoblockformat' && value !== 'subsample') return false;
     if (key === 'decode-to-texture' && value !== 'true' && value !== 'false') return false;
     if (key === 'codecs' && !hdr) {
@@ -76,18 +80,33 @@ export function correctVideoAnswers(): void {
     for (const part of parts.slice(1)) {
       const at = part.indexOf('=');
       const key = (at === -1 ? part : part.slice(0, at)).trim().toLowerCase();
-      const value = at === -1 ? '' : part.slice(at + 1).trim().replace(/^"|"$/g, '');
+      const value =
+        at === -1
+          ? ''
+          : part
+              .slice(at + 1)
+              .trim()
+              .replace(/^"|"$/g, '');
       const n = Number(value);
       let known = true;
-      if (key === 'width') { if (!(n > 0 && n <= 7680)) return { ok: false, rest: '' }; }
-      else if (key === 'height') { if (!(n > 0 && n <= 4320)) return { ok: false, rest: '' }; }
-      else if (key === 'framerate') { if (!(n > 0 && n <= 120)) return { ok: false, rest: '' }; }
-      else if (key === 'bitrate') { if (!(n > 0 && n <= 200000000)) return { ok: false, rest: '' }; }
-      else if (key === 'channels') { if (!(n > 0 && n <= 8)) return { ok: false, rest: '' }; }
-      else if (key === 'eotf') { if (!(value === 'bt709' || ((value === 'smpte2084' || value === 'arib-std-b67') && hdr))) return { ok: false, rest: '' }; }
-      else if (key === 'cryptoblockformat') { if (value !== 'subsample') return { ok: false, rest: '' }; }
-      else if (key === 'decode-to-texture') { if (value !== 'true' && value !== 'false') return { ok: false, rest: '' }; }
-      else known = false;
+      if (key === 'width') {
+        if (!(n > 0 && n <= 7680)) return { ok: false, rest: '' };
+      } else if (key === 'height') {
+        if (!(n > 0 && n <= 4320)) return { ok: false, rest: '' };
+      } else if (key === 'framerate') {
+        if (!(n > 0 && n <= 120)) return { ok: false, rest: '' };
+      } else if (key === 'bitrate') {
+        if (!(n > 0 && n <= 200000000)) return { ok: false, rest: '' };
+      } else if (key === 'channels') {
+        if (!(n > 0 && n <= 8)) return { ok: false, rest: '' };
+      } else if (key === 'eotf') {
+        if (!(value === 'bt709' || ((value === 'smpte2084' || value === 'arib-std-b67') && hdr)))
+          return { ok: false, rest: '' };
+      } else if (key === 'cryptoblockformat') {
+        if (value !== 'subsample') return { ok: false, rest: '' };
+      } else if (key === 'decode-to-texture') {
+        if (value !== 'true' && value !== 'false') return { ok: false, rest: '' };
+      } else known = false;
       if (key === 'codecs' && !hdr) {
         for (const codec of value.split(',')) {
           const p = codec.trim().split('.');

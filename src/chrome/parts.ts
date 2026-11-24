@@ -13,7 +13,14 @@ const ICONS = {
   home: ['M4 11l8-7 8 7', 'M6 10v9h12v-9'],
   tabs: ['M8 8h12v12H8z', 'M4 16V4h12'],
   history: [RING, 'M12 8v4l3 2'],
-  settings: ['M4 7h10', 'M18 7h2', 'M4 17h2', 'M10 17h10', 'M16 5a2 2 0 1 0 0 4a2 2 0 0 0 0-4z', 'M8 15a2 2 0 1 0 0 4a2 2 0 0 0 0-4z'],
+  settings: [
+    'M4 7h10',
+    'M18 7h2',
+    'M4 17h2',
+    'M10 17h10',
+    'M16 5a2 2 0 1 0 0 4a2 2 0 0 0 0-4z',
+    'M8 15a2 2 0 1 0 0 4a2 2 0 0 0 0-4z',
+  ],
   download: ['M12 4v11', 'M7 11l5 5 5-5', 'M5 20h14'],
   lock: ['M6 11h12v9H6z', 'M8.5 11V8a3.5 3.5 0 0 1 7 0v3'],
   unlock: ['M6 11h12v9H6z', 'M8.5 11V8a3.5 3.5 0 0 1 6.6-1.6'],
@@ -72,12 +79,33 @@ export function logo(): SVGSVGElement {
     svg.append(node);
   };
   shape('rect', { width: '48', height: '48', rx: '11', fill: '#16323a' });
-  shape('rect', { x: '6', y: '14', width: '36', height: '20', rx: '5', fill: 'none', stroke: '#fff', 'stroke-width': '2' });
-  shape('rect', { x: '7', y: '20', width: '34', height: '8', rx: '4', fill: '#e08a4c', transform: 'rotate(-18 24 24)' });
+  shape('rect', {
+    x: '6',
+    y: '14',
+    width: '36',
+    height: '20',
+    rx: '5',
+    fill: 'none',
+    stroke: '#fff',
+    'stroke-width': '2',
+  });
+  shape('rect', {
+    x: '7',
+    y: '20',
+    width: '34',
+    height: '8',
+    rx: '4',
+    fill: '#e08a4c',
+    transform: 'rotate(-18 24 24)',
+  });
   return svg;
 }
 
-export function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: { id?: string; cls?: string; text?: string } = {}, children: Node[] = []): HTMLElementTagNameMap[K] {
+export function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  props: { id?: string; cls?: string; text?: string } = {},
+  children: Node[] = [],
+): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (props.id) node.id = props.id;
   if (props.cls) node.className = props.cls;
@@ -87,7 +115,13 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: { id?: 
 }
 
 /** A plain button: a word or two, and optionally an icon in front. */
-export function button(id: string, text: string, onPress: () => void, disabled = false, pic?: IconName): HTMLButtonElement {
+export function button(
+  id: string,
+  text: string,
+  onPress: () => void,
+  disabled = false,
+  pic?: IconName,
+): HTMLButtonElement {
   const b = el('button', { id });
   b.type = 'button';
   b.disabled = disabled;
@@ -134,7 +168,15 @@ export function row(id: string, label: string, onPress: () => void, o: RowOption
     b.setAttribute('aria-checked', String(o.on));
   }
   if (o.chevron) b.append(icon('chevron'));
-  b.setAttribute('aria-label', o.say ?? (o.on !== undefined ? `${label}: ${o.on ? 'on' : 'off'}` : o.value !== undefined ? `${label}: ${o.value}` : label));
+  b.setAttribute(
+    'aria-label',
+    o.say ??
+      (o.on !== undefined
+        ? `${label}: ${o.on ? 'on' : 'off'}`
+        : o.value !== undefined
+          ? `${label}: ${o.value}`
+          : label),
+  );
   b.addEventListener('click', onPress);
   return b;
 }

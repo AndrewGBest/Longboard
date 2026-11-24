@@ -74,7 +74,9 @@ export class Updater {
         return next;
       }
       if (!asset.sha256) {
-        deps.note(`update: version ${release.version} is out, but the release does not state the package's checksum; not installed`);
+        deps.note(
+          `update: version ${release.version} is out, but the release does not state the package's checksum; not installed`,
+        );
         return next;
       }
       const target = deps.target as string;
@@ -83,7 +85,8 @@ export class Updater {
       try {
         mkdirSync(deps.folder, { recursive: true });
         const got = await deps.download(asset.url, part, asset.size);
-        if (got.size !== asset.size || got.sha256 !== asset.sha256) throw new Error('the package that arrived is not the one the release describes');
+        if (got.size !== asset.size || got.sha256 !== asset.sha256)
+          throw new Error('the package that arrived is not the one the release describes');
         chmodSync(part, 0o755);
         renameSync(part, target);
         next.installed = release.version;

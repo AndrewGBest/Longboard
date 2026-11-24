@@ -9,7 +9,10 @@ describe('parseConfig', () => {
   });
 
   it('reads zoom and key mappings', () => {
-    const { config, problems } = parseConfig({ zoom: 1.5, keys: { F1: 'search', 'ctrl + H': 'none', Space: 'playPause' } });
+    const { config, problems } = parseConfig({
+      zoom: 1.5,
+      keys: { F1: 'search', 'ctrl + H': 'none', Space: 'playPause' },
+    });
     expect(problems).toEqual([]);
     expect(config).toEqual({ zoom: 1.5, keys: { F1: 'search', 'Ctrl+h': 'none', ' ': 'playPause' } });
   });
@@ -86,7 +89,9 @@ describe('key overrides', () => {
 
 describe('gamepad button overrides', () => {
   it('are read from the config and validated', () => {
-    const { config, problems } = parseConfig({ buttons: { '8': 'menu', '09': 'playPause', '40': 'back', x: 'back', '3': 'fly' } });
+    const { config, problems } = parseConfig({
+      buttons: { '8': 'menu', '09': 'playPause', '40': 'back', x: 'back', '3': 'fly' },
+    });
     expect(config.buttons).toEqual({ '8': 'menu', '9': 'playPause' });
     expect(problems).toHaveLength(3);
   });

@@ -63,7 +63,9 @@ export function handBackFrom(args: readonly string[], automation = false): HandB
   if (!what || !to || !Object.hasOwn(HAND_BACKS, what)) return null;
   if (!isAbsolute(to) || !to.endsWith('.json') || to.includes('\0')) return null;
   // `--hand-back-site=` counts only in a scripted run, like the other options that point one at a stand-in.
-  const standIn = automation ? standInAt(args.find((a) => a.startsWith('--hand-back-site='))?.slice('--hand-back-site='.length)) : null;
+  const standIn = automation
+    ? standInAt(args.find((a) => a.startsWith('--hand-back-site='))?.slice('--hand-back-site='.length))
+    : null;
   return { what: what as HandBackName, to, at: standIn ?? STEAM };
 }
 
@@ -72,14 +74,23 @@ export function steamStorePage(url: string, at: Addresses = STEAM): boolean {
   try {
     const u = new URL(url);
     const home = new URL(at.home);
-    return u.origin === home.origin && u.pathname.startsWith(home.pathname) && !u.pathname.startsWith(`${home.pathname}login`);
+    return (
+      u.origin === home.origin &&
+      u.pathname.startsWith(home.pathname) &&
+      !u.pathname.startsWith(`${home.pathname}login`)
+    );
   } catch {
     return false;
   }
 }
 
 const unescapeAttribute = (text: string): string =>
-  text.replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  text
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
 
 /**
  * Who the store's front page, as Steam served it, says is signed in: the

@@ -27,7 +27,13 @@ describe('finding what can be pressed on an unknown page', () => {
       <video id="video" controls data-rect="0,200,320,180"></video>
       <video id="bare" data-rect="0,400,320,180"></video>
       <div id="div" data-rect="0,600,200,30">just text</div>`;
-    expect(ids(new SpatialNavigator(document).candidates())).toEqual(['editable', 'inline', 'summary', 'switch', 'video']);
+    expect(ids(new SpatialNavigator(document).candidates())).toEqual([
+      'editable',
+      'inline',
+      'summary',
+      'switch',
+      'video',
+    ]);
   });
 
   it('offers a frame big enough to hold something, and no tracking pixel', () => {
@@ -52,7 +58,9 @@ describe('finding what can be pressed on an unknown page', () => {
     document.head.innerHTML = '<style>html.hide-it * { cursor: none !important; }</style>';
     document.body.innerHTML = '<div id="card" style="cursor:pointer" data-rect="0,0,200,100">x</div>';
     document.documentElement.classList.add('hide-it');
-    expect(ids(new SpatialNavigator(document, { looksClickable: true, cursorHiddenClass: 'hide-it' }).candidates())).toEqual(['card']);
+    expect(
+      ids(new SpatialNavigator(document, { looksClickable: true, cursorHiddenClass: 'hide-it' }).candidates()),
+    ).toEqual(['card']);
     expect(document.documentElement.classList.contains('hide-it')).toBe(true);
     document.documentElement.classList.remove('hide-it');
     document.head.innerHTML = '';
@@ -158,7 +166,8 @@ describe('scrolling when there is nothing to move to', () => {
   });
 
   it('scrolls the pane the highlight is in before the page', () => {
-    document.body.innerHTML = '<div id="pane" style="overflow-y:auto"><a href="#" id="link">x</a></div><div id="fixed" style="overflow-y:hidden"><a href="#" id="other">x</a></div>';
+    document.body.innerHTML =
+      '<div id="pane" style="overflow-y:auto"><a href="#" id="link">x</a></div><div id="fixed" style="overflow-y:hidden"><a href="#" id="other">x</a></div>';
     const pane = document.getElementById('pane')!;
     scrollable(pane, { scrollHeight: 2000, clientHeight: 400, scrollTop: 100 });
     scrollable(document.getElementById('fixed')!, { scrollHeight: 2000, clientHeight: 400 });
@@ -172,7 +181,8 @@ describe('scrolling when there is nothing to move to', () => {
   });
 
   it('never scrolls the page behind a layer laid over it', () => {
-    document.body.innerHTML = '<div id="layer"><div id="words" style="overflow-y:auto"><a href="#" id="more">x</a></div><button id="yes">x</button></div><a href="#" id="behind">x</a>';
+    document.body.innerHTML =
+      '<div id="layer"><div id="words" style="overflow-y:auto"><a href="#" id="more">x</a></div><button id="yes">x</button></div><a href="#" id="behind">x</a>';
     const page = document.documentElement;
     Object.defineProperty(document, 'scrollingElement', { value: page, configurable: true });
     scrollable(page, { scrollHeight: 5000, clientHeight: 600 });

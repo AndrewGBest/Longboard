@@ -9,14 +9,16 @@ import { deepClosest } from '../spatial/deep';
  * or changing who is on it. The words are here so the guard does not rest on
  * the site keeping its markup.
  */
-const ACCOUNT_WORDS = /\b(log ?out|sign ?out|(add|edit|delete|manage) profiles?|account( settings)?|billing|payment (method|details)|cancel (subscription|membership|plan))\b/i;
+const ACCOUNT_WORDS =
+  /\b(log ?out|sign ?out|(add|edit|delete|manage) profiles?|account( settings)?|billing|payment (method|details)|cancel (subscription|membership|plan))\b/i;
 
 const SPEND_WORDS =
   /\b(buy|rent|rentals?|purchase|pre-?order|subscribe|subscription|free trial|start (your )?trial|try (it |for )?free|join (prime|now|today|free)|sign[- ]?up|register|get started|upgrade|(go )?ad[- ]free|add to (cart|basket)|place (your )?order|order now|pay|checkout|1-click)\b/i;
 /** A price on a button: "$3.99", "€ 5", "3,99 €". */
 const PRICE = /[$£€¥]\s?\d|\d\s?[$£€¥]/;
 /** What counts as a control in its own right, whatever is inside it. */
-const CONTROL = 'a, button, [role="button"], [role="link"], input[type="submit"], input[type="button"], input[type="image"]';
+const CONTROL =
+  'a, button, [role="button"], [role="link"], input[type="submit"], input[type="button"], input[type="image"]';
 
 /**
  * URL fragments that indicate a payment or sign-up flow. Heuristic until confirmed on the live site.
@@ -46,7 +48,9 @@ function describe(el: Element): string {
     el.getAttribute('value') ?? '',
     el.getAttribute('alt') ?? '',
     // A button that is only a picture says what it is in the picture's description.
-    ...[...el.querySelectorAll('img[alt], svg[aria-label], [aria-label]')].slice(0, 8).map((n) => n.getAttribute('alt') ?? n.getAttribute('aria-label') ?? ''),
+    ...[...el.querySelectorAll('img[alt], svg[aria-label], [aria-label]')]
+      .slice(0, 8)
+      .map((n) => n.getAttribute('alt') ?? n.getAttribute('aria-label') ?? ''),
   ];
   return parts.join(' ').replace(/\s+/g, ' ').trim();
 }
@@ -76,7 +80,11 @@ export function isSpendControl(target: Element, extraSelectors: readonly string[
   }
   const text = describe(control);
   // Outside a real control, long text means a container was reached, not a button.
-  if ((found || text.length <= 80) && (SPEND_WORDS.test(text) || ACCOUNT_WORDS.test(text) || (text.length <= 80 && PRICE.test(text)))) return true;
+  if (
+    (found || text.length <= 80) &&
+    (SPEND_WORDS.test(text) || ACCOUNT_WORDS.test(text) || (text.length <= 80 && PRICE.test(text)))
+  )
+    return true;
   const href = control.getAttribute('href');
   if (href && looksLikeSpendUrl(href)) return true;
   const form = deepClosest(control, 'form');

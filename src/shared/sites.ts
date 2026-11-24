@@ -17,7 +17,10 @@ export const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as c
 
 /** The next step up or down from `current`; stays put at either end. */
 export function zoomStep(current: number, direction: 1 | -1): number {
-  const at = ZOOM_STEPS.reduce((best, step, i) => (Math.abs(step - current) < Math.abs(ZOOM_STEPS[best]! - current) ? i : best), 0);
+  const at = ZOOM_STEPS.reduce(
+    (best, step, i) => (Math.abs(step - current) < Math.abs(ZOOM_STEPS[best]! - current) ? i : best),
+    0,
+  );
   return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, at + direction))]!;
 }
 
@@ -39,7 +42,8 @@ export function parseSites(raw: unknown): Record<string, SiteSettings> {
       }
     }
     if (Object.keys(answers).length) site.answers = answers;
-    if (typeof v['zoom'] === 'number' && v['zoom'] >= ZOOM_STEPS[0] && v['zoom'] <= ZOOM_STEPS[ZOOM_STEPS.length - 1]!) site.zoom = v['zoom'];
+    if (typeof v['zoom'] === 'number' && v['zoom'] >= ZOOM_STEPS[0] && v['zoom'] <= ZOOM_STEPS[ZOOM_STEPS.length - 1]!)
+      site.zoom = v['zoom'];
     if (typeof v['adBlocking'] === 'boolean') site.adBlocking = v['adBlocking'];
     if (v['desktop'] === true) site.desktop = true;
     if (v['profile'] === false) site.profile = false;

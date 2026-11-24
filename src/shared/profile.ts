@@ -22,7 +22,19 @@ export interface ProfileGroup {
 }
 
 /** The ordinary keys a site's own player may be told about. Nothing else can be named. */
-export const PLAYER_KEY_NAMES = ['Space', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'k', 'j', 'l', 'f', 'm'] as const;
+export const PLAYER_KEY_NAMES = [
+  'Space',
+  'Enter',
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+  'k',
+  'j',
+  'l',
+  'f',
+  'm',
+] as const;
 export type PlayerKeyName = (typeof PLAYER_KEY_NAMES)[number];
 
 export interface Profile {
@@ -80,7 +92,8 @@ const MAX_LIST = 50;
 export const PROFILE_LICENCES = ['CC0-1.0'] as const;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
-const isText = (v: unknown, max: number): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
+const isText = (v: unknown, max: number): v is string =>
+  typeof v === 'string' && v.trim().length > 0 && v.length <= max;
 
 /**
  * Checks untrusted data against the format. Returns the profile, rebuilt from
@@ -93,7 +106,8 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
   if (!isObject(raw)) return { profile: null, problems: ['a profile must be a JSON object'] };
 
   const only = (obj: Record<string, unknown>, allowed: readonly string[], where: string): void => {
-    for (const key of Object.keys(obj)) if (!allowed.includes(key)) bad(`unknown key "${key.slice(0, 40)}"${where ? ` in ${where}` : ''}`);
+    for (const key of Object.keys(obj))
+      if (!allowed.includes(key)) bad(`unknown key "${key.slice(0, 40)}"${where ? ` in ${where}` : ''}`);
   };
   const selector = (v: unknown, where: string): string | undefined => {
     if (v === undefined) return undefined;
@@ -122,15 +136,37 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
   };
 
   if ('scripts' in raw) bad('profiles cannot contain scripts in format version 1');
-  only(raw, ['longboard', 'id', 'name', 'version', 'authors', 'licence', 'match', 'view', 'focus', 'player', 'text', 'dismiss', 'guard', 'evidence', 'scripts'], '');
+  only(
+    raw,
+    [
+      'longboard',
+      'id',
+      'name',
+      'version',
+      'authors',
+      'licence',
+      'match',
+      'view',
+      'focus',
+      'player',
+      'text',
+      'dismiss',
+      'guard',
+      'evidence',
+      'scripts',
+    ],
+    '',
+  );
 
   if (raw['longboard'] !== PROFILE_FORMAT) bad(`"longboard" must be ${PROFILE_FORMAT}`);
   if (!isText(raw['id'], 60) || !ID.test(raw['id'])) bad('"id" must be lower-case words joined by hyphens');
   if (!isText(raw['name'], 80)) bad('"name" is required');
   if (!isText(raw['version'], 20) || !SEMVER.test(raw['version'])) bad('"version" must look like 1.0.0');
   const authors = raw['authors'];
-  if (!Array.isArray(authors) || authors.length === 0 || authors.length > 20 || !authors.every((a) => isText(a, 80))) bad('"authors" must list at least one name');
-  if (!(PROFILE_LICENCES as readonly unknown[]).includes(raw['licence'])) bad(`"licence" must be ${PROFILE_LICENCES.join(' or ')}`);
+  if (!Array.isArray(authors) || authors.length === 0 || authors.length > 20 || !authors.every((a) => isText(a, 80)))
+    bad('"authors" must list at least one name');
+  if (!(PROFILE_LICENCES as readonly unknown[]).includes(raw['licence']))
+    bad(`"licence" must be ${PROFILE_LICENCES.join(' or ')}`);
 
   const profile: Profile = {
     longboard: 1,
@@ -148,14 +184,18 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
   else {
     only(match, ['hosts', 'paths'], 'match');
     const hosts = match['hosts'];
-    if (!Array.isArray(hosts) || hosts.length === 0 || hosts.length > MAX_LIST) bad('"match.hosts" must list at least one host');
+    if (!Array.isArray(hosts) || hosts.length === 0 || hosts.length > MAX_LIST)
+      bad('"match.hosts" must list at least one host');
     else {
-      for (const h of hosts) if (typeof h !== 'string' || !HOST.test(h)) bad(`host "${String(h).slice(0, 60)}" must be a lower-case domain, optionally starting with "*."`);
+      for (const h of hosts)
+        if (typeof h !== 'string' || !HOST.test(h))
+          bad(`host "${String(h).slice(0, 60)}" must be a lower-case domain, optionally starting with "*."`);
       profile.match.hosts = hosts.map(String);
     }
     const paths = match['paths'];
     if (paths !== undefined) {
-      if (!Array.isArray(paths) || paths.length > MAX_LIST || !paths.every((p) => isText(p, 200) && p.startsWith('/'))) bad('"match.paths" must be a list of paths that start with "/"');
+      if (!Array.isArray(paths) || paths.length > MAX_LIST || !paths.every((p) => isText(p, 200) && p.startsWith('/')))
+        bad('"match.paths" must be a list of paths that start with "/"');
       else profile.match.paths = paths.map(String);
     }
   }
@@ -165,29 +205,39 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
     only(view, ['canvas', 'safeMargin', 'device', 'entry', 'carry'], 'view');
     profile.view = {};
     if (view['canvas'] !== undefined) {
-      if (typeof view['canvas'] !== 'string' || !CANVAS.test(view['canvas'])) bad('"view.canvas" must look like 960x540');
+      if (typeof view['canvas'] !== 'string' || !CANVAS.test(view['canvas']))
+        bad('"view.canvas" must look like 960x540');
       else profile.view.canvas = view['canvas'];
     }
     if (view['device'] !== undefined) {
       // One of two words and nothing else: a profile cannot say what Longboard calls itself (Hard rule 3).
-      if (view['device'] !== 'tv' && view['device'] !== 'tv-browser') bad('"view.device" can only be "tv" or "tv-browser"');
+      if (view['device'] !== 'tv' && view['device'] !== 'tv-browser')
+        bad('"view.device" can only be "tv" or "tv-browser"');
       else profile.view.device = view['device'];
     }
     if (view['entry'] !== undefined) {
       // A path on the site itself and nothing more: never another site, never an address with a question in it.
       const entry = view['entry'];
-      if (!isText(entry, 200) || !/^\/[A-Za-z0-9._~\-/]*$/.test(entry) || entry.startsWith('//') || entry === '/') bad('"view.entry" must be a plain path on the site, such as "/tv"');
+      if (!isText(entry, 200) || !/^\/[A-Za-z0-9._~\-/]*$/.test(entry) || entry.startsWith('//') || entry === '/')
+        bad('"view.entry" must be a plain path on the site, such as "/tv"');
       else profile.view.entry = entry;
     }
     if (view['carry'] !== undefined) {
       const carry = view['carry'];
-      if (!Array.isArray(carry) || carry.length === 0 || carry.length > 10 || !carry.every((n) => typeof n === 'string' && /^[A-Za-z0-9_-]{1,30}$/.test(n))) bad('"view.carry" must be a short list of plain parameter names, such as ["v"]');
+      if (
+        !Array.isArray(carry) ||
+        carry.length === 0 ||
+        carry.length > 10 ||
+        !carry.every((n) => typeof n === 'string' && /^[A-Za-z0-9_-]{1,30}$/.test(n))
+      )
+        bad('"view.carry" must be a short list of plain parameter names, such as ["v"]');
       else if (view['entry'] === undefined) bad('"view.carry" needs "view.entry"');
       else profile.view.carry = carry.map(String);
     }
     const margin = view['safeMargin'];
     if (margin !== undefined) {
-      if (typeof margin !== 'number' || !(margin >= 0 && margin <= 0.15)) bad('"view.safeMargin" must be between 0 and 0.15');
+      if (typeof margin !== 'number' || !(margin >= 0 && margin <= 0.15))
+        bad('"view.safeMargin" must be between 0 and 0.15');
       else profile.view.safeMargin = margin;
     }
   }
@@ -214,10 +264,21 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
           const sel = selector(g['selector'], `${where}.selector`);
           if (!isText(g['name'], 60)) bad(`"${where}.name" is required`);
           if (g['selector'] === undefined) bad(`"${where}.selector" is required`);
-          if (g['axis'] !== 'horizontal' && g['axis'] !== 'vertical' && g['axis'] !== 'grid') bad(`"${where}.axis" must be horizontal, vertical or grid`);
-          if (g['remember'] !== undefined && typeof g['remember'] !== 'boolean') bad(`"${where}.remember" must be true or false`);
-          if (sel && isText(g['name'], 60) && (g['axis'] === 'horizontal' || g['axis'] === 'vertical' || g['axis'] === 'grid')) {
-            profile.focus!.groups!.push({ name: g['name'], selector: sel, axis: g['axis'], ...(g['remember'] === true ? { remember: true } : {}) });
+          if (g['axis'] !== 'horizontal' && g['axis'] !== 'vertical' && g['axis'] !== 'grid')
+            bad(`"${where}.axis" must be horizontal, vertical or grid`);
+          if (g['remember'] !== undefined && typeof g['remember'] !== 'boolean')
+            bad(`"${where}.remember" must be true or false`);
+          if (
+            sel &&
+            isText(g['name'], 60) &&
+            (g['axis'] === 'horizontal' || g['axis'] === 'vertical' || g['axis'] === 'grid')
+          ) {
+            profile.focus!.groups!.push({
+              name: g['name'],
+              selector: sel,
+              axis: g['axis'],
+              ...(g['remember'] === true ? { remember: true } : {}),
+            });
           }
         });
       }
@@ -240,7 +301,8 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
         for (const key of ['playPause', 'back', 'forward'] as const) {
           const name = player['keys'][key];
           if (name === undefined) continue;
-          if (!(PLAYER_KEY_NAMES as readonly unknown[]).includes(name)) bad(`"player.keys.${key}" must be one of ${PLAYER_KEY_NAMES.join(', ')}`);
+          if (!(PLAYER_KEY_NAMES as readonly unknown[]).includes(name))
+            bad(`"player.keys.${key}" must be one of ${PLAYER_KEY_NAMES.join(', ')}`);
           else profile.player.keys[key] = name as PlayerKeyName;
         }
       }
@@ -271,7 +333,8 @@ export function validateProfile(raw: unknown): { profile: Profile | null; proble
   if (!evidence) bad('"evidence" is required: it names the outline that shows the selectors');
   else {
     only(evidence, ['outline'], 'evidence');
-    if (!isText(evidence['outline'], 200) || /[\\]|\.\.|^\//.test(String(evidence['outline']))) bad('"evidence.outline" must name the outline file, by a plain relative path');
+    if (!isText(evidence['outline'], 200) || /[\\]|\.\.|^\//.test(String(evidence['outline'])))
+      bad('"evidence.outline" must name the outline file, by a plain relative path');
     else profile.evidence.outline = evidence['outline'];
   }
 
@@ -331,7 +394,12 @@ export type ProfileChoice =
  * profile is never used silently: until it has an answer the choice is "ask",
  * and one that was refused is passed over.
  */
-export function chooseProfile(url: string, stored: readonly StoredProfile[], answers: Readonly<Record<string, 'yes' | 'no'>>, keyOf: (profile: Profile) => string = importKey): ProfileChoice {
+export function chooseProfile(
+  url: string,
+  stored: readonly StoredProfile[],
+  answers: Readonly<Record<string, 'yes' | 'no'>>,
+  keyOf: (profile: Profile) => string = importKey,
+): ProfileChoice {
   const best = (source: ProfileSource, allow: (p: Profile) => boolean): Profile | null => {
     let pick: Profile | null = null;
     let score = -1;
@@ -412,7 +480,11 @@ export function deviceOf(profile: Profile | null): 'tv' | 'tv-browser' | null {
  * the one in use at its own entry, so one that is passed over or was
  * refused sends nobody anywhere.
  */
-export function entryFor(url: string, stored: readonly StoredProfile[], use: (url: string) => Profile | null): string | null {
+export function entryFor(
+  url: string,
+  stored: readonly StoredProfile[],
+  use: (url: string) => Profile | null,
+): string | null {
   let u: URL;
   try {
     u = new URL(url);

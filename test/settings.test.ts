@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { changeSetting, LANGUAGE_CHOICES, mapButton, resetSettings, searchName, SEARCH_CHOICES, unmapButtons } from '../src/shared/settings';
+import {
+  changeSetting,
+  LANGUAGE_CHOICES,
+  mapButton,
+  resetSettings,
+  searchName,
+  SEARCH_CHOICES,
+  unmapButtons,
+} from '../src/shared/settings';
 import { parseConfig } from '../src/shared/config';
-import { blockingMode, blockingOn, cleanDomain, editStartsOff, effectiveVerified, startsOffEntries } from '../src/shared/adblock';
+import {
+  blockingMode,
+  blockingOn,
+  cleanDomain,
+  editStartsOff,
+  effectiveVerified,
+  startsOffEntries,
+} from '../src/shared/adblock';
 import { permissionDecision } from '../src/main/permissions';
 import { isSearchTemplate } from '../src/shared/address';
 
@@ -32,11 +47,19 @@ describe('changing a setting', () => {
     }
   });
   it('what it writes is a file Longboard reads without complaint', () => {
-    const next = changeSetting(changeSetting({}, 'neverAsk', ['camera', 'location']), 'adBlockingStartsOff', ['example.com']);
-    expect(parseConfig(next)).toMatchObject({ problems: [], config: { neverAsk: ['camera', 'location'], adBlockingStartsOff: ['example.com'] } });
+    const next = changeSetting(changeSetting({}, 'neverAsk', ['camera', 'location']), 'adBlockingStartsOff', [
+      'example.com',
+    ]);
+    expect(parseConfig(next)).toMatchObject({
+      problems: [],
+      config: { neverAsk: ['camera', 'location'], adBlockingStartsOff: ['example.com'] },
+    });
   });
   it('resetting takes out the settings and keeps the key mappings', () => {
-    expect(resetSettings({ ...file, adBlocking: 'off', pageSize: 1.5, neverAsk: ['camera'] })).toEqual({ keys: { F9: 'menu' }, somethingNewer: 1 });
+    expect(resetSettings({ ...file, adBlocking: 'off', pageSize: 1.5, neverAsk: ['camera'] })).toEqual({
+      keys: { F9: 'menu' },
+      somethingNewer: 1,
+    });
   });
 });
 
@@ -79,7 +102,7 @@ describe('ad blocking over all sites', () => {
 
 describe('editing the list of sites where ad blocking starts off', () => {
   const reviewed = ['clips.example', 'video.example'];
-  it('shows the reviewed sites and the person\'s own, in order', () => {
+  it("shows the reviewed sites and the person's own, in order", () => {
     expect(startsOffEntries(reviewed, ['blog.example'], ['video.example'])).toEqual([
       { domain: 'blog.example', from: 'you', off: true },
       { domain: 'clips.example', from: 'reviewed', off: true },
@@ -87,10 +110,13 @@ describe('editing the list of sites where ad blocking starts off', () => {
     ]);
     expect(effectiveVerified(reviewed, ['blog.example'], ['video.example'])).toEqual(['blog.example', 'clips.example']);
   });
-  it('adds a site, and takes the person\'s own site away again when pressed', () => {
+  it("adds a site, and takes the person's own site away again when pressed", () => {
     const one = editStartsOff(reviewed, [], [], 'add', 'blog.example');
     expect(one).toEqual({ added: ['blog.example'], removed: [] });
-    expect(editStartsOff(reviewed, one.added, one.removed, 'toggle', 'blog.example')).toEqual({ added: [], removed: [] });
+    expect(editStartsOff(reviewed, one.added, one.removed, 'toggle', 'blog.example')).toEqual({
+      added: [],
+      removed: [],
+    });
   });
   it('takes a reviewed site off when pressed, and puts it back when pressed again or added', () => {
     const off = editStartsOff(reviewed, [], [], 'toggle', 'video.example');
@@ -102,7 +128,8 @@ describe('editing the list of sites where ad blocking starts off', () => {
     expect(cleanDomain(' WWW.Example.com ')).toBe('example.com');
     expect(cleanDomain('https://video.example.org/watch?v=1')).toBe('video.example.org');
     expect(cleanDomain('example.com:8443')).toBe('example.com');
-    for (const bad of ['', 'localhost', 'not a site', 'http://', '*.example.com', 5, null, 'a'.repeat(400)]) expect(cleanDomain(bad)).toBeNull();
+    for (const bad of ['', 'localhost', 'not a site', 'http://', '*.example.com', 5, null, 'a'.repeat(400)])
+      expect(cleanDomain(bad)).toBeNull();
   });
 });
 
@@ -110,8 +137,13 @@ describe('kinds of access no site may ask for', () => {
   it('are refused without a question, and without touching what a site was already told', () => {
     expect(permissionDecision('geolocation', undefined, [], ['location'])).toEqual({ kind: 'deny' });
     expect(permissionDecision('media', undefined, ['video', 'audio'], ['microphone'])).toEqual({ kind: 'deny' });
-    expect(permissionDecision('media', { answers: { camera: 'granted' } }, ['video'], ['camera'])).toEqual({ kind: 'deny' });
-    expect(permissionDecision('notifications', undefined, [], ['location'])).toEqual({ kind: 'ask', names: ['notifications'] });
+    expect(permissionDecision('media', { answers: { camera: 'granted' } }, ['video'], ['camera'])).toEqual({
+      kind: 'deny',
+    });
+    expect(permissionDecision('notifications', undefined, [], ['location'])).toEqual({
+      kind: 'ask',
+      names: ['notifications'],
+    });
     expect(permissionDecision('fullscreen', undefined, [], ['camera'])).toEqual({ kind: 'grant' });
   });
 });
@@ -137,7 +169,22 @@ describe('giving a button a job', () => {
     expect(mapButton({ F7: 'back' }, 'F7', false, 'menu')).toEqual({ F7: 'menu' });
   });
   it('leaves alone the buttons the screen cannot be used without, and keys for typing', () => {
-    for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'Tab', 'Control', 'Shift', 'Unidentified', 'a', '5', ' ', '']) {
+    for (const key of [
+      'ArrowUp',
+      'ArrowDown',
+      'ArrowLeft',
+      'ArrowRight',
+      'Enter',
+      'Escape',
+      'Tab',
+      'Control',
+      'Shift',
+      'Unidentified',
+      'a',
+      '5',
+      ' ',
+      '',
+    ]) {
       expect(mapButton({}, key, false, 'back'), key).toBeNull();
     }
     expect(mapButton({}, 'F7', false, 'quit')).toBeNull();

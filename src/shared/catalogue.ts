@@ -47,7 +47,9 @@ export function parseIndex(raw: unknown): CatalogueIndex | null {
     seen.add(e['id']);
     profiles.push({ id: e['id'], version: e['version'], path: e['path'], sha256: e['sha256'] });
   }
-  const verified = Array.isArray(r['verifiedSites']) ? r['verifiedSites'].filter((d): d is string => typeof d === 'string' && DOMAIN.test(d)).slice(0, MAX_ENTRIES) : [];
+  const verified = Array.isArray(r['verifiedSites'])
+    ? r['verifiedSites'].filter((d): d is string => typeof d === 'string' && DOMAIN.test(d)).slice(0, MAX_ENTRIES)
+    : [];
   return { profiles, verifiedSites: [...new Set(verified)] };
 }
 

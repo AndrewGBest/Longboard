@@ -25,7 +25,8 @@ const HEX = /^[0-9a-f]{32,128}$/;
 export function parseLock(raw: unknown): Lock | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
-  if (typeof r['salt'] !== 'string' || typeof r['hash'] !== 'string' || !HEX.test(r['salt']) || !HEX.test(r['hash'])) return null;
+  if (typeof r['salt'] !== 'string' || typeof r['hash'] !== 'string' || !HEX.test(r['salt']) || !HEX.test(r['hash']))
+    return null;
   return { salt: r['salt'], hash: r['hash'], homeOnly: r['homeOnly'] === true };
 }
 

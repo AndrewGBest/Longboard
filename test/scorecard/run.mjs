@@ -20,7 +20,20 @@ const { sites } = JSON.parse(readFileSync(join(root, 'test/scorecard/sites.json'
 const list = sites.filter((s) => only.length === 0 || only.some((o) => s.url.includes(o)));
 if (shots) mkdirSync(shots, { recursive: true });
 
-const KEYS = ['ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowDown', 'ArrowDown', 'ArrowUp', 'ArrowUp'];
+const KEYS = [
+  'ArrowDown',
+  'ArrowDown',
+  'ArrowDown',
+  'ArrowRight',
+  'ArrowRight',
+  'ArrowDown',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowDown',
+  'ArrowDown',
+  'ArrowUp',
+  'ArrowUp',
+];
 const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? 0;
 
 /** What the page looks like to the layer, with nothing of the page's words in it. */
@@ -39,14 +52,34 @@ const STATE = `(() => {
 const rows = [];
 for (const site of list) {
   const host = new URL(site.url).hostname;
-  const row = { site: host, kind: site.kind, loaded: false, first: '-', moved: 0, lost: 0, medianMs: 0, worstMs: 0, elements: 0, pointer: false, tab: '-', missed: '-', beyond: 0, note: '' };
+  const row = {
+    site: host,
+    kind: site.kind,
+    loaded: false,
+    first: '-',
+    moved: 0,
+    lost: 0,
+    medianMs: 0,
+    worstMs: 0,
+    elements: 0,
+    pointer: false,
+    tab: '-',
+    missed: '-',
+    beyond: 0,
+    note: '',
+  };
   rows.push(row);
   // The real TV scale: a 1920x1080 window drawn at 960x540.
   const app = await launch({ url: site.url, args: ['--zoom=2'], width: 1920, height: 1080 });
   try {
     const page = await app.page('http', 150);
     if (!page) throw new Error('no page');
-    const ready = await until(() => page.evaluate('document.readyState'), (s) => s === 'complete', 150, 200);
+    const ready = await until(
+      () => page.evaluate('document.readyState'),
+      (s) => s === 'complete',
+      150,
+      200,
+    );
     row.loaded = ready === 'complete' || ready === 'interactive';
     await sleep(2500);
     let before = await page.evaluate(STATE);
@@ -66,14 +99,21 @@ for (const site of list) {
     }
     row.medianMs = Math.round(median(times));
     row.worstMs = Math.round(Math.max(...times));
-    if (shots) writeFileSync(join(shots, `${host}.png`), Buffer.from((await page.cdp.send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+    if (shots)
+      writeFileSync(
+        join(shots, `${host}.png`),
+        Buffer.from((await page.cdp.send('Page.captureScreenshot', { format: 'png' })).data, 'base64'),
+      );
     // The referee: where the Tab key stops against what the highlight reaches.
     try {
       const said = await page.referee();
       row.tab = `${said.reached} of ${said.seen}`;
       const kinds = {};
       for (const m of said.missed) kinds[m.what] = (kinds[m.what] ?? 0) + 1;
-      row.missed = Object.entries(kinds).map(([what, n]) => `${n} ${what}`).join(', ') || '-';
+      row.missed =
+        Object.entries(kinds)
+          .map(([what, n]) => `${n} ${what}`)
+          .join(', ') || '-';
       row.beyond = said.beyond;
     } catch (err) {
       row.tab = 'not measured';
@@ -81,7 +121,13 @@ for (const site of list) {
     }
     await page.press('F2', 500);
     row.pointer = (await page.pointerAt()) !== null;
-    if (/blocked navigation|renderer exited/.test(app.log)) row.note = app.log.split('\n').filter((l) => /blocked navigation|renderer exited/.test(l)).slice(0, 2).join('; ').slice(0, 120);
+    if (/blocked navigation|renderer exited/.test(app.log))
+      row.note = app.log
+        .split('\n')
+        .filter((l) => /blocked navigation|renderer exited/.test(l))
+        .slice(0, 2)
+        .join('; ')
+        .slice(0, 120);
   } catch (err) {
     row.note = String(err).slice(0, 120);
   } finally {
@@ -93,6 +139,9 @@ for (const site of list) {
 const table = [
   '| Site | Kind | Loaded | First press lands on | Presses that moved or scrolled (of 12) | Highlight left off screen | Key press, median / worst (ms) | Elements | Pointer mode | Tab stops reached | Tab stops missed | Targets Tab never stops at |',
   '|---|---|---|---|---|---|---|---|---|---|---|---|',
-  ...rows.map((r) => `| ${r.site} | ${r.kind} | ${r.loaded ? 'yes' : 'no'} | ${r.first} | ${r.moved} | ${r.lost} | ${r.medianMs} / ${r.worstMs} | ${r.elements} | ${r.pointer ? 'yes' : 'no'} | ${r.tab} | ${r.missed} | ${r.beyond} |${r.note ? ` ${r.note}` : ''}`),
+  ...rows.map(
+    (r) =>
+      `| ${r.site} | ${r.kind} | ${r.loaded ? 'yes' : 'no'} | ${r.first} | ${r.moved} | ${r.lost} | ${r.medianMs} / ${r.worstMs} | ${r.elements} | ${r.pointer ? 'yes' : 'no'} | ${r.tab} | ${r.missed} | ${r.beyond} |${r.note ? ` ${r.note}` : ''}`,
+  ),
 ].join('\n');
 console.log(`\n${table}`);

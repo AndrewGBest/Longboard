@@ -30,7 +30,18 @@ const VERBATIM = new Set([
 ]);
 
 /** Attributes whose presence and length are noted but whose value is withheld. */
-const REDACTED = new Set(['aria-label', 'aria-labelledby', 'aria-describedby', 'title', 'alt', 'placeholder', 'name', 'href', 'src', 'value']);
+const REDACTED = new Set([
+  'aria-label',
+  'aria-labelledby',
+  'aria-describedby',
+  'title',
+  'alt',
+  'placeholder',
+  'name',
+  'href',
+  'src',
+  'value',
+]);
 
 const MAX_NODES = 4000;
 const MAX_DEPTH = 40;
@@ -84,12 +95,7 @@ export function maskIdentifier(value: string): string {
 }
 
 function maskList(value: string): string {
-  return value
-    .split(/\s+/)
-    .filter(Boolean)
-    .map(maskToken)
-    .join(' ')
-    .slice(0, MAX_CLASS_CHARS);
+  return value.split(/\s+/).filter(Boolean).map(maskToken).join(' ').slice(0, MAX_CLASS_CHARS);
 }
 
 function describe(el: Element): string {

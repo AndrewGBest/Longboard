@@ -13,7 +13,8 @@ export interface RecentSite {
 
 export const MAX_RECENTS = 12;
 
-const clean = (text: unknown, max: number): string => (typeof text === 'string' ? text.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+const clean = (text: unknown, max: number): string =>
+  typeof text === 'string' ? text.replace(/\s+/g, ' ').trim().slice(0, max) : '';
 
 /** Validates the saved list. Anything unusable is dropped, never thrown on. */
 export function parseRecents(raw: unknown): RecentSite[] {
@@ -25,7 +26,11 @@ export function parseRecents(raw: unknown): RecentSite[] {
     const r = item as Record<string, unknown>;
     if (typeof r['url'] !== 'string' || r['url'].length > 2000 || !siteKey(r['url'])) continue;
     if (out.some((o) => siteKey(o.url) === siteKey(r['url'] as string))) continue;
-    out.push({ url: r['url'], title: clean(r['title'], 120), at: typeof r['at'] === 'number' && Number.isFinite(r['at']) ? r['at'] : 0 });
+    out.push({
+      url: r['url'],
+      title: clean(r['title'], 120),
+      at: typeof r['at'] === 'number' && Number.isFinite(r['at']) ? r['at'] : 0,
+    });
     if (out.length >= MAX_RECENTS) break;
   }
   return out;
@@ -58,7 +63,8 @@ export interface SavedPage {
   title: string;
 }
 export const MAX_SAVED = 40;
-const isWeb = (url: unknown): url is string => typeof url === 'string' && url.length <= 2000 && /^https?:\/\//i.test(url);
+const isWeb = (url: unknown): url is string =>
+  typeof url === 'string' && url.length <= 2000 && /^https?:\/\//i.test(url);
 
 /** Validates the saved pages in home.json. Anything unusable is dropped. */
 export function parseSaved(raw: unknown): SavedPage[] {

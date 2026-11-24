@@ -15,9 +15,38 @@ import { activeOption, openCombo } from './combobox';
 import { keyToAction, ownRemoteKey, type Mode } from './input/keys';
 import { isSecretField, oskDock, OskModel } from '../shared/osk';
 import { deepActiveElement, deepContains } from './spatial/deep';
-import { InjectedKeys, isNativePlayerKey, playerKeyFor, playerKeyInfo, type PlayerKey, type TextKey } from '../shared/player-keys';
-import { findMainVideo, GENERIC_PLAYER_SHARE, isPlayerActive, coversPicture, isSeekBar, pageVideo, passedOver, playControl, playerIsOwnPage, playerScope } from './player';
-import { coveredByScreen, coveringLayer, edgeControl, isSidewaysSlider, isVisible, MENU_ENTRY, openDialog, press, SpatialNavigator, type NavigatorOptions } from './spatial/navigator';
+import {
+  InjectedKeys,
+  isNativePlayerKey,
+  playerKeyFor,
+  playerKeyInfo,
+  type PlayerKey,
+  type TextKey,
+} from '../shared/player-keys';
+import {
+  findMainVideo,
+  GENERIC_PLAYER_SHARE,
+  isPlayerActive,
+  coversPicture,
+  isSeekBar,
+  pageVideo,
+  passedOver,
+  playControl,
+  playerIsOwnPage,
+  playerScope,
+} from './player';
+import {
+  coveredByScreen,
+  coveringLayer,
+  edgeControl,
+  isSidewaysSlider,
+  isVisible,
+  MENU_ENTRY,
+  openDialog,
+  press,
+  SpatialNavigator,
+  type NavigatorOptions,
+} from './spatial/navigator';
 import { HOST_TAG, Overlay } from './ui/overlay';
 
 export interface LayerDeps {
@@ -51,7 +80,12 @@ export interface LayerDeps {
  * nothing is pressed whose effect is not written on it.
  */
 const GENERIC_SEARCH_OPEN = ['a[href$="/search" i]', 'a[href*="/search?" i]'];
-const GENERIC_SEARCH = ['input[type="search"]', '[role="search"] input', 'input[name*="search" i]', 'input[aria-label*="search" i]'];
+const GENERIC_SEARCH = [
+  'input[type="search"]',
+  '[role="search"] input',
+  'input[name*="search" i]',
+  'input[aria-label*="search" i]',
+];
 
 /** A frame showing over this share of the screen is where the page's business is: the arrows hand over to the pointer on it. */
 const BIG_FRAME_SHARE = 0.4;
@@ -125,7 +159,10 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   // profile only, and not in a frame or full screen, where the player is all
   // there is.
   const playerInPage = (): boolean =>
-    rules.generic && !frame && !doc.fullscreenElement && (doc.scrollingElement?.scrollHeight ?? 0) > view.innerHeight * 1.25;
+    rules.generic &&
+    !frame &&
+    !doc.fullscreenElement &&
+    (doc.scrollingElement?.scrollHeight ?? 0) > view.innerHeight * 1.25;
   /** The highlight is on something inside that page's big video's own player. */
   const onPagePlayer = (): HTMLVideoElement | null => {
     const on = nav.focused;
@@ -153,7 +190,8 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   /** The pop-up or covering layer in front, when it is pinned to the screen and so does not move with the page. */
   const pinnedLayer = (): Element | null => {
     const layer = openDialog(doc) ?? (inPlayer() ? null : coveringLayer(doc));
-    for (let el: Element | null = layer; el; el = el.parentElement) if (view.getComputedStyle(el).position === 'fixed') return layer;
+    for (let el: Element | null = layer; el; el = el.parentElement)
+      if (view.getComputedStyle(el).position === 'fixed') return layer;
     return null;
   };
   /** While the player is open, focus stays among its own controls. */
@@ -173,7 +211,12 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   const overlay = new Overlay(doc);
   /** A scripted run never types a password or a one-time code (Hard rule 9). A person may. */
   const keyboardBarred = (el: Element): boolean =>
-    options.automation && isSecretField(el.getAttribute('type'), el.getAttribute('autocomplete'), `${el.getAttribute('name') ?? ''} ${el.id}`);
+    options.automation &&
+    isSecretField(
+      el.getAttribute('type'),
+      el.getAttribute('autocomplete'),
+      `${el.getAttribute('name') ?? ''} ${el.id}`,
+    );
   /** Things that jump elsewhere when they get the cursor (moveInPage finds them). */
   const jumpers = new WeakSet<Element>();
   // The navigator keeps this object, so setRules can change what it goes by.
@@ -269,7 +312,12 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   const moveInPage = (dir: Direction): void => {
     // A slider takes left and right itself, as the keys they are.
     const slider = nav.focused;
-    if (slider && isSidewaysSlider(slider) && (dir === 'left' || dir === 'right') && deepActiveElement(doc) === slider) {
+    if (
+      slider &&
+      isSidewaysSlider(slider) &&
+      (dir === 'left' || dir === 'right') &&
+      deepActiveElement(doc) === slider
+    ) {
       pressKey(dir === 'left' ? 'seekBack' : 'seekForward');
       return;
     }
@@ -277,7 +325,10 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     const cameFrom = nav.focused;
     const wasAt = cameFrom ? cameFrom.getBoundingClientRect().top + view.scrollY : 0;
     const wasTo = cameFrom ? cameFrom.getBoundingClientRect().bottom + view.scrollY : 0;
-    const inPage = (el: Element): { top: number; bottom: number } => ({ top: el.getBoundingClientRect().top + view.scrollY, bottom: el.getBoundingClientRect().bottom + view.scrollY });
+    const inPage = (el: Element): { top: number; bottom: number } => ({
+      top: el.getBoundingClientRect().top + view.scrollY,
+      bottom: el.getBoundingClientRect().bottom + view.scrollY,
+    });
     const stopAtPicture = (picture: Element): void => {
       nav.clear();
       picture.scrollIntoView({ block: 'center', behavior: 'instant' });
@@ -309,7 +360,14 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     let moved = nav.move(dir);
     // And a move that went from one side of the picture to the other
     // without stopping is taken back to the picture.
-    if (moved && (dir === 'up' || dir === 'down') && cameFrom && nav.focused && nav.focused !== cameFrom && playerInPage()) {
+    if (
+      moved &&
+      (dir === 'up' || dir === 'down') &&
+      cameFrom &&
+      nav.focused &&
+      nav.focused !== cameFrom &&
+      playerInPage()
+    ) {
       const picture = pageVideo(doc);
       if (picture && passedOver({ top: wasAt, bottom: wasTo }, inPage(nav.focused), inPage(picture), dir)) {
         stopAtPicture(picture);
@@ -321,7 +379,11 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     // gets the cursor; Up went to it and back without end, and the top was
     // never reached.) Such a thing is not landed on again, and Up is tried
     // once more from where it started.
-    for (let tries = 0; tries < 3 && moved && dir === 'up' && cameFrom?.isConnected && nav.focused && nav.focused !== cameFrom; tries++) {
+    for (
+      let tries = 0;
+      tries < 3 && moved && dir === 'up' && cameFrom?.isConnected && nav.focused && nav.focused !== cameFrom;
+      tries++
+    ) {
       if (nav.focused.getBoundingClientRect().top + view.scrollY < wasAt - 1) break;
       jumpers.add(nav.focused);
       nav.focus(cameFrom);
@@ -341,7 +403,9 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     const framed = nav.focused;
     if (!hooks && framed instanceof HTMLIFrameElement) {
       const b = framed.getBoundingClientRect();
-      const shown = Math.max(0, Math.min(b.right, view.innerWidth) - Math.max(b.left, 0)) * Math.max(0, Math.min(b.bottom, view.innerHeight) - Math.max(b.top, 0));
+      const shown =
+        Math.max(0, Math.min(b.right, view.innerWidth) - Math.max(b.left, 0)) *
+        Math.max(0, Math.min(b.bottom, view.innerHeight) - Math.max(b.top, 0));
       if (shown >= BIG_FRAME_SHARE * view.innerWidth * view.innerHeight) {
         enterFrame(framed, false);
         return;
@@ -429,7 +493,8 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   let oskSide: 'top' | 'bottom' = 'bottom';
   /** The keyboard is up for a text field inside an embedded frame: the frame has the cursor, and the shell hands the keys over. */
   let frameTyping = false;
-  const drawOsk = (): void => overlay.keyboard(oskOpen ? osk.rows : null, { row: osk.row, index: osk.index }, oskSubmit, oskSide);
+  const drawOsk = (): void =>
+    overlay.keyboard(oskOpen ? osk.rows : null, { row: osk.row, index: osk.index }, oskSubmit, oskSide);
   const isSearchField = (el: Element): boolean => {
     try {
       if (el.matches([...rules.selectors.searchInput, ...GENERIC_SEARCH].join(','))) return true;
@@ -455,7 +520,14 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       // A frame from another site may refuse; the shell's answer decides.
     }
     const box = el.getBoundingClientRect();
-    send({ kind: 'frameEnter', stay, at: { x: (Math.max(box.left, 0) + Math.min(box.right, view.innerWidth)) / 2, y: (Math.max(box.top, 0) + Math.min(box.bottom, view.innerHeight)) / 2 } });
+    send({
+      kind: 'frameEnter',
+      stay,
+      at: {
+        x: (Math.max(box.left, 0) + Math.min(box.right, view.innerWidth)) / 2,
+        y: (Math.max(box.top, 0) + Math.min(box.bottom, view.innerHeight)) / 2,
+      },
+    });
   };
   /** The shell's answer: something in the frame took the highlight, nothing did, or what had it is gone. */
   /** The frame this page has put in full screen because a player in it took the keys. */
@@ -466,12 +538,16 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     if (!el || doc.fullscreenElement !== el) return;
     // Leaving full screen can hand the cursor back to the frame; the keys
     // are the page's again, so it is taken back once the screen has changed.
-    doc.addEventListener('fullscreenchange', () => {
-      if (!frameInside && !frameAsked && doc.activeElement === el) {
-        el.blur();
-        view.focus();
-      }
-    }, { once: true });
+    doc.addEventListener(
+      'fullscreenchange',
+      () => {
+        if (!frameInside && !frameAsked && doc.activeElement === el) {
+          el.blur();
+          view.focus();
+        }
+      },
+      { once: true },
+    );
     void doc.exitFullscreen().catch(() => undefined);
   };
   // While something of the page is shown full screen, a highlight on what
@@ -485,7 +561,8 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     const f = nav.focused;
     if (!f) return;
     if (full) {
-      const under = f === full ? full instanceof HTMLIFrameElement || full instanceof HTMLVideoElement : !deepContains(full, f);
+      const under =
+        f === full ? full instanceof HTMLIFrameElement || full instanceof HTMLVideoElement : !deepContains(full, f);
       if (under) overlay.track(null);
     } else if (f.isConnected && !frameInside) overlay.track(f);
   });
@@ -537,7 +614,11 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       // Nothing in it can take the highlight (a player, a map): the pointer, on it.
       const box = el.getBoundingClientRect();
       overlay.toast('Pointer mode: this part of the page needs the pointer');
-      send({ kind: 'pointer', x: (Math.max(box.left, 0) + Math.min(box.right, view.innerWidth)) / 2, y: (Math.max(box.top, 0) + Math.min(box.bottom, view.innerHeight)) / 2 });
+      send({
+        kind: 'pointer',
+        x: (Math.max(box.left, 0) + Math.min(box.right, view.innerWidth)) / 2,
+        y: (Math.max(box.top, 0) + Math.min(box.bottom, view.innerHeight)) / 2,
+      });
     }
   };
   /** The highlight has left a frame of this page by `how`: carry on from the frame, that way. */
@@ -600,7 +681,11 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     // The key says what it does: the page's own word for it when it gives
     // one (the standard enterkeyhint attribute), "search" in a search field.
     const hint = (field.getAttribute('enterkeyhint') ?? '').toLowerCase();
-    oskSubmit = ['go', 'search', 'send', 'next', 'done'].includes(hint) ? hint : isSearchField(field) ? 'search' : 'enter';
+    oskSubmit = ['go', 'search', 'send', 'next', 'done'].includes(hint)
+      ? hint
+      : isSearchField(field)
+        ? 'search'
+        : 'enter';
     // Keep the keyboard off the field, so what is typed can be seen.
     const box = field.getBoundingClientRect();
     oskSide = oskDock({ top: box.top, bottom: box.bottom }, doc.defaultView?.innerHeight ?? 0);
@@ -627,7 +712,10 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
     oskSubmit = ['go', 'search', 'send', 'next', 'done'].includes(field.hint) ? field.hint : 'enter';
     // Where the field is on the screen, as nearly as can be known from here: the frame's place plus the field's place in it.
     const frame = doc.activeElement instanceof HTMLIFrameElement ? doc.activeElement.getBoundingClientRect() : null;
-    oskSide = oskDock({ top: (frame?.top ?? 0) + field.top, bottom: (frame?.top ?? 0) + field.bottom }, doc.defaultView?.innerHeight ?? 0);
+    oskSide = oskDock(
+      { top: (frame?.top ?? 0) + field.top, bottom: (frame?.top ?? 0) + field.bottom },
+      doc.defaultView?.innerHeight ?? 0,
+    );
     frameTyping = true;
     oskOpen = true;
     drawOsk();
@@ -650,7 +738,8 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       return;
     }
     // Delete, enter and the two cursor keys are real key presses in the field.
-    const name = key.kind === 'backspace' ? 'backspace' : key.kind === 'left' ? 'left' : key.kind === 'right' ? 'right' : 'enter';
+    const name =
+      key.kind === 'backspace' ? 'backspace' : key.kind === 'left' ? 'left' : key.kind === 'right' ? 'right' : 'enter';
     const info = playerKeyInfo(name);
     if (!info) return;
     injected.expect(info.domKey, Date.now());
@@ -684,7 +773,13 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   };
   /** The ordinary key this site's player uses for an action: the usual one, unless the profile names another. */
   const siteKey = (key: PlayerKey): PlayerKey | PlayerKeyName =>
-    key === 'playPause' ? rules.playerKeys.playPause : key === 'seekBack' ? rules.playerKeys.back : key === 'seekForward' ? rules.playerKeys.forward : key;
+    key === 'playPause'
+      ? rules.playerKeys.playPause
+      : key === 'seekBack'
+        ? rules.playerKeys.back
+        : key === 'seekForward'
+          ? rules.playerKeys.forward
+          : key;
   const pressPlayerKey = (key: PlayerKey): void => {
     if (!inPlayer()) return;
     watchNativeVideo();
@@ -695,7 +790,8 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   // ordinary key presses and the browser's player decides what they do.
   const watchNativeVideo = (): void => {
     const v = mainVideo();
-    if (v?.controls && deepActiveElement(doc) !== v && !isTextEntry(deepActiveElement(doc))) v.focus({ preventScroll: true });
+    if (v?.controls && deepActiveElement(doc) !== v && !isTextEntry(deepActiveElement(doc)))
+      v.focus({ preventScroll: true });
   };
 
   /** Moves focus into a pop-up that has opened, if it is not there already. */
@@ -786,7 +882,10 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       // to what is below the middle, the progress bar first where there is one.
       const all = inPlayer() ? nav.candidates() : [];
       const play = dir === 'up' ? playControl(all, view) : null;
-      const done = !inPlayer() || (all.length > 0 && (play ? nav.focus(play) : nav.moveFrom({ x: view.innerWidth / 2, y: view.innerHeight / 2 }, dir)));
+      const done =
+        !inPlayer() ||
+        (all.length > 0 &&
+          (play ? nav.focus(play) : nav.moveFrom({ x: view.innerWidth / 2, y: view.innerHeight / 2 }, dir)));
       if (done || ++tries >= 15) view.clearInterval(controlsTimer);
     }, 100);
   };
@@ -991,7 +1090,13 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
         // it, Escape with the cursor in it did.) Not inside a pop-up, where
         // Escape would close the pop-up, and not for a field in a frame.
         const field = deepActiveElement(doc);
-        const dropSearch = !frameTyping && !!field && isTextEntry(field) && isSearchField(field) && isEmptyField(field) && !openDialog(doc);
+        const dropSearch =
+          !frameTyping &&
+          !!field &&
+          isTextEntry(field) &&
+          isSearchField(field) &&
+          isEmptyField(field) &&
+          !openDialog(doc);
         closeOsk();
         if (dropSearch) pressKey('close');
         return;
@@ -1067,7 +1172,11 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
         }
         overlay.feedback('press');
         // A label that opens a list by ticking a hidden checkbox: remember it, so Back can close the list.
-        if (target instanceof HTMLLabelElement && target.control instanceof HTMLInputElement && target.control.type === 'checkbox') {
+        if (
+          target instanceof HTMLLabelElement &&
+          target.control instanceof HTMLInputElement &&
+          target.control.type === 'checkbox'
+        ) {
           openToggle = target.control.checked ? { label: target, input: target.control } : null;
         }
         if (target && !inPlayer()) {
@@ -1151,7 +1260,11 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
             v.removeEventListener('play', heard);
             if (answered || !v.isConnected || v.paused !== was || !inPlayer() || onPlayerControl()) return;
             const box = v.getBoundingClientRect();
-            send({ kind: 'pictureClick', x: (Math.max(box.left, 0) + Math.min(box.right, view.innerWidth)) / 2, y: (Math.max(box.top, 0) + Math.min(box.bottom, view.innerHeight)) / 2 });
+            send({
+              kind: 'pictureClick',
+              x: (Math.max(box.left, 0) + Math.min(box.right, view.innerWidth)) / 2,
+              y: (Math.max(box.top, 0) + Math.min(box.bottom, view.innerHeight)) / 2,
+            });
           }, 600);
         }
         break;
@@ -1165,7 +1278,11 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       case 'diagnostics':
         // The first line says how much of the adapter still matches this page:
         // a zero where there used to be matches is the site having changed.
-        send({ kind: 'diagnostics', outline: `# ${rulesReport(rules, doc)}\n${buildOutline(doc.documentElement)}`, url: sanitizeUrl(view.location.href) });
+        send({
+          kind: 'diagnostics',
+          outline: `# ${rulesReport(rules, doc)}\n${buildOutline(doc.documentElement)}`,
+          url: sanitizeUrl(view.location.href),
+        });
         overlay.toast('Page outline saved (structure only, no text)');
         break;
       case 'menu':
@@ -1268,7 +1385,15 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
   // redirect: an advertisement's frame had them from the start and no press
   // of the remote did anything.) So it is also looked for now and then.
   view.setInterval(() => {
-    if (!pointerOn && !frameTyping && !frameInside && !frameAsked && doc.visibilityState === 'visible' && doc.activeElement instanceof HTMLIFrameElement) reclaim();
+    if (
+      !pointerOn &&
+      !frameTyping &&
+      !frameInside &&
+      !frameAsked &&
+      doc.visibilityState === 'visible' &&
+      doc.activeElement instanceof HTMLIFrameElement
+    )
+      reclaim();
   }, 1000);
 
   // A text field the page focused by itself (a sign-in page puts the cursor
@@ -1316,10 +1441,17 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
 
   /** What the shell has said: this view is the one in front, or is behind another. */
   let toldFront: boolean | undefined;
-  const stopPads = startPolling(view, mode, dispatch, options.buttons, {
-    active: () => pointerOn,
-    held: (dirs) => send({ kind: 'pointerHeld', dirs }),
-  }, () => toldFront);
+  const stopPads = startPolling(
+    view,
+    mode,
+    dispatch,
+    options.buttons,
+    {
+      active: () => pointerOn,
+      held: (dirs) => send({ kind: 'pointerHeld', dirs }),
+    },
+    () => toldFront,
+  );
 
   // Tell the shell when video is playing so it can hold off the screensaver.
   let lastPlaying = false;
@@ -1439,9 +1571,11 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       }
       const list: Array<{ el: Element; kind: string }> = [];
       const add = (selector: string, kind: string): void => {
-        for (const el of matchesOf(doc, selector)) if (list.length < 120 && !el.closest(HOST_TAG)) list.push({ el, kind });
+        for (const el of matchesOf(doc, selector))
+          if (list.length < 120 && !el.closest(HOST_TAG)) list.push({ el, kind });
       };
-      for (const kind of ['include', 'exclude', 'row', 'player'] as const) for (const selector of show.marks[kind]) add(selector, kind);
+      for (const kind of ['include', 'exclude', 'row', 'player'] as const)
+        for (const selector of show.marks[kind]) add(selector, kind);
       if (show.picked) add(show.picked, 'picked');
       overlay.marks(list);
     },
@@ -1468,7 +1602,13 @@ export function startLayer({ doc, options, rules, send, hooks, frame }: LayerDep
       const el = elementAt(doc, x, y);
       // What is inside a frame cannot be seen from here; the shell asks the frame's own guard.
       if (el instanceof HTMLIFrameElement) return 'frame';
-      if (el && !(el instanceof HTMLEmbedElement) && !(el instanceof HTMLObjectElement) && !isSpendControl(el, rules.selectors.purchaseControls, view.location.href)) return 'yes';
+      if (
+        el &&
+        !(el instanceof HTMLEmbedElement) &&
+        !(el instanceof HTMLObjectElement) &&
+        !isSpendControl(el, rules.selectors.purchaseControls, view.location.href)
+      )
+        return 'yes';
       overlay.toast('Blocked: automation mode never activates purchase or sign-up controls');
       return 'no';
     },

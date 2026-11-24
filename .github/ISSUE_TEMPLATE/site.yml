@@ -1,6 +1,6 @@
 name: A website does not work well
 description: The highlight gets stuck, misses something, a video will not play, or a page looks wrong.
-labels: ["site"]
+labels: ['site']
 body:
   - type: markdown
     attributes:
@@ -51,10 +51,10 @@ body:
     attributes:
       label: Were you signed in to the site?
       options:
-        - "No"
-        - "Yes"
+        - 'No'
+        - 'Yes'
   - type: textarea
     id: outline
     attributes:
       label: Page outline (optional, but it helps most)
-      description: "\"Save page outline\" in the menu writes one. An outline holds the page's structure only (no text, names or links). Look at the file before attaching it anyway."
+      description: '"Save page outline" in the menu writes one. An outline holds the page''s structure only (no text, names or links). Look at the file before attaching it anyway.'

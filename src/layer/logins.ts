@@ -35,7 +35,9 @@ export function findLogin(doc: Document): LoginFields | null {
   if (passwords.length !== 1) return null;
   const pass = passwords[0]!;
   const scope: ParentNode = pass.form ?? doc;
-  const fields = [...scope.querySelectorAll<HTMLInputElement>('input')].filter((i) => i !== pass && NAME_TYPES.has((i.getAttribute('type') ?? '').toLowerCase()) && usable(i));
+  const fields = [...scope.querySelectorAll<HTMLInputElement>('input')].filter(
+    (i) => i !== pass && NAME_TYPES.has((i.getAttribute('type') ?? '').toLowerCase()) && usable(i),
+  );
   const before = fields.filter((i) => (i.compareDocumentPosition(pass) & 4) !== 0);
   const named = before.find((i) => /user|email|login/i.test(`${i.autocomplete} ${i.name} ${i.id}`));
   return { user: named ?? before[before.length - 1] ?? null, pass };
@@ -74,7 +76,10 @@ export function fillLogin(doc: Document, user: string, password: string): boolea
  * Many sites send the form from script and never submit it, so all three are
  * watched. `seen` is told that there is a form, once; `sent` what was typed.
  */
-export function watchLogins(doc: Document, tell: { seen: () => void; sent: (login: { user: string; password: string }) => void }): void {
+export function watchLogins(
+  doc: Document,
+  tell: { seen: () => void; sent: (login: { user: string; password: string }) => void },
+): void {
   let said = false;
   let last = '';
   const look = (): void => {
@@ -92,13 +97,21 @@ export function watchLogins(doc: Document, tell: { seen: () => void; sent: (logi
     tell.sent(login);
   };
   doc.addEventListener('submit', send, true);
-  doc.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && e.target instanceof (doc.defaultView?.HTMLInputElement ?? HTMLInputElement)) send();
-  }, true);
-  doc.addEventListener('click', (e) => {
-    const el = e.target as Element | null;
-    if (el?.closest?.('button, input[type="submit"], input[type="button"], [role="button"], a')) send();
-  }, true);
+  doc.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key === 'Enter' && e.target instanceof (doc.defaultView?.HTMLInputElement ?? HTMLInputElement)) send();
+    },
+    true,
+  );
+  doc.addEventListener(
+    'click',
+    (e) => {
+      const el = e.target as Element | null;
+      if (el?.closest?.('button, input[type="submit"], input[type="button"], [role="button"], a')) send();
+    },
+    true,
+  );
   doc.addEventListener('focusin', look, true);
   look();
   const view = doc.defaultView;

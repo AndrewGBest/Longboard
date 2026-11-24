@@ -13,8 +13,16 @@ export const VOICE_MODEL_FILES: readonly { name: string; size: number; sha256: s
   { name: 'encoder.ort', size: 7675440, sha256: 'a8414e1a5dedf9f2093d7680601dd8a9b0433e7020260eafe0e370ead91134ca' },
   { name: 'adapter.ort', size: 1319664, sha256: '22ecc949e146c49667fda28d102d4e30749a107dc88a396292aa8f277ef1347c' },
   { name: 'cross_kv.ort', size: 1287544, sha256: '143a36667b8d05fd9d04e8c337b7ee121f37ef299aea6b3d82bdb3d3401950b4' },
-  { name: 'decoder_kv.ort', size: 32583720, sha256: '8852553f312adb6c9aa4d17418015049b30f412209ee569d336548c0044627de' },
-  { name: 'streaming_config.json', size: 509, sha256: '74fe5ddebd63b17caf59e8a3b18c17547ff7bce1642050edbb1c3962674f8950' },
+  {
+    name: 'decoder_kv.ort',
+    size: 32583720,
+    sha256: '8852553f312adb6c9aa4d17418015049b30f412209ee569d336548c0044627de',
+  },
+  {
+    name: 'streaming_config.json',
+    size: 509,
+    sha256: '74fe5ddebd63b17caf59e8a3b18c17547ff7bce1642050edbb1c3962674f8950',
+  },
   { name: 'tokenizer.bin', size: 249974, sha256: '6884b35fd6377d4c4d32336a0bc152f36b64d1e45b6503683cdc238250a8472d' },
 ];
 
@@ -73,6 +81,11 @@ export function loudness(samples: Float32Array): number {
 /** What was heard, made fit to type or search for: one line, no stray spaces, and no full stop a search does not want. */
 export function heardText(lines: unknown): string {
   if (!Array.isArray(lines)) return '';
-  const text = lines.filter((l): l is string => typeof l === 'string').join(' ').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+  const text = lines
+    .filter((l): l is string => typeof l === 'string')
+    .join(' ')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   return text.replace(/[.。]$/, '').slice(0, 500);
 }

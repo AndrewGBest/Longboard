@@ -35,7 +35,20 @@ const ENGINE_OPTIONS = {
 } as const;
 
 /** The kinds of request the shell reports. */
-export type RequestKind = 'mainFrame' | 'subFrame' | 'stylesheet' | 'script' | 'image' | 'font' | 'object' | 'xhr' | 'ping' | 'cspReport' | 'media' | 'webSocket' | 'other';
+export type RequestKind =
+  | 'mainFrame'
+  | 'subFrame'
+  | 'stylesheet'
+  | 'script'
+  | 'image'
+  | 'font'
+  | 'object'
+  | 'xhr'
+  | 'ping'
+  | 'cspReport'
+  | 'media'
+  | 'webSocket'
+  | 'other';
 
 /** A set of filters read from list text. */
 export class FilterSet {
@@ -110,7 +123,8 @@ export class FilterStore {
       this.set = FilterSet.parse(readFileSync(join(folder, 'lists.txt'), 'utf8'));
       writeFileSync(join(folder, 'filters.bin'), this.set.save());
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') note(`ad blocking: the saved lists could not be read (${String(err).slice(0, 120)})`);
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT')
+        note(`ad blocking: the saved lists could not be read (${String(err).slice(0, 120)})`);
     }
   }
 
@@ -152,14 +166,20 @@ export class FilterStore {
  * and answers true to refuse it. This is the one place a request handler is
  * installed, and "cancel" is the only thing it can say.
  */
-export function filterSession(ses: Electron.Session, refuse: (url: string, kind: RequestKind, contents: Electron.WebContents | undefined) => boolean): void {
-  ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] }, (details, callback) => {
-    let cancel = false;
-    try {
-      cancel = refuse(details.url, details.resourceType as RequestKind, details.webContents);
-    } catch {
-      cancel = false;
-    }
-    callback({ cancel });
-  });
+export function filterSession(
+  ses: Electron.Session,
+  refuse: (url: string, kind: RequestKind, contents: Electron.WebContents | undefined) => boolean,
+): void {
+  ses.webRequest.onBeforeRequest(
+    { urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] },
+    (details, callback) => {
+      let cancel = false;
+      try {
+        cancel = refuse(details.url, details.resourceType as RequestKind, details.webContents);
+      } catch {
+        cancel = false;
+      }
+      callback({ cancel });
+    },
+  );
 }

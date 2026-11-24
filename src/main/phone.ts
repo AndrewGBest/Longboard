@@ -5,13 +5,22 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
-import { homeAddress, MAX_SEALED, newPhoneKey, openPhoneMessage, PHONE_PAGE, phoneUrl, type PhoneMessage } from '../shared/phone';
+import {
+  homeAddress,
+  MAX_SEALED,
+  newPhoneKey,
+  openPhoneMessage,
+  PHONE_PAGE,
+  phoneUrl,
+  type PhoneMessage,
+} from '../shared/phone';
 
 const SECURITY = {
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'no-referrer',
   'cache-control': 'no-store',
-  'content-security-policy': "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  'content-security-policy':
+    "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
 };
 
 export class PhoneTyping {
@@ -27,7 +36,11 @@ export class PhoneTyping {
    * message that was sealed with this run's key. `changed` is called when a
    * phone first gets through.
    */
-  constructor(private readonly script: string, private readonly take: (message: PhoneMessage) => void, private readonly changed: () => void) {}
+  constructor(
+    private readonly script: string,
+    private readonly take: (message: PhoneMessage) => void,
+    private readonly changed: () => void,
+  ) {}
 
   get on(): boolean {
     return this.server !== null;

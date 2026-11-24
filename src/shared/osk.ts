@@ -41,7 +41,14 @@ const letters = (shift: boolean): readonly (readonly OskKey[])[] => {
     c('klmnopqrst'),
     [...c('uvwxyz'), ...chars('@.-_')],
     chars('1234567890'),
-    [{ kind: 'shift', label: shift ? 'SHIFT' : 'shift', span: 1 }, { kind: 'symbols', label: '!#?', span: 1 }, ...CURSOR, SPACE, DELETE, SUBMIT],
+    [
+      { kind: 'shift', label: shift ? 'SHIFT' : 'shift', span: 1 },
+      { kind: 'symbols', label: '!#?', span: 1 },
+      ...CURSOR,
+      SPACE,
+      DELETE,
+      SUBMIT,
+    ],
   ];
 };
 
@@ -153,7 +160,9 @@ export function isSecretField(type: string | null, autocomplete: string | null, 
   if ((type ?? '').toLowerCase() === 'password') return true;
   if (/password|one-time-code|cc-csc|cc-number/i.test(autocomplete ?? '')) return true;
   // Many sites mark a code field only by what they call it.
-  return /(^|[^a-z])(otp|totp|2fa|mfa|pin|cvv|cvc|passcode|passwd|password)([^a-z]|$)|(security|verification|auth|one.?time|sms).?code/i.test(name ?? '');
+  return /(^|[^a-z])(otp|totp|2fa|mfa|pin|cvv|cvc|passcode|passwd|password)([^a-z]|$)|(security|verification|auth|one.?time|sms).?code/i.test(
+    name ?? '',
+  );
 }
 
 /**

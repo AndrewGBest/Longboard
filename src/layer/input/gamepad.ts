@@ -34,13 +34,24 @@ export const REPEAT_INTERVAL_MS = 100;
 const SEEK_STEP = 10;
 
 const REPEATABLE = new Set<number>([
-  Btn.Up, Btn.Down, Btn.Left, Btn.Right,
-  STICK_UP, STICK_DOWN, STICK_LEFT, STICK_RIGHT,
-  Btn.LB, Btn.RB,
+  Btn.Up,
+  Btn.Down,
+  Btn.Left,
+  Btn.Right,
+  STICK_UP,
+  STICK_DOWN,
+  STICK_LEFT,
+  STICK_RIGHT,
+  Btn.LB,
+  Btn.RB,
 ]);
 
 /** `overrides` are the user's own mappings from the config file, by button number; they win over the built-in table. */
-export function buttonToAction(button: number, mode: Mode, overrides: Readonly<Record<string, ActionName>> = {}): Action | null {
+export function buttonToAction(
+  button: number,
+  mode: Mode,
+  overrides: Readonly<Record<string, ActionName>> = {},
+): Action | null {
   if (Object.hasOwn(overrides, String(button))) return actionFor(overrides[String(button)]!);
   switch (button) {
     case Btn.Up:
@@ -159,7 +170,9 @@ export function startPolling(
   const trackers = new Map<number, RepeatTracker>();
   let stopped = false;
   let focused = true;
-  const onFocus = (): void => { focused = true; };
+  const onFocus = (): void => {
+    focused = true;
+  };
   const onBlur = (): void => {
     focused = false;
     trackers.forEach((t) => t.reset());

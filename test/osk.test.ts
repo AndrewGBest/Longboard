@@ -9,13 +9,17 @@ describe('on-screen keyboard layout', () => {
   });
 
   it('has every letter and digit once on the letters face, and what an email address needs', () => {
-    const typed = OSK_PAGES.lower.flat().filter((k) => k.kind === 'char').map((k) => k.text);
+    const typed = OSK_PAGES.lower
+      .flat()
+      .filter((k) => k.kind === 'char')
+      .map((k) => k.text);
     for (const c of 'abcdefghijklmnopqrstuvwxyz0123456789@.-_') expect(typed.filter((t) => t === c)).toHaveLength(1);
   });
 
   it('can type every printable ASCII character across its faces', () => {
     const typed = new Set(pages.flat(2).map((k) => k.text));
-    for (let code = 0x20; code < 0x7f; code++) expect(typed.has(String.fromCharCode(code)), String.fromCharCode(code)).toBe(true);
+    for (let code = 0x20; code < 0x7f; code++)
+      expect(typed.has(String.fromCharCode(code)), String.fromCharCode(code)).toBe(true);
   });
 
   it('has space, delete and enter on every face', () => {
@@ -126,20 +130,45 @@ describe('typableText', () => {
   });
 
   it('refuses control characters, long strings and non-strings', () => {
-    for (const bad of ['', '\n', '\u0008', 'a\tb', 'hello', 5, null, undefined, {}]) expect(typableText(bad)).toBeNull();
+    for (const bad of ['', '\n', '\u0008', 'a\tb', 'hello', 5, null, undefined, {}])
+      expect(typableText(bad)).toBeNull();
   });
 });
 
 describe('isSecretField, by what the site calls the field', () => {
   it('takes a code or PIN field for a secret', () => {
-    for (const name of ['otp', 'user_otp', 'pin', 'card-cvv', 'cvc', 'verificationCode', 'sms_code', 'security-code', 'totp', 'passcode', 'one_time_code']) {
+    for (const name of [
+      'otp',
+      'user_otp',
+      'pin',
+      'card-cvv',
+      'cvc',
+      'verificationCode',
+      'sms_code',
+      'security-code',
+      'totp',
+      'passcode',
+      'one_time_code',
+    ]) {
       expect(isSecretField('text', null, name), name).toBe(true);
     }
     expect(isSecretField('tel', 'cc-csc')).toBe(true);
     expect(isSecretField('text', 'cc-number')).toBe(true);
   });
   it('does not take ordinary fields for one', () => {
-    for (const name of ['search', 'q', 'email', 'username', 'shipping', 'spinner', 'pinterest', 'option', 'zipcode', 'promo', '']) {
+    for (const name of [
+      'search',
+      'q',
+      'email',
+      'username',
+      'shipping',
+      'spinner',
+      'pinterest',
+      'option',
+      'zipcode',
+      'promo',
+      '',
+    ]) {
       expect(isSecretField('text', null, name), name).toBe(false);
     }
   });

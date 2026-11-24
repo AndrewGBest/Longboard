@@ -1,0 +1,15 @@
+# Built or fetched
+dist/
+release/
+node_modules/
+package-lock.json
+
+# Pages whose exact whitespace is part of what is tested or shown
+*.html
+test/fixtures/
+
+# Evidence files, kept as captured
+profiles/**/outline.txt
+
+# Prose is wrapped and its tables are laid out by hand
+*.md

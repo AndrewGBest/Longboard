@@ -15,7 +15,15 @@ export type BlockReason = 'not-web' | 'credentials' | 'automation-spend' | 'not-
  * user name or password is refused too: it is a common disguise for a
  * look-alike site.
  */
-export function blockReason(url: string, opts: { automation: boolean; httpsOnly?: boolean; onlySites?: readonly string[] | null; extensions?: readonly string[] }): BlockReason | null {
+export function blockReason(
+  url: string,
+  opts: {
+    automation: boolean;
+    httpsOnly?: boolean;
+    onlySites?: readonly string[] | null;
+    extensions?: readonly string[];
+  },
+): BlockReason | null {
   let u: URL;
   try {
     u = new URL(url);
@@ -33,7 +41,14 @@ export function blockReason(url: string, opts: { automation: boolean; httpsOnly?
   // Automation must never reach a payment or sign-up flow, even by URL.
   if (opts.automation && looksLikeSpendUrl(url)) return 'automation-spend';
   // "Open only pages sent privately": plain http is refused, except on this machine, where nobody is on the way.
-  if (opts.httpsOnly && u.protocol === 'http:' && u.hostname !== 'localhost' && u.hostname !== '127.0.0.1' && u.hostname !== '[::1]') return 'not-secure';
+  if (
+    opts.httpsOnly &&
+    u.protocol === 'http:' &&
+    u.hostname !== 'localhost' &&
+    u.hostname !== '127.0.0.1' &&
+    u.hostname !== '[::1]'
+  )
+    return 'not-secure';
   // The parental lock: only the sites on Home open until the PIN is given.
   if (opts.onlySites && !onHomeSite(url, opts.onlySites)) return 'locked';
   return null;
@@ -60,15 +75,21 @@ export function blockedMessage(reason: BlockReason): string {
   if (reason === 'automation-spend') return 'Blocked: automation mode never opens purchase or sign-up pages';
   if (reason === 'credentials') return 'Blocked: that address carries a user name or password';
   if (reason === 'locked') return 'Locked: only the sites on Home can be opened. The menu can unlock with the PIN';
-  if (reason === 'not-secure') return 'Not opened: that page is not sent privately (http). Settings can allow such pages';
+  if (reason === 'not-secure')
+    return 'Not opened: that page is not sent privately (http). Settings can allow such pages';
   return `Blocked: ${PRODUCT.name} only opens web addresses`;
 }
 
-const escapeHtml = (s: string): string =>
-  s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const escapeHtml = (s: string): string => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** A self-contained notice page: no scripts, no remote resources. Every argument is escaped. */
-function noticePage(title: string, heading: string, paragraphs: readonly string[], detail?: { label: string; value: string }, calm = false): string {
+function noticePage(
+  title: string,
+  heading: string,
+  paragraphs: readonly string[],
+  detail?: { label: string; value: string },
+  calm = false,
+): string {
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -113,10 +134,13 @@ export function noticePageUrl(reason: BlockReason, url: string): string {
         ? `The address carries a user name or password in front of the site name. ${PRODUCT.name} does not open such addresses.`
         : reason === 'locked'
           ? `${PRODUCT.name} is locked: only the sites on Home can be opened. Open the menu and choose "Unlock every site" to give the PIN.`
-        : reason === 'not-secure'
-          ? 'This page is sent over plain http, where anyone on the way can read or change it. Settings, under Privacy, has "Open only pages sent privately" turned on; turn it off to open pages like this one.'
-          : `${PRODUCT.name} only opens web addresses (http and https). Files on this machine and internal pages are not opened.`;
-  return noticePage('page blocked', 'This page was blocked', [why], { label: 'Blocked address', value: describeBlockedUrl(url) });
+          : reason === 'not-secure'
+            ? 'This page is sent over plain http, where anyone on the way can read or change it. Settings, under Privacy, has "Open only pages sent privately" turned on; turn it off to open pages like this one.'
+            : `${PRODUCT.name} only opens web addresses (http and https). Files on this machine and internal pages are not opened.`;
+  return noticePage('page blocked', 'This page was blocked', [why], {
+    label: 'Blocked address',
+    value: describeBlockedUrl(url),
+  });
 }
 
 /**
@@ -125,7 +149,13 @@ export function noticePageUrl(reason: BlockReason, url: string): string {
  * finishes, and a slow or blocked download looks like an app that never started.
  */
 export function startingPageUrl(): string {
-  return noticePage('starting', 'Starting', ['Getting the playback component ready. On the first run this is a download and can take a moment.'], undefined, true);
+  return noticePage(
+    'starting',
+    'Starting',
+    ['Getting the playback component ready. On the first run this is a download and can take a moment.'],
+    undefined,
+    true,
+  );
 }
 
 /** Chromium's code for a navigation that was cancelled, which is what a refused navigation looks like. Not a failure. */
@@ -155,8 +185,13 @@ export function certificatePageUrl(description: string): string {
   return noticePage(
     'not secure',
     'This site is not secure',
-    ["The site's security certificate could not be verified, so the page was not opened. Longboard has no way around this, on purpose."],
-    { label: 'What the browser reported', value: description.replace(/[^A-Za-z0-9_ :.-]/g, '').slice(0, 60) || 'no details' },
+    [
+      "The site's security certificate could not be verified, so the page was not opened. Longboard has no way around this, on purpose.",
+    ],
+    {
+      label: 'What the browser reported',
+      value: description.replace(/[^A-Za-z0-9_ :.-]/g, '').slice(0, 60) || 'no details',
+    },
   );
 }
 
@@ -165,7 +200,13 @@ export function offlinePageUrl(description: string, nextTrySeconds: number): str
   return noticePage(
     'cannot connect',
     'Cannot reach this site',
-    ['Check the address and the network connection.', `Trying again in ${Math.round(nextTrySeconds)} seconds, and it will keep trying.`],
-    { label: 'What the browser reported', value: description.replace(/[^A-Za-z0-9_ :.-]/g, '').slice(0, 60) || 'no details' },
+    [
+      'Check the address and the network connection.',
+      `Trying again in ${Math.round(nextTrySeconds)} seconds, and it will keep trying.`,
+    ],
+    {
+      label: 'What the browser reported',
+      value: description.replace(/[^A-Za-z0-9_ :.-]/g, '').slice(0, 60) || 'no details',
+    },
   );
 }

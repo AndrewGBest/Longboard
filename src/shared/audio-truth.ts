@@ -21,12 +21,15 @@ export function namesDolbyAudio(type: unknown): boolean {
 }
 
 export function correctAudioAnswers(): void {
-  const names = (type: unknown): boolean => typeof type === 'string' && /codecs\s*=\s*"?[^";]*\b(ac-3|ec-3|mp4a\.a5|mp4a\.a6)\b/i.test(type);
+  const names = (type: unknown): boolean =>
+    typeof type === 'string' && /codecs\s*=\s*"?[^";]*\b(ac-3|ec-3|mp4a\.a5|mp4a\.a6)\b/i.test(type);
   const w = globalThis as unknown as {
     MediaSource?: { isTypeSupported: (type: string) => boolean };
     ManagedMediaSource?: { isTypeSupported: (type: string) => boolean };
     HTMLMediaElement?: { prototype: { canPlayType: (type: string) => string } };
-    navigator?: { mediaCapabilities?: { decodingInfo: (config: { audio?: { contentType?: string } }) => Promise<unknown> } };
+    navigator?: {
+      mediaCapabilities?: { decodingInfo: (config: { audio?: { contentType?: string } }) => Promise<unknown> };
+    };
   };
   try {
     const source = w.MediaSource;
@@ -48,7 +51,9 @@ export function correctAudioAnswers(): void {
     if (capabilities) {
       const asked = capabilities.decodingInfo.bind(capabilities);
       capabilities.decodingInfo = (config) =>
-        names(config?.audio?.contentType) ? Promise.resolve({ supported: false, smooth: false, powerEfficient: false, keySystemAccess: null }) : asked(config);
+        names(config?.audio?.contentType)
+          ? Promise.resolve({ supported: false, smooth: false, powerEfficient: false, keySystemAccess: null })
+          : asked(config);
     }
   } catch {
     // Never in a page's way: with nothing changed the page gets the engine's own answers.

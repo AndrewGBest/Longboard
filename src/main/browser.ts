@@ -3,7 +3,17 @@
 // separate renderers with separate sessions; a website can never reach the
 // chrome view or the shell (Hard rule 13).
 import { shortcutFor, type Shortcut } from '../shared/shortcuts';
-import { app, BaseWindow, ipcMain, net, powerSaveBlocker, safeStorage, session, WebContentsView, type WebContents } from 'electron';
+import {
+  app,
+  BaseWindow,
+  ipcMain,
+  net,
+  powerSaveBlocker,
+  safeStorage,
+  session,
+  WebContentsView,
+  type WebContents,
+} from 'electron';
 import { Passwords } from './passwords';
 import { PhoneTyping } from './phone';
 import { Voice } from './voice';
@@ -11,15 +21,47 @@ import { voiceModelSize } from '../shared/voice';
 import qrcode from 'qrcode-generator';
 import { cleanCredentials, loginPlace, shouldOffer } from '../shared/passwords';
 import { DECLINED, HAND_BACKS, steamAnswer, steamStorePage, steamWho, type HandBack } from './handback';
-import { accessSync, constants as fsConstants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  accessSync,
+  constants as fsConstants,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { basename, dirname, join } from 'node:path';
 import type { BootData, BridgeMessage, Direction, LayerOptions } from '../shared/actions';
 import { resolveAddress, searchUrl, siteKey, siteName } from '../shared/address';
-import { EDIT_ACTIONS, MENU_ACTIONS, SETTINGS_ACTIONS, type ChromeMessage, type ChromeState, type EditAction, type MenuAction, type Panel, type SettingsAction } from '../shared/chrome';
+import {
+  EDIT_ACTIONS,
+  MENU_ACTIONS,
+  SETTINGS_ACTIONS,
+  type ChromeMessage,
+  type ChromeState,
+  type EditAction,
+  type MenuAction,
+  type Panel,
+  type SettingsAction,
+} from '../shared/chrome';
 import { EDIT_MARKS, hasMark, marksOf, parsePicked, startDraft, toggleMark, type PickedStep } from '../shared/editor';
 import type { UserConfig } from '../shared/config';
-import { addRecent, addSaved, parseRecents, parseSaved, removeRecent, removeSaved, titleRecent, type RecentSite, type SavedPage } from '../shared/home';
+import {
+  addRecent,
+  addSaved,
+  parseRecents,
+  parseSaved,
+  removeRecent,
+  removeSaved,
+  titleRecent,
+  type RecentSite,
+  type SavedPage,
+} from '../shared/home';
 import { typableText } from '../shared/osk';
 import { playerKeyInfo } from '../shared/player-keys';
 import { parseSites, zoomStep, type SiteSettings } from '../shared/sites';
@@ -36,14 +78,31 @@ import {
   retryDelaySeconds,
   startingPageUrl,
 } from './navigation';
-import { ASKABLE, describeAsk, hasPermission, mayAsk, permissionDecision, withAnswers, type Askable } from './permissions';
+import {
+  ASKABLE,
+  describeAsk,
+  hasPermission,
+  mayAsk,
+  permissionDecision,
+  withAnswers,
+  type Askable,
+} from './permissions';
 import { sizeText, uniqueName, progressText } from '../shared/downloads';
 import { cdpPoint, PointerHolds, pointerGlide, pointerTap, startPoint, type PointerStep } from './pointer';
 import { sourceLabel, type ProfileStore } from './profiles';
 import { readJson, writeJson } from './store';
 import { MENU_TIP } from '../shared/about';
 import { launchCommand, launcherFolder, removableFolders, removeLauncher, writeLauncher } from '../platform';
-import { addApp, appFor, appPartition, launcherEntry, launcherFileName, parseApps, removeApp, type WebApp } from '../shared/apps';
+import {
+  addApp,
+  appFor,
+  appPartition,
+  launcherEntry,
+  launcherFileName,
+  parseApps,
+  removeApp,
+  type WebApp,
+} from '../shared/apps';
 import { canvasOf, deviceOf, type Profile, type ProfileSource } from '../shared/profile';
 import { buildYear, chipName, identityFor, systemName, tvBrowserUserAgent, tvUserAgent } from './useragent';
 import { desktopZoom, hoverPoint, pageBounds, tvZoom } from './zoom';
@@ -56,14 +115,31 @@ import { storeExtensionId } from '../shared/extensions';
 import { Extensions, type DownloadedExtension } from './extensions';
 import { homeSites, isPin, onHomeSite, parseLock, waitAfter, type Lock } from '../shared/lock';
 import { checkPin, makeLock } from './lock';
-import { blockingOn, cleanDomain, editStartsOff, isVerified, startsOffEntries, type BlockingMode } from '../shared/adblock';
+import {
+  blockingOn,
+  cleanDomain,
+  editStartsOff,
+  isVerified,
+  startsOffEntries,
+  type BlockingMode,
+} from '../shared/adblock';
 import { BUTTON_ACTIONS, mapButton, searchName, unmapButtons } from '../shared/settings';
 import { canSuggest, parseSearchSuggestions, suggest, suggestAddress, type Known } from '../shared/suggest';
 import { addVisit, parseHistory, titleVisit, visitLine, type Visit } from '../shared/history';
 import { PRODUCT } from '../shared/product';
 import { DEFAULT_SEARCH } from '../shared/address';
 import { NEVER_ASKABLE } from '../shared/config';
-import { ICON_SIZE, iconCandidates, iconDataUrl, manifestIcons, manifestLink, MAX_ICON_BYTES, parseIconLinks, pngFromDataUrl, type IconLink } from '../shared/icons';
+import {
+  ICON_SIZE,
+  iconCandidates,
+  iconDataUrl,
+  manifestIcons,
+  manifestLink,
+  MAX_ICON_BYTES,
+  parseIconLinks,
+  pngFromDataUrl,
+  type IconLink,
+} from '../shared/icons';
 
 export interface BrowserDeps {
   options: { dev: boolean; automation: boolean };
@@ -155,7 +231,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
 
   /** The name a site's icon is kept under while the site is on Home: nothing that can be read back into an address. */
-  const siteIconId = (url: string): string => `site-${createHash('sha256').update(siteKey(url) ?? '').digest('hex').slice(0, 16)}`;
+  const siteIconId = (url: string): string =>
+    `site-${createHash('sha256')
+      .update(siteKey(url) ?? '')
+      .digest('hex')
+      .slice(0, 16)}`;
 
   // A window with no page of its own: everything shown is one of the views below.
   const win = new BaseWindow({
@@ -181,7 +261,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   const hardened = { contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true } as const;
   // Its own session, kept in memory only: nothing a website stores is visible to it.
-  const chromeView = new WebContentsView({ webPreferences: { ...hardened, preload: join(__dirname, 'chrome.js'), partition: 'longboard-chrome' } });
+  const chromeView = new WebContentsView({
+    webPreferences: { ...hardened, preload: join(__dirname, 'chrome.js'), partition: 'longboard-chrome' },
+  });
   chromeView.setBackgroundColor('#0d1014');
   const chrome = chromeView.webContents;
 
@@ -324,7 +406,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
     const { width, height } = pageArea();
     // A profile may say what size the site should be drawn at.
     const canvas = canvasOf(profileFor(page.getURL())?.profile ?? null);
-    const usual = tvZoom({ width, height }, deps.zoomOverride ?? (config.zoom === undefined ? undefined : String(config.zoom)), canvas ?? undefined);
+    const usual = tvZoom(
+      { width, height },
+      deps.zoomOverride ?? (config.zoom === undefined ? undefined : String(config.zoom)),
+      canvas ?? undefined,
+    );
     // "Desktop site": the person asked for this site at the width of a desk screen.
     return (sites[pageSite() ?? '']?.desktop ? desktopZoom({ width, height }, usual) : usual) * (config.pageSize ?? 1);
   };
@@ -341,14 +427,26 @@ export function createBrowser(deps: BrowserDeps): Browser {
   let pinFailures = 0;
   let pinNotBefore = 0;
   /** What the PIN on screen is being asked for. `set` is the two entries of a new PIN. */
-  let pinFor: { title: string; note: string; then: () => void; back?: 'settings' } | { set: true; first: string | null } | null = null;
+  let pinFor:
+    { title: string; note: string; then: () => void; back?: 'settings' } | { set: true; first: string | null } | null =
+    null;
   const saveLock = (): void => {
     if (lock) writeJson(lockFile, lock);
     else rmSync(lockFile, { force: true });
   };
   /** The sites that open without the PIN, or null when every site does. */
   const onlySites = (): string[] | null => (lock?.homeOnly && !unlocked ? homeSites([...apps, ...saved]) : null);
-  const navRules = (): { automation: boolean; httpsOnly: boolean; onlySites: string[] | null; extensions: string[] } => ({ automation: options.automation, httpsOnly: config.httpsOnly === true, onlySites: onlySites(), extensions: extensions.ids() });
+  const navRules = (): {
+    automation: boolean;
+    httpsOnly: boolean;
+    onlySites: string[] | null;
+    extensions: string[];
+  } => ({
+    automation: options.automation,
+    httpsOnly: config.httpsOnly === true,
+    onlySites: onlySites(),
+    extensions: extensions.ids(),
+  });
   /**
    * Locking: a page that is not on one of Home's sites gives way to the
    * notice saying so, in every tab, and Back leads to nothing opened while
@@ -381,18 +479,22 @@ export function createBrowser(deps: BrowserDeps): Browser {
     layout();
   };
   /** The same, for changes to what is on Home: asked for only while Home decides which sites open. */
-  const withPinForHome = (then: () => void): void => (lock?.homeOnly && !unlocked ? withPin('Enter the PIN to change what is on Home', then) : then());
+  const withPinForHome = (then: () => void): void =>
+    lock?.homeOnly && !unlocked ? withPin('Enter the PIN to change what is on Home', then) : then();
 
   // ---- Saved sign-ins (Hard rule 10) ----------------------------------------
   // Kept only when the person says so, encrypted by the system's keyring;
   // without a keyring nothing is kept. Never in a scripted run.
   const passwords = new Passwords(join(dataDir, 'passwords.json'), {
     // "basic_text" is Chromium's fallback when the system has no keyring: a fixed key, which keeps nothing safe.
-    available: async () => (process.platform !== 'linux' || !['basic_text', 'unknown'].includes(safeStorage.getSelectedStorageBackend())) && (await safeStorage.isAsyncEncryptionAvailable()),
+    available: async () =>
+      (process.platform !== 'linux' || !['basic_text', 'unknown'].includes(safeStorage.getSelectedStorageBackend())) &&
+      (await safeStorage.isAsyncEncryptionAvailable()),
     encrypt: async (text) => {
       const secret = await safeStorage.encryptStringAsync(text);
       // On Linux what the keyring protected starts "v11"; "v10" is the fixed key again, used when the keyring could not be reached after all.
-      if (process.platform === 'linux' && secret.subarray(0, 3).toString('latin1') === 'v10') throw new Error('the keyring did not protect it');
+      if (process.platform === 'linux' && secret.subarray(0, 3).toString('latin1') === 'v10')
+        throw new Error('the keyring did not protect it');
       return secret;
     },
     decrypt: async (secret) => (await safeStorage.decryptStringAsync(secret)).result,
@@ -425,7 +527,17 @@ export function createBrowser(deps: BrowserDeps): Browser {
     phoneHeld = { id, text: text.replace(/[\u0000-\u001f\u007f]+/g, ' '), to: front, at: Date.now(), from };
     front.send('longboard:phone-text', id);
   };
-  const PHONE_BUTTONS = { up: 'Up', down: 'Down', left: 'Left', right: 'Right', ok: 'Return', enter: 'Return', back: 'Escape', delete: 'Backspace', playPause: 'MediaPlayPause' } as const;
+  const PHONE_BUTTONS = {
+    up: 'Up',
+    down: 'Down',
+    left: 'Left',
+    right: 'Right',
+    ok: 'Return',
+    enter: 'Return',
+    back: 'Escape',
+    delete: 'Backspace',
+    playPause: 'MediaPlayPause',
+  } as const;
   const phone = new PhoneTyping(
     join(__dirname, 'phone.js'),
     (message) => {
@@ -464,7 +576,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
       else if (e.kind === 'heard') {
         if (e.text) typeHeld(e.text, 'voice');
         else notify('Nothing could be made out');
-      } else notify(e.why === 'microphone' ? 'No microphone could be used on this machine' : e.why === 'nothing' ? 'Nothing was heard' : 'The speech engine could not start');
+      } else
+        notify(
+          e.why === 'microphone'
+            ? 'No microphone could be used on this machine'
+            : e.why === 'nothing'
+              ? 'Nothing was heard'
+              : 'The speech engine could not start',
+        );
     },
   });
   /** Opens what was typed or said: an address, or words to search for. */
@@ -498,7 +617,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
     code.addData(text);
     code.make();
     const size = code.getModuleCount();
-    return Array.from({ length: size }, (_r, row) => Array.from({ length: size }, (_c, col) => (code.isDark(row, col) ? '1' : '0')).join(''));
+    return Array.from({ length: size }, (_r, row) =>
+      Array.from({ length: size }, (_c, col) => (code.isDark(row, col) ? '1' : '0')).join(''),
+    );
   };
 
   // ---- Suggestions from the search site (off as shipped; Hard rule 12) -----
@@ -512,15 +633,20 @@ export function createBrowser(deps: BrowserDeps): Browser {
     clearTimeout(suggestTimer);
     suggestAsk?.abort();
     suggestAsk = null;
-    const at = isPrivate(partition) ? null : suggestAddress(typed, config.searchSuggestions, config.search ?? DEFAULT_SEARCH);
+    const at = isPrivate(partition)
+      ? null
+      : suggestAddress(typed, config.searchSuggestions, config.search ?? DEFAULT_SEARCH);
     if (!at) return Promise.resolve([]);
     const ask = (suggestAsk = new AbortController());
     return new Promise((resolve) => {
       // A short wait, so a word typed quickly is asked about once.
       suggestTimer = setTimeout(() => {
         const giveUp = setTimeout(() => ask.abort(), 2500);
-        net.fetch(at, { credentials: 'omit', cache: 'no-store', redirect: 'error', signal: ask.signal })
-          .then(async (response) => (response.ok ? parseSearchSuggestions(JSON.parse((await response.text()).slice(0, 20_000)), typed) : []))
+        net
+          .fetch(at, { credentials: 'omit', cache: 'no-store', redirect: 'error', signal: ask.signal })
+          .then(async (response) =>
+            response.ok ? parseSearchSuggestions(JSON.parse((await response.text()).slice(0, 20_000)), typed) : [],
+          )
           .then(resolve, () => resolve([]))
           .finally(() => clearTimeout(giveUp));
       }, 180);
@@ -538,12 +664,27 @@ export function createBrowser(deps: BrowserDeps): Browser {
     cover: surface === 'page' && !panel ? covering : null,
     version: app.getVersion(),
     home: {
-      apps: apps.map((a) => ({ id: a.id, name: a.name, site: siteName(a.url), icon: iconOf(a.id), ownSession: a.ownSession })),
+      apps: apps.map((a) => ({
+        id: a.id,
+        name: a.name,
+        site: siteName(a.url),
+        icon: iconOf(a.id),
+        ownSession: a.ownSession,
+      })),
       saved: saved.map((p) => ({ ...p, icon: iconOf(siteIconId(p.url)) })),
       privateTab: isPrivate(partition),
       recents: recents.map((r) => {
         const source = profileFor(r.url)?.source;
-        return { ...r, icon: iconOf(siteIconId(r.url)), profile: source === 'local' ? ('own' as const) : source === 'catalogue' || source === 'builtin' ? ('reviewed' as const) : null };
+        return {
+          ...r,
+          icon: iconOf(siteIconId(r.url)),
+          profile:
+            source === 'local'
+              ? ('own' as const)
+              : source === 'catalogue' || source === 'builtin'
+                ? ('reviewed' as const)
+                : null,
+        };
       }),
     },
     page: pageLoaded()
@@ -558,21 +699,32 @@ export function createBrowser(deps: BrowserDeps): Browser {
           pointer: pointerOn,
           profile: ((p) => (p ? `${p.profile.name} (${sourceLabel(p.source)})` : null))(profileFor(page.getURL())),
           answers: ((given) => {
-            const said = (which: 'granted' | 'denied'): string => (Object.keys(given) as Askable[]).filter((n) => given[n] === which).map((n) => ASKABLE[n]).join(', ');
-            const parts = [said('granted') && `Allowed to: ${said('granted')}`, said('denied') && `Not allowed to: ${said('denied')}`].filter(Boolean);
+            const said = (which: 'granted' | 'denied'): string =>
+              (Object.keys(given) as Askable[])
+                .filter((n) => given[n] === which)
+                .map((n) => ASKABLE[n])
+                .join(', ');
+            const parts = [
+              said('granted') && `Allowed to: ${said('granted')}`,
+              said('denied') && `Not allowed to: ${said('denied')}`,
+            ].filter(Boolean);
             return parts.length ? parts.join('. ') : null;
           })(sites[pageSite() ?? '']?.answers ?? {}),
           secure: /^https:/i.test(page.getURL()) || /^http:\/\/(localhost|127\.0\.0\.1)[:/]/i.test(page.getURL()),
-          logins: loginsOn() && loginForms.get(page) === page.getURL() ? passwords.users(loginPlace(page.getURL())) : [],
+          logins:
+            loginsOn() && loginForms.get(page) === page.getURL() ? passwords.users(loginPlace(page.getURL())) : [],
           keepPassword: loginsOn() ? (typedNow(page)?.user ?? null) : null,
           saved: saved.some((p) => p.url === page.getURL()),
-          storeExtension: storeExtensionId(page.getURL()) !== null && !extensions.ids().includes(storeExtensionId(page.getURL()) ?? ''),
+          storeExtension:
+            storeExtensionId(page.getURL()) !== null &&
+            !extensions.ids().includes(storeExtensionId(page.getURL()) ?? ''),
           desktop: sites[pageSite() ?? '']?.desktop === true,
           profileOff: sites[pageSite() ?? '']?.profile === false,
           adBlocking: ((key) => {
             if (!key) return null;
             const mode = deps.adBlock.mode();
-            if (mode === 'off') return { on: false, locked: true, note: 'Ad blocking is off everywhere. Settings can turn it on.' };
+            if (mode === 'off')
+              return { on: false, locked: true, note: 'Ad blocking is off everywhere. Settings can turn it on.' };
             const on = blockingAt(page.getURL());
             const chosen = typeof sites[key]?.adBlocking === 'boolean';
             const count = refused.get(page) ?? 0;
@@ -601,8 +753,15 @@ export function createBrowser(deps: BrowserDeps): Browser {
             pageSize: config.pageSize ?? 1,
             adBlocking: {
               mode: deps.adBlock.mode(),
-              listUpdated: ((at) => (at === null ? 'not downloaded yet' : `downloaded ${new Date(at).toISOString().slice(0, 10)}`))(deps.adBlock.fetchedAt()),
-              startsOff: startsOffEntries(deps.adBlock.reviewed(), config.adBlockingStartsOff, config.adBlockingStartsOn),
+              listUpdated: ((at) =>
+                at === null ? 'not downloaded yet' : `downloaded ${new Date(at).toISOString().slice(0, 10)}`)(
+                deps.adBlock.fetchedAt(),
+              ),
+              startsOff: startsOffEntries(
+                deps.adBlock.reviewed(),
+                config.adBlockingStartsOff,
+                config.adBlockingStartsOn,
+              ),
             },
             catalogue: config.catalogue !== false,
             profiles: deps.profiles.count,
@@ -613,10 +772,17 @@ export function createBrowser(deps: BrowserDeps): Browser {
             downloads: downloadsDir(),
             dataFolder: dataDir,
             httpsOnly: config.httpsOnly === true,
-            extensions: extensions.list().map((e) => ({ id: e.id, name: e.name, version: e.version, opens: e.options ?? e.popup })),
+            extensions: extensions
+              .list()
+              .map((e) => ({ id: e.id, name: e.name, version: e.version, opens: e.options ?? e.popup })),
             extensionUpdates: config.extensionUpdates !== false,
             voiceModel: voice.modelReady(),
-            passwords: { available: passwords.available(), offer: config.passwords !== false, logins: passwords.list(), never: passwords.never().map((n) => n.replace(/^https?:\/\//, '')) },
+            passwords: {
+              available: passwords.available(),
+              offer: config.passwords !== false,
+              logins: passwords.list(),
+              never: passwords.never().map((n) => n.replace(/^https?:\/\//, '')),
+            },
             update: deps.settings.update(),
             lock: lock ? { homeOnly: lock.homeOnly } : null,
             doNotTrack: config.doNotTrack === true,
@@ -628,7 +794,12 @@ export function createBrowser(deps: BrowserDeps): Browser {
             history: config.history !== false,
             visits: visits.length,
             language: config.language ?? null,
-            buttons: BUTTON_ACTIONS.map((a) => ({ ...a, keys: Object.entries(config.keys).filter(([, action]) => action === a.action).map(([key]) => key) })),
+            buttons: BUTTON_ACTIONS.map((a) => ({
+              ...a,
+              keys: Object.entries(config.keys)
+                .filter(([, action]) => action === a.action)
+                .map(([key]) => key),
+            })),
             capturing,
             folders: pickAt === null ? null : foldersAt(pickAt),
           },
@@ -636,12 +807,21 @@ export function createBrowser(deps: BrowserDeps): Browser {
       const wc = views.get(place)?.webContents;
       const url = wc && !wc.isDestroyed() ? wc.getURL() : '';
       const loaded = !isNotice(url);
-      return { id: place, title: loaded && wc ? wc.getTitle().slice(0, 80) : '', site: loaded ? siteName(url) : '', current: place === partition, private: isPrivate(place) };
+      return {
+        id: place,
+        title: loaded && wc ? wc.getTitle().slice(0, 80) : '',
+        site: loaded ? siteName(url) : '',
+        current: place === partition,
+        private: isPrivate(place),
+      };
     }),
     history: panel === 'history' ? visits.map((v) => visitLine(v, Date.now())) : null,
     closedTabs: closedTabs.length,
     phoneOn: phone.on,
-    phone: ((url) => (panel === 'phone' && url ? { url: url.replace(/#.*$/, ''), code: codeFor(url), connected: phone.connected } : null))(phone.url),
+    phone: ((url) =>
+      panel === 'phone' && url
+        ? { url: url.replace(/#.*$/, ''), code: codeFor(url), connected: phone.connected }
+        : null)(phone.url),
     downloads: downloads.map((d) => ({
       id: d.id,
       name: d.name,
@@ -659,7 +839,12 @@ export function createBrowser(deps: BrowserDeps): Browser {
                   matches: step.matches,
                   canWiden: e.level < e.chain.length - 1,
                   canNarrow: e.level > 0,
-                  marks: { include: hasMark(e.draft, 'include', step.selector), exclude: hasMark(e.draft, 'exclude', step.selector), row: hasMark(e.draft, 'row', step.selector), player: hasMark(e.draft, 'player', step.selector) },
+                  marks: {
+                    include: hasMark(e.draft, 'include', step.selector),
+                    exclude: hasMark(e.draft, 'exclude', step.selector),
+                    row: hasMark(e.draft, 'row', step.selector),
+                    player: hasMark(e.draft, 'player', step.selector),
+                  },
                 }
               : null)(edit.chain[edit.level], edit),
           marked: ((m) => EDIT_MARKS.reduce((n, mark) => n + m[mark].length, 0))(marksOf(edit.draft)),
@@ -670,23 +855,53 @@ export function createBrowser(deps: BrowserDeps): Browser {
       panel !== 'pin' || !pinFor
         ? null
         : 'set' in pinFor
-          ? { title: pinFor.first === null ? 'Choose a PIN: four digits' : 'Enter the same PIN again', note: `If the PIN is forgotten, deleting lock.json in ${dataDir} removes the lock.`, waitSeconds: 0 }
-          : { title: pinFor.title, note: pinFor.note, waitSeconds: Math.max(0, Math.ceil((pinNotBefore - Date.now()) / 1000)) },
+          ? {
+              title: pinFor.first === null ? 'Choose a PIN: four digits' : 'Enter the same PIN again',
+              note: `If the PIN is forgotten, deleting lock.json in ${dataDir} removes the lock.`,
+              waitSeconds: 0,
+            }
+          : {
+              title: pinFor.title,
+              note: pinFor.note,
+              waitSeconds: Math.max(0, Math.ceil((pinNotBefore - Date.now()) / 1000)),
+            },
     prompt: !pending
       ? null
       : pending.what === 'profile'
-        ? { what: 'profile', name: pending.profile.name, version: pending.profile.version, hosts: pending.profile.match.hosts.slice(0, 6) }
+        ? {
+            what: 'profile',
+            name: pending.profile.name,
+            version: pending.profile.version,
+            hosts: pending.profile.match.hosts.slice(0, 6),
+          }
         : pending.what === 'extension'
-          ? { what: 'extension', name: pending.extension.name, version: pending.extension.version, can: pending.extension.can, cannot: pending.extension.cannot }
-        : pending.what === 'handBack'
-          ? { what: 'handBack', site: HAND_BACKS[pending.ask.what].site, wants: HAND_BACKS[pending.ask.what].wants, to: pending.ask.to }
-        : pending.what === 'voiceModel'
-          ? { what: 'voiceModel', size: voiceModelSize() }
-        : pending.what === 'password'
-          ? { what: 'password', site: pending.place.replace(/^https?:\/\//, ''), user: pending.user }
-        : pending.what === 'download'
-          ? { what: 'download', site: pending.download.site, name: pending.download.name, size: sizeText(pending.download.item.getTotalBytes()), folder: downloadsDir() }
-          : { what: 'permission', site: pending.site, wants: describeAsk(pending.names) },
+          ? {
+              what: 'extension',
+              name: pending.extension.name,
+              version: pending.extension.version,
+              can: pending.extension.can,
+              cannot: pending.extension.cannot,
+            }
+          : pending.what === 'handBack'
+            ? {
+                what: 'handBack',
+                site: HAND_BACKS[pending.ask.what].site,
+                wants: HAND_BACKS[pending.ask.what].wants,
+                to: pending.ask.to,
+              }
+            : pending.what === 'voiceModel'
+              ? { what: 'voiceModel', size: voiceModelSize() }
+              : pending.what === 'password'
+                ? { what: 'password', site: pending.place.replace(/^https?:\/\//, ''), user: pending.user }
+                : pending.what === 'download'
+                  ? {
+                      what: 'download',
+                      site: pending.download.site,
+                      name: pending.download.name,
+                      size: sizeText(pending.download.item.getTotalBytes()),
+                      folder: downloadsDir(),
+                    }
+                  : { what: 'permission', site: pending.site, wants: describeAsk(pending.names) },
   });
 
   /** What the folder chooser shows for a folder: the folders in it, the one above, and a few places to start from. */
@@ -702,7 +917,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
       // a folder that cannot be read shows as empty
     }
     const up = dirname(path);
-    const places = [{ name: 'Home folder', path: app.getPath('home') }, { name: 'Downloads', path: deps.downloads }, ...removableFolders().map((p) => ({ name: `USB: ${basename(p)}`, path: p }))];
+    const places = [
+      { name: 'Home folder', path: app.getPath('home') },
+      { name: 'Downloads', path: deps.downloads },
+      ...removableFolders().map((p) => ({ name: `USB: ${basename(p)}`, path: p })),
+    ];
     return { path, up: up === path ? null : up, inside, places };
   };
   const isFolder = (path: unknown): path is string => {
@@ -772,7 +991,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
         // The site's page no longer says who is signed in the way known here.
         // Nothing can be shared, and both the person and the program waiting are told so.
         writeHandBack(ask, DECLINED);
-        notify(`${site}'s pages have changed and ${PRODUCT.name} can no longer tell who is signed in, so nothing was shared`);
+        notify(
+          `${site}'s pages have changed and ${PRODUCT.name} can no longer tell who is signed in, so nothing was shared`,
+        );
         return;
       }
       if (pending || win.isDestroyed() || wc !== page || surface !== 'page') return;
@@ -783,7 +1004,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
       // Not reachable just now. Said once; the next page the person opens there looks again.
       if (wanted === ask && !saidUnreachable.has(ask)) {
         saidUnreachable.add(ask);
-        notify(`${site} did not answer when asked who is signed in. ${PRODUCT.name} will look again on the next ${site} page you open`);
+        notify(
+          `${site} did not answer when asked who is signed in. ${PRODUCT.name} will look again on the next ${site} page you open`,
+        );
       }
     } finally {
       lookingForAccount = false;
@@ -792,9 +1015,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const saidUnreachable = new WeakSet<HandBack>();
   // A page of the store reached either way: by a new page, or by the site changing the address of the one it is on.
   eachPage((wc) => wc.on('did-navigate', (_e, url) => void lookForHandBack(wc, url)));
-  eachPage((wc) => wc.on('did-navigate-in-page', (_e, url, isMainFrame) => {
-    if (isMainFrame) void lookForHandBack(wc, url);
-  }));
+  eachPage((wc) =>
+    wc.on('did-navigate-in-page', (_e, url, isMainFrame) => {
+      if (isMainFrame) void lookForHandBack(wc, url);
+    }),
+  );
 
   /** Opens the sign-in page for what was asked for. One request at a time: a new one replaces one not yet answered. */
   const handBack = (ask: HandBack): void => {
@@ -855,7 +1080,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
       // With the app's window itself not in front, the view goes by what its own window hears, as before.
       const on = wc !== front ? false : windowAway ? null : true;
       wc.send('longboard:front', on);
-      if (wc === page) for (const f of wc.mainFrame.framesInSubtree) if (f !== wc.mainFrame && !f.isDestroyed()) f.send('longboard:front', on);
+      if (wc === page)
+        for (const f of wc.mainFrame.framesInSubtree)
+          if (f !== wc.mainFrame && !f.isDestroyed()) f.send('longboard:front', on);
     }
   };
   // A page that has just come takes whatever lies under the idle pointer
@@ -958,7 +1185,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // said on the first website of each run, until the menu has once been
   // opened on a website. A scripted run is told only when it asks to be.
   const tipsFile = join(dataDir, 'tips.json');
-  let menuTip = (readJson(tipsFile) as { menu?: unknown } | undefined)?.menu !== true && (!options.automation || process.env['LONGBOARD_TIPS'] === '1');
+  let menuTip =
+    (readJson(tipsFile) as { menu?: unknown } | undefined)?.menu !== true &&
+    (!options.automation || process.env['LONGBOARD_TIPS'] === '1');
   let menuTipTimer: NodeJS.Timeout | undefined;
   const menuLearned = (): void => {
     clearTimeout(menuTipTimer);
@@ -998,7 +1227,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (again) {
         closedTabs.pop();
         open(again, true);
-      } else notify(op === 'private' ? 'A private tab. Nothing opened here is kept' : 'A new tab. Open an address or a tile');
+      } else
+        notify(
+          op === 'private' ? 'A private tab. Nothing opened here is kept' : 'A new tab. Open an address or a tile',
+        );
       return;
     }
     if (typeof id !== 'string' || !isTab(id) || !views.has(id)) return;
@@ -1167,7 +1399,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     const entries = history.getAllEntries();
     const at = history.getActiveIndex();
     const here = entries[at]?.url ?? '';
-    const notice = (url: string | undefined): boolean => url === undefined || isNotice(url) || url.startsWith('chrome-error:');
+    const notice = (url: string | undefined): boolean =>
+      url === undefined || isNotice(url) || url.startsWith('chrome-error:');
     let i = at - 1;
     const skip = notice(here) ? entries[i]?.url : here;
     while (i >= 0 && (notice(entries[i]?.url) || entries[i]?.url === skip)) i -= 1;
@@ -1180,35 +1413,40 @@ export function createBrowser(deps: BrowserDeps): Browser {
     else showHome();
   };
 
-  eachPage((wc) => wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
-    if (wc !== page || !isMainFrame || !isLoadFailure(code, url)) return;
-    console.error(`[longboard] page failed to load (${code} ${description}): ${describeBlockedUrl(url)}`);
-    if (blockReason(url, navRules())) return;
-    clearTimeout(retryTimer);
-    if (isCertificateError(code)) {
-      void page.loadURL(certificatePageUrl(description));
-      return;
-    }
-    retryAttempt += 1;
-    const wait = retryDelaySeconds(retryAttempt);
-    void page.loadURL(offlinePageUrl(description, wait));
-    retryTimer = setTimeout(() => {
-      // Only while the notice is still what is shown: the person may have moved on.
-      if (!page.isDestroyed() && page.getURL().startsWith('data:')) void page.loadURL(url).catch(() => undefined);
-    }, wait * 1000);
-  }));
-  eachPage((wc) => wc.on('did-navigate', (_e, url) => {
-    if (wc !== page) return;
-    if (!isNotice(url)) {
-      retryAttempt = 0;
-      pageShown = true;
-    }
-    // A profile may keep the edges of the screen clear, so where the page is drawn can change with the address.
-    const area = pageArea();
-    const now = pageView.getBounds();
-    if (panel || area.x !== now.x || area.y !== now.y || area.width !== now.width || area.height !== now.height) layout();
-    applyZoom();
-  }));
+  eachPage((wc) =>
+    wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
+      if (wc !== page || !isMainFrame || !isLoadFailure(code, url)) return;
+      console.error(`[longboard] page failed to load (${code} ${description}): ${describeBlockedUrl(url)}`);
+      if (blockReason(url, navRules())) return;
+      clearTimeout(retryTimer);
+      if (isCertificateError(code)) {
+        void page.loadURL(certificatePageUrl(description));
+        return;
+      }
+      retryAttempt += 1;
+      const wait = retryDelaySeconds(retryAttempt);
+      void page.loadURL(offlinePageUrl(description, wait));
+      retryTimer = setTimeout(() => {
+        // Only while the notice is still what is shown: the person may have moved on.
+        if (!page.isDestroyed() && page.getURL().startsWith('data:')) void page.loadURL(url).catch(() => undefined);
+      }, wait * 1000);
+    }),
+  );
+  eachPage((wc) =>
+    wc.on('did-navigate', (_e, url) => {
+      if (wc !== page) return;
+      if (!isNotice(url)) {
+        retryAttempt = 0;
+        pageShown = true;
+      }
+      // A profile may keep the edges of the screen clear, so where the page is drawn can change with the address.
+      const area = pageArea();
+      const now = pageView.getBounds();
+      if (panel || area.x !== now.x || area.y !== now.y || area.width !== now.width || area.height !== now.height)
+        layout();
+      applyZoom();
+    }),
+  );
   // History: every page that arrives in the view in front, while the setting is on.
   const visited = (wc: WebContents, url: string): void => {
     if (wc !== page || isNotice(url) || config.history === false || isPrivate(partition)) return;
@@ -1216,24 +1454,38 @@ export function createBrowser(deps: BrowserDeps): Browser {
     saveHistory();
   };
   eachPage((wc) => wc.on('did-navigate', (_e, url) => visited(wc, url)));
-  eachPage((wc) => wc.on('did-navigate-in-page', (_e, url, isMainFrame) => {
-    if (isMainFrame) visited(wc, url);
-  }));
-  eachPage((wc) => wc.on('page-title-updated', (_e, title) => {
-    if (wc === page && !isNotice(page.getURL()) && config.history !== false && !isPrivate(partition) && visits[0]?.url === page.getURL()) {
-      visits = titleVisit(visits, page.getURL(), title);
-      saveHistory();
-    }
-  }));
-  eachPage((wc) => wc.on('page-title-updated', (_e, title) => {
-    if (wc !== page || !titleFor || isNotice(page.getURL())) return;
-    recents = titleRecent(recents, titleFor, title);
-    titleFor = null;
-    saveRecents();
-  }));
-  eachPage((wc) => wc.on('render-process-gone', (_e, details) => {
-    console.error(`[longboard] page renderer exited: ${details.reason}`);
-  }));
+  eachPage((wc) =>
+    wc.on('did-navigate-in-page', (_e, url, isMainFrame) => {
+      if (isMainFrame) visited(wc, url);
+    }),
+  );
+  eachPage((wc) =>
+    wc.on('page-title-updated', (_e, title) => {
+      if (
+        wc === page &&
+        !isNotice(page.getURL()) &&
+        config.history !== false &&
+        !isPrivate(partition) &&
+        visits[0]?.url === page.getURL()
+      ) {
+        visits = titleVisit(visits, page.getURL(), title);
+        saveHistory();
+      }
+    }),
+  );
+  eachPage((wc) =>
+    wc.on('page-title-updated', (_e, title) => {
+      if (wc !== page || !titleFor || isNotice(page.getURL())) return;
+      recents = titleRecent(recents, titleFor, title);
+      titleFor = null;
+      saveRecents();
+    }),
+  );
+  eachPage((wc) =>
+    wc.on('render-process-gone', (_e, details) => {
+      console.error(`[longboard] page renderer exited: ${details.reason}`);
+    }),
+  );
 
   const NOTICE_GAP_MS = 5000;
   /** Returns true when `url` may load. A refusal is always logged and shown, never silent. */
@@ -1263,29 +1515,37 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (!page.isDestroyed()) void page.loadURL(entry).catch(() => undefined);
     });
   };
-  eachPage((wc) => wc.on('will-navigate', (e, url) => {
-    if (wc !== page || !allowed(url)) e.preventDefault();
-    else byEntry(wc, e, url);
-  }));
+  eachPage((wc) =>
+    wc.on('will-navigate', (e, url) => {
+      if (wc !== page || !allowed(url)) e.preventDefault();
+      else byEntry(wc, e, url);
+    }),
+  );
   // Frames inside a page are the site's own business; only
   // where the view itself goes is checked.
-  eachPage((wc) => wc.on('will-redirect', (e, url, _isInPlace, isMainFrame) => {
-    if (!isMainFrame) return;
-    if (wc !== page || !allowed(url)) e.preventDefault();
-    else byEntry(wc, e, url);
-  }));
+  eachPage((wc) =>
+    wc.on('will-redirect', (e, url, _isInPlace, isMainFrame) => {
+      if (!isMainFrame) return;
+      if (wc !== page || !allowed(url)) e.preventDefault();
+      else byEntry(wc, e, url);
+    }),
+  );
   // No pop-up windows: a link that asks for one opens in the same view.
-  eachPage((wc) => wc.setWindowOpenHandler(({ url }) => {
-    // An empty window a script means to fill in later is refused outright:
-    // opened in this view it would put a blank page in place of the site.
-    if (wc === page && allowed(url) && !isNotice(url)) void page.loadURL(url).catch(() => undefined);
-    return { action: 'deny' };
-  }));
+  eachPage((wc) =>
+    wc.setWindowOpenHandler(({ url }) => {
+      // An empty window a script means to fill in later is refused outright:
+      // opened in this view it would put a blank page in place of the site.
+      if (wc === page && allowed(url) && !isNotice(url)) void page.loadURL(url).catch(() => undefined);
+      return { action: 'deny' };
+    }),
+  );
 
   const tvCss = readFileSync(join(__dirname, 'tv.css'), 'utf8');
-  eachPage((wc) => wc.on('dom-ready', () => {
-    void wc.insertCSS(tvCss, { cssOrigin: 'user' });
-  }));
+  eachPage((wc) =>
+    wc.on('dom-ready', () => {
+      void wc.insertCSS(tvCss, { cssOrigin: 'user' });
+    }),
+  );
 
   // The chrome view shows one file and goes nowhere else.
   chrome.on('will-navigate', (e) => e.preventDefault());
@@ -1306,7 +1566,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // reach: maps, canvases, embedded frames. Everything it does is an ordinary
   // mouse event sent to the page, so the page cannot tell it from a mouse and
   // nothing in the page is touched. The layer only draws the arrow.
-  const pointer = { x: 0, y: 0, holds: new PointerHolds(), timer: undefined as NodeJS.Timeout | undefined, last: 0, checkId: 0 };
+  const pointer = {
+    x: 0,
+    y: 0,
+    holds: new PointerHolds(),
+    timer: undefined as NodeJS.Timeout | undefined,
+    last: 0,
+    checkId: 0,
+  };
   const pageSize = (): { width: number; height: number } => {
     const b = pageView.getBounds();
     return { width: b.width, height: b.height };
@@ -1333,7 +1600,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
       void wc.debugger.sendCommand('Page.setWebLifecycleState', { state }).catch(() => undefined);
     } catch (err) {
-      console.error(`[longboard] a page could not be ${state === 'frozen' ? 'paused' : 'woken'} (${String(err).slice(0, 120)})`);
+      console.error(
+        `[longboard] a page could not be ${state === 'frozen' ? 'paused' : 'woken'} (${String(err).slice(0, 120)})`,
+      );
     }
   };
   const freeze = (wc: WebContents): void => {
@@ -1360,9 +1629,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
     }, FREEZE_DELAY_MS);
   };
   // A page that goes somewhere new starts awake: the frozen state belongs to the page that was left.
-  eachPage((wc) => wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
-    if (isMainFrame && !isInPlace) thaw(wc);
-  }));
+  eachPage((wc) =>
+    wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
+      if (isMainFrame && !isInPlace) thaw(wc);
+    }),
+  );
 
   /** Keys Longboard has just sent a view itself, so they are not taken for a person's. */
   const ownKeys: Array<{ to: WebContents; key: string; until: number }> = [];
@@ -1391,9 +1662,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
       // already gone
     }
   };
-  eachPage((wc) => wc.debugger.on('detach', () => {
-    if (wc === page) attached = false;
-  }));
+  eachPage((wc) =>
+    wc.debugger.on('detach', () => {
+      if (wc === page) attached = false;
+    }),
+  );
   type Mouse = { type: 'move' } | { type: 'down' | 'up' } | { type: 'wheel'; dx: number; dy: number };
   const mouse = (x: number, y: number, what: Mouse): void => {
     if (page.isDestroyed()) return;
@@ -1411,10 +1684,19 @@ export function createBrowser(deps: BrowserDeps): Browser {
       page.debugger.sendCommand('Input.dispatchMouseEvent', params).catch(() => undefined);
       return;
     }
-    if (what.type === 'move') page.sendInputEvent({ type: 'mouseMove', x, y, globalX: x, globalY: y, movementX: 0, movementY: 0 });
+    if (what.type === 'move')
+      page.sendInputEvent({ type: 'mouseMove', x, y, globalX: x, globalY: y, movementX: 0, movementY: 0 });
     // A wheel's "up" is positive for sendInputEvent; the amounts here are "down is positive".
-    else if (what.type === 'wheel') page.sendInputEvent({ type: 'mouseWheel', x, y, deltaX: -what.dx, deltaY: -what.dy, canScroll: true });
-    else page.sendInputEvent({ type: what.type === 'down' ? 'mouseDown' : 'mouseUp', x, y, button: 'left', clickCount: 1 });
+    else if (what.type === 'wheel')
+      page.sendInputEvent({ type: 'mouseWheel', x, y, deltaX: -what.dx, deltaY: -what.dy, canScroll: true });
+    else
+      page.sendInputEvent({
+        type: what.type === 'down' ? 'mouseDown' : 'mouseUp',
+        x,
+        y,
+        button: 'left',
+        clickCount: 1,
+      });
   };
   const showPointer = (): void => {
     if (page.isDestroyed()) return;
@@ -1504,9 +1786,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
     showPointer();
   };
   // A new page has a new layer, which has to be told the pointer is out.
-  eachPage((wc) => wc.on('dom-ready', () => {
-    if (wc === page && pointerOn) showPointer();
-  }));
+  eachPage((wc) =>
+    wc.on('dom-ready', () => {
+      if (wc === page && pointerOn) showPointer();
+    }),
+  );
   // While the on-screen keyboard is up for a text field inside an embedded
   // frame, that frame has the keys. The shell takes the arrows, OK and Back
   // before the frame sees them and hands them to the page's layer, which
@@ -1514,31 +1798,40 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // backspace) are let through, as is anything typed on a real keyboard.
   let frameField: { pointer: boolean } | null = null;
   const sentKeys: { key: string; until: number }[] = [];
-  eachPage((wc) => wc.on('before-input-event', (event, input) => {
-    if (wc !== page || !frameField || pointerOn || active() !== page) return;
-    const now = Date.now();
-    while (sentKeys.length && sentKeys[0]!.until < now) sentKeys.shift();
-    const mine = sentKeys.findIndex((k) => k.key === input.key);
-    if (mine !== -1) {
-      if (input.type === 'keyUp') sentKeys.splice(mine, 1);
-      return;
-    }
-    if (input.key === 'Backspace') return;
-    const action = keyToAction({ key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift }, 'browse', config.keys);
-    if (!action || (action.type !== 'move' && action.type !== 'select' && action.type !== 'back')) return;
-    event.preventDefault();
-    // Handed over after this event has been dealt with: acting on the page
-    // from inside the handling of a key event stalls the key (as in pointer mode).
-    if (input.type === 'keyDown') setImmediate(() => {
-      if (frameField && !page.isDestroyed()) page.send('longboard:frame-key', action);
-    });
-  }));
-  eachPage((wc) => wc.on('did-start-navigation', (details) => {
-    if (wc === page && details.isMainFrame && !details.isSameDocument && frameField) {
-      frameField = null;
-      if (!pointerOn) detach();
-    }
-  }));
+  eachPage((wc) =>
+    wc.on('before-input-event', (event, input) => {
+      if (wc !== page || !frameField || pointerOn || active() !== page) return;
+      const now = Date.now();
+      while (sentKeys.length && sentKeys[0]!.until < now) sentKeys.shift();
+      const mine = sentKeys.findIndex((k) => k.key === input.key);
+      if (mine !== -1) {
+        if (input.type === 'keyUp') sentKeys.splice(mine, 1);
+        return;
+      }
+      if (input.key === 'Backspace') return;
+      const action = keyToAction(
+        { key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift },
+        'browse',
+        config.keys,
+      );
+      if (!action || (action.type !== 'move' && action.type !== 'select' && action.type !== 'back')) return;
+      event.preventDefault();
+      // Handed over after this event has been dealt with: acting on the page
+      // from inside the handling of a key event stalls the key (as in pointer mode).
+      if (input.type === 'keyDown')
+        setImmediate(() => {
+          if (frameField && !page.isDestroyed()) page.send('longboard:frame-key', action);
+        });
+    }),
+  );
+  eachPage((wc) =>
+    wc.on('did-start-navigation', (details) => {
+      if (wc === page && details.isMainFrame && !details.isSameDocument && frameField) {
+        frameField = null;
+        if (!pointerOn) detach();
+      }
+    }),
+  );
   // A key that reaches a website while one of Longboard's own screens is in
   // front (the menu, Settings, Home) belongs to that screen. It should never
   // happen, since the screen in front is given the keys; Andrew saw it happen
@@ -1547,53 +1840,71 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // road, the key is taken from the page, the screen in front is given the
   // keys again, and the key is passed on to it. Keys Longboard itself sends
   // a page (a player's pause as the page is left) are let through.
-  eachPage((wc) => wc.on('before-input-event', (event, input) => {
-    const front = active();
-    if (front === wc || front !== chrome || chrome.isDestroyed()) return;
-    const now = Date.now();
-    while (ownKeys.length && ownKeys[0]!.until < now) ownKeys.shift();
-    const mine = ownKeys.findIndex((k) => k.to === wc && k.key === input.key);
-    if (mine !== -1) {
-      if (input.type === 'keyUp') ownKeys.splice(mine, 1);
-      return;
-    }
-    event.preventDefault();
-    // The menu key, Quit and the like are acted on by the shell itself, wherever they arrive (below).
-    const own = keyToAction({ key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift }, 'text', config.keys);
-    const keyCode = own && (own.type === 'menu' || own.type === 'exit' || own.type === 'voice' || own.type === 'pointer') ? null : strayKeyCode(input.key);
-    if (!strayLogged) {
-      strayLogged = true;
-      console.error('[longboard] a key reached the page while another screen was in front; it was passed on to that screen');
-    }
-    setImmediate(() => {
-      if (chrome.isDestroyed() || active() !== chrome) return;
-      chrome.focus();
-      if (keyCode && (input.type === 'keyDown' || input.type === 'keyUp')) chrome.sendInputEvent({ type: input.type, keyCode });
-    });
-  }));
+  eachPage((wc) =>
+    wc.on('before-input-event', (event, input) => {
+      const front = active();
+      if (front === wc || front !== chrome || chrome.isDestroyed()) return;
+      const now = Date.now();
+      while (ownKeys.length && ownKeys[0]!.until < now) ownKeys.shift();
+      const mine = ownKeys.findIndex((k) => k.to === wc && k.key === input.key);
+      if (mine !== -1) {
+        if (input.type === 'keyUp') ownKeys.splice(mine, 1);
+        return;
+      }
+      event.preventDefault();
+      // The menu key, Quit and the like are acted on by the shell itself, wherever they arrive (below).
+      const own = keyToAction(
+        { key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift },
+        'text',
+        config.keys,
+      );
+      const keyCode =
+        own && (own.type === 'menu' || own.type === 'exit' || own.type === 'voice' || own.type === 'pointer')
+          ? null
+          : strayKeyCode(input.key);
+      if (!strayLogged) {
+        strayLogged = true;
+        console.error(
+          '[longboard] a key reached the page while another screen was in front; it was passed on to that screen',
+        );
+      }
+      setImmediate(() => {
+        if (chrome.isDestroyed() || active() !== chrome) return;
+        chrome.focus();
+        if (keyCode && (input.type === 'keyDown' || input.type === 'keyUp'))
+          chrome.sendInputEvent({ type: input.type, keyCode });
+      });
+    }),
+  );
   // In pointer mode the shell takes the keys before the page sees them: the
   // pointer must work wherever in the page the keys would have gone.
-  eachPage((wc) => wc.on('before-input-event', (event, input) => {
-    if (wc !== page || !pointerOn || active() !== page) return;
-    const action = keyToAction({ key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift }, 'browse', config.keys);
-    if (!action || (action.type !== 'move' && action.type !== 'select' && action.type !== 'back')) return;
-    event.preventDefault();
-    if (input.type !== 'keyDown') return;
-    const repeat = input.isAutoRepeat;
-    // Acted on after this event has been dealt with: sending the page a mouse
-    // event from inside the handling of a key event stalls the key.
-    setImmediate(() => {
-      if (!pointerOn || page.isDestroyed()) return;
-      if (action.type === 'move') keyPointer(action.dir, repeat);
-      else if (repeat) return;
-      else if (edit) {
-        // In the editor OK picks what is under the pointer, and Back opens the editor's panel.
-        if (action.type === 'select') pickForEdit();
-        else openEditPanel();
-      } else if (action.type === 'select') pressPointer();
-      else setPointer(false);
-    });
-  }));
+  eachPage((wc) =>
+    wc.on('before-input-event', (event, input) => {
+      if (wc !== page || !pointerOn || active() !== page) return;
+      const action = keyToAction(
+        { key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift },
+        'browse',
+        config.keys,
+      );
+      if (!action || (action.type !== 'move' && action.type !== 'select' && action.type !== 'back')) return;
+      event.preventDefault();
+      if (input.type !== 'keyDown') return;
+      const repeat = input.isAutoRepeat;
+      // Acted on after this event has been dealt with: sending the page a mouse
+      // event from inside the handling of a key event stalls the key.
+      setImmediate(() => {
+        if (!pointerOn || page.isDestroyed()) return;
+        if (action.type === 'move') keyPointer(action.dir, repeat);
+        else if (repeat) return;
+        else if (edit) {
+          // In the editor OK picks what is under the pointer, and Back opens the editor's panel.
+          if (action.type === 'select') pickForEdit();
+          else openEditPanel();
+        } else if (action.type === 'select') pressPointer();
+        else setPointer(false);
+      });
+    }),
+  );
 
   // ---- A page that is arriving ---------------------------------------------
 
@@ -1640,15 +1951,37 @@ export function createBrowser(deps: BrowserDeps): Browser {
         }
         if (!chrome.isDestroyed()) chrome.send('longboard:type-address');
         break;
-      case 'newTab': tabAction('new', undefined); break;
-      case 'privateTab': tabAction('private', undefined); break;
-      case 'reopenTab': tabAction('reopen', undefined); break;
-      case 'closeTab': if (isTab(partition)) tabAction('close', partition); break;
-      case 'nextTab': step(1); break;
-      case 'previousTab': step(-1); break;
-      case 'history': menu('history'); break;
-      case 'downloads': menu('downloads'); break;
-      case 'reload': case 'back': case 'forward': case 'find': case 'zoomIn': case 'zoomOut': case 'zoomReset':
+      case 'newTab':
+        tabAction('new', undefined);
+        break;
+      case 'privateTab':
+        tabAction('private', undefined);
+        break;
+      case 'reopenTab':
+        tabAction('reopen', undefined);
+        break;
+      case 'closeTab':
+        if (isTab(partition)) tabAction('close', partition);
+        break;
+      case 'nextTab':
+        step(1);
+        break;
+      case 'previousTab':
+        step(-1);
+        break;
+      case 'history':
+        menu('history');
+        break;
+      case 'downloads':
+        menu('downloads');
+        break;
+      case 'reload':
+      case 'back':
+      case 'forward':
+      case 'find':
+      case 'zoomIn':
+      case 'zoomOut':
+      case 'zoomReset':
         if (onPage) menu(shortcut);
         break;
       case 'savePage':
@@ -1678,17 +2011,29 @@ export function createBrowser(deps: BrowserDeps): Browser {
         event.preventDefault();
         const action = capturing;
         capturing = null;
-        const next = input.key === 'Escape' || input.key === 'Backspace' ? null : mapButton(config.keys, input.key, input.control, action);
+        const next =
+          input.key === 'Escape' || input.key === 'Backspace'
+            ? null
+            : mapButton(config.keys, input.key, input.control, action);
         if (next && deps.settings.set('keys', next)) {
           sendKeys();
           notify('That button is set');
-        } else notify(input.key === 'Escape' || input.key === 'Backspace' ? 'No button was set' : 'That button cannot be used for this');
+        } else
+          notify(
+            input.key === 'Escape' || input.key === 'Backspace'
+              ? 'No button was set'
+              : 'That button cannot be used for this',
+          );
         layout();
         return;
       }
       // Quit and the menu must work whatever the page is doing, and wherever
       // in the page the keys are going (an embedded frame has no layer).
-      const action = keyToAction({ key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift }, 'text', config.keys);
+      const action = keyToAction(
+        { key: input.key, ctrlKey: input.control, altKey: input.alt, metaKey: input.meta, shiftKey: input.shift },
+        'text',
+        config.keys,
+      );
       if (action?.type === 'exit') {
         event.preventDefault();
         app.quit();
@@ -1702,13 +2047,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
         event.preventDefault();
         // After this event, for the reason given in the pointer's own key handling.
         if (wc === page && active() === page) setImmediate(() => setPointer(!pointerOn));
-      }
-      else if (!action && input.key === 'BrowserHome') {
+      } else if (!action && input.key === 'BrowserHome') {
         // A remote's Home button, unless Settings gave it another job.
         event.preventDefault();
         if (panel !== 'prompt' && panel !== 'pin' && !edit) setImmediate(() => menu('home'));
-      }
-      else if (!action) {
+      } else if (!action) {
         const shortcut = shortcutFor(input, config.keys);
         if (!shortcut || panel === 'prompt' || panel === 'pin' || edit) return;
         event.preventDefault();
@@ -1719,7 +2062,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
   /** Tells every layer the button mappings as they now are; pages opened later get them when they start. */
   const sendKeys = (): void => {
-    for (const wc of [chrome, ...[...views.values()].map((v) => v.webContents)]) if (!wc.isDestroyed()) wc.send('longboard:keys', config.keys);
+    for (const wc of [chrome, ...[...views.values()].map((v) => v.webContents)])
+      if (!wc.isDestroyed()) wc.send('longboard:keys', config.keys);
   };
   watchKeys(chrome);
   eachPage(watchKeys);
@@ -1765,35 +2109,45 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   // ---- Permissions ---------------------------------------------------------
 
-  eachSession((web) => web.setPermissionRequestHandler((wc, permission, callback, details) => {
-    const url = details.requestingUrl || wc.getURL();
-    const key = siteKey(url);
-    const mediaTypes = 'mediaTypes' in details && Array.isArray(details.mediaTypes) ? details.mediaTypes : [];
-    // An answer given to a site counts only for its pages loaded securely.
-    const decision = permissionDecision(permission, key && mayAsk(url) ? sites[key] : undefined, mediaTypes, config.neverAsk);
-    if (decision.kind !== 'ask') {
-      callback(decision.kind === 'grant');
-      return;
-    }
-    // Only the page in front is asked about, only when it was loaded securely,
-    // and one question at a time: anything else is refused for now, unremembered.
-    const same = pending?.what === 'permission' && pending.site === key && pending.names.join() === decision.names.join();
-    if (wc !== page || surface !== 'page' || !key || !mayAsk(url) || (pending && !same)) {
-      callback(false);
-      return;
-    }
-    if (pending?.what === 'permission') pending.answer.push(callback);
-    else {
-      pending = { what: 'permission', site: key, names: decision.names, answer: [callback] };
-      panel = 'prompt';
-      layout();
-    }
-  }));
-  eachSession((web) => web.setPermissionCheckHandler((_wc, permission, origin, details) => {
-    const key = siteKey(origin);
-    const mediaType = details.mediaType === 'video' || details.mediaType === 'audio' ? [details.mediaType] : [];
-    return hasPermission(permission, key && mayAsk(origin) ? sites[key] : undefined, mediaType, config.neverAsk);
-  }));
+  eachSession((web) =>
+    web.setPermissionRequestHandler((wc, permission, callback, details) => {
+      const url = details.requestingUrl || wc.getURL();
+      const key = siteKey(url);
+      const mediaTypes = 'mediaTypes' in details && Array.isArray(details.mediaTypes) ? details.mediaTypes : [];
+      // An answer given to a site counts only for its pages loaded securely.
+      const decision = permissionDecision(
+        permission,
+        key && mayAsk(url) ? sites[key] : undefined,
+        mediaTypes,
+        config.neverAsk,
+      );
+      if (decision.kind !== 'ask') {
+        callback(decision.kind === 'grant');
+        return;
+      }
+      // Only the page in front is asked about, only when it was loaded securely,
+      // and one question at a time: anything else is refused for now, unremembered.
+      const same =
+        pending?.what === 'permission' && pending.site === key && pending.names.join() === decision.names.join();
+      if (wc !== page || surface !== 'page' || !key || !mayAsk(url) || (pending && !same)) {
+        callback(false);
+        return;
+      }
+      if (pending?.what === 'permission') pending.answer.push(callback);
+      else {
+        pending = { what: 'permission', site: key, names: decision.names, answer: [callback] };
+        panel = 'prompt';
+        layout();
+      }
+    }),
+  );
+  eachSession((web) =>
+    web.setPermissionCheckHandler((_wc, permission, origin, details) => {
+      const key = siteKey(origin);
+      const mediaType = details.mediaType === 'video' || details.mediaType === 'audio' ? [details.mediaType] : [];
+      return hasPermission(permission, key && mayAsk(origin) ? sites[key] : undefined, mediaType, config.neverAsk);
+    }),
+  );
   const answerPrompt = (allow: boolean, remember: boolean): void => {
     const asked = pending;
     if (!asked) return;
@@ -1843,18 +2197,29 @@ export function createBrowser(deps: BrowserDeps): Browser {
       layout();
       if (!allow) return;
       notify(`Fetching the speech model, ${voiceModelSize()}. This is done once`);
-      void voice.fetchModel(() => undefined).then((ok) => {
-        if (win.isDestroyed()) return;
-        if (ok) speak();
-        else notify('The speech model could not be fetched. Is this machine online?');
-      });
+      void voice
+        .fetchModel(() => undefined)
+        .then((ok) => {
+          if (win.isDestroyed()) return;
+          if (ok) speak();
+          else notify('The speech model could not be fetched. Is this machine online?');
+        });
       return;
     }
     if (asked.what === 'password') {
       // Back is "not now" and leaves it to be asked for again from the menu; an answer settles it.
       if (remember) typed.delete(page);
       layout();
-      if (allow) void passwords.save(asked.place, asked.user, asked.password, Date.now()).then((kept) => notify(kept ? 'That password is kept. Settings, under Passwords, lists and removes them' : 'That password could not be kept: the keyring did not take it'));
+      if (allow)
+        void passwords
+          .save(asked.place, asked.user, asked.password, Date.now())
+          .then((kept) =>
+            notify(
+              kept
+                ? 'That password is kept. Settings, under Passwords, lists and removes them'
+                : 'That password could not be kept: the keyring did not take it',
+            ),
+          );
       return;
     }
     if (asked.what === 'profile') {
@@ -1904,23 +2269,27 @@ export function createBrowser(deps: BrowserDeps): Browser {
     layout();
   };
   // A question belongs to the page that asked it.
-  eachPage((wc) => wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
-    if (wc === page && isMainFrame && !isInPlace && pending?.what === 'permission') answerPrompt(false, false);
-  }));
+  eachPage((wc) =>
+    wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
+      if (wc === page && isMainFrame && !isInPlace && pending?.what === 'permission') answerPrompt(false, false);
+    }),
+  );
 
   // ---- Ad blocking ----------------------------------------------------------
 
   // Requests that the public filter lists name are refused, for the views
   // that show websites, when the switch for the site in front is on. That is
   // all: nothing is redirected, rewritten or put into a page (main/adblock.ts).
-  eachSession((web) => filterSession(web, (url, kind, wc) => {
-    if (!wc || wc.isDestroyed() || !isPageView(wc)) return false;
-    const pageUrl = wc.getURL();
-    if (!blockingAt(pageUrl)) return false;
-    if (!deps.adBlock.filters()?.refuses(url, pageUrl, kind)) return false;
-    refused.set(wc, (refused.get(wc) ?? 0) + 1);
-    return true;
-  }));
+  eachSession((web) =>
+    filterSession(web, (url, kind, wc) => {
+      if (!wc || wc.isDestroyed() || !isPageView(wc)) return false;
+      const pageUrl = wc.getURL();
+      if (!blockingAt(pageUrl)) return false;
+      if (!deps.adBlock.filters()?.refuses(url, pageUrl, kind)) return false;
+      refused.set(wc, (refused.get(wc) ?? 0) + 1);
+      return true;
+    }),
+  );
   // The privacy settings that act on every website view: the two "do not
   // track" signals (main/signals.ts), and keeping the device's address on the
   // home network from sites that set up calls.
@@ -1928,13 +2297,30 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // whose profile asks for its TV interface, that plus "running as a TV"
   // (main/useragent.ts; rule 3 as amended 2026-11-21).
   const honestAgent = app.userAgentFallback;
-  const identity = identityFor(honestAgent, tvUserAgent(honestAgent, PRODUCT.name, app.getVersion(), systemName(honestAgent), chipName(process.arch), buildYear(), process.versions.v8.replace(/-.*$/, '')), tvBrowserUserAgent(honestAgent), (url) => deviceOf(profileFor(url)?.profile ?? null));
-  eachPage((wc) => wc.on('did-start-navigation', (details) => {
-    if (details.isMainFrame && !details.isSameDocument) identity.follow(wc, details.url);
-  }));
-  const signalSession = (web: Electron.Session): void => privacySignals(web, config.doNotTrack === true, identity.header);
+  const identity = identityFor(
+    honestAgent,
+    tvUserAgent(
+      honestAgent,
+      PRODUCT.name,
+      app.getVersion(),
+      systemName(honestAgent),
+      chipName(process.arch),
+      buildYear(),
+      process.versions.v8.replace(/-.*$/, ''),
+    ),
+    tvBrowserUserAgent(honestAgent),
+    (url) => deviceOf(profileFor(url)?.profile ?? null),
+  );
+  eachPage((wc) =>
+    wc.on('did-start-navigation', (details) => {
+      if (details.isMainFrame && !details.isSameDocument) identity.follow(wc, details.url);
+    }),
+  );
+  const signalSession = (web: Electron.Session): void =>
+    privacySignals(web, config.doNotTrack === true, identity.header);
   const guardAddress = (wc: WebContents): void => {
-    if (!wc.isDestroyed()) wc.setWebRTCIPHandlingPolicy(config.hideLocalAddress === true ? 'default_public_interface_only' : 'default');
+    if (!wc.isDestroyed())
+      wc.setWebRTCIPHandlingPolicy(config.hideLocalAddress === true ? 'default_public_interface_only' : 'default');
   };
   eachSession(signalSession);
   eachPage((wc) => extensions.addTab(wc));
@@ -1954,9 +2340,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
   };
   // Counted from the moment a new page is asked for: its first requests can
   // be on their way before the shell hears that the page has arrived.
-  eachPage((wc) => wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
-    if (isMainFrame && !isInPlace) refused.set(wc, 0);
-  }));
+  eachPage((wc) =>
+    wc.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
+      if (isMainFrame && !isInPlace) refused.set(wc, 0);
+    }),
+  );
 
   // ---- Downloads -----------------------------------------------------------
 
@@ -1996,53 +2384,64 @@ export function createBrowser(deps: BrowserDeps): Browser {
     }
     if (panel === 'menu' || panel === 'downloads') refreshChrome();
   };
-  eachSession((web) => web.on('will-download', (event, item, wc) => {
-    if (pending || surface !== 'page' || wc !== page) {
-      event.preventDefault();
-      notify(pending ? 'A download was not started: another question was waiting' : 'A download was not started');
-      return;
-    }
-    let temp: string;
-    try {
-      mkdirSync(waitingDir, { recursive: true });
-      temp = join(waitingDir, `${randomUUID()}.part`);
-    } catch (err) {
-      console.error(`[longboard] downloads cannot be held: ${String(err).slice(0, 160)}`);
-      event.preventDefault();
-      notify('A download could not be started');
-      return;
-    }
-    // Set now, so the browser never puts up a file chooser of its own.
-    item.setSavePath(temp);
-    const url = item.getURL();
-    const d: Download = { id: ++lastDownload, name: uniqueName(item.getFilename(), taken), site: siteName(url) || 'this site', item, temp, state: 'asking', agreed: false, arrived: false };
-    item.once('done', (_e, state) => {
-      if (state === 'completed' && !d.agreed) {
-        // All of it came before the answer did; it waits where it is.
-        d.arrived = true;
+  eachSession((web) =>
+    web.on('will-download', (event, item, wc) => {
+      if (pending || surface !== 'page' || wc !== page) {
+        event.preventDefault();
+        notify(pending ? 'A download was not started: another question was waiting' : 'A download was not started');
         return;
       }
-      if (state === 'completed') {
-        keep(d);
+      let temp: string;
+      try {
+        mkdirSync(waitingDir, { recursive: true });
+        temp = join(waitingDir, `${randomUUID()}.part`);
+      } catch (err) {
+        console.error(`[longboard] downloads cannot be held: ${String(err).slice(0, 160)}`);
+        event.preventDefault();
+        notify('A download could not be started');
         return;
       }
-      rmSync(temp, { force: true });
-      const asking = pending?.what === 'download' && pending.download === d;
-      if (asking) {
-        pending = null;
-        panel = null;
-        layout();
-      }
-      // Refused by the person: nothing more to say about it.
-      if (d.state === 'asking' && !asking) return;
-      d.state = state === 'cancelled' ? 'cancelled' : 'failed';
-      notify(state === 'cancelled' ? `The download of ${d.name} was cancelled` : `The download of ${d.name} failed`);
-      if (panel === 'menu' || panel === 'downloads') refreshChrome();
-    });
-    pending = { what: 'download', download: d };
-    panel = 'prompt';
-    layout();
-  }));
+      // Set now, so the browser never puts up a file chooser of its own.
+      item.setSavePath(temp);
+      const url = item.getURL();
+      const d: Download = {
+        id: ++lastDownload,
+        name: uniqueName(item.getFilename(), taken),
+        site: siteName(url) || 'this site',
+        item,
+        temp,
+        state: 'asking',
+        agreed: false,
+        arrived: false,
+      };
+      item.once('done', (_e, state) => {
+        if (state === 'completed' && !d.agreed) {
+          // All of it came before the answer did; it waits where it is.
+          d.arrived = true;
+          return;
+        }
+        if (state === 'completed') {
+          keep(d);
+          return;
+        }
+        rmSync(temp, { force: true });
+        const asking = pending?.what === 'download' && pending.download === d;
+        if (asking) {
+          pending = null;
+          panel = null;
+          layout();
+        }
+        // Refused by the person: nothing more to say about it.
+        if (d.state === 'asking' && !asking) return;
+        d.state = state === 'cancelled' ? 'cancelled' : 'failed';
+        notify(state === 'cancelled' ? `The download of ${d.name} was cancelled` : `The download of ${d.name} failed`);
+        if (panel === 'menu' || panel === 'downloads') refreshChrome();
+      });
+      pending = { what: 'download', download: d };
+      panel = 'prompt';
+      layout();
+    }),
+  );
   // The list on screen shows how far each download has got.
   const downloadsTick = setInterval(() => {
     if (panel === 'downloads' && downloads.some((d) => d.state === 'going')) refreshChrome();
@@ -2067,7 +2466,15 @@ export function createBrowser(deps: BrowserDeps): Browser {
         const x = Math.round(cx) + dx;
         const y = Math.round(cy);
         // A real pointer reports how far it moved; some players ignore a move that reports zero.
-        wc.sendInputEvent({ type: 'mouseMove', x, y, globalX: x, globalY: y, movementX: forward ? 20 : -20, movementY: 0 });
+        wc.sendInputEvent({
+          type: 'mouseMove',
+          x,
+          y,
+          globalX: x,
+          globalY: y,
+          movementX: forward ? 20 : -20,
+          movementY: 0,
+        });
       }, i * 40);
     });
   };
@@ -2081,16 +2488,18 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // A site that changes its address without loading a page (most web apps)
   // can move onto or off the paths a profile is for. The page is the same
   // page, so its layer is told the new rules; nothing is reloaded.
-  eachPage((wc) => wc.on('did-navigate-in-page', (_e, url, isMainFrame) => {
-    if (!isMainFrame || edit) return;
-    const next = profileFor(url)?.profile ?? null;
-    if (next === (driving.get(wc) ?? null)) return;
-    driving.set(wc, next);
-    wc.send('longboard:rules', next);
-    if (wc !== page) return;
-    layout();
-    applyZoom();
-  }));
+  eachPage((wc) =>
+    wc.on('did-navigate-in-page', (_e, url, isMainFrame) => {
+      if (!isMainFrame || edit) return;
+      const next = profileFor(url)?.profile ?? null;
+      if (next === (driving.get(wc) ?? null)) return;
+      driving.set(wc, next);
+      wc.send('longboard:rules', next);
+      if (wc !== page) return;
+      layout();
+      applyZoom();
+    }),
+  );
 
   const onBoot = (event: Electron.IpcMainEvent): void => {
     const wc = event.sender;
@@ -2102,13 +2511,25 @@ export function createBrowser(deps: BrowserDeps): Browser {
       return;
     }
     const place = [...views].find(([, v]) => v.webContents === wc)?.[0] ?? '';
-    const layerOptions: LayerOptions = { ...options, surface: wc === chrome ? 'chrome' : 'page', keys: config.keys, buttons: config.buttons ?? {}, logins: wc !== chrome && loginsOn() && !isPrivate(place) };
+    const layerOptions: LayerOptions = {
+      ...options,
+      surface: wc === chrome ? 'chrome' : 'page',
+      keys: config.keys,
+      buttons: config.buttons ?? {},
+      logins: wc !== chrome && loginsOn() && !isPrivate(place),
+    };
     const boot: BootData & { state?: ChromeState } = { options: layerOptions, profile: null };
     if (wc === chrome) boot.state = chromeState();
     else {
       // Chosen by the shell from the frame's real address, never from anything the page says.
       const choice = deps.profiles.choose(event.senderFrame?.url ?? '');
-      const use = profileOffAt(event.senderFrame?.url ?? '') ? null : choice.kind === 'use' ? choice : choice.kind === 'ask' ? choice.fallback : null;
+      const use = profileOffAt(event.senderFrame?.url ?? '')
+        ? null
+        : choice.kind === 'use'
+          ? choice
+          : choice.kind === 'ask'
+            ? choice.fallback
+            : null;
       boot.profile = use?.profile ?? null;
       driving.set(wc, use?.profile ?? null);
       if (choice.kind === 'ask' && wc === page && !profileOffAt(event.senderFrame?.url ?? '')) {
@@ -2135,10 +2556,20 @@ export function createBrowser(deps: BrowserDeps): Browser {
         if (info && frameField && wc === page && attached) {
           // The keyboard's Enter and backspace, for a field inside a frame: the same channel as its letters.
           sentKeys.push({ key: info.domKey, until: Date.now() + 1000 });
-          const key = { key: info.domKey, code: info.domKey, windowsVirtualKeyCode: info.domKey === 'Enter' ? 13 : 8, nativeVirtualKeyCode: info.domKey === 'Enter' ? 13 : 8 };
+          const key = {
+            key: info.domKey,
+            code: info.domKey,
+            windowsVirtualKeyCode: info.domKey === 'Enter' ? 13 : 8,
+            nativeVirtualKeyCode: info.domKey === 'Enter' ? 13 : 8,
+          };
           if (info.domKey === 'Enter' || info.domKey === 'Backspace') {
-            void page.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key })
-              .then(() => (info.char ? page.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'char', ...key, text: info.char }) : undefined))
+            void page.debugger
+              .sendCommand('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key })
+              .then(() =>
+                info.char
+                  ? page.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'char', ...key, text: info.char })
+                  : undefined,
+              )
               .then(() => page.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', ...key }))
               .catch(() => undefined);
           }
@@ -2190,7 +2621,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         const at = event.senderFrame?.url ?? '';
         if (wc !== page || !loginsOn() || isPrivate(partition) || !loginPlace(at)) break;
         loginForms.set(wc, at);
-        if (passwords.users(loginPlace(at)).length) notify('A sign-in is saved for this site: open the menu to fill it in');
+        if (passwords.users(loginPlace(at)).length)
+          notify('A sign-in is saved for this site: open the menu to fill it in');
         break;
       }
       case 'credentials': {
@@ -2199,7 +2631,15 @@ export function createBrowser(deps: BrowserDeps): Browser {
         const login = cleanCredentials(msg);
         if (wc !== page || !login || !place) break;
         void passwords.reveal(place, login.user).then((kept) => {
-          const offer = shouldOffer({ automation: options.automation, privateTab: isPrivate(partition), enabled: config.passwords !== false, available: passwords.available(), place, never: passwords.never(), alreadyKept: kept === login.password });
+          const offer = shouldOffer({
+            automation: options.automation,
+            privateTab: isPrivate(partition),
+            enabled: config.passwords !== false,
+            available: passwords.available(),
+            place,
+            never: passwords.never(),
+            alreadyKept: kept === login.password,
+          });
           if (!offer || wc.isDestroyed()) return;
           typed.set(wc, { place, ...login, at: Date.now() });
           // After a moment: the page is usually on its way to the next one.
@@ -2216,7 +2656,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         // DevTools input channel, as pointer mode's clicks do: Electron's own
         // insertText does not return there, and its key events do not arrive
         // (seen 2026-11-20, a frame from another origin).
-        if (frameField && wc === page && attached) page.debugger.sendCommand('Input.insertText', { text }).catch(() => undefined);
+        if (frameField && wc === page && attached)
+          page.debugger.sendCommand('Input.insertText', { text }).catch(() => undefined);
         else void wc.insertText(text);
         break;
       }
@@ -2233,7 +2674,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
           // Two steps: a single event is not always treated as movement.
           wc.sendInputEvent({ type: 'mouseMove', x: Math.max(0, point.x - 3), y: point.y, movementX: 0, movementY: 0 });
           setTimeout(() => {
-            if (!wc.isDestroyed()) wc.sendInputEvent({ type: 'mouseMove', x: point.x, y: point.y, movementX: 3, movementY: 0 });
+            if (!wc.isDestroyed())
+              wc.sendInputEvent({ type: 'mouseMove', x: point.x, y: point.y, movementX: 3, movementY: 0 });
           }, 40);
         }
         break;
@@ -2260,7 +2702,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
         const dir = join(dataDir, 'diagnostics');
         mkdirSync(dir, { recursive: true });
         const name = `outline-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
-        writeFileSync(join(dir, name), `# ${String(msg.url).slice(0, 300)}\n${String(msg.outline).slice(0, 2_000_000)}\n`);
+        writeFileSync(
+          join(dir, name),
+          `# ${String(msg.url).slice(0, 300)}\n${String(msg.outline).slice(0, 2_000_000)}\n`,
+        );
         break;
       }
       case 'reader': {
@@ -2315,7 +2760,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'pointerHeld':
         if (wc === page && pointerOn && active() === page && Array.isArray(msg.dirs)) {
-          padPointer(msg.dirs.filter((d): d is Direction => d === 'up' || d === 'down' || d === 'left' || d === 'right'));
+          padPointer(
+            msg.dirs.filter((d): d is Direction => d === 'up' || d === 'down' || d === 'left' || d === 'right'),
+          );
         }
         break;
       case 'pointerClick':
@@ -2342,7 +2789,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         // Only the answer to the question just asked, and only while it still stands.
         if (wc === page && pointerOn && options.automation && msg.id === pointer.checkId) {
           pointer.checkId += 1;
-          if (msg.frame === true && !framesGuarded()) page.send('longboard:notice', 'Blocked: automation mode could not check an embedded frame');
+          if (msg.frame === true && !framesGuarded())
+            page.send('longboard:notice', 'Blocked: automation mode could not check an embedded frame');
           else click();
         }
         break;
@@ -2357,7 +2805,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
   const guarded = new Set<string>();
   const frameKey = (frame: Electron.WebFrameMain): string => `${frame.processId}:${frame.routingId}`;
   /** True when every frame inside the page has its guard up. */
-  const framesGuarded = (): boolean => page.mainFrame.framesInSubtree.every((f) => f === page.mainFrame || guarded.has(frameKey(f)));
+  const framesGuarded = (): boolean =>
+    page.mainFrame.framesInSubtree.every((f) => f === page.mainFrame || guarded.has(frameKey(f)));
   // The highlight is sent into a frame by whoever holds the frame (the
   // page's layer, or a frame's own for a frame inside it). Every frame of
   // the page is asked; the one with the cursor answers. No answer, or "no",
@@ -2379,7 +2828,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         playerInFrame = false;
         detach();
         // The frames are told, so no highlight is left showing inside one.
-        for (const f of page.mainFrame.framesInSubtree) if (f !== page.mainFrame && !f.isDestroyed()) f.send('longboard:frame-out');
+        for (const f of page.mainFrame.framesInSubtree)
+          if (f !== page.mainFrame && !f.isDestroyed()) f.send('longboard:frame-out');
       }
     });
   });
@@ -2397,7 +2847,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     playerInFrame = taken && player;
     if (playerInFrame) attach();
     else if (wasPlayer) detach();
-    if (to && !to.isDestroyed()) to.send('longboard:frame-in', taken ? 'in' : reasking ? 'lost' : 'none', taken && player);
+    if (to && !to.isDestroyed())
+      to.send('longboard:frame-in', taken ? 'in' : reasking ? 'lost' : 'none', taken && player);
     reasking = false;
   };
   const askIntoFrame = (from: Electron.WebFrameMain, stay: boolean, again = false): void => {
@@ -2407,7 +2858,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
     // A moment for the cursor to arrive in the frame.
     setTimeout(() => {
       if (page.isDestroyed() || asker !== from) return;
-      for (const f of page.mainFrame.framesInSubtree) if (f !== page.mainFrame && !f.isDestroyed()) f.send('longboard:frame-enter', stay);
+      for (const f of page.mainFrame.framesInSubtree)
+        if (f !== page.mainFrame && !f.isDestroyed()) f.send('longboard:frame-enter', stay);
     }, 60);
     askTimer = setTimeout(() => frameAnswered(false), 700);
   };
@@ -2415,7 +2867,23 @@ export function createBrowser(deps: BrowserDeps): Browser {
     const frame = event.senderFrame;
     if (!isPageView(event.sender) || !frame || frame === event.sender.mainFrame) return;
     if (what && typeof what === 'object') {
-      const said = what as { field?: unknown; secret?: unknown; hint?: unknown; top?: unknown; bottom?: unknown; enter?: unknown; stay?: unknown; entered?: unknown; exit?: unknown; menu?: unknown; pointer?: unknown; playerKey?: unknown; reveal?: unknown; player?: unknown; click?: unknown };
+      const said = what as {
+        field?: unknown;
+        secret?: unknown;
+        hint?: unknown;
+        top?: unknown;
+        bottom?: unknown;
+        enter?: unknown;
+        stay?: unknown;
+        entered?: unknown;
+        exit?: unknown;
+        menu?: unknown;
+        pointer?: unknown;
+        playerKey?: unknown;
+        reveal?: unknown;
+        player?: unknown;
+        click?: unknown;
+      };
       if (event.sender !== page || active() !== page) return;
       // The highlight inside frames: asked in, taken or not, and out again.
       if (said.enter === true) {
@@ -2426,7 +2894,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
         frameAnswered(said.entered, said.player === true);
         return;
       }
-      if (said.exit === 'up' || said.exit === 'down' || said.exit === 'left' || said.exit === 'right' || said.exit === 'back') {
+      if (
+        said.exit === 'up' ||
+        said.exit === 'down' ||
+        said.exit === 'left' ||
+        said.exit === 'right' ||
+        said.exit === 'back'
+      ) {
         const to = frame.parent;
         if (to === page.mainFrame) {
           inFrame = false;
@@ -2452,7 +2926,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (inFrame && playerInFrame && typeof said.playerKey === 'string') {
         const key = cdpKey(playerKeyInfo(said.playerKey));
         if (key && attached) {
-          void page.debugger.sendCommand('Input.dispatchKeyEvent', { type: key.text ? 'keyDown' : 'rawKeyDown', ...key })
+          void page.debugger
+            .sendCommand('Input.dispatchKeyEvent', { type: key.text ? 'keyDown' : 'rawKeyDown', ...key })
             .then(() => page.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', ...key, text: undefined }))
             .catch(() => undefined);
         }
@@ -2484,7 +2959,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
       if (open) {
         if (!frameField) frameField = { pointer: pointerOn };
         attach();
-        page.send('longboard:frame-field', { hint: typeof said.hint === 'string' ? said.hint.slice(0, 10) : '', top: Number(said.top) || 0, bottom: Number(said.bottom) || 0 });
+        page.send('longboard:frame-field', {
+          hint: typeof said.hint === 'string' ? said.hint.slice(0, 10) : '',
+          top: Number(said.top) || 0,
+          bottom: Number(said.bottom) || 0,
+        });
       } else if (frameField) {
         frameField = null;
         if (!pointerOn) detach();
@@ -2494,22 +2973,26 @@ export function createBrowser(deps: BrowserDeps): Browser {
     }
     if (!options.automation) return;
     if (what === 'guarded') guarded.add(frameKey(frame));
-    else if (what === 'blocked' && event.sender === page) page.send('longboard:notice', 'Blocked: automation mode never activates purchase or sign-up controls');
+    else if (what === 'blocked' && event.sender === page)
+      page.send('longboard:notice', 'Blocked: automation mode never activates purchase or sign-up controls');
   };
   ipcMain.on('longboard:frame', onFrame);
-  eachPage((wc) => wc.on('did-frame-navigate', (_e, _url, _code, _status, isMainFrame, processId, routingId) => {
-    // A frame that has gone somewhere new has to say again that it is guarded.
-    if (!isMainFrame) guarded.delete(`${processId}:${routingId}`);
-    // And if the highlight was inside a frame, the page that has come may be
-    // the next step of what was there (a sign-in form's second page): ask
-    // it to take the highlight. The page's own layer is told if nothing does.
-    if (wc === page && inFrame) {
-      if (isMainFrame) inFrame = false;
-      else setTimeout(() => {
-        if (!page.isDestroyed() && inFrame && !asker) askIntoFrame(page.mainFrame, false, true);
-      }, 500);
-    }
-  }));
+  eachPage((wc) =>
+    wc.on('did-frame-navigate', (_e, _url, _code, _status, isMainFrame, processId, routingId) => {
+      // A frame that has gone somewhere new has to say again that it is guarded.
+      if (!isMainFrame) guarded.delete(`${processId}:${routingId}`);
+      // And if the highlight was inside a frame, the page that has come may be
+      // the next step of what was there (a sign-in form's second page): ask
+      // it to take the highlight. The page's own layer is told if nothing does.
+      if (wc === page && inFrame) {
+        if (isMainFrame) inFrame = false;
+        else
+          setTimeout(() => {
+            if (!page.isDestroyed() && inFrame && !asker) askIntoFrame(page.mainFrame, false, true);
+          }, 500);
+      }
+    }),
+  );
 
   // ---- The profile editor ----------------------------------------------------
 
@@ -2519,7 +3002,12 @@ export function createBrowser(deps: BrowserDeps): Browser {
   // the person's own profiles with an outline of the page as its evidence.
   const showEdit = (): void => {
     if (page.isDestroyed()) return;
-    page.send('longboard:edit-show', edit ? { picked: panel === 'edit' ? (edit.chain[edit.level]?.selector ?? null) : null, marks: marksOf(edit.draft) } : null);
+    page.send(
+      'longboard:edit-show',
+      edit
+        ? { picked: panel === 'edit' ? (edit.chain[edit.level]?.selector ?? null) : null, marks: marksOf(edit.draft) }
+        : null,
+    );
   };
   const startEdit = (): void => {
     const url = page.getURL();
@@ -2596,15 +3084,17 @@ export function createBrowser(deps: BrowserDeps): Browser {
     layout();
   };
   // A new page of the same site carries on with the draft; another site ends the editing.
-  eachPage((wc) => wc.on('dom-ready', () => {
-    if (wc !== page || !edit) return;
-    if (siteName(page.getURL()) !== edit.site) {
-      endEdit(false);
-      return;
-    }
-    page.send('longboard:rules', edit.draft);
-    showEdit();
-  }));
+  eachPage((wc) =>
+    wc.on('dom-ready', () => {
+      if (wc !== page || !edit) return;
+      if (siteName(page.getURL()) !== edit.site) {
+        endEdit(false);
+        return;
+      }
+      page.send('longboard:rules', edit.draft);
+      showEdit();
+    }),
+  );
 
   // ---- Web apps ----------------------------------------------------------------
 
@@ -2676,14 +3166,18 @@ export function createBrowser(deps: BrowserDeps): Browser {
         });
     }
   };
-  eachPage((wc) => wc.on('page-favicon-updated', (_e, urls) => {
-    favicons.set(wc, urls.filter((u) => /^https?:/i.test(u)).slice(0, 8));
-    refreshIcons(wc);
-  }));
-  eachPage((wc) => wc.on('did-navigate', () => {
-    favicons.delete(wc);
-    iconLinks.delete(wc);
-  }));
+  eachPage((wc) =>
+    wc.on('page-favicon-updated', (_e, urls) => {
+      favicons.set(wc, urls.filter((u) => /^https?:/i.test(u)).slice(0, 8));
+      refreshIcons(wc);
+    }),
+  );
+  eachPage((wc) =>
+    wc.on('did-navigate', () => {
+      favicons.delete(wc);
+      iconLinks.delete(wc);
+    }),
+  );
   /**
    * Saves a site's own icon for an app, fetched from the site by the session
    * the page is in. Hard rule 6: icons come from the site at run time and are
@@ -2714,12 +3208,16 @@ export function createBrowser(deps: BrowserDeps): Browser {
       chrome.send('longboard:icon', { id, dataUrl, size: ICON_SIZE });
     });
   /** A site's icon as the site sends it: given up on after a few seconds or when it is bigger than an icon could be. */
-  const fetchIcon = async (url: string, from: Electron.Session): Promise<{ body: Buffer; type: string | null } | null> => {
+  const fetchIcon = async (
+    url: string,
+    from: Electron.Session,
+  ): Promise<{ body: Buffer; type: string | null } | null> => {
     const stop = new AbortController();
     const timer = setTimeout(() => stop.abort(), ICON_WAIT_MS);
     try {
       const response = await from.fetch(url, { cache: 'force-cache', signal: stop.signal });
-      if (!response.ok || !response.body || Number(response.headers.get('content-length') ?? 0) > MAX_ICON_BYTES) return null;
+      if (!response.ok || !response.body || Number(response.headers.get('content-length') ?? 0) > MAX_ICON_BYTES)
+        return null;
       const parts: Buffer[] = [];
       let size = 0;
       const reader = response.body.getReader();
@@ -2771,7 +3269,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
       }
     }
     const ownIcon = iconOf(item.id) ? join(iconsDir, `${item.id}.png`) : fallbackIcon;
-    return writeLauncher(launcherFileName(item.id), launcherEntry(item, launchCommand(process.execPath, app.getAppPath(), app.isPackaged), ownIcon));
+    return writeLauncher(
+      launcherFileName(item.id),
+      launcherEntry(item, launchCommand(process.execPath, app.getAppPath(), app.isPackaged), ownIcon),
+    );
   };
   // Entries are written again at every start: how this copy is started can
   // change (an AppImage moved, a different kind of package), and an entry
@@ -2802,7 +3303,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
       return;
     }
     let said = `Added "${item.name}" to Home`;
-    if (item.launcher) said += writeAppLauncher(item) ? " and to the TV's app list" : ". It could not be put in the TV's app list";
+    if (item.launcher)
+      said += writeAppLauncher(item) ? " and to the TV's app list" : ". It could not be put in the TV's app list";
     if (item.ownSession) said += '. Open it from Home to use its own sign-ins';
     layout();
     notify(said);
@@ -2824,7 +3326,10 @@ export function createBrowser(deps: BrowserDeps): Browser {
         panel = null;
         layout();
       }
-      void session.fromPartition(appPartition(item)).clearStorageData().catch(() => undefined);
+      void session
+        .fromPartition(appPartition(item))
+        .clearStorageData()
+        .catch(() => undefined);
     }
     notify(`Removed the app "${item.name}"`);
   };
@@ -2839,7 +3344,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
 
   /** Menu entries that change what is on Home, which the parental lock asks the PIN for while Home decides which sites open. */
   const HOME_CHANGES: readonly MenuAction[] = ['addApp', 'removeApp', 'savePage', 'unsavePage'];
-  const menu = (action: MenuAction): void => (HOME_CHANGES.includes(action) ? withPinForHome(() => menuNow(action)) : menuNow(action));
+  const menu = (action: MenuAction): void =>
+    HOME_CHANGES.includes(action) ? withPinForHome(() => menuNow(action)) : menuNow(action);
   const menuNow = (action: MenuAction): void => {
     switch (action) {
       case 'open':
@@ -2931,7 +3437,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
         panel = null;
         layout();
         const taken = deps.profiles.importFrom([join(dataDir, 'import'), ...removableFolders()]);
-        notify(taken.length ? `Imported: ${taken.join(', ')}. You will be asked before each is used.` : 'No profile files (*.longboard-profile.json) were found');
+        notify(
+          taken.length
+            ? `Imported: ${taken.join(', ')}. You will be asked before each is used.`
+            : 'No profile files (*.longboard-profile.json) were found',
+        );
         break;
       }
       case 'editProfile':
@@ -3104,12 +3614,20 @@ export function createBrowser(deps: BrowserDeps): Browser {
   /** Clears what every site has stored (cookies and the rest) and the saved copies of pages, in every session. */
   const clearSiteData = async (): Promise<void> => {
     // By name, not through the views: this also runs as the program closes, when the views are gone.
-    const all = [session.defaultSession, ...apps.filter((a) => a.ownSession).map((a) => session.fromPartition(appPartition(a)))];
-    await Promise.all(all.flatMap((s) => [s.clearStorageData().catch(() => undefined), s.clearCache().catch(() => undefined)]));
+    const all = [
+      session.defaultSession,
+      ...apps.filter((a) => a.ownSession).map((a) => session.fromPartition(appPartition(a))),
+    ];
+    await Promise.all(
+      all.flatMap((s) => [s.clearStorageData().catch(() => undefined), s.clearCache().catch(() => undefined)]),
+    );
   };
   /** The buttons on the Settings screen that do something once, as against changing a setting. */
   const settingsAction = (action: SettingsAction): void => {
-    const webSessions = (): Electron.Session[] => [(views.get(lastTab) ?? pageView).webContents.session, ...apps.filter((a) => a.ownSession).map((a) => session.fromPartition(appPartition(a)))];
+    const webSessions = (): Electron.Session[] => [
+      (views.get(lastTab) ?? pageView).webContents.session,
+      ...apps.filter((a) => a.ownSession).map((a) => session.fromPartition(appPartition(a))),
+    ];
     switch (action) {
       case 'clearSiteData':
         // Cookies and everything sites have stored: signs out of every site, apps with their own sign-ins included.
@@ -3119,7 +3637,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
         });
         break;
       case 'clearCache':
-        void Promise.all(webSessions().map((s) => s.clearCache().catch(() => undefined))).then(() => notify('Cleared the saved copies of pages and pictures'));
+        void Promise.all(webSessions().map((s) => s.clearCache().catch(() => undefined))).then(() =>
+          notify('Cleared the saved copies of pages and pictures'),
+        );
         break;
       case 'clearAll':
         // Everything Longboard and sites have kept about what was opened. Saved pages, apps and settings stay.
@@ -3188,13 +3708,20 @@ export function createBrowser(deps: BrowserDeps): Browser {
     }
   };
   /** The places the person already knows, most their own first: for the suggestions under an address field. */
-  const knownPlaces = (): Known[] => [...saved, ...apps.map((a) => ({ url: a.url, title: a.name })), ...recents.map((r) => ({ url: r.url, title: r.title })), ...visits.map((v) => ({ url: v.url, title: v.title }))];
+  const knownPlaces = (): Known[] => [
+    ...saved,
+    ...apps.map((a) => ({ url: a.url, title: a.name })),
+    ...recents.map((r) => ({ url: r.url, title: r.title })),
+    ...visits.map((v) => ({ url: v.url, title: v.title })),
+  ];
   /** The words last looked for on the page, so that pressing again goes to the next place. */
   let lastFound = '';
-  eachPage((wc) => wc.on('found-in-page', (_e, result) => {
-    if (wc !== page || panel !== 'find' || !result.finalUpdate) return;
-    notify(result.matches > 0 ? `${result.activeMatchOrdinal} of ${result.matches}` : 'Not found on this page');
-  }));
+  eachPage((wc) =>
+    wc.on('found-in-page', (_e, result) => {
+      if (wc !== page || panel !== 'find' || !result.finalUpdate) return;
+      notify(result.matches > 0 ? `${result.activeMatchOrdinal} of ${result.matches}` : 'Not found on this page');
+    }),
+  );
   /** True while a change to Home that the PIN was just given for is being made. */
   let pinGiven = false;
   const onChrome = (event: Electron.IpcMainEvent, msg: ChromeMessage): void => {
@@ -3202,7 +3729,14 @@ export function createBrowser(deps: BrowserDeps): Browser {
     if (event.sender !== chrome || event.senderFrame !== chrome.mainFrame) return;
     if (!msg || typeof msg !== 'object') return;
     // Taking a tile off Home is a change to Home; from Settings the PIN has been given already.
-    if ((msg.kind === 'removeRecent' || msg.kind === 'removeSaved' || (msg.kind === 'removeApp' && panel !== 'settings')) && lock?.homeOnly && !unlocked && !pinGiven) {
+    if (
+      (msg.kind === 'removeRecent' ||
+        msg.kind === 'removeSaved' ||
+        (msg.kind === 'removeApp' && panel !== 'settings')) &&
+      lock?.homeOnly &&
+      !unlocked &&
+      !pinGiven
+    ) {
       withPin('Enter the PIN to change what is on Home', () => {
         pinGiven = true;
         try {
@@ -3242,7 +3776,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
           pinFailures += 1;
           pinNotBefore = Date.now() + waitAfter(pinFailures);
           layout();
-          notify(pinNotBefore > Date.now() ? `Wrong PIN. Wait ${Math.ceil(waitAfter(pinFailures) / 1000)} seconds before trying again` : 'Wrong PIN');
+          notify(
+            pinNotBefore > Date.now()
+              ? `Wrong PIN. Wait ${Math.ceil(waitAfter(pinFailures) / 1000)} seconds before trying again`
+              : 'Wrong PIN',
+          );
           break;
         }
         pinFailures = 0;
@@ -3254,14 +3792,18 @@ export function createBrowser(deps: BrowserDeps): Browser {
       }
       case 'extension': {
         // From the Settings screen: open an extension's own page, or remove it.
-        const item = panel === 'settings' && typeof msg.id === 'string' ? extensions.list().find((e) => e.id === msg.id) : undefined;
+        const item =
+          panel === 'settings' && typeof msg.id === 'string'
+            ? extensions.list().find((e) => e.id === msg.id)
+            : undefined;
         if (!item) break;
         if (msg.op === 'remove') {
           void extensions.remove(item.id).then(() => {
             layout();
             notify(`"${item.name}" is removed`);
           });
-        } else if (msg.op === 'open' && (item.options ?? item.popup)) openInSharedTab(`chrome-extension://${item.id}/${item.options ?? item.popup}`);
+        } else if (msg.op === 'open' && (item.options ?? item.popup))
+          openInSharedTab(`chrome-extension://${item.id}/${item.options ?? item.popup}`);
         break;
       }
       case 'lock':
@@ -3327,7 +3869,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
         }
         break;
       case 'openSuggestion':
-        if (typeof msg.url === 'string' && (knownPlaces().some((k) => k.url === msg.url) || offeredSearches.has(msg.url))) open(msg.url, true);
+        if (
+          typeof msg.url === 'string' &&
+          (knownPlaces().some((k) => k.url === msg.url) || offeredSearches.has(msg.url))
+        )
+          open(msg.url, true);
         break;
       case 'find':
         if (panel === 'find' && surface === 'page' && typeof msg.text === 'string' && msg.text.trim()) {
@@ -3337,7 +3883,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         }
         break;
       case 'openVisit':
-        if (panel === 'history' && typeof msg.url === 'string' && visits.some((v) => v.url === msg.url)) open(msg.url, true);
+        if (panel === 'history' && typeof msg.url === 'string' && visits.some((v) => v.url === msg.url))
+          open(msg.url, true);
         break;
       case 'forgetVisit':
         if (panel === 'history' && typeof msg.url === 'string' && visits.some((v) => v.url === msg.url)) {
@@ -3357,7 +3904,8 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'captureButton':
         if (panel !== 'settings') break;
-        capturing = typeof msg.action === 'string' && BUTTON_ACTIONS.some((a) => a.action === msg.action) ? msg.action : null;
+        capturing =
+          typeof msg.action === 'string' && BUTTON_ACTIONS.some((a) => a.action === msg.action) ? msg.action : null;
         layout();
         break;
       case 'clearButtons':
@@ -3398,7 +3946,13 @@ export function createBrowser(deps: BrowserDeps): Browser {
           notify('That is not a site name. Try something like example.com');
           break;
         }
-        const next = editStartsOff(deps.adBlock.reviewed(), config.adBlockingStartsOff ?? [], config.adBlockingStartsOn ?? [], msg.op, domain);
+        const next = editStartsOff(
+          deps.adBlock.reviewed(),
+          config.adBlockingStartsOff ?? [],
+          config.adBlockingStartsOn ?? [],
+          msg.op,
+          domain,
+        );
         deps.settings.set('adBlockingStartsOff', next.added.length ? next.added : null);
         deps.settings.set('adBlockingStartsOn', next.removed.length ? next.removed : null);
         layout();
@@ -3423,7 +3977,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
         }
         break;
       case 'removeApp':
-        if ((surface === 'home' || panel === 'settings') && typeof msg.id === 'string' && apps.some((a) => a.id === msg.id)) {
+        if (
+          (surface === 'home' || panel === 'settings') &&
+          typeof msg.id === 'string' &&
+          apps.some((a) => a.id === msg.id)
+        ) {
           // From Settings the screen stays open; from a Home tile the menu closes.
           if (panel !== 'settings') panel = null;
           removeAppById(msg.id);
@@ -3435,7 +3993,11 @@ export function createBrowser(deps: BrowserDeps): Browser {
         break;
       case 'addApp':
         if (panel === 'addApp' && surface === 'page') {
-          void addCurrentAsApp({ name: typeof msg.name === 'string' ? msg.name : '', ownSession: msg.ownSession === true, launcher: msg.launcher === true });
+          void addCurrentAsApp({
+            name: typeof msg.name === 'string' ? msg.name : '',
+            ownSession: msg.ownSession === true,
+            launcher: msg.launcher === true,
+          });
         }
         break;
       case 'menu':
@@ -3459,13 +4021,19 @@ export function createBrowser(deps: BrowserDeps): Browser {
       case 'password':
         if (panel !== 'settings') break;
         if (msg.op === 'removeAll') passwords.removeAll();
-        else if (msg.op === 'remove' && typeof msg.place === 'string' && typeof msg.user === 'string') passwords.remove(msg.place, msg.user);
-        else if (msg.op === 'offerAgain' && typeof msg.place === 'string') passwords.setNever(passwords.never().find((n) => n.replace(/^https?:\/\//, '') === msg.place) ?? msg.place, false);
+        else if (msg.op === 'remove' && typeof msg.place === 'string' && typeof msg.user === 'string')
+          passwords.remove(msg.place, msg.user);
+        else if (msg.op === 'offerAgain' && typeof msg.place === 'string')
+          passwords.setNever(
+            passwords.never().find((n) => n.replace(/^https?:\/\//, '') === msg.place) ?? msg.place,
+            false,
+          );
         layout();
         break;
       case 'answer':
         // "Never for this site", said to keeping a password.
-        if (msg.allow !== true && msg.never === true && pending?.what === 'password') passwords.setNever(pending.place, true);
+        if (msg.allow !== true && msg.never === true && pending?.what === 'password')
+          passwords.setNever(pending.place, true);
         // A yes in the first moments of a question is not counted: a page can
         // time its request for when OK is about to be pressed for something else.
         if (msg.allow === true && Date.now() - promptShownAt < PROMPT_SETTLE_MS) break;

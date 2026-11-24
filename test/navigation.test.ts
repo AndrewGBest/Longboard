@@ -24,7 +24,19 @@ describe('blockReason', () => {
   });
 
   it('refuses everything that is not a web address, in every mode', () => {
-    for (const url of ['file:///etc/passwd', 'javascript:alert(1)', 'data:text/html,<p>x', 'chrome://settings', 'devtools://devtools/x', 'blob:https://example.com/1', 'ftp://example.com/', 'view-source:https://example.com/', 'about:config', 'not a url', '']) {
+    for (const url of [
+      'file:///etc/passwd',
+      'javascript:alert(1)',
+      'data:text/html,<p>x',
+      'chrome://settings',
+      'devtools://devtools/x',
+      'blob:https://example.com/1',
+      'ftp://example.com/',
+      'view-source:https://example.com/',
+      'about:config',
+      'not a url',
+      '',
+    ]) {
       expect(blockReason(url, live), url).toBe('not-web');
       expect(blockReason(url, auto), url).toBe('not-web');
     }
@@ -155,4 +167,3 @@ describe('starting page', () => {
     expect(page).toContain('first run');
   });
 });
-

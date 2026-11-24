@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { DECLINED, handBackFrom, standInAt, STEAM, steamAccount, steamAnswer, steamStorePage, steamWho } from '../src/main/handback';
+import {
+  DECLINED,
+  handBackFrom,
+  standInAt,
+  STEAM,
+  steamAccount,
+  steamAnswer,
+  steamStorePage,
+  steamWho,
+} from '../src/main/handback';
 
 describe('what another program may ask Longboard to hand back', () => {
   it('is asked for by a known name and a whole path to a .json file', () => {
-    expect(handBackFrom(['longboard', '--hand-back=steam-library', '--hand-back-to=/home/me/.cache/x/steam.json'])).toEqual({ what: 'steam-library', to: '/home/me/.cache/x/steam.json', at: STEAM });
+    expect(
+      handBackFrom(['longboard', '--hand-back=steam-library', '--hand-back-to=/home/me/.cache/x/steam.json']),
+    ).toEqual({ what: 'steam-library', to: '/home/me/.cache/x/steam.json', at: STEAM });
   });
 
   it('is refused for a name not on the list, a relative path or another kind of file', () => {
@@ -18,15 +29,31 @@ describe('what another program may ask Longboard to hand back', () => {
 });
 
 describe('pointing a scripted run at a stand-in for the site', () => {
-  const args = ['--hand-back=steam-library', '--hand-back-to=/tmp/a.json', '--hand-back-site=http://127.0.0.1:4000/pretend'];
+  const args = [
+    '--hand-back=steam-library',
+    '--hand-back-to=/tmp/a.json',
+    '--hand-back-site=http://127.0.0.1:4000/pretend',
+  ];
 
-  it('is only for a scripted run: otherwise the addresses are Steam\'s own', () => {
+  it("is only for a scripted run: otherwise the addresses are Steam's own", () => {
     expect(handBackFrom(args)?.at).toEqual(STEAM);
-    expect(handBackFrom(args, true)?.at).toEqual({ signIn: 'http://127.0.0.1:4000/pretend/login/', home: 'http://127.0.0.1:4000/pretend/', owned: 'http://127.0.0.1:4000/pretend/dynamicstore/userdata/' });
+    expect(handBackFrom(args, true)?.at).toEqual({
+      signIn: 'http://127.0.0.1:4000/pretend/login/',
+      home: 'http://127.0.0.1:4000/pretend/',
+      owned: 'http://127.0.0.1:4000/pretend/dynamicstore/userdata/',
+    });
   });
 
-  it('is only ever this machine\'s own address', () => {
-    for (const base of ['https://example.org', 'http://127.0.0.1.example.org:80', 'http://localhost:4000', 'http://127.0.0.1:4000@example.org', 'http://127.0.0.1:4000/a?b', 'http://10.0.0.2:4000', undefined]) {
+  it("is only ever this machine's own address", () => {
+    for (const base of [
+      'https://example.org',
+      'http://127.0.0.1.example.org:80',
+      'http://localhost:4000',
+      'http://127.0.0.1:4000@example.org',
+      'http://127.0.0.1:4000/a?b',
+      'http://10.0.0.2:4000',
+      undefined,
+    ]) {
       expect(standInAt(base)).toBeNull();
     }
     const at = standInAt('http://127.0.0.1:4000/pretend');
@@ -38,10 +65,13 @@ describe('pointing a scripted run at a stand-in for the site', () => {
 });
 
 describe('reading who is signed in to Steam', () => {
-  const page = (info: string): string => `<html><body><div id="application_config" data-config="{}" data-userinfo="${info.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-other="x"></div></body></html>`;
+  const page = (info: string): string =>
+    `<html><body><div id="application_config" data-config="{}" data-userinfo="${info.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-other="x"></div></body></html>`;
 
   it('finds the account number of a signed-in page', () => {
-    expect(steamAccount(page('{"logged_in":true,"steamid":"76561198000000001","country_code":"CA"}'))).toBe('76561198000000001');
+    expect(steamAccount(page('{"logged_in":true,"steamid":"76561198000000001","country_code":"CA"}'))).toBe(
+      '76561198000000001',
+    );
   });
 
   it('finds nobody on a signed-out page, a page without the element, or one that says odd things', () => {
@@ -83,9 +113,12 @@ describe('the answer written to the file', () => {
 });
 
 describe('telling "nobody is signed in" from "this page can no longer be read"', () => {
-  const page = (info: string): string => `<div id="application_config" data-config="{}" data-userinfo="${info.replace(/"/g, '&quot;')}"></div>`;
+  const page = (info: string): string =>
+    `<div id="application_config" data-config="{}" data-userinfo="${info.replace(/"/g, '&quot;')}"></div>`;
   it('says who is signed in, or that nobody is', () => {
-    expect(steamWho(page('{"logged_in":true,"steamid":"76561198000000001"}'))).toEqual({ steamid: '76561198000000001' });
+    expect(steamWho(page('{"logged_in":true,"steamid":"76561198000000001"}'))).toEqual({
+      steamid: '76561198000000001',
+    });
     expect(steamWho(page('{"logged_in":false,"country_code":"CA"}'))).toBe('nobody');
   });
   it('says so when the page does not say either in the way known here', () => {

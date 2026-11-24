@@ -3,7 +3,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { isNewer, packageFor, parseRelease, parseUpdateState, updateDue, UPDATE_EVERY_MS, updateMode, updateWords, versionNumbers } from '../src/shared/update';
+import {
+  isNewer,
+  packageFor,
+  parseRelease,
+  parseUpdateState,
+  updateDue,
+  UPDATE_EVERY_MS,
+  updateMode,
+  updateWords,
+  versionNumbers,
+} from '../src/shared/update';
 import { Updater } from '../src/main/update';
 import { parseConfig } from '../src/shared/config';
 
@@ -11,8 +21,17 @@ const sha = (text: string): string => createHash('sha256').update(text).digest('
 const feed = (version: string, body: string, extra: Record<string, unknown> = {}) => ({
   tag_name: `v${version}`,
   assets: [
-    { name: 'Longboard-x86_64.AppImage', browser_download_url: 'https://github.com/AndrewGBest/Longboard/releases/download/v9/Longboard-x86_64.AppImage', size: body.length, digest: `sha256:${sha(body)}` },
-    { name: 'Longboard-x64.tar.gz', browser_download_url: 'https://github.com/AndrewGBest/Longboard/releases/download/v9/Longboard-x64.tar.gz', size: 10 },
+    {
+      name: 'Longboard-x86_64.AppImage',
+      browser_download_url: 'https://github.com/AndrewGBest/Longboard/releases/download/v9/Longboard-x86_64.AppImage',
+      size: body.length,
+      digest: `sha256:${sha(body)}`,
+    },
+    {
+      name: 'Longboard-x64.tar.gz',
+      browser_download_url: 'https://github.com/AndrewGBest/Longboard/releases/download/v9/Longboard-x64.tar.gz',
+      size: 10,
+    },
   ],
   ...extra,
 });
@@ -37,7 +56,12 @@ describe('the release feed', () => {
   it('is read for its version and its files, with the checksum each states', () => {
     const release = parseRelease(feed('1.2.0', 'new'), ['github.com'])!;
     expect(release.version).toBe('1.2.0');
-    expect(packageFor(release, 'x64')).toEqual({ name: 'Longboard-x86_64.AppImage', url: expect.stringContaining('https://github.com/'), size: 3, sha256: sha('new') });
+    expect(packageFor(release, 'x64')).toEqual({
+      name: 'Longboard-x86_64.AppImage',
+      url: expect.stringContaining('https://github.com/'),
+      size: 3,
+      sha256: sha('new'),
+    });
     expect(release.assets[1]!.sha256).toBeNull();
     expect(packageFor(release, 'arm64')).toBeNull();
   });
@@ -47,9 +71,20 @@ describe('the release feed', () => {
     for (const bad of [null, 5, 'x', {}, { tag_name: 'nightly' }]) expect(parseRelease(bad, ['github.com'])).toBeNull();
   });
   it('a file is taken only from where releases live, over https', () => {
-    const at = (url: string) => parseRelease({ tag_name: 'v2.0.0', assets: [{ name: 'Longboard-x86_64.AppImage', browser_download_url: url, size: 5 }] }, ['github.com'])!.assets.length;
+    const at = (url: string) =>
+      parseRelease(
+        { tag_name: 'v2.0.0', assets: [{ name: 'Longboard-x86_64.AppImage', browser_download_url: url, size: 5 }] },
+        ['github.com'],
+      )!.assets.length;
     expect(at('https://github.com/a/b/releases/download/v2/x')).toBe(1);
-    for (const url of ['http://github.com/a', 'https://github.com.evil.test/a', 'https://evil.test/a', 'file:///tmp/a', 'nonsense']) expect(at(url)).toBe(0);
+    for (const url of [
+      'http://github.com/a',
+      'https://github.com.evil.test/a',
+      'https://evil.test/a',
+      'file:///tmp/a',
+      'nonsense',
+    ])
+      expect(at(url)).toBe(0);
   });
   it('is asked once a day', () => {
     expect(updateDue(undefined, 5)).toBe(true);
@@ -132,7 +167,12 @@ describe('installing a new version', () => {
     expect(readFileSync(telling.target, 'utf8')).toBe('old');
   });
   it('does nothing for the same or an older release, and survives a feed that cannot be read', async () => {
-    for (const t of [make(feed('1.0.0', 'n'), 'n'), make(feed('0.9.0', 'n'), 'n'), make(new Error('offline'), 'n'), make({ message: 'Not Found' }, 'n')]) {
+    for (const t of [
+      make(feed('1.0.0', 'n'), 'n'),
+      make(feed('0.9.0', 'n'), 'n'),
+      make(new Error('offline'), 'n'),
+      make({ message: 'Not Found' }, 'n'),
+    ]) {
       expect(await t.updater.check(true)).toEqual({ checkedAt: 1_000_000 });
       expect(readFileSync(t.target, 'utf8')).toBe('old');
     }

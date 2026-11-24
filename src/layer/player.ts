@@ -41,9 +41,16 @@ export function pageVideo(doc: Document, minShare = 0.5): HTMLVideoElement | nul
  * without stopping in it: `from` and `to` are where the highlight was and
  * is, `box` is the picture's. All in the same coordinates.
  */
-export function passedOver(from: { top: number; bottom: number }, to: { top: number; bottom: number }, box: { top: number; bottom: number }, dir: 'up' | 'down'): boolean {
+export function passedOver(
+  from: { top: number; bottom: number },
+  to: { top: number; bottom: number },
+  box: { top: number; bottom: number },
+  dir: 'up' | 'down',
+): boolean {
   const slack = 4;
-  return dir === 'up' ? from.top >= box.bottom - slack && to.bottom <= box.top + slack : from.bottom <= box.top + slack && to.top >= box.bottom - slack;
+  return dir === 'up'
+    ? from.top >= box.bottom - slack && to.bottom <= box.top + slack
+    : from.bottom <= box.top + slack && to.top >= box.bottom - slack;
 }
 
 function largestVideo(scope: ParentNode, skipMuted: boolean): { video: HTMLVideoElement; area: number } | null {
@@ -72,7 +79,11 @@ function largestVideo(scope: ParentNode, skipMuted: boolean): { video: HTMLVideo
  * matches (empty or stale adapter) the generic rule applies: the largest
  * unmuted video, if it covers at least `minShare` of the viewport.
  */
-export function findMainVideo(doc: Document, playerRoots: readonly string[] = [], minShare = 0.5): HTMLVideoElement | null {
+export function findMainVideo(
+  doc: Document,
+  playerRoots: readonly string[] = [],
+  minShare = 0.5,
+): HTMLVideoElement | null {
   const view = doc.defaultView;
   if (!view) return null;
   const viewport = view.innerWidth * view.innerHeight;
@@ -134,7 +145,8 @@ export function playerScope(video: HTMLVideoElement, playerRoots: readonly strin
   const maxH = (view?.innerHeight ?? 0) + 2;
   // Never the page itself: a video placed straight in the body has no
   // player around it, and its "controls" would be everything on the page.
-  const page = (el: Element | null): boolean => !el || el === video.ownerDocument.body || el === video.ownerDocument.documentElement;
+  const page = (el: Element | null): boolean =>
+    !el || el === video.ownerDocument.body || el === video.ownerDocument.documentElement;
   if (page(video.parentElement)) return video;
   let scope: Element = video.parentElement ?? video;
   for (let el = scope.parentElement; !page(el) && el; el = el.parentElement) {
@@ -174,7 +186,12 @@ export function isSeekBar(el: Element, view: Window): boolean {
   const r = el.getBoundingClientRect();
   const slider = el.getAttribute('role') === 'slider' || (el instanceof HTMLInputElement && el.type === 'range');
   if (slider) return r.width >= view.innerWidth / 2;
-  if (el.matches('a[href], button, input, select, textarea, [role="button"], [role="link"], [role="tab"], [role="menuitem"]')) return false;
+  if (
+    el.matches(
+      'a[href], button, input, select, textarea, [role="button"], [role="link"], [role="tab"], [role="menuitem"]',
+    )
+  )
+    return false;
   return r.width >= view.innerWidth * 0.6 && r.height > 0 && r.height <= 48;
 }
 

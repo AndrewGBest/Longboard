@@ -22,12 +22,20 @@ async function send(message: PhoneMessage): Promise<boolean> {
     return false;
   }
   try {
-    const answer = await fetch('/send', { method: 'POST', body: sealed, headers: { 'content-type': 'text/plain' }, cache: 'no-store' });
+    const answer = await fetch('/send', {
+      method: 'POST',
+      body: sealed,
+      headers: { 'content-type': 'text/plain' },
+      cache: 'no-store',
+    });
     if (answer.status === 204) {
       say('Connected to the TV');
       return true;
     }
-    say(answer.status === 403 ? 'The TV did not accept that. Scan the code on the TV again.' : 'The TV did not answer.', true);
+    say(
+      answer.status === 403 ? 'The TV did not accept that. Scan the code on the TV again.' : 'The TV did not answer.',
+      true,
+    );
   } catch {
     say('Cannot reach the TV. Is typing from a phone still on, and is this phone on the same network?', true);
   }

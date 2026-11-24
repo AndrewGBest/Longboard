@@ -20,7 +20,9 @@ export interface Crx {
 
 /** The id that belongs to a public key. */
 export function extensionIdOf(key: Buffer): string {
-  return [...createHash('sha256').update(key).digest('hex').slice(0, 32)].map((c) => String.fromCharCode(97 + parseInt(c, 16))).join('');
+  return [...createHash('sha256').update(key).digest('hex').slice(0, 32)]
+    .map((c) => String.fromCharCode(97 + parseInt(c, 16)))
+    .join('');
 }
 
 /** The fields of a protocol-buffer message that are runs of bytes, by number. Anything malformed throws. */
@@ -70,7 +72,10 @@ export function openCrx(file: Buffer, expectedId: string): Crx {
   if (!signedPart) throw new Error('the extension file says nothing of who it is for');
   // The id the file itself claims: sixteen bytes, each half of which is one letter.
   const claimed = fields(signedPart).get(1)?.[0];
-  const claimedId = claimed && claimed.length === 16 ? [...claimed.toString('hex')].map((c) => String.fromCharCode(97 + parseInt(c, 16))).join('') : '';
+  const claimedId =
+    claimed && claimed.length === 16
+      ? [...claimed.toString('hex')].map((c) => String.fromCharCode(97 + parseInt(c, 16))).join('')
+      : '';
   if (claimedId !== expectedId) throw new Error('the extension file is for a different extension');
   const length = Buffer.alloc(4);
   length.writeUInt32LE(signedPart.length);

@@ -13,8 +13,10 @@ export interface Visit {
 
 export const MAX_HISTORY = 300;
 
-const clean = (text: unknown, max: number): string => (typeof text === 'string' ? text.replace(/\s+/g, ' ').trim().slice(0, max) : '');
-const isWeb = (url: unknown): url is string => typeof url === 'string' && url.length <= 2000 && /^https?:\/\//i.test(url);
+const clean = (text: unknown, max: number): string =>
+  typeof text === 'string' ? text.replace(/\s+/g, ' ').trim().slice(0, max) : '';
+const isWeb = (url: unknown): url is string =>
+  typeof url === 'string' && url.length <= 2000 && /^https?:\/\//i.test(url);
 
 /** Validates the saved file. Anything unusable is dropped, never thrown on. */
 export function parseHistory(raw: unknown): Visit[] {
@@ -25,7 +27,11 @@ export function parseHistory(raw: unknown): Visit[] {
     if (!item || typeof item !== 'object') continue;
     const v = item as Record<string, unknown>;
     if (!isWeb(v['url']) || out.some((o) => o.url === v['url'])) continue;
-    out.push({ url: v['url'], title: clean(v['title'], 120), at: typeof v['at'] === 'number' && Number.isFinite(v['at']) ? v['at'] : 0 });
+    out.push({
+      url: v['url'],
+      title: clean(v['title'], 120),
+      at: typeof v['at'] === 'number' && Number.isFinite(v['at']) ? v['at'] : 0,
+    });
     if (out.length >= MAX_HISTORY) break;
   }
   return out;
@@ -65,7 +71,10 @@ export function dayHeading(at: number, now: number): string {
 }
 
 /** One line of the list on screen: in one sentence (`text`), and in the parts the screen lays out. */
-export function visitLine(v: Visit, now: number): { url: string; text: string; title: string; site: string; day: string; time: string } {
+export function visitLine(
+  v: Visit,
+  now: number,
+): { url: string; text: string; title: string; site: string; day: string; time: string } {
   const site = siteName(v.url) || 'a page';
   return {
     url: v.url,

@@ -34,12 +34,30 @@ let menuPage: 'main' | 'site' = 'main';
 /** A list to choose one thing from, opened from a Settings page. */
 let choosing: 'search' | 'language' | 'ads' | 'theme' | null = null;
 /** Which page of Settings is showing. */
-type SettingsPage = 'main' | 'passwords' | 'general' | 'display' | 'ads' | 'adsList' | 'privacy' | 'access' | 'profiles' | 'downloads' | 'remote' | 'lock' | 'updates' | 'extensions';
+type SettingsPage =
+  | 'main'
+  | 'passwords'
+  | 'general'
+  | 'display'
+  | 'ads'
+  | 'adsList'
+  | 'privacy'
+  | 'access'
+  | 'profiles'
+  | 'downloads'
+  | 'remote'
+  | 'lock'
+  | 'updates'
+  | 'extensions';
 let settingsPage: SettingsPage = 'main';
 /** A button that clears something has been pressed once and waits for the second press. */
 let confirming: string | null = null;
 /** The Home tile the highlight was on when the menu was opened from Home; the menu offers to remove it. */
-let menuFor: { kind: 'recent'; url: string; name: string } | { kind: 'saved'; url: string; name: string } | { kind: 'app'; id: string; name: string } | null = null;
+let menuFor:
+  | { kind: 'recent'; url: string; name: string }
+  | { kind: 'saved'; url: string; name: string }
+  | { kind: 'app'; id: string; name: string }
+  | null = null;
 
 /** The tile with the highlight on Home, from what is drawn now. */
 function focusedTile(s: ChromeState): typeof menuFor {
@@ -94,30 +112,52 @@ function showSuggestions(list: Array<{ url: string; text: string; search?: boole
   }
   box.replaceChildren(
     ...list.map((sug, i) =>
-      button(`suggest-${i}`, sug.text, () => {
-        typing = false;
-        tell({ kind: 'openSuggestion', url: sug.url });
-      }, false, sug.search ? 'search' : 'history'),
+      button(
+        `suggest-${i}`,
+        sug.text,
+        () => {
+          typing = false;
+          tell({ kind: 'openSuggestion', url: sug.url });
+        },
+        false,
+        sug.search ? 'search' : 'history',
+      ),
     ),
   );
 }
 
 /** The time and the day, at the top of Home, as a TV's own screens show them. */
 function clockWords(now = new Date()): [string, string] {
-  return [now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })];
+  return [
+    now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }),
+  ];
 }
 function drawClock(): void {
   const clock = document.getElementById('clock');
   if (!clock) return;
   const [time, day] = clockWords();
-  if (clock.firstChild?.textContent !== time) clock.replaceChildren(document.createTextNode(time), el('small', { text: day }));
+  if (clock.firstChild?.textContent !== time)
+    clock.replaceChildren(document.createTextNode(time), el('small', { text: day }));
 }
 
 /** A tile of Home: the site's icon, a name, a line under it, and a small label at the corner. */
-function tile(id: string, pic: string | null, name: string, sub: string, mark: string, onPress: () => void): HTMLButtonElement {
+function tile(
+  id: string,
+  pic: string | null,
+  name: string,
+  sub: string,
+  mark: string,
+  onPress: () => void,
+): HTMLButtonElement {
   const t = button(id, '', onPress);
   t.className = 'tile';
-  t.append(badge(pic, name), el('span', { cls: 'site', text: name }), el('span', { cls: 'sub title', text: sub }), el('span', { cls: 'mark', text: mark }));
+  t.append(
+    badge(pic, name),
+    el('span', { cls: 'site', text: name }),
+    el('span', { cls: 'sub title', text: sub }),
+    el('span', { cls: 'mark', text: mark }),
+  );
   t.setAttribute('aria-label', [name, sub, mark].filter(Boolean).join(', '));
   return t;
 }
@@ -137,19 +177,29 @@ function home(s: ChromeState): HTMLElement {
       if (again) layer?.focus(again);
     });
   } else {
-    go = button('go', SEARCH_WORDS, () => {
-      typing = true;
-      render();
-      const field = document.getElementById('address');
-      if (field) layer?.typeIn(field);
-    }, false, 'search');
+    go = button(
+      'go',
+      SEARCH_WORDS,
+      () => {
+        typing = true;
+        render();
+        const field = document.getElementById('address');
+        if (field) layer?.typeIn(field);
+      },
+      false,
+      'search',
+    );
     go.className = 'field';
   }
   const tiles = s.home.recents.map((r, i) => {
     const mark = r.profile === 'own' ? 'Your profile' : r.profile === 'reviewed' ? 'Reviewed profile' : '';
     return tile(`tile-${i}`, r.icon, siteName(r.url), r.title, mark, () => tell({ kind: 'openRecent', url: r.url }));
   });
-  const apps = s.home.apps.map((a, i) => tile(`app-${i}`, a.icon, a.name, a.site, a.ownSession ? 'Own sign-ins' : '', () => tell({ kind: 'openApp', id: a.id })));
+  const apps = s.home.apps.map((a, i) =>
+    tile(`app-${i}`, a.icon, a.name, a.site, a.ownSession ? 'Own sign-ins' : '', () =>
+      tell({ kind: 'openApp', id: a.id }),
+    ),
+  );
   const savedTiles = s.home.saved.map((p, i) => {
     const site = siteName(p.url);
     return tile(`saved-${i}`, p.icon, p.title || site, site, '', () => tell({ kind: 'openSaved', url: p.url }));
@@ -157,33 +207,65 @@ function home(s: ChromeState): HTMLElement {
 
   const [time, day] = clockWords();
   const top = el('header', { id: 'top' }, [logo(), el('h1', { text: PRODUCT.name })]);
-  if (s.home.privateTab) top.append(el('span', { id: 'private-badge', cls: 'badge private' }, [icon('private'), el('span', { text: 'Private tab' })]));
-  if (s.tabs.length > 1) top.append(el('span', { cls: 'badge' }, [icon('tabs'), el('span', { text: `${s.tabs.length} tabs` })]));
+  if (s.home.privateTab)
+    top.append(
+      el('span', { id: 'private-badge', cls: 'badge private' }, [icon('private'), el('span', { text: 'Private tab' })]),
+    );
+  if (s.tabs.length > 1)
+    top.append(el('span', { cls: 'badge' }, [icon('tabs'), el('span', { text: `${s.tabs.length} tabs` })]));
   top.append(el('div', { id: 'clock' }, [document.createTextNode(time), el('small', { text: day })]));
   // The menu, for a remote that has no button for it: everything else (Settings, the pointer, giving a button a job) is behind it.
   const menuButton = button('home-menu', 'Menu', () => tell({ kind: 'menu', action: 'open' }), false, 'menu');
   top.append(menuButton);
 
   const main = el('main', { id: 'home' }, [top, go]);
-  if (s.home.privateTab) main.append(el('p', { id: 'private', cls: 'where', text: 'Nothing opened in this tab is kept: no history, no recent sites, and what its sites store goes when the tab is closed.' }));
+  if (s.home.privateTab)
+    main.append(
+      el('p', {
+        id: 'private',
+        cls: 'where',
+        text: 'Nothing opened in this tab is kept: no history, no recent sites, and what its sites store goes when the tab is closed.',
+      }),
+    );
   // The page left behind Home is one press away.
   if (s.page && !typing) {
     const back = button('resume', '', () => tell({ kind: 'menu', action: 'resume' }));
-    back.append(badge(s.page.icon, s.page.site), el('span', { cls: 'text' }, [el('span', { cls: 'label', text: s.page.title || s.page.site }), el('span', { cls: 'sub', text: `Carry on at ${s.page.site}` })]), icon('chevron'));
+    back.append(
+      badge(s.page.icon, s.page.site),
+      el('span', { cls: 'text' }, [
+        el('span', { cls: 'label', text: s.page.title || s.page.site }),
+        el('span', { cls: 'sub', text: `Carry on at ${s.page.site}` }),
+      ]),
+      icon('chevron'),
+    );
     back.setAttribute('aria-label', `Carry on at ${s.page.site}`);
     main.append(back);
   }
-  if (savedTiles.length) main.append(el('h2', { text: 'Saved pages' }), el('div', { id: 'saved', cls: 'tiles' }, savedTiles));
+  if (savedTiles.length)
+    main.append(el('h2', { text: 'Saved pages' }), el('div', { id: 'saved', cls: 'tiles' }, savedTiles));
   if (apps.length) main.append(el('h2', { text: 'Apps' }), el('div', { id: 'apps', cls: 'tiles' }, apps));
   if (tiles.length) main.append(el('h2', { text: 'Recently opened' }), el('div', { id: 'tiles', cls: 'tiles' }, tiles));
   else if (!apps.length && !savedTiles.length && !s.home.privateTab) {
-    const card = (pic: IconName, title: string, text: string): HTMLElement => el('div', {}, [icon(pic), el('b', { text: title }), el('span', { text })]);
+    const card = (pic: IconName, title: string, text: string): HTMLElement =>
+      el('div', {}, [icon(pic), el('b', { text: title }), el('span', { text })]);
     main.append(
       el('p', { id: 'welcome-title', text: `Welcome to ${PRODUCT.name}` }),
       el('div', { id: 'welcome' }, [
-        card('search', 'Search or go to a site', 'Press OK on the bar above and type with the on-screen keyboard. A keyboard that is plugged in works too.'),
-        card('apps', 'Your sites live here', 'Sites you open will appear here. The menu can keep a page on Home, or add a site as an app. On a website, press Up twice at the top of the page for the menu.'),
-        card('pointer', 'A pointer when you need one', 'The arrows move between links and buttons. For a site that needs a mouse, "Pointer" in the menu puts an arrow on the screen that you steer.'),
+        card(
+          'search',
+          'Search or go to a site',
+          'Press OK on the bar above and type with the on-screen keyboard. A keyboard that is plugged in works too.',
+        ),
+        card(
+          'apps',
+          'Your sites live here',
+          'Sites you open will appear here. The menu can keep a page on Home, or add a site as an app. On a website, press Up twice at the top of the page for the menu.',
+        ),
+        card(
+          'pointer',
+          'A pointer when you need one',
+          'The arrows move between links and buttons. For a site that needs a mouse, "Pointer" in the menu puts an arrow on the screen that you steer.',
+        ),
       ]),
     );
   }
@@ -195,7 +277,10 @@ function siteBlock(page: NonNullable<ChromeState['page']>): HTMLElement {
   const line = page.secure
     ? el('span', {}, [icon('lock'), el('span', { text: page.site })])
     : el('span', { cls: 'warn' }, [icon('warn'), el('span', { text: `${page.site}: not secure` })]);
-  return el('div', { cls: 'site' }, [badge(page.icon, page.site), el('div', { cls: 'text' }, [el('b', { text: page.title || page.site }), line])]);
+  return el('div', { cls: 'site' }, [
+    badge(page.icon, page.site),
+    el('div', { cls: 'text' }, [el('b', { text: page.title || page.site }), line]),
+  ]);
 }
 
 function menuPanel(s: ChromeState): Node[] {
@@ -207,42 +292,103 @@ function menuPanel(s: ChromeState): Node[] {
     const items: Node[] = [
       heading('This page'),
       siteBlock(page),
-      page.saved ? row('menu-unsave', 'Take this page off Home', act('unsavePage'), { icon: 'star' }) : row('menu-save', 'Keep this page on Home', act('savePage'), { icon: 'star' }),
-      ...(page.storeExtension ? [row('menu-add-extension', 'Add this extension', act('addExtension'), { icon: 'plug' })] : []),
+      page.saved
+        ? row('menu-unsave', 'Take this page off Home', act('unsavePage'), { icon: 'star' })
+        : row('menu-save', 'Keep this page on Home', act('savePage'), { icon: 'star' }),
+      ...(page.storeExtension
+        ? [row('menu-add-extension', 'Add this extension', act('addExtension'), { icon: 'plug' })]
+        : []),
       row('menu-find', 'Find on this page', act('find'), { icon: 'search' }),
       row('menu-reader', 'Reader view', act('reader'), { icon: 'book', sub: 'Only the article, in large words' }),
-      row('menu-desktop', 'Desktop site', act('desktop'), { icon: 'monitor', on: page.desktop, sub: 'The full-width layout, with smaller words' }),
+      row('menu-desktop', 'Desktop site', act('desktop'), {
+        icon: 'monitor',
+        on: page.desktop,
+        sub: 'The full-width layout, with smaller words',
+      }),
     ];
-    if (page.answers) items.push(el('h2', { text: 'This site' }), note(page.answers), row('menu-forget', 'Forget what this site may do', act('forgetAnswers'), { icon: 'shield' }));
+    if (page.answers)
+      items.push(
+        el('h2', { text: 'This site' }),
+        note(page.answers),
+        row('menu-forget', 'Forget what this site may do', act('forgetAnswers'), { icon: 'shield' }),
+      );
     items.push(
       el('h2', { text: 'Profile' }),
-      note(page.profile ? `Profile: ${page.profile}` : page.profileOff ? "This site's profile is switched off: generic mode" : 'No profile for this site: generic mode'),
-      row('menu-edit', page.profile ? 'Edit the profile for this site' : 'Make a profile for this site', act('editProfile'), { icon: 'layers', chevron: true }),
+      note(
+        page.profile
+          ? `Profile: ${page.profile}`
+          : page.profileOff
+            ? "This site's profile is switched off: generic mode"
+            : 'No profile for this site: generic mode',
+      ),
+      row(
+        'menu-edit',
+        page.profile ? 'Edit the profile for this site' : 'Make a profile for this site',
+        act('editProfile'),
+        { icon: 'layers', chevron: true },
+      ),
     );
     // A profile can change a site a great deal (its own interface for TVs); the person can always have the site without it.
-    if (page.profile || page.profileOff) items.push(row('menu-site-profile', "Use this site's profile", act('siteProfile'), { icon: 'layers', on: !page.profileOff, sub: page.profileOff ? 'Off: the site as any browser gets it' : 'On' }));
+    if (page.profile || page.profileOff)
+      items.push(
+        row('menu-site-profile', "Use this site's profile", act('siteProfile'), {
+          icon: 'layers',
+          on: !page.profileOff,
+          sub: page.profileOff ? 'Off: the site as any browser gets it' : 'On',
+        }),
+      );
     if (page.profile) items.push(row('menu-export', 'Export this profile', act('exportProfile'), { icon: 'download' }));
     items.push(
-      row('menu-outline', 'Save page outline', act('outline'), { icon: 'download', sub: 'The structure only, for making a profile' }),
-      row('menu-site-back', 'Back to the menu', () => {
-        menuPage = 'main';
-        render();
-      }, { icon: 'back', cls: 'quiet' }),
+      row('menu-outline', 'Save page outline', act('outline'), {
+        icon: 'download',
+        sub: 'The structure only, for making a profile',
+      }),
+      row(
+        'menu-site-back',
+        'Back to the menu',
+        () => {
+          menuPage = 'main';
+          render();
+        },
+        { icon: 'back', cls: 'quiet' },
+      ),
     );
     return items;
   }
   const items: Node[] = [heading('Menu')];
   if (page && onPage) items.push(siteBlock(page));
   if (page && onPage && !page.secure) {
-    const warn = note('Not secure: this page is sent over plain http, where anyone on the way can read or change it.', 'warn');
+    const warn = note(
+      'Not secure: this page is sent over plain http, where anyone on the way can read or change it.',
+      'warn',
+    );
     warn.id = 'not-secure';
     items.push(warn);
   }
   items.push(addressField('menu-address'));
   // A saved sign-in for the form on this page, or a password just typed that can be kept: first, so one press does it.
   if (page && onPage) {
-    page.logins.slice(0, 3).forEach((user, i) => items.push(row(`menu-fill-${i}`, user ? `Sign in as ${user}` : 'Fill in the saved password', () => tell({ kind: 'fillLogin', user }), { icon: 'lock', sub: 'Fills in the form; you press the site\'s own button' })));
-    if (page.keepPassword !== null) items.push(row('menu-save-password', page.keepPassword ? `Keep the password for ${page.keepPassword}` : 'Keep the password you typed', act('savePassword'), { icon: 'lock', chevron: true }));
+    page.logins
+      .slice(0, 3)
+      .forEach((user, i) =>
+        items.push(
+          row(
+            `menu-fill-${i}`,
+            user ? `Sign in as ${user}` : 'Fill in the saved password',
+            () => tell({ kind: 'fillLogin', user }),
+            { icon: 'lock', sub: "Fills in the form; you press the site's own button" },
+          ),
+        ),
+      );
+    if (page.keepPassword !== null)
+      items.push(
+        row(
+          'menu-save-password',
+          page.keepPassword ? `Keep the password for ${page.keepPassword}` : 'Keep the password you typed',
+          act('savePassword'),
+          { icon: 'lock', chevron: true },
+        ),
+      );
   }
   if (onPage) items.push(row('menu-home', 'Home', act('home'), { icon: 'home' }));
   else if (page) items.push(row('menu-resume', `Back to ${page.site}`, act('resume'), { icon: 'back' }));
@@ -250,10 +396,25 @@ function menuPanel(s: ChromeState): Node[] {
     const tileFor = menuFor;
     items.push(
       tileFor.kind === 'recent'
-        ? row('menu-remove-tile', `Remove ${tileFor.name} from Home`, () => tell({ kind: 'removeRecent', url: tileFor.url }), { icon: 'trash' })
+        ? row(
+            'menu-remove-tile',
+            `Remove ${tileFor.name} from Home`,
+            () => tell({ kind: 'removeRecent', url: tileFor.url }),
+            { icon: 'trash' },
+          )
         : tileFor.kind === 'saved'
-          ? row('menu-remove-tile', `Take "${tileFor.name}" off Home`, () => tell({ kind: 'removeSaved', url: tileFor.url }), { icon: 'trash' })
-          : row('menu-remove-tile', `Remove the app "${tileFor.name}"`, () => tell({ kind: 'removeApp', id: tileFor.id }), { icon: 'trash' }),
+          ? row(
+              'menu-remove-tile',
+              `Take "${tileFor.name}" off Home`,
+              () => tell({ kind: 'removeSaved', url: tileFor.url }),
+              { icon: 'trash' },
+            )
+          : row(
+              'menu-remove-tile',
+              `Remove the app "${tileFor.name}"`,
+              () => tell({ kind: 'removeApp', id: tileFor.id }),
+              { icon: 'trash' },
+            ),
     );
   }
   if (page && onPage) {
@@ -261,7 +422,9 @@ function menuPanel(s: ChromeState): Node[] {
       el('div', { cls: 'pair nav' }, [
         button('menu-back', 'Back', act('back'), !page.canGoBack, 'back'),
         button('menu-forward', 'Forward', act('forward'), !page.canGoForward, 'forward'),
-        page.loading ? button('menu-reload', 'Stop', act('stop'), false, 'close') : button('menu-reload', 'Reload', act('reload'), false, 'reload'),
+        page.loading
+          ? button('menu-reload', 'Stop', act('stop'), false, 'close')
+          : button('menu-reload', 'Reload', act('reload'), false, 'reload'),
       ]),
       el('div', { cls: 'pair' }, [
         button('menu-zoom-out', 'Smaller', act('zoomOut')),
@@ -270,27 +433,75 @@ function menuPanel(s: ChromeState): Node[] {
       ]),
       row('menu-pointer', 'Pointer mode', act('pointer'), { icon: 'pointer', on: page.pointer }),
     );
-    if (page.adBlocking) items.push(row('menu-adblock', 'Ad blocking', act('adBlocking'), { icon: 'block', on: page.adBlocking.on, sub: page.adBlocking.note, disabled: page.adBlocking.locked }));
+    if (page.adBlocking)
+      items.push(
+        row('menu-adblock', 'Ad blocking', act('adBlocking'), {
+          icon: 'block',
+          on: page.adBlocking.on,
+          sub: page.adBlocking.note,
+          disabled: page.adBlocking.locked,
+        }),
+      );
     // On the first page (Andrew, 2026-11-19): making an app of a site is one of the main things the menu is for.
     items.push(
-      page.app ? row('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp'), { icon: 'trash' }) : row('menu-add-app', 'Add this site as an app', act('addApp'), { icon: 'apps', chevron: true, sub: 'A tile on Home that opens it directly' }),
-      row('menu-site', 'This page', () => {
-        menuPage = 'site';
-        render();
-      }, { icon: 'globe', chevron: true, sub: 'Keep, find, reader view, profile' }),
+      page.app
+        ? row('menu-remove-app', `Remove the app "${page.app.name}"`, act('removeApp'), { icon: 'trash' })
+        : row('menu-add-app', 'Add this site as an app', act('addApp'), {
+            icon: 'apps',
+            chevron: true,
+            sub: 'A tile on Home that opens it directly',
+          }),
+      row(
+        'menu-site',
+        'This page',
+        () => {
+          menuPage = 'site';
+          render();
+        },
+        { icon: 'globe', chevron: true, sub: 'Keep, find, reader view, profile' },
+      ),
     );
   }
-  items.push(el('div', { cls: 'pair' }, [button('menu-tabs', s.tabs.length > 1 ? `Tabs (${s.tabs.length})` : 'Tabs', act('tabs'), false, 'tabs'), button('menu-history', 'History', act('history'), false, 'history')]));
+  items.push(
+    el('div', { cls: 'pair' }, [
+      button('menu-tabs', s.tabs.length > 1 ? `Tabs (${s.tabs.length})` : 'Tabs', act('tabs'), false, 'tabs'),
+      button('menu-history', 'History', act('history'), false, 'history'),
+    ]),
+  );
   items.push(row('menu-voice', 'Speak', act('voice'), { icon: 'mic', sub: 'Say an address or what to search for' }));
-  items.push(row('menu-phone', 'Type from a phone', act('phone'), { icon: 'remote', chevron: true, ...(s.phoneOn ? { value: 'On' } : {}) }));
+  items.push(
+    row('menu-phone', 'Type from a phone', act('phone'), {
+      icon: 'remote',
+      chevron: true,
+      ...(s.phoneOn ? { value: 'On' } : {}),
+    }),
+  );
   if (s.downloads.length > 0) {
     const going = s.downloads.filter((d) => d.state === 'going').length;
-    items.push(row('menu-downloads', 'Downloads', act('downloads'), { icon: 'download', chevron: true, ...(going ? { value: `${going} under way` } : {}), say: going ? `Downloads (${going} under way)` : 'Downloads' }));
+    items.push(
+      row('menu-downloads', 'Downloads', act('downloads'), {
+        icon: 'download',
+        chevron: true,
+        ...(going ? { value: `${going} under way` } : {}),
+        say: going ? `Downloads (${going} under way)` : 'Downloads',
+      }),
+    );
   }
-  if (s.lock?.homeOnly) items.push(row('menu-lock', s.lock.unlocked ? 'Lock again: only the sites on Home' : 'Unlock every site (PIN)', act('lock'), { icon: s.lock.unlocked ? 'lock' : 'unlock' }));
+  if (s.lock?.homeOnly)
+    items.push(
+      row(
+        'menu-lock',
+        s.lock.unlocked ? 'Lock again: only the sites on Home' : 'Unlock every site (PIN)',
+        act('lock'),
+        { icon: s.lock.unlocked ? 'lock' : 'unlock' },
+      ),
+    );
   items.push(
     row('menu-settings', 'Settings', act('settings'), { icon: 'settings', chevron: true }),
-    el('div', { cls: 'pair' }, [button('menu-about', 'About and help', act('about'), false, 'info'), button('menu-quit', `Quit ${PRODUCT.name}`, act('quit'), false, 'power')]),
+    el('div', { cls: 'pair' }, [
+      button('menu-about', 'About and help', act('about'), false, 'info'),
+      button('menu-quit', `Quit ${PRODUCT.name}`, act('quit'), false, 'power'),
+    ]),
   );
   return items;
 }
@@ -311,17 +522,45 @@ function addAppPanel(s: ChromeState): Node[] {
     heading('Add as an app', 'apps'),
     note(`${s.page?.site ?? 'This site'} will get a tile on Home that opens it directly.`),
     name,
-    row('app-session', 'Its own sign-ins', flip(() => (draft.ownSession = !draft.ownSession)), {
-      on: draft.ownSession,
-      sub: draft.ownSession ? 'Kept apart from the rest' : `Shared with the rest of ${PRODUCT.name}`,
-      say: draft.ownSession ? 'Sign-ins: its own, apart from the rest' : `Sign-ins: shared with the rest of ${PRODUCT.name}`,
-    }),
+    row(
+      'app-session',
+      'Its own sign-ins',
+      flip(() => (draft.ownSession = !draft.ownSession)),
+      {
+        on: draft.ownSession,
+        sub: draft.ownSession ? 'Kept apart from the rest' : `Shared with the rest of ${PRODUCT.name}`,
+        say: draft.ownSession
+          ? 'Sign-ins: its own, apart from the rest'
+          : `Sign-ins: shared with the rest of ${PRODUCT.name}`,
+      },
+    ),
   ];
   if (s.page?.canAddToAppList) {
-    items.push(row('app-launcher', "Also in the TV's app list", flip(() => (draft.launcher = !draft.launcher)), { on: draft.launcher, say: draft.launcher ? "Also in the TV's app list: yes" : "Also in the TV's app list: no" }));
+    items.push(
+      row(
+        'app-launcher',
+        "Also in the TV's app list",
+        flip(() => (draft.launcher = !draft.launcher)),
+        {
+          on: draft.launcher,
+          say: draft.launcher ? "Also in the TV's app list: yes" : "Also in the TV's app list: no",
+        },
+      ),
+    );
   }
   items.push(
-    row('app-add', 'Add', () => tell({ kind: 'addApp', name: draft.name, ownSession: draft.ownSession, launcher: draft.launcher && s.page?.canAddToAppList === true }), { icon: 'plus' }),
+    row(
+      'app-add',
+      'Add',
+      () =>
+        tell({
+          kind: 'addApp',
+          name: draft.name,
+          ownSession: draft.ownSession,
+          launcher: draft.launcher && s.page?.canAddToAppList === true,
+        }),
+      { icon: 'plus' },
+    ),
     row('app-cancel', 'Cancel', () => tell({ kind: 'menu', action: 'close' }), { cls: 'quiet' }),
   );
   return items;
@@ -335,17 +574,26 @@ function editPanel(s: ChromeState): Node[] {
   if (!edit) return items;
   const picked = edit.picked;
   if (!picked) {
-    items.push(el('p', { cls: 'lead', text: `Making a profile for ${edit.site}. Move the pointer onto something and press OK to mark it.` }));
+    items.push(
+      el('p', {
+        cls: 'lead',
+        text: `Making a profile for ${edit.site}. Move the pointer onto something and press OK to mark it.`,
+      }),
+    );
     items.push(row('edit-pick', 'Point at something', press('pickAgain'), { icon: 'pointer' }));
   } else {
-    const mark = (id: string, label: string, on: boolean, action: EditAction): HTMLButtonElement => row(id, label, press(action), { on, say: `${label}: ${on ? 'yes' : 'no'}` });
+    const mark = (id: string, label: string, on: boolean, action: EditAction): HTMLButtonElement =>
+      row(id, label, press(action), { on, say: `${label}: ${on ? 'yes' : 'no'}` });
     items.push(
       note(`${picked.selector}: ${picked.matches} on this page, shown with a dashed box`),
       mark('edit-include', 'Can be selected', picked.marks.include, 'include'),
       mark('edit-exclude', 'Never select', picked.marks.exclude, 'exclude'),
       mark('edit-row', 'This is a row', picked.marks.row, 'row'),
       mark('edit-player', 'This is the player', picked.marks.player, 'player'),
-      el('div', { cls: 'pair' }, [button('edit-narrower', 'Narrower', press('narrower'), !picked.canNarrow), button('edit-wider', 'Wider', press('wider'), !picked.canWiden)]),
+      el('div', { cls: 'pair' }, [
+        button('edit-narrower', 'Narrower', press('narrower'), !picked.canNarrow),
+        button('edit-wider', 'Wider', press('wider'), !picked.canWiden),
+      ]),
       row('edit-pick', 'Point at something else', press('pickAgain'), { icon: 'pointer' }),
     );
   }
@@ -371,42 +619,69 @@ function settingsPanel(s: ChromeState): Node[] {
     confirming = null;
     render();
   };
-  const backTo = (text: string, page: SettingsPage): HTMLButtonElement => row('settings-back', text, go(page), { icon: 'back', cls: 'quiet' });
+  const backTo = (text: string, page: SettingsPage): HTMLButtonElement =>
+    row('settings-back', text, go(page), { icon: 'back', cls: 'quiet' });
   const back = backTo('Back to Settings', 'main');
   const say = (text: string): HTMLElement => note(text);
   /** A switch. `words` is what it said before it was drawn as one, kept as its accessible name. */
-  const flip = (id: string, label: string, on: boolean, press: () => void, sub?: string): HTMLButtonElement => row(id, label, press, { on, ...(sub ? { sub } : {}), say: `${label}: ${on ? 'yes' : 'no'}` });
+  const flip = (id: string, label: string, on: boolean, press: () => void, sub?: string): HTMLButtonElement =>
+    row(id, label, press, { on, ...(sub ? { sub } : {}), say: `${label}: ${on ? 'yes' : 'no'}` });
   /** A row that clears or removes something: the first press asks, the second does it. */
-  const sure = (id: string, text: string, again: string, press: () => void, pic: IconName = 'trash'): HTMLButtonElement =>
-    row(id, confirming === id ? again : text, () => {
-      if (confirming === id) {
-        confirming = null;
-        press();
-      } else {
-        confirming = id;
-        render();
-      }
-    }, { icon: confirming === id ? 'warn' : pic, cls: 'danger' });
-  const twice = (id: string, text: string, again: string, action: SettingsAction): HTMLButtonElement => sure(id, text, again, () => tell({ kind: 'settingsAction', action }));
-  const once = (id: string, text: string, action: SettingsAction, pic?: IconName): HTMLButtonElement => row(id, text, () => tell({ kind: 'settingsAction', action }), pic ? { icon: pic } : {});
+  const sure = (
+    id: string,
+    text: string,
+    again: string,
+    press: () => void,
+    pic: IconName = 'trash',
+  ): HTMLButtonElement =>
+    row(
+      id,
+      confirming === id ? again : text,
+      () => {
+        if (confirming === id) {
+          confirming = null;
+          press();
+        } else {
+          confirming = id;
+          render();
+        }
+      },
+      { icon: confirming === id ? 'warn' : pic, cls: 'danger' },
+    );
+  const twice = (id: string, text: string, again: string, action: SettingsAction): HTMLButtonElement =>
+    sure(id, text, again, () => tell({ kind: 'settingsAction', action }));
+  const once = (id: string, text: string, action: SettingsAction, pic?: IconName): HTMLButtonElement =>
+    row(id, text, () => tell({ kind: 'settingsAction', action }), pic ? { icon: pic } : {});
 
   /** A list to choose one from: the one in use is marked, and choosing goes back to the page it came from. */
-  const choose = (title: string, name: string, options: Array<{ text: string; value: unknown; chosen: boolean; note?: string }>): Node[] => {
+  const choose = (
+    title: string,
+    name: string,
+    options: Array<{ text: string; value: unknown; chosen: boolean; note?: string }>,
+  ): Node[] => {
     const items: Node[] = [heading(title)];
     options.forEach((o, i) => {
       const pickIt = (): void => {
         choosing = null;
         tell({ kind: 'setting', name, value: o.value });
       };
-      const b = row(`pick-${i}`, o.text, pickIt, { ...(o.note ? { sub: o.note } : {}), ...(o.chosen ? { cls: 'chosen', say: `${o.text} (in use)` } : {}) });
+      const b = row(`pick-${i}`, o.text, pickIt, {
+        ...(o.note ? { sub: o.note } : {}),
+        ...(o.chosen ? { cls: 'chosen', say: `${o.text} (in use)` } : {}),
+      });
       if (o.chosen) b.append(icon('check'));
       items.push(b);
     });
     items.push(
-      row('pick-cancel', 'Cancel', () => {
-        choosing = null;
-        render();
-      }, { cls: 'quiet' }),
+      row(
+        'pick-cancel',
+        'Cancel',
+        () => {
+          choosing = null;
+          render();
+        },
+        { cls: 'quiet' },
+      ),
     );
     return items;
   };
@@ -415,10 +690,22 @@ function settingsPanel(s: ChromeState): Node[] {
     render();
   };
   if (choosing === 'search') {
-    return choose('Search with', 'search', SEARCH_CHOICES.map((c) => ({ text: c.name, value: c.template, chosen: c.template === st.searchTemplate })));
+    return choose(
+      'Search with',
+      'search',
+      SEARCH_CHOICES.map((c) => ({ text: c.name, value: c.template, chosen: c.template === st.searchTemplate })),
+    );
   }
   if (choosing === 'language') {
-    return choose('Language sites are asked for', 'language', LANGUAGE_CHOICES.map((l) => ({ text: l.name === "the system's" ? "The system's language" : l.name, value: l.code, chosen: l.code === st.language })));
+    return choose(
+      'Language sites are asked for',
+      'language',
+      LANGUAGE_CHOICES.map((l) => ({
+        text: l.name === "the system's" ? "The system's language" : l.name,
+        value: l.code,
+        chosen: l.code === st.language,
+      })),
+    );
   }
   if (choosing === 'theme') {
     return choose('Look sites are asked for', 'theme', [
@@ -430,9 +717,24 @@ function settingsPanel(s: ChromeState): Node[] {
   if (choosing === 'ads') {
     const mode = st.adBlocking.mode;
     return choose('Ad blocking', 'adBlocking', [
-      { text: 'Each site has its own switch', value: null, chosen: mode === 'sites', note: 'It starts off on the sites in the list and on everywhere else. The menu has the switch for the site in front.' },
-      { text: 'On for every site', value: 'everywhere', chosen: mode === 'everywhere', note: 'The list is ignored. A site you switch off yourself from the menu stays off.' },
-      { text: 'Off for every site', value: 'off', chosen: mode === 'off', note: 'Nothing is refused anywhere, and the filter list is not downloaded.' },
+      {
+        text: 'Each site has its own switch',
+        value: null,
+        chosen: mode === 'sites',
+        note: 'It starts off on the sites in the list and on everywhere else. The menu has the switch for the site in front.',
+      },
+      {
+        text: 'On for every site',
+        value: 'everywhere',
+        chosen: mode === 'everywhere',
+        note: 'The list is ignored. A site you switch off yourself from the menu stays off.',
+      },
+      {
+        text: 'Off for every site',
+        value: 'off',
+        chosen: mode === 'off',
+        note: 'Nothing is refused anywhere, and the filter list is not downloaded.',
+      },
     ]);
   }
 
@@ -441,18 +743,40 @@ function settingsPanel(s: ChromeState): Node[] {
       const language = LANGUAGE_CHOICES.find((l) => l.code === st.language)?.name ?? st.language ?? '';
       return [
         heading('Search and starting', 'search'),
-        row('set-search', 'Search with', pick('search'), { value: st.search, chevron: true, sub: 'Where words typed into the address field are looked up' }),
-        row('set-start', 'Open with', set('startWith', st.startWith === 'last' ? 'home' : 'last'), { value: st.startWith === 'last' ? 'The last site' : 'Home', say: st.startWith === 'last' ? 'Open with: the last site' : 'Open with: Home' }),
-        row('set-language', 'Language sites are asked for', pick('language'), { value: language, chevron: true, sub: 'Takes effect the next time it starts' }),
+        row('set-search', 'Search with', pick('search'), {
+          value: st.search,
+          chevron: true,
+          sub: 'Where words typed into the address field are looked up',
+        }),
+        row('set-start', 'Open with', set('startWith', st.startWith === 'last' ? 'home' : 'last'), {
+          value: st.startWith === 'last' ? 'The last site' : 'Home',
+          say: st.startWith === 'last' ? 'Open with: the last site' : 'Open with: Home',
+        }),
+        row('set-language', 'Language sites are asked for', pick('language'), {
+          value: language,
+          chevron: true,
+          sub: 'Takes effect the next time it starts',
+        }),
         ...(st.canSuggest
-          ? [flip('set-suggest', 'Suggest searches as you type', st.searchSuggestions, set('searchSuggestions', st.searchSuggestions ? null : true), `Sends the words you type in the address field to ${st.search} as you type them. Addresses are not sent, and nothing is in a private tab`)]
+          ? [
+              flip(
+                'set-suggest',
+                'Suggest searches as you type',
+                st.searchSuggestions,
+                set('searchSuggestions', st.searchSuggestions ? null : true),
+                `Sends the words you type in the address field to ${st.search} as you type them. Addresses are not sent, and nothing is in a private tab`,
+              ),
+            ]
           : [say('Search suggestions are for the four search sites offered by name.')]),
         say('Another search site can be put in config.json.'),
         back,
       ];
     }
     case 'display': {
-      const at = PAGE_SIZES.reduce((best, size, i) => (Math.abs(size - st.pageSize) < Math.abs(PAGE_SIZES[best]! - st.pageSize) ? i : best), 0);
+      const at = PAGE_SIZES.reduce(
+        (best, size, i) => (Math.abs(size - st.pageSize) < Math.abs(PAGE_SIZES[best]! - st.pageSize) ? i : best),
+        0,
+      );
       const step = (by: number): number => PAGE_SIZES[Math.min(PAGE_SIZES.length - 1, Math.max(0, at + by))]!;
       const look = st.theme === 'dark' ? 'dark' : st.theme === 'light' ? 'light' : "the system's";
       return [
@@ -465,22 +789,52 @@ function settingsPanel(s: ChromeState): Node[] {
         ]),
         say('Each site can also be made bigger or smaller from the menu.'),
         el('h2', { text: 'Look and video' }),
-        row('set-theme', 'Look sites are asked for', pick('theme'), { value: look, chevron: true, sub: 'Many sites have a dark look and a light one' }),
-        flip('set-autoplay', 'Videos may start by themselves', st.autoplay, set('autoplay', st.autoplay ? false : null), 'Takes effect the next time it starts'),
-        flip('set-decode', 'Decode video on the graphics chip', st.hardwareDecode, set('hardwareDecode', !st.hardwareDecode), 'Smoother on some boxes, broken on others. Takes effect the next time it starts'),
+        row('set-theme', 'Look sites are asked for', pick('theme'), {
+          value: look,
+          chevron: true,
+          sub: 'Many sites have a dark look and a light one',
+        }),
+        flip(
+          'set-autoplay',
+          'Videos may start by themselves',
+          st.autoplay,
+          set('autoplay', st.autoplay ? false : null),
+          'Takes effect the next time it starts',
+        ),
+        flip(
+          'set-decode',
+          'Decode video on the graphics chip',
+          st.hardwareDecode,
+          set('hardwareDecode', !st.hardwareDecode),
+          'Smoother on some boxes, broken on others. Takes effect the next time it starts',
+        ),
         back,
       ];
     }
     case 'ads': {
-      const words = { sites: 'each site has its own switch', everywhere: 'on for every site', off: 'off for every site' } as const;
+      const words = {
+        sites: 'each site has its own switch',
+        everywhere: 'on for every site',
+        off: 'off for every site',
+      } as const;
       const short = { sites: 'Per site', everywhere: 'Everywhere', off: 'Off' } as const;
       const mode = st.adBlocking.mode;
       const off = st.adBlocking.startsOff.filter((e) => e.off).length;
       return [
         heading('Ad blocking', 'block'),
-        row('set-ads', 'Ad blocking', pick('ads'), { value: short[mode], chevron: true, say: `Ad blocking: ${words[mode]}` }),
-        row('set-ads-list', 'Sites where it starts off', go('adsList'), { value: String(off), chevron: true, say: `Sites where it starts off (${off})` }),
-        say(`Filter list: EasyList${st.blockTrackers ? ' and EasyPrivacy' : ''}, ${st.adBlocking.listUpdated}. Downloaded from easylist.to every four days.`),
+        row('set-ads', 'Ad blocking', pick('ads'), {
+          value: short[mode],
+          chevron: true,
+          say: `Ad blocking: ${words[mode]}`,
+        }),
+        row('set-ads-list', 'Sites where it starts off', go('adsList'), {
+          value: String(off),
+          chevron: true,
+          say: `Sites where it starts off (${off})`,
+        }),
+        say(
+          `Filter list: EasyList${st.blockTrackers ? ' and EasyPrivacy' : ''}, ${st.adBlocking.listUpdated}. Downloaded from easylist.to every four days.`,
+        ),
         once('set-ads-update', 'Download the filter list now', 'updateFilters', 'download'),
         back,
       ];
@@ -504,12 +858,24 @@ function settingsPanel(s: ChromeState): Node[] {
       });
       const items: Node[] = [
         heading('Sites where ad blocking starts off'),
-        say(`Sites whose advertising is left alone unless you switch blocking on for them. The reviewed list comes with ${PRODUCT.name}; you can add to it and take sites off it. Press a site to change it.`),
+        say(
+          `Sites whose advertising is left alone unless you switch blocking on for them. The reviewed list comes with ${PRODUCT.name}; you can add to it and take sites off it. Press a site to change it.`,
+        ),
         add,
       ];
       st.adBlocking.startsOff.forEach((entry, i) => {
-        const what = entry.from === 'you' ? 'added by you: press to remove' : entry.off ? 'reviewed list: press to take off' : 'taken off by you: press to put back';
-        items.push(row(`starts-off-${i}`, entry.domain, () => tell({ kind: 'startsOff', op: 'toggle', domain: entry.domain }), { sub: what.charAt(0).toUpperCase() + what.slice(1), say: `${entry.domain} (${what})` }));
+        const what =
+          entry.from === 'you'
+            ? 'added by you: press to remove'
+            : entry.off
+              ? 'reviewed list: press to take off'
+              : 'taken off by you: press to put back';
+        items.push(
+          row(`starts-off-${i}`, entry.domain, () => tell({ kind: 'startsOff', op: 'toggle', domain: entry.domain }), {
+            sub: what.charAt(0).toUpperCase() + what.slice(1),
+            say: `${entry.domain} (${what})`,
+          }),
+        );
       });
       if (!st.adBlocking.startsOff.length) items.push(say('The list is empty.'));
       items.push(backTo('Back to ad blocking', 'ads'));
@@ -519,31 +885,85 @@ function settingsPanel(s: ChromeState): Node[] {
       return [
         heading('Privacy and site data', 'shield'),
         el('h2', { text: 'Protection' }),
-        flip('set-dnt', 'Ask sites not to track you or sell your data', st.doNotTrack, set('doNotTrack', st.doNotTrack ? null : true), 'Sends the "Do Not Track" and "Global Privacy Control" signals. Each site decides whether to honour them'),
-        flip('set-trackers', 'Refuse known trackers as well as ads', st.blockTrackers, set('blockTrackers', st.blockTrackers ? null : true), "Uses the public EasyPrivacy list, and each site's own ad-blocking switch"),
-        flip('set-local-address', "Hide this device's home-network address from sites", st.hideLocalAddress, set('hideLocalAddress', st.hideLocalAddress ? null : true)),
-        flip('set-https', 'Open only pages sent privately (https)', st.httpsOnly, set('httpsOnly', st.httpsOnly ? null : true)),
+        flip(
+          'set-dnt',
+          'Ask sites not to track you or sell your data',
+          st.doNotTrack,
+          set('doNotTrack', st.doNotTrack ? null : true),
+          'Sends the "Do Not Track" and "Global Privacy Control" signals. Each site decides whether to honour them',
+        ),
+        flip(
+          'set-trackers',
+          'Refuse known trackers as well as ads',
+          st.blockTrackers,
+          set('blockTrackers', st.blockTrackers ? null : true),
+          "Uses the public EasyPrivacy list, and each site's own ad-blocking switch",
+        ),
+        flip(
+          'set-local-address',
+          "Hide this device's home-network address from sites",
+          st.hideLocalAddress,
+          set('hideLocalAddress', st.hideLocalAddress ? null : true),
+        ),
+        flip(
+          'set-https',
+          'Open only pages sent privately (https)',
+          st.httpsOnly,
+          set('httpsOnly', st.httpsOnly ? null : true),
+        ),
         el('h2', { text: 'What is kept' }),
         flip('set-history', 'Keep a history of pages opened', st.history, set('history', st.history ? false : null)),
-        flip('set-clear-exit', `Clear what sites stored when ${PRODUCT.name} closes`, st.clearOnExit, set('clearOnExit', st.clearOnExit ? null : true)),
+        flip(
+          'set-clear-exit',
+          `Clear what sites stored when ${PRODUCT.name} closes`,
+          st.clearOnExit,
+          set('clearOnExit', st.clearOnExit ? null : true),
+        ),
         el('h2', { text: 'Clear' }),
         once('clear-history', `Clear the history (${st.visits})`, 'clearHistory', 'history'),
         once('clear-home', 'Clear the recently opened sites on Home', 'clearHome', 'home'),
         once('clear-cache', 'Clear saved copies of pages and pictures', 'clearCache', 'trash'),
-        twice('clear-data', 'Sign out of every site and clear what sites have stored', 'Press again to sign out everywhere', 'clearSiteData'),
-        twice('clear-sites', `Forget every site's own settings (${st.sitesWithChoices})`, "Press again to forget every site's settings", 'forgetSites'),
+        twice(
+          'clear-data',
+          'Sign out of every site and clear what sites have stored',
+          'Press again to sign out everywhere',
+          'clearSiteData',
+        ),
+        twice(
+          'clear-sites',
+          `Forget every site's own settings (${st.sitesWithChoices})`,
+          "Press again to forget every site's settings",
+          'forgetSites',
+        ),
         say("A site's own settings are what you allowed it, its size and its ad-blocking switch."),
-        twice('clear-all', 'Clear everything: history, recent sites, and what sites stored', 'Press again to clear everything', 'clearAll'),
+        twice(
+          'clear-all',
+          'Clear everything: history, recent sites, and what sites stored',
+          'Press again to clear everything',
+          'clearAll',
+        ),
         el('h2', { text: `What ${PRODUCT.name} fetches by itself` }),
         el('p', { text: BACKGROUND }),
         back,
       ];
     case 'access': {
-      const items: Node[] = [heading('What sites may ask for', 'shield'), say('A site has to ask before it gets any of these, and you answer for that site. Switch one off here and no site can even ask.')];
+      const items: Node[] = [
+        heading('What sites may ask for', 'shield'),
+        say(
+          'A site has to ask before it gets any of these, and you answer for that site. Switch one off here and no site can even ask.',
+        ),
+      ];
       for (const kind of st.askable) {
         const never = st.neverAsk.includes(kind.name);
         const next = never ? st.neverAsk.filter((n) => n !== kind.name) : [...st.neverAsk, kind.name];
-        items.push(flip(`ask-${kind.name}`, `Sites may ask to ${kind.words}`, !never, set('neverAsk', next.length ? next : null)));
+        items.push(
+          flip(
+            `ask-${kind.name}`,
+            `Sites may ask to ${kind.words}`,
+            !never,
+            set('neverAsk', next.length ? next : null),
+          ),
+        );
       }
       items.push(back);
       return items;
@@ -552,12 +972,25 @@ function settingsPanel(s: ChromeState): Node[] {
       const items: Node[] = [
         heading('Profiles and apps', 'layers'),
         say(`${st.profiles === 1 ? '1 profile' : `${st.profiles} profiles`} on this machine.`),
-        flip('set-catalogue', 'Look for reviewed profiles every day', st.catalogue, set('catalogue', st.catalogue ? false : null)),
+        flip(
+          'set-catalogue',
+          'Look for reviewed profiles every day',
+          st.catalogue,
+          set('catalogue', st.catalogue ? false : null),
+        ),
         once('set-catalogue-now', 'Look for reviewed profiles now', 'updateCatalogue', 'update'),
-        row('set-import', 'Import profiles from USB', () => tell({ kind: 'menu', action: 'importProfiles' }), { icon: 'folder' }),
+        row('set-import', 'Import profiles from USB', () => tell({ kind: 'menu', action: 'importProfiles' }), {
+          icon: 'folder',
+        }),
       ];
       if (s.home.apps.length) items.push(el('h2', { text: 'Apps' }));
-      s.home.apps.forEach((a, i) => items.push(sure(`set-app-${i}`, `Remove the app "${a.name}"`, `Press again to remove "${a.name}"`, () => tell({ kind: 'removeApp', id: a.id }))));
+      s.home.apps.forEach((a, i) =>
+        items.push(
+          sure(`set-app-${i}`, `Remove the app "${a.name}"`, `Press again to remove "${a.name}"`, () =>
+            tell({ kind: 'removeApp', id: a.id }),
+          ),
+        ),
+      );
       items.push(back);
       return items;
     }
@@ -566,17 +999,44 @@ function settingsPanel(s: ChromeState): Node[] {
       if (!f) {
         return [
           heading('Downloads', 'download'),
-          say(`Files are saved in ${st.downloads}. Each download is asked about first, and nothing downloaded is opened.`),
-          row('set-folder', 'Choose another folder', () => tell({ kind: 'folder', path: st.downloads }), { icon: 'folder', chevron: true }),
+          say(
+            `Files are saved in ${st.downloads}. Each download is asked about first, and nothing downloaded is opened.`,
+          ),
+          row('set-folder', 'Choose another folder', () => tell({ kind: 'folder', path: st.downloads }), {
+            icon: 'folder',
+            chevron: true,
+          }),
           row('set-folder-usual', "Use the desktop's Downloads folder", set('downloads', null)),
           back,
         ];
       }
-      const items: Node[] = [heading('Choose a folder', 'folder'), say(f.path), row('folder-use', 'Save downloads in this folder', set('downloads', f.path), { icon: 'check' })];
-      if (f.up) items.push(row('folder-up', 'Up to the folder above', () => tell({ kind: 'folder', path: f.up }), { icon: 'back' }));
-      f.inside.forEach((name, i) => items.push(row(`folder-${i}`, name, () => tell({ kind: 'folder', path: `${f.path === '/' ? '' : f.path}/${name}` }), { icon: 'folder', chevron: true, say: `Open: ${name}` })));
+      const items: Node[] = [
+        heading('Choose a folder', 'folder'),
+        say(f.path),
+        row('folder-use', 'Save downloads in this folder', set('downloads', f.path), { icon: 'check' }),
+      ];
+      if (f.up)
+        items.push(
+          row('folder-up', 'Up to the folder above', () => tell({ kind: 'folder', path: f.up }), { icon: 'back' }),
+        );
+      f.inside.forEach((name, i) =>
+        items.push(
+          row(`folder-${i}`, name, () => tell({ kind: 'folder', path: `${f.path === '/' ? '' : f.path}/${name}` }), {
+            icon: 'folder',
+            chevron: true,
+            say: `Open: ${name}`,
+          }),
+        ),
+      );
       if (!f.inside.length) items.push(say('There are no folders in here.'));
-      f.places.forEach((place, i) => items.push(row(`place-${i}`, place.name, () => tell({ kind: 'folder', path: place.path }), { icon: 'folder', say: `Go to: ${place.name}` })));
+      f.places.forEach((place, i) =>
+        items.push(
+          row(`place-${i}`, place.name, () => tell({ kind: 'folder', path: place.path }), {
+            icon: 'folder',
+            say: `Go to: ${place.name}`,
+          }),
+        ),
+      );
       items.push(row('folder-cancel', 'Cancel', () => tell({ kind: 'folder', path: null }), { cls: 'quiet' }));
       return items;
     }
@@ -584,19 +1044,35 @@ function settingsPanel(s: ChromeState): Node[] {
       const items: Node[] = [heading('Parental lock', 'lock')];
       if (!st.lock) {
         items.push(
-          say('Set a PIN and it is asked for before Settings opens. You can also have it asked for before any site that is not on Home.'),
+          say(
+            'Set a PIN and it is asked for before Settings opens. You can also have it asked for before any site that is not on Home.',
+          ),
           row('lock-set', 'Set a PIN', () => tell({ kind: 'lock', op: 'set' }), { icon: 'lock', chevron: true }),
         );
       } else {
         items.push(
           say('A PIN is set: it is asked for before Settings opens.'),
-          flip('lock-home-only', 'Only the sites on Home open without the PIN', st.lock.homeOnly, () => tell({ kind: 'lock', op: 'homeOnly' })),
-          say('The sites on Home are your apps and saved pages. With this on, adding to Home or taking off it asks for the PIN too, and the menu has "Unlock every site". A site that sends you elsewhere to sign in needs unlocking for that.'),
-          row('lock-change', 'Change the PIN', () => tell({ kind: 'lock', op: 'set' }), { icon: 'lock', chevron: true }),
-          sure('lock-remove', 'Remove the PIN', 'Press again to remove the PIN', () => tell({ kind: 'lock', op: 'remove' })),
+          flip('lock-home-only', 'Only the sites on Home open without the PIN', st.lock.homeOnly, () =>
+            tell({ kind: 'lock', op: 'homeOnly' }),
+          ),
+          say(
+            'The sites on Home are your apps and saved pages. With this on, adding to Home or taking off it asks for the PIN too, and the menu has "Unlock every site". A site that sends you elsewhere to sign in needs unlocking for that.',
+          ),
+          row('lock-change', 'Change the PIN', () => tell({ kind: 'lock', op: 'set' }), {
+            icon: 'lock',
+            chevron: true,
+          }),
+          sure('lock-remove', 'Remove the PIN', 'Press again to remove the PIN', () =>
+            tell({ kind: 'lock', op: 'remove' }),
+          ),
         );
       }
-      items.push(say(`This keeps a child with the remote out. It does not stop someone with a keyboard and the files: deleting lock.json in ${st.dataFolder} removes the lock, which is also what to do if the PIN is forgotten.`), back);
+      items.push(
+        say(
+          `This keeps a child with the remote out. It does not stop someone with a keyboard and the files: deleting lock.json in ${st.dataFolder} removes the lock, which is also what to do if the PIN is forgotten.`,
+        ),
+        back,
+      );
       return items;
     }
     case 'passwords': {
@@ -605,53 +1081,120 @@ function settingsPanel(s: ChromeState): Node[] {
       if (!pw.available) {
         items.push(
           el('p', { cls: 'lead', text: 'Passwords cannot be kept on this system.' }),
-          say(`${PRODUCT.name} only keeps a password encrypted by the system's keyring (GNOME Keyring, KWallet or the like), and this system has none running. Nothing is saved, and nothing saved before can be read, until there is one.`),
+          say(
+            `${PRODUCT.name} only keeps a password encrypted by the system's keyring (GNOME Keyring, KWallet or the like), and this system has none running. Nothing is saved, and nothing saved before can be read, until there is one.`,
+          ),
           back,
         );
         return items;
       }
       items.push(
-        flip('set-passwords', 'Offer to keep passwords, and to fill them in', pw.offer, set('passwords', pw.offer ? false : null), 'After you sign in somewhere, the menu offers to keep the password. Nothing is kept unless you say so'),
-        say(`Kept on this machine only, in passwords.json in ${st.dataFolder}, each one encrypted by the system's keyring. Never synced or sent anywhere. Not offered in private tabs.`),
+        flip(
+          'set-passwords',
+          'Offer to keep passwords, and to fill them in',
+          pw.offer,
+          set('passwords', pw.offer ? false : null),
+          'After you sign in somewhere, the menu offers to keep the password. Nothing is kept unless you say so',
+        ),
+        say(
+          `Kept on this machine only, in passwords.json in ${st.dataFolder}, each one encrypted by the system's keyring. Never synced or sent anywhere. Not offered in private tabs.`,
+        ),
       );
       if (pw.logins.length) items.push(el('h2', { text: 'Kept' }));
-      pw.logins.forEach((l, i) => items.push(sure(`pw-remove-${i}`, l.user ? `${l.site}: ${l.user}` : l.site, `Press again to forget the password for ${l.site}`, () => tell({ kind: 'password', op: 'remove', place: l.place, user: l.user }))));
+      pw.logins.forEach((l, i) =>
+        items.push(
+          sure(
+            `pw-remove-${i}`,
+            l.user ? `${l.site}: ${l.user}` : l.site,
+            `Press again to forget the password for ${l.site}`,
+            () => tell({ kind: 'password', op: 'remove', place: l.place, user: l.user }),
+          ),
+        ),
+      );
       if (!pw.logins.length) items.push(say('None are kept.'));
       if (pw.never.length) items.push(el('h2', { text: 'Never offered for' }));
-      pw.never.forEach((site, i) => items.push(row(`pw-never-${i}`, site, () => tell({ kind: 'password', op: 'offerAgain', place: site }), { value: 'Offer again' })));
-      if (pw.logins.length > 1) items.push(sure('pw-remove-all', 'Forget every password', 'Press again to forget every password', () => tell({ kind: 'password', op: 'removeAll' })));
+      pw.never.forEach((site, i) =>
+        items.push(
+          row(`pw-never-${i}`, site, () => tell({ kind: 'password', op: 'offerAgain', place: site }), {
+            value: 'Offer again',
+          }),
+        ),
+      );
+      if (pw.logins.length > 1)
+        items.push(
+          sure('pw-remove-all', 'Forget every password', 'Press again to forget every password', () =>
+            tell({ kind: 'password', op: 'removeAll' }),
+          ),
+        );
       items.push(back);
       return items;
     }
     case 'extensions': {
       const items: Node[] = [
         heading('Extensions', 'plug'),
-        say('Extensions come from the Chrome Web Store. Open the store, go to an extension\'s page, then choose "Add this extension" on the menu\'s page about the page in front.'),
-        row('ext-store', 'Open the Chrome Web Store', () => tell({ kind: 'open', input: 'https://chromewebstore.google.com/category/extensions' }), { icon: 'globe', chevron: true }),
+        say(
+          'Extensions come from the Chrome Web Store. Open the store, go to an extension\'s page, then choose "Add this extension" on the menu\'s page about the page in front.',
+        ),
+        row(
+          'ext-store',
+          'Open the Chrome Web Store',
+          () => tell({ kind: 'open', input: 'https://chromewebstore.google.com/category/extensions' }),
+          { icon: 'globe', chevron: true },
+        ),
       ];
       if (st.extensions.length) items.push(el('h2', { text: 'Installed' }));
       st.extensions.forEach((x, i) => {
-        if (x.opens) items.push(row(`ext-open-${i}`, x.name, () => tell({ kind: 'extension', op: 'open', id: x.id }), { icon: 'plug', value: x.version, chevron: true, say: `Open "${x.name}"` }));
+        if (x.opens)
+          items.push(
+            row(`ext-open-${i}`, x.name, () => tell({ kind: 'extension', op: 'open', id: x.id }), {
+              icon: 'plug',
+              value: x.version,
+              chevron: true,
+              say: `Open "${x.name}"`,
+            }),
+          );
         else items.push(say(`"${x.name}" (${x.version}) has no page of its own.`));
-        items.push(sure(`ext-remove-${i}`, `Remove "${x.name}"`, `Press again to remove "${x.name}"`, () => tell({ kind: 'extension', op: 'remove', id: x.id })));
+        items.push(
+          sure(`ext-remove-${i}`, `Remove "${x.name}"`, `Press again to remove "${x.name}"`, () =>
+            tell({ kind: 'extension', op: 'remove', id: x.id }),
+          ),
+        );
       });
       if (!st.extensions.length) items.push(say('None are installed.'));
       items.push(
-        flip('ext-updates', 'Look for newer versions of extensions every day', st.extensionUpdates, set('extensionUpdates', st.extensionUpdates ? false : null)),
-        say(`Not every extension works: ${PRODUCT.name} is not Chrome, and some need things it does not have. They are made for a mouse; pointer mode helps. Extensions do not run in private tabs or in apps that keep their own sign-ins.`),
+        flip(
+          'ext-updates',
+          'Look for newer versions of extensions every day',
+          st.extensionUpdates,
+          set('extensionUpdates', st.extensionUpdates ? false : null),
+        ),
+        say(
+          `Not every extension works: ${PRODUCT.name} is not Chrome, and some need things it does not have. They are made for a mouse; pointer mode helps. Extensions do not run in private tabs or in apps that keep their own sign-ins.`,
+        ),
         back,
       );
       return items;
     }
     case 'updates': {
       const u = st.update;
-      const words = { install: u.canInstall ? 'installed by themselves' : 'looked for, and you are told', tell: 'looked for, and you are told', off: 'not looked for' } as const;
-      const short = { install: u.canInstall ? 'Installed for you' : 'You are told', tell: 'You are told', off: 'Not looked for' } as const;
+      const words = {
+        install: u.canInstall ? 'installed by themselves' : 'looked for, and you are told',
+        tell: 'looked for, and you are told',
+        off: 'not looked for',
+      } as const;
+      const short = {
+        install: u.canInstall ? 'Installed for you' : 'You are told',
+        tell: 'You are told',
+        off: 'Not looked for',
+      } as const;
       const next = { install: 'tell', tell: 'off', off: null } as const;
       return [
         heading('New versions', 'update'),
         el('p', { cls: 'lead', text: `This is version ${s.version}. ${u.words}` }),
-        row('set-updates', 'New versions are', set('updates', next[u.mode]), { value: short[u.mode], say: `New versions are: ${words[u.mode]}` }),
+        row('set-updates', 'New versions are', set('updates', next[u.mode]), {
+          value: short[u.mode],
+          say: `New versions are: ${words[u.mode]}`,
+        }),
         say(
           u.canInstall
             ? `Once a day ${PRODUCT.name} asks GitHub whether there is a newer release. A new one is downloaded, checked against the checksum the release states, and used from the next start.`
@@ -666,15 +1209,45 @@ function settingsPanel(s: ChromeState): Node[] {
       const items: Node[] = [heading('Remote and keyboard buttons', 'remote')];
       if (st.capturing) {
         const words = st.buttons.find((b) => b.action === st.capturing)?.words ?? st.capturing;
-        items.push(el('p', { cls: 'lead', text: `Press the button to use for "${words}". Back cancels.` }), say('The arrows, OK and plain letters and numbers cannot be given another job.'));
+        items.push(
+          el('p', { cls: 'lead', text: `Press the button to use for "${words}". Back cancels.` }),
+          say('The arrows, OK and plain letters and numbers cannot be given another job.'),
+        );
         return items;
       }
-      items.push(say('Give a button on your remote a job. The built-in buttons keep working; About and help lists them.'));
-      const speech: Node[] = [el('h2', { text: 'Speaking' }), say(st.voiceModel ? 'The speech model is on this machine. What you say is worked out here and never sent anywhere.' : 'The speech model has not been fetched. "Speak" on the menu offers to fetch it.')];
-      if (st.voiceModel) speech.push(sure('voice-remove', 'Remove the speech model', 'Press again to remove the speech model', () => tell({ kind: 'settingsAction', action: 'removeVoiceModel' })));
+      items.push(
+        say('Give a button on your remote a job. The built-in buttons keep working; About and help lists them.'),
+      );
+      const speech: Node[] = [
+        el('h2', { text: 'Speaking' }),
+        say(
+          st.voiceModel
+            ? 'The speech model is on this machine. What you say is worked out here and never sent anywhere.'
+            : 'The speech model has not been fetched. "Speak" on the menu offers to fetch it.',
+        ),
+      ];
+      if (st.voiceModel)
+        speech.push(
+          sure('voice-remove', 'Remove the speech model', 'Press again to remove the speech model', () =>
+            tell({ kind: 'settingsAction', action: 'removeVoiceModel' }),
+          ),
+        );
       for (const b of st.buttons) {
-        items.push(row(`button-${b.action}`, b.words, () => tell({ kind: 'captureButton', action: b.action }), { value: b.keys.length ? b.keys.join(', ') : 'Add a button', say: b.keys.length ? `${b.words}: also ${b.keys.join(', ')}` : `${b.words}: add a button` }));
-        if (b.keys.length) items.push(row(`unbutton-${b.action}`, `Take the extra buttons away from "${b.words}"`, () => tell({ kind: 'clearButtons', action: b.action }), { cls: 'quiet', icon: 'close' }));
+        items.push(
+          row(`button-${b.action}`, b.words, () => tell({ kind: 'captureButton', action: b.action }), {
+            value: b.keys.length ? b.keys.join(', ') : 'Add a button',
+            say: b.keys.length ? `${b.words}: also ${b.keys.join(', ')}` : `${b.words}: add a button`,
+          }),
+        );
+        if (b.keys.length)
+          items.push(
+            row(
+              `unbutton-${b.action}`,
+              `Take the extra buttons away from "${b.words}"`,
+              () => tell({ kind: 'clearButtons', action: b.action }),
+              { cls: 'quiet', icon: 'close' },
+            ),
+          );
       }
       items.push(...speech);
       items.push(back);
@@ -683,21 +1256,51 @@ function settingsPanel(s: ChromeState): Node[] {
     default:
       return [
         heading('Settings', 'settings'),
-        row('settings-general', 'Search and starting', go('general'), { icon: 'search', chevron: true, value: st.search }),
-        row('settings-display', 'Size and video', go('display'), { icon: 'text', chevron: true, value: `${Math.round(st.pageSize * 100)}%` }),
+        row('settings-general', 'Search and starting', go('general'), {
+          icon: 'search',
+          chevron: true,
+          value: st.search,
+        }),
+        row('settings-display', 'Size and video', go('display'), {
+          icon: 'text',
+          chevron: true,
+          value: `${Math.round(st.pageSize * 100)}%`,
+        }),
         row('settings-ads', 'Ad blocking', go('ads'), { icon: 'block', chevron: true, say: 'Ad blocking' }),
         row('settings-privacy', 'Privacy and site data', go('privacy'), { icon: 'shield', chevron: true }),
-        row('settings-passwords', 'Passwords', go('passwords'), { icon: 'lock', chevron: true, value: st.passwords.available ? String(st.passwords.logins.length) : 'No keyring' }),
+        row('settings-passwords', 'Passwords', go('passwords'), {
+          icon: 'lock',
+          chevron: true,
+          value: st.passwords.available ? String(st.passwords.logins.length) : 'No keyring',
+        }),
         row('settings-access', 'What sites may ask for', go('access'), { icon: 'globe', chevron: true }),
-        row('settings-lock', 'Parental lock', go('lock'), { icon: 'shield', chevron: true, value: st.lock ? 'PIN set' : 'Off', say: `Parental lock: ${st.lock ? 'PIN set' : 'no PIN'}` }),
+        row('settings-lock', 'Parental lock', go('lock'), {
+          icon: 'shield',
+          chevron: true,
+          value: st.lock ? 'PIN set' : 'Off',
+          say: `Parental lock: ${st.lock ? 'PIN set' : 'no PIN'}`,
+        }),
         row('settings-profiles', 'Profiles and apps', go('profiles'), { icon: 'layers', chevron: true }),
         row('settings-downloads', 'Downloads', go('downloads'), { icon: 'download', chevron: true }),
-        row('settings-extensions', 'Extensions', go('extensions'), { icon: 'plug', chevron: true, value: String(st.extensions.length), say: `Extensions (${st.extensions.length})` }),
+        row('settings-extensions', 'Extensions', go('extensions'), {
+          icon: 'plug',
+          chevron: true,
+          value: String(st.extensions.length),
+          say: `Extensions (${st.extensions.length})`,
+        }),
         row('settings-remote', 'Remote and keyboard buttons', go('remote'), { icon: 'remote', chevron: true }),
         row('settings-updates', 'New versions', go('updates'), { icon: 'update', chevron: true, value: s.version }),
-        row('settings-about', 'About and help', () => tell({ kind: 'menu', action: 'about' }), { icon: 'info', chevron: true }),
+        row('settings-about', 'About and help', () => tell({ kind: 'menu', action: 'about' }), {
+          icon: 'info',
+          chevron: true,
+        }),
         say(`Settings are kept in config.json in ${st.dataFolder}.`),
-        twice('settings-reset', 'Put every setting back to the usual', 'Press again to put every setting back', 'reset'),
+        twice(
+          'settings-reset',
+          'Put every setting back to the usual',
+          'Press again to put every setting back',
+          'reset',
+        ),
         row('settings-close', 'Close', () => tell({ kind: 'menu', action: 'close' }), { cls: 'quiet' }),
       ];
   }
@@ -729,8 +1332,13 @@ function findPanel(): Node[] {
   return [
     heading('Find on this page', 'search'),
     field,
-    el('div', { cls: 'pair' }, [button('find-previous', 'Previous', look(false), false, 'back'), button('find-next', 'Next', look(true), false, 'forward')]),
-    note('Each place the words are found is marked on the page. The part of the page under this panel cannot be seen until it is closed.'),
+    el('div', { cls: 'pair' }, [
+      button('find-previous', 'Previous', look(false), false, 'back'),
+      button('find-next', 'Next', look(true), false, 'forward'),
+    ]),
+    note(
+      'Each place the words are found is marked on the page. The part of the page under this panel cannot be seen until it is closed.',
+    ),
     row('find-close', 'Close', () => tell({ kind: 'menu', action: 'close' }), { cls: 'quiet' }),
   ];
 }
@@ -738,7 +1346,11 @@ function findPanel(): Node[] {
 /** The digits entered so far on the PIN screen. Never shown, never kept after the fourth. */
 let pinDigits = '';
 function pinDots(): HTMLElement {
-  const dots = el('p', { id: 'pin-dots' }, [0, 1, 2, 3].map((i) => el('i', { cls: i < pinDigits.length ? 'in' : '' })));
+  const dots = el(
+    'p',
+    { id: 'pin-dots' },
+    [0, 1, 2, 3].map((i) => el('i', { cls: i < pinDigits.length ? 'in' : '' })),
+  );
   dots.setAttribute('role', 'status');
   dots.setAttribute('aria-label', `${pinDigits.length} of 4 digits entered`);
   return dots;
@@ -761,10 +1373,25 @@ function pinPanel(s: ChromeState): Node[] {
     b.className = 'word';
     return b;
   };
-  const pad = el('div', { cls: 'pinpad' }, ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => button(`pin-${d}`, d, () => pinKey(d))));
-  const last = el('div', { cls: 'pinpad' }, [word(button('pin-delete', 'Delete', () => pinKey('delete'))), button('pin-0', '0', () => pinKey('0')), word(button('pin-cancel', 'Cancel', () => tell({ kind: 'menu', action: 'close' })))]);
+  const pad = el(
+    'div',
+    { cls: 'pinpad' },
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => button(`pin-${d}`, d, () => pinKey(d))),
+  );
+  const last = el('div', { cls: 'pinpad' }, [
+    word(button('pin-delete', 'Delete', () => pinKey('delete'))),
+    button('pin-0', '0', () => pinKey('0')),
+    word(button('pin-cancel', 'Cancel', () => tell({ kind: 'menu', action: 'close' }))),
+  ]);
   const items: Node[] = [heading('PIN', 'lock'), el('p', { cls: 'lead', text: p?.title ?? '' }), pinDots()];
-  if (p && p.waitSeconds > 0) items.push(el('p', { id: 'pin-wait', cls: 'where warn', text: `Too many wrong tries. Another is taken in ${p.waitSeconds} seconds.` }));
+  if (p && p.waitSeconds > 0)
+    items.push(
+      el('p', {
+        id: 'pin-wait',
+        cls: 'where warn',
+        text: `Too many wrong tries. Another is taken in ${p.waitSeconds} seconds.`,
+      }),
+    );
   items.push(pad, last);
   if (p?.note) items.push(note(p.note));
   return items;
@@ -783,7 +1410,13 @@ function readerPanel(s: ChromeState): Node[] {
   };
   const tags = { heading: 'h2', text: 'p', item: 'li', quote: 'blockquote', code: 'pre' } as const;
   const minutes = Math.max(1, Math.round(r.blocks.reduce((n, b) => n + b.text.split(/\s+/).length, 0) / 220));
-  const article = el('article', { id: 'reader-text' }, [el('h1', { text: r.title || r.site }), el('p', { cls: 'where', text: `${r.site} · about ${minutes === 1 ? '1 minute' : `${minutes} minutes`} to read` }), ...r.blocks.filter((b, i) => !(i === 0 && b.kind === 'heading' && b.text.trim() === r.title.trim())).map((b) => el(tags[b.kind] ?? 'p', { text: b.text }))]);
+  const article = el('article', { id: 'reader-text' }, [
+    el('h1', { text: r.title || r.site }),
+    el('p', { cls: 'where', text: `${r.site} · about ${minutes === 1 ? '1 minute' : `${minutes} minutes`} to read` }),
+    ...r.blocks
+      .filter((b, i) => !(i === 0 && b.kind === 'heading' && b.text.trim() === r.title.trim()))
+      .map((b) => el(tags[b.kind] ?? 'p', { text: b.text })),
+  ]);
   article.style.fontSize = `${READER_SIZES[readerSize]}vh`;
   return [
     el('div', { cls: 'pair', id: 'reader-bar' }, [
@@ -800,24 +1433,35 @@ function readerPanel(s: ChromeState): Node[] {
 function tabsPanel(s: ChromeState): Node[] {
   const items: Node[] = [
     heading('Tabs', 'tabs'),
-    el('div', { cls: 'pair' }, [button('tab-new', 'New tab', () => tell({ kind: 'tab', op: 'new' }), false, 'plus'), button('tab-private', 'New private tab', () => tell({ kind: 'tab', op: 'private' }), false, 'private')]),
+    el('div', { cls: 'pair' }, [
+      button('tab-new', 'New tab', () => tell({ kind: 'tab', op: 'new' }), false, 'plus'),
+      button('tab-private', 'New private tab', () => tell({ kind: 'tab', op: 'private' }), false, 'private'),
+    ]),
   ];
   s.tabs.forEach((t, i) => {
     const what = t.site ? (t.title ? `${t.title} (${t.site})` : t.site) : 'Empty tab';
     const name = t.private ? `Private: ${what}` : what;
-    const open = row(`tab-${i}`, t.site ? t.title || t.site : 'Empty tab', () => tell({ kind: 'tab', op: 'switch', id: t.id }), {
-      ...(t.private ? { icon: 'private' as const } : {}),
-      sub: [t.private ? 'Private' : '', t.site, t.current ? 'In front now' : ''].filter(Boolean).join(' · '),
-      cls: `grow${t.current ? ' chosen' : ''}`,
-      say: t.current ? `${name}: in front now` : name,
-    });
+    const open = row(
+      `tab-${i}`,
+      t.site ? t.title || t.site : 'Empty tab',
+      () => tell({ kind: 'tab', op: 'switch', id: t.id }),
+      {
+        ...(t.private ? { icon: 'private' as const } : {}),
+        sub: [t.private ? 'Private' : '', t.site, t.current ? 'In front now' : ''].filter(Boolean).join(' · '),
+        cls: `grow${t.current ? ' chosen' : ''}`,
+        say: t.current ? `${name}: in front now` : name,
+      },
+    );
     if (s.tabs.length < 2) return void items.push(open);
     const close = button(`tab-close-${i}`, '', () => tell({ kind: 'tab', op: 'close', id: t.id }));
     close.append(icon('close'));
     close.setAttribute('aria-label', `Close: ${name}`);
     items.push(el('div', { cls: 'pair' }, [open, close]));
   });
-  if (s.closedTabs > 0) items.push(row('tab-reopen', 'Open the tab closed last', () => tell({ kind: 'tab', op: 'reopen' }), { icon: 'history' }));
+  if (s.closedTabs > 0)
+    items.push(
+      row('tab-reopen', 'Open the tab closed last', () => tell({ kind: 'tab', op: 'reopen' }), { icon: 'history' }),
+    );
   items.push(row('tabs-close', 'Close this list', () => tell({ kind: 'menu', action: 'close' }), { cls: 'quiet' }));
   return items;
 }
@@ -835,7 +1479,12 @@ function historyRows(s: ChromeState): Node[] {
     if (!words.every((w) => hay.includes(w)) || shown >= 80) return;
     shown += 1;
     if (v.day !== day) items.push(el('h2', { text: (day = v.day) }));
-    const open = row(`visit-${i}`, v.title || v.site, () => tell({ kind: 'openVisit', url: v.url }), { sub: v.site, value: v.time, cls: 'grow', say: v.text });
+    const open = row(`visit-${i}`, v.title || v.site, () => tell({ kind: 'openVisit', url: v.url }), {
+      sub: v.site,
+      value: v.time,
+      cls: 'grow',
+      say: v.text,
+    });
     const forget = button(`visit-forget-${i}`, '', () => tell({ kind: 'forgetVisit', url: v.url }));
     forget.append(icon('close'));
     forget.setAttribute('aria-label', `Take out of the history: ${v.title || v.site}`);
@@ -847,7 +1496,11 @@ function historyRows(s: ChromeState): Node[] {
 function historyPanel(s: ChromeState): Node[] {
   const items: Node[] = [heading('History', 'history')];
   const list = s.history ?? [];
-  if (!list.length) items.push(el('p', { cls: 'lead', text: 'No pages yet.' }), note('Settings, under Privacy, says whether a history is kept.'));
+  if (!list.length)
+    items.push(
+      el('p', { cls: 'lead', text: 'No pages yet.' }),
+      note('Settings, under Privacy, says whether a history is kept.'),
+    );
   else {
     const field = el('input', { id: 'history-find' });
     field.type = 'text';
@@ -874,7 +1527,12 @@ function downloadsPanel(s: ChromeState): Node[] {
   const items: Node[] = [heading('Downloads', 'download')];
   for (const d of s.downloads) {
     items.push(note(`${d.name}: ${d.state === 'going' ? d.progress : said[d.state]}`));
-    if (d.state === 'going') items.push(row(`dl-cancel-${d.id}`, `Cancel ${d.name}`, () => tell({ kind: 'cancelDownload', id: d.id }), { icon: 'close' }));
+    if (d.state === 'going')
+      items.push(
+        row(`dl-cancel-${d.id}`, `Cancel ${d.name}`, () => tell({ kind: 'cancelDownload', id: d.id }), {
+          icon: 'close',
+        }),
+      );
   }
   items.push(row('downloads-close', 'Close', () => tell({ kind: 'menu', action: 'close' }), { cls: 'quiet' }));
   return items;
@@ -908,7 +1566,9 @@ function promptPanel(s: ChromeState): Node[] {
       heading('Use this profile?', 'layers'),
       lead(`"${s.prompt.name}" (version ${s.prompt.version}) is a profile someone gave you. Nobody has reviewed it.`),
       el('p', { text: `It applies to: ${s.prompt.hosts.join(', ')}` }),
-      el('p', { text: `A profile is settings, not a program: it tells ${PRODUCT.name} where things are on a site and cannot run anything. Your answer is remembered.` }),
+      el('p', {
+        text: `A profile is settings, not a program: it tells ${PRODUCT.name} where things are on a site and cannot run anything. Your answer is remembered.`,
+      }),
       yes('Use it'),
       no('Do not use it'),
     ];
@@ -920,7 +1580,9 @@ function promptPanel(s: ChromeState): Node[] {
       lead('It will be able to:'),
       ...s.prompt.can.map((c) => el('p', { text: `• ${c}` })),
       ...s.prompt.cannot.map((c) => el('p', { cls: 'warn', text: c })),
-      el('p', { text: `An extension is a program written by someone else. ${PRODUCT.name} has not looked at it. Add it only if you trust who made it.` }),
+      el('p', {
+        text: `An extension is a program written by someone else. ${PRODUCT.name} has not looked at it. Add it only if you trust who made it.`,
+      }),
       yes('Add it'),
       no('Do not add it'),
     ];
@@ -928,8 +1590,12 @@ function promptPanel(s: ChromeState): Node[] {
   if (s.prompt?.what === 'voiceModel') {
     return [
       heading('Fetch the speech model?', 'mic'),
-      lead(`To understand speech, ${PRODUCT.name} needs a model of ${s.prompt.size}. It is fetched once, from its makers at download.moonshine.ai.`),
-      el('p', { text: 'After that, what you say is worked out on this machine and is never sent anywhere. English only for now. Settings, under Remote and keyboard buttons, removes the model.' }),
+      lead(
+        `To understand speech, ${PRODUCT.name} needs a model of ${s.prompt.size}. It is fetched once, from its makers at download.moonshine.ai.`,
+      ),
+      el('p', {
+        text: 'After that, what you say is worked out on this machine and is never sent anywhere. English only for now. Settings, under Remote and keyboard buttons, removes the model.',
+      }),
       yes('Fetch it'),
       no('Not now'),
     ];
@@ -938,17 +1604,23 @@ function promptPanel(s: ChromeState): Node[] {
     return [
       heading('Keep this password?', 'lock'),
       lead(s.prompt.user ? `For ${s.prompt.user} at ${s.prompt.site}.` : `For ${s.prompt.site}.`),
-      el('p', { text: `It is kept on this machine only, encrypted by the system's keyring, and offered back on that site's sign-in page. Settings, under Passwords, removes it.` }),
+      el('p', {
+        text: `It is kept on this machine only, encrypted by the system's keyring, and offered back on that site's sign-in page. Settings, under Passwords, removes it.`,
+      }),
       yes('Keep it'),
       no('Not now'),
-      row('prompt-never', 'Never for this site', () => tell({ kind: 'answer', allow: false, never: true }), { cls: 'quiet' }),
+      row('prompt-never', 'Never for this site', () => tell({ kind: 'answer', allow: false, never: true }), {
+        cls: 'quiet',
+      }),
     ];
   }
   if (s.prompt?.what === 'handBack') {
     return [
       heading('Share this?', 'shield'),
       lead(`The program that opened ${PRODUCT.name} is asking for ${s.prompt.wants}.`),
-      el('p', { text: `Only that list is shared, once, with that program on this device. Your password and your sign-in to ${s.prompt.site} are not.` }),
+      el('p', {
+        text: `Only that list is shared, once, with that program on this device. Your password and your sign-in to ${s.prompt.site} are not.`,
+      }),
       // Longboard cannot know which program asked. Where the answer goes is what it does know, and it says so.
       note(`${PRODUCT.name} cannot tell which program that is. The list would be written to this file: ${s.prompt.to}`),
       yes('Share the list'),
@@ -988,7 +1660,14 @@ function scanCode(rows: string[]): SVGSVGElement {
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', 'A code for a phone camera to scan');
   const back = document.createElementNS(SVG, 'rect');
-  for (const [k, v] of Object.entries({ x: '-4', y: '-4', width: String(size + 8), height: String(size + 8), fill: '#fff' })) back.setAttribute(k, v);
+  for (const [k, v] of Object.entries({
+    x: '-4',
+    y: '-4',
+    width: String(size + 8),
+    height: String(size + 8),
+    fill: '#fff',
+  }))
+    back.setAttribute(k, v);
   const dots = document.createElementNS(SVG, 'path');
   let d = '';
   rows.forEach((line, y) => [...line].forEach((bit, x) => (d += bit === '1' ? `M${x} ${y}h1v1h-1z` : '')));
@@ -1004,13 +1683,26 @@ function phonePanel(s: ChromeState): Node[] {
   const items: Node[] = [heading('Type from a phone', 'remote')];
   if (!p) return items;
   items.push(
-    el('p', { cls: 'lead', id: 'phone-state', text: p.connected ? 'A phone is connected.' : 'Point your phone\'s camera at this code.' }),
+    el('p', {
+      cls: 'lead',
+      id: 'phone-state',
+      text: p.connected ? 'A phone is connected.' : "Point your phone's camera at this code.",
+    }),
     scanCode(p.code),
-    note(`The phone must be on the same home network as this TV. The code opens a page at ${p.url} with a key that is only in the code.`),
-    note('On the phone: type or dictate and press Send, and the words go into the text field selected here. It also has arrows, OK, Back and Menu.'),
+    note(
+      `The phone must be on the same home network as this TV. The code opens a page at ${p.url} with a key that is only in the code.`,
+    ),
+    note(
+      'On the phone: type or dictate and press Send, and the words go into the text field selected here. It also has arrows, OK, Back and Menu.',
+    ),
     row('phone-close', 'Done', () => tell({ kind: 'menu', action: 'close' }), { icon: 'check' }),
-    row('phone-off', 'Turn typing from a phone off', () => tell({ kind: 'menu', action: 'phoneOff' }), { icon: 'close', cls: 'quiet' }),
-    note(`While it is on, ${PRODUCT.name} answers on your home network at that address. What a phone sends is sealed, so others on the network cannot read it; someone able to change traffic on your network could still interfere. It goes off when ${PRODUCT.name} closes.`),
+    row('phone-off', 'Turn typing from a phone off', () => tell({ kind: 'menu', action: 'phoneOff' }), {
+      icon: 'close',
+      cls: 'quiet',
+    }),
+    note(
+      `While it is on, ${PRODUCT.name} answers on your home network at that address. What a phone sends is sealed, so others on the network cannot read it; someone able to change traffic on your network could still interfere. It goes off when ${PRODUCT.name} closes.`,
+    ),
   );
   return items;
 }
@@ -1042,7 +1734,35 @@ function render(): void {
   if (!strip && !reader) parts.push(home(s));
   let panel: HTMLElement | null = null;
   if (s.panel) {
-    panel = el('aside', { id: 'panel' }, s.panel === 'menu' ? menuPanel(s) : s.panel === 'about' ? aboutPanel(s) : s.panel === 'addApp' ? addAppPanel(s) : s.panel === 'edit' ? editPanel(s) : s.panel === 'downloads' ? downloadsPanel(s) : s.panel === 'settings' ? settingsPanel(s) : s.panel === 'history' ? historyPanel(s) : s.panel === 'tabs' ? tabsPanel(s) : s.panel === 'find' ? findPanel() : s.panel === 'reader' ? readerPanel(s) : s.panel === 'pin' ? pinPanel(s) : s.panel === 'phone' ? phonePanel(s) : promptPanel(s));
+    panel = el(
+      'aside',
+      { id: 'panel' },
+      s.panel === 'menu'
+        ? menuPanel(s)
+        : s.panel === 'about'
+          ? aboutPanel(s)
+          : s.panel === 'addApp'
+            ? addAppPanel(s)
+            : s.panel === 'edit'
+              ? editPanel(s)
+              : s.panel === 'downloads'
+                ? downloadsPanel(s)
+                : s.panel === 'settings'
+                  ? settingsPanel(s)
+                  : s.panel === 'history'
+                    ? historyPanel(s)
+                    : s.panel === 'tabs'
+                      ? tabsPanel(s)
+                      : s.panel === 'find'
+                        ? findPanel()
+                        : s.panel === 'reader'
+                          ? readerPanel(s)
+                          : s.panel === 'pin'
+                            ? pinPanel(s)
+                            : s.panel === 'phone'
+                              ? phonePanel(s)
+                              : promptPanel(s),
+    );
     if (reader) panel.classList.add('reader');
     if (drawnPanel === s.panel) panel.classList.add('still');
     // The layer keeps the highlight inside an open modal dialog.
@@ -1066,7 +1786,8 @@ function render(): void {
     // Not the text field: landing on it would put the keyboard up before anything was asked for.
     // A question starts on the answer that changes nothing: a page can time
     // its request for when OK is about to be pressed for something else.
-    const first = document.getElementById('prompt-deny') ?? [...panel.querySelectorAll('button')].find((b) => !b.disabled);
+    const first =
+      document.getElementById('prompt-deny') ?? [...panel.querySelectorAll('button')].find((b) => !b.disabled);
     if (first) layer.focus(first);
   } else {
     const first = document.querySelector('.tiles button') ?? document.getElementById('go');
@@ -1087,7 +1808,8 @@ ipcRenderer.on('longboard:chrome-state', (_event, next: ChromeState) => {
   if (next.panel !== 'pin' || state?.panel !== 'pin') pinDigits = '';
   if (next.panel !== 'settings') confirming = null;
   // The "add as an app" panel starts from the page's own name each time it opens.
-  if (next.panel === 'addApp' && state?.panel !== 'addApp') draft = { name: next.page?.title || next.page?.site || '', ownSession: false, launcher: true };
+  if (next.panel === 'addApp' && state?.panel !== 'addApp')
+    draft = { name: next.page?.title || next.page?.site || '', ownSession: false, launcher: true };
   // The menu opened from Home is about the tile the highlight was on.
   if (next.panel === 'menu' && state && state.panel === null && state.surface === 'home') menuFor = focusedTile(state);
   else if (next.panel !== 'menu') menuFor = null;
@@ -1098,7 +1820,8 @@ ipcRenderer.on('longboard:chrome-state', (_event, next: ChromeState) => {
 // This process is sandboxed, so it is the right place for a picture from a
 // website to be decoded; the shell never decodes one.
 ipcRenderer.on('longboard:icon', (_event, job: { id: number; dataUrl: string; size: number }) => {
-  if (!job || typeof job.id !== 'number' || typeof job.dataUrl !== 'string' || !job.dataUrl.startsWith('data:image/')) return;
+  if (!job || typeof job.id !== 'number' || typeof job.dataUrl !== 'string' || !job.dataUrl.startsWith('data:image/'))
+    return;
   const size = Math.min(256, Math.max(16, Number(job.size) || 128));
   const done = (png: string | null): void => tell({ kind: 'icon', id: job.id, png });
   const img = new Image();
@@ -1127,14 +1850,19 @@ ipcRenderer.on('longboard:keys', (_event, keys: unknown) => {
   const held = ((boot.options as { keys?: Record<string, string> }).keys ??= {});
   if (!keys || typeof keys !== 'object') return;
   for (const key of Object.keys(held)) delete held[key];
-  for (const [key, action] of Object.entries(keys as Record<string, unknown>).slice(0, 200)) if (typeof action === 'string') held[key] = action;
+  for (const [key, action] of Object.entries(keys as Record<string, unknown>).slice(0, 200))
+    if (typeof action === 'string') held[key] = action;
 });
-ipcRenderer.on('longboard:suggestions', (_event, reply: { text: string; list: Array<{ url: string; text: string; search?: boolean }> }) => {
-  const field = (document.getElementById('address') ?? document.getElementById('menu-address')) as HTMLInputElement | null;
-  // Only for what is in the field now: an answer to something typed earlier is out of date.
-  if (!reply || !field || field.value !== reply.text || !Array.isArray(reply.list)) return;
-  showSuggestions(reply.list.slice(0, 7).filter((x) => x && typeof x.url === 'string' && typeof x.text === 'string'));
-});
+ipcRenderer.on(
+  'longboard:suggestions',
+  (_event, reply: { text: string; list: Array<{ url: string; text: string; search?: boolean }> }) => {
+    const field = (document.getElementById('address') ??
+      document.getElementById('menu-address')) as HTMLInputElement | null;
+    // Only for what is in the field now: an answer to something typed earlier is out of date.
+    if (!reply || !field || field.value !== reply.text || !Array.isArray(reply.list)) return;
+    showSuggestions(reply.list.slice(0, 7).filter((x) => x && typeof x.url === 'string' && typeof x.text === 'string'));
+  },
+);
 // Ctrl+L on a keyboard: straight into the address field, on Home or in the menu.
 ipcRenderer.on('longboard:type-address', () => {
   const inMenu = document.getElementById('menu-address');
@@ -1152,13 +1880,17 @@ ipcRenderer.on('longboard:notice', (_event, text: unknown) => {
 const start = (): void => {
   document.title = PRODUCT.name;
   // A remote's number buttons, or a keyboard's, enter the PIN directly.
-  document.addEventListener('keydown', (e) => {
-    if (state?.panel !== 'pin' || !e.isTrusted) return;
-    if (/^\d$/.test(e.key)) pinKey(e.key);
-    else if (e.key === 'Backspace') pinKey('delete');
-    else return;
-    e.preventDefault();
-  }, true);
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (state?.panel !== 'pin' || !e.isTrusted) return;
+      if (/^\d$/.test(e.key)) pinKey(e.key);
+      else if (e.key === 'Backspace') pinKey('delete');
+      else return;
+      e.preventDefault();
+    },
+    true,
+  );
   window.setInterval(drawClock, 5000);
   layer = startLayer({
     doc: document,
@@ -1206,8 +1938,7 @@ const start = (): void => {
           settingsPage = settingsPage === 'adsList' ? 'ads' : 'main';
           confirming = null;
           render();
-        }
-        else if (state.panel) tell({ kind: 'menu', action: 'close' });
+        } else if (state.panel) tell({ kind: 'menu', action: 'close' });
         else if (state.page) tell({ kind: 'menu', action: 'resume' });
         return true;
       },

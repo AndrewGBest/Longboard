@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { askablesFor, describeAsk, hasPermission, mayAsk, permissionDecision, withAnswers } from '../src/main/permissions';
+import {
+  askablesFor,
+  describeAsk,
+  hasPermission,
+  mayAsk,
+  permissionDecision,
+  withAnswers,
+} from '../src/main/permissions';
 import { progressText, safeFileName, sizeText, uniqueName } from '../src/shared/downloads';
 
 describe('permissionDecision', () => {
@@ -22,22 +29,61 @@ describe('permissionDecision', () => {
   it('treats camera and microphone as two things that can be asked for together', () => {
     expect(permissionDecision('media', undefined, ['video'])).toEqual({ kind: 'ask', names: ['camera'] });
     expect(permissionDecision('media', undefined, ['audio'])).toEqual({ kind: 'ask', names: ['microphone'] });
-    expect(permissionDecision('media', undefined, ['video', 'audio'])).toEqual({ kind: 'ask', names: ['camera', 'microphone'] });
+    expect(permissionDecision('media', undefined, ['video', 'audio'])).toEqual({
+      kind: 'ask',
+      names: ['camera', 'microphone'],
+    });
     // One already answered: only the other is asked about.
-    expect(permissionDecision('media', { answers: { camera: 'granted' } }, ['video', 'audio'])).toEqual({ kind: 'ask', names: ['microphone'] });
-    expect(permissionDecision('media', { answers: { camera: 'granted', microphone: 'granted' } }, ['video', 'audio'])).toEqual({ kind: 'grant' });
+    expect(permissionDecision('media', { answers: { camera: 'granted' } }, ['video', 'audio'])).toEqual({
+      kind: 'ask',
+      names: ['microphone'],
+    });
+    expect(
+      permissionDecision('media', { answers: { camera: 'granted', microphone: 'granted' } }, ['video', 'audio']),
+    ).toEqual({ kind: 'grant' });
     // Either refused refuses the pair, and nothing is asked.
-    expect(permissionDecision('media', { answers: { microphone: 'denied' } }, ['video', 'audio'])).toEqual({ kind: 'deny' });
+    expect(permissionDecision('media', { answers: { microphone: 'denied' } }, ['video', 'audio'])).toEqual({
+      kind: 'deny',
+    });
     expect(askablesFor('media')).toEqual(['camera', 'microphone']);
   });
 
   it('one answer does not carry over to another permission', () => {
-    expect(permissionDecision('notifications', { answers: { camera: 'granted', location: 'granted' } })).toEqual({ kind: 'ask', names: ['notifications'] });
+    expect(permissionDecision('notifications', { answers: { camera: 'granted', location: 'granted' } })).toEqual({
+      kind: 'ask',
+      names: ['notifications'],
+    });
   });
 
   it('refuses everything else without asking, whatever is saved', () => {
-    const everything = { answers: { camera: 'granted', microphone: 'granted', location: 'granted', notifications: 'granted', clipboard: 'granted', midi: 'granted', pointerLock: 'granted', protectedPlayback: 'granted' } } as const;
-    for (const permission of ['openExternal', 'display-capture', 'idle-detection', 'window-management', 'hid', 'serial', 'usb', 'keyboardLock', 'storage-access', 'top-level-storage-access', 'speaker-selection', 'fileSystem', 'unknown', 'something-new']) {
+    const everything = {
+      answers: {
+        camera: 'granted',
+        microphone: 'granted',
+        location: 'granted',
+        notifications: 'granted',
+        clipboard: 'granted',
+        midi: 'granted',
+        pointerLock: 'granted',
+        protectedPlayback: 'granted',
+      },
+    } as const;
+    for (const permission of [
+      'openExternal',
+      'display-capture',
+      'idle-detection',
+      'window-management',
+      'hid',
+      'serial',
+      'usb',
+      'keyboardLock',
+      'storage-access',
+      'top-level-storage-access',
+      'speaker-selection',
+      'fileSystem',
+      'unknown',
+      'something-new',
+    ]) {
       expect(permissionDecision(permission, everything), permission).toEqual({ kind: 'deny' });
     }
   });
@@ -63,7 +109,9 @@ describe('hasPermission', () => {
 describe('answers and wording', () => {
   it('adds answers without losing earlier ones', () => {
     const first = withAnswers(undefined, ['camera', 'microphone'], true);
-    expect(withAnswers(first, ['location'], false)).toEqual({ answers: { camera: 'granted', microphone: 'granted', location: 'denied' } });
+    expect(withAnswers(first, ['location'], false)).toEqual({
+      answers: { camera: 'granted', microphone: 'granted', location: 'denied' },
+    });
   });
 
   it('says what is being asked in plain words', () => {
@@ -92,7 +140,8 @@ describe('download names', () => {
     expect(safeFileName('.hidden')).toBe('hidden');
     expect(safeFileName('  ')).toBe('download');
     expect(safeFileName('a\u0000b\nc')).toBe('abc');
-    for (const name of ['../../.bashrc', '/etc/passwd', '..', '.', '']) expect(safeFileName(name)).not.toMatch(/^\.|[/\\]/);
+    for (const name of ['../../.bashrc', '/etc/passwd', '..', '.', ''])
+      expect(safeFileName(name)).not.toMatch(/^\.|[/\\]/);
   });
 
   it('shortens a very long name and keeps its ending', () => {

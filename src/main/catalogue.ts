@@ -49,7 +49,9 @@ export async function refreshCatalogue(deps: CatalogueDeps, force = false): Prom
       }
       const { profile, problems } = validateProfile(JSON.parse(bytes.toString('utf8')));
       if (!profile || profile.id !== entry.id) {
-        deps.note(`catalogue: ${entry.path} is not a usable profile (${problems[0] ?? 'its id differs from the index'}); left out`);
+        deps.note(
+          `catalogue: ${entry.path} is not a usable profile (${problems[0] ?? 'its id differs from the index'}); left out`,
+        );
         continue;
       }
       const dir = join(fresh, 'profiles', folderOf(entry));

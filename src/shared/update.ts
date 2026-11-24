@@ -65,16 +65,33 @@ export function parseRelease(raw: unknown, hosts: readonly string[]): Release | 
   for (const item of Array.isArray(r['assets']) ? r['assets'].slice(0, 100) : []) {
     if (!item || typeof item !== 'object') continue;
     const a = item as Record<string, unknown>;
-    if (typeof a['name'] !== 'string' || !/^[A-Za-z0-9._+-]{1,120}$/.test(a['name']) || typeof a['browser_download_url'] !== 'string') continue;
-    if (typeof a['size'] !== 'number' || !Number.isInteger(a['size']) || a['size'] <= 0 || a['size'] > MAX_PACKAGE_BYTES) continue;
+    if (
+      typeof a['name'] !== 'string' ||
+      !/^[A-Za-z0-9._+-]{1,120}$/.test(a['name']) ||
+      typeof a['browser_download_url'] !== 'string'
+    )
+      continue;
+    if (
+      typeof a['size'] !== 'number' ||
+      !Number.isInteger(a['size']) ||
+      a['size'] <= 0 ||
+      a['size'] > MAX_PACKAGE_BYTES
+    )
+      continue;
     try {
       const u = new URL(a['browser_download_url']);
-      if (!hosts.includes(u.host) || (u.protocol !== 'https:' && !/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(u.host))) continue;
+      if (!hosts.includes(u.host) || (u.protocol !== 'https:' && !/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(u.host)))
+        continue;
     } catch {
       continue;
     }
     const digest = typeof a['digest'] === 'string' ? /^sha256:([0-9a-f]{64})$/i.exec(a['digest']) : null;
-    assets.push({ name: a['name'], url: a['browser_download_url'], size: a['size'], sha256: digest ? digest[1]!.toLowerCase() : null });
+    assets.push({
+      name: a['name'],
+      url: a['browser_download_url'],
+      size: a['size'],
+      sha256: digest ? digest[1]!.toLowerCase() : null,
+    });
   }
   return { version: numbers.join('.'), assets };
 }
@@ -109,8 +126,12 @@ export function parseUpdateState(raw: unknown): UpdateState {
 
 /** One line for Settings about where things stand. */
 export function updateWords(current: string, state: UpdateState, mode: UpdateMode): string {
-  if (state.installed && isNewer(state.installed, current)) return `Version ${state.installed} is in place: close and open Longboard to use it.`;
-  if (state.available && isNewer(state.available, current)) return `Version ${state.available} is out. This copy cannot replace itself; get the new one where you got this one.`;
+  if (state.installed && isNewer(state.installed, current))
+    return `Version ${state.installed} is in place: close and open Longboard to use it.`;
+  if (state.available && isNewer(state.available, current))
+    return `Version ${state.available} is out. This copy cannot replace itself; get the new one where you got this one.`;
   if (mode === 'off') return 'New versions are not looked for.';
-  return state.checkedAt !== undefined ? `Up to date when last looked, ${new Date(state.checkedAt).toISOString().slice(0, 10)}.` : 'Not looked yet.';
+  return state.checkedAt !== undefined
+    ? `Up to date when last looked, ${new Date(state.checkedAt).toISOString().slice(0, 10)}.`
+    : 'Not looked yet.';
 }

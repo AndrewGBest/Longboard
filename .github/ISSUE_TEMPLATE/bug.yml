@@ -1,6 +1,6 @@
 name: Something in Longboard itself is wrong
 description: Home, the menu, the on-screen keyboard, Settings, packages, updates, controllers.
-labels: ["bug"]
+labels: ['bug']
 body:
   - type: textarea
     id: what

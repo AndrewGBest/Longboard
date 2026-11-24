@@ -77,7 +77,11 @@ export function parseVault(raw: unknown): Vault {
         const user = cleanUser(l['user']);
         if (user === null || typeof l['secret'] !== 'string' || !/^[A-Za-z0-9+/=]{1,4000}$/.test(l['secret'])) continue;
         if (logins.some((x) => x.user === user)) continue;
-        logins.push({ user, secret: l['secret'], at: typeof l['at'] === 'number' && Number.isFinite(l['at']) ? l['at'] : 0 });
+        logins.push({
+          user,
+          secret: l['secret'],
+          at: typeof l['at'] === 'number' && Number.isFinite(l['at']) ? l['at'] : 0,
+        });
         if (logins.length >= MAX_LOGINS_PER_SITE) break;
       }
       if (logins.length) out.sites[place] = logins;
@@ -86,7 +90,13 @@ export function parseVault(raw: unknown): Vault {
   }
   if (Array.isArray(r['never'])) {
     for (const place of r['never']) {
-      if (typeof place === 'string' && loginPlace(place) === place && !out.never.includes(place) && out.never.length < MAX_LOGIN_SITES) out.never.push(place);
+      if (
+        typeof place === 'string' &&
+        loginPlace(place) === place &&
+        !out.never.includes(place) &&
+        out.never.length < MAX_LOGIN_SITES
+      )
+        out.never.push(place);
     }
   }
   return out;
@@ -116,14 +126,23 @@ export function setNever(vault: Vault, place: string, never: boolean): Vault {
 }
 
 /** The user names saved for a place, newest first. */
-export const usersAt = (vault: Vault, place: string | null): string[] => (place ? (vault.sites[place] ?? []).map((l) => l.user) : []);
+export const usersAt = (vault: Vault, place: string | null): string[] =>
+  place ? (vault.sites[place] ?? []).map((l) => l.user) : [];
 
 /**
  * Whether to offer to keep what was just typed into a sign-in form. Never in
  * a scripted run (Hard rule 10), never in a private tab, never where the
  * person said never, and not when it is already kept as it is.
  */
-export function shouldOffer(q: { automation: boolean; privateTab: boolean; enabled: boolean; available: boolean; place: string | null; never: readonly string[]; alreadyKept: boolean }): boolean {
+export function shouldOffer(q: {
+  automation: boolean;
+  privateTab: boolean;
+  enabled: boolean;
+  available: boolean;
+  place: string | null;
+  never: readonly string[];
+  alreadyKept: boolean;
+}): boolean {
   if (q.automation || q.privateTab || !q.enabled || !q.available || !q.place) return false;
   return !q.never.includes(q.place) && !q.alreadyKept;
 }

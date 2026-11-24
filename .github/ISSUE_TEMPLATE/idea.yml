@@ -1,6 +1,6 @@
 name: An idea
 description: Something Longboard should do, or do differently.
-labels: ["enhancement"]
+labels: ['enhancement']
 body:
   - type: textarea
     id: what

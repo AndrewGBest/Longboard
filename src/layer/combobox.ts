@@ -23,7 +23,9 @@ function byId(from: Element, id: string | null): Element | null {
 export function activeOption(combo: Element): Element | null {
   const named = byId(combo, combo.getAttribute('aria-activedescendant'));
   if (named) return named;
-  for (const id of `${combo.getAttribute('aria-controls') ?? ''} ${combo.getAttribute('aria-owns') ?? ''}`.split(/\s+/)) {
+  for (const id of `${combo.getAttribute('aria-controls') ?? ''} ${combo.getAttribute('aria-owns') ?? ''}`.split(
+    /\s+/,
+  )) {
     const picked = byId(combo, id)?.querySelector('[role="option"][aria-selected="true"]');
     if (picked) return picked;
   }

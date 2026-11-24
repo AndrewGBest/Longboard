@@ -17,7 +17,12 @@ export function parseVerified(raw: unknown): string[] {
   if (!Array.isArray(list)) return [];
   const out = new Set<string>();
   for (const item of list.slice(0, 5000)) {
-    const domain = typeof item === 'string' ? item : item && typeof item === 'object' ? (item as Record<string, unknown>)['domain'] : null;
+    const domain =
+      typeof item === 'string'
+        ? item
+        : item && typeof item === 'object'
+          ? (item as Record<string, unknown>)['domain']
+          : null;
     if (typeof domain === 'string' && DOMAIN.test(domain)) out.add(domain);
   }
   return [...out];
@@ -36,7 +41,9 @@ export const BLOCKING_MODES: readonly BlockingMode[] = ['sites', 'everywhere', '
 /** The mode config.json asks for. `false` was the first way of saying "off" and still means it. */
 export function blockingMode(setting: unknown): BlockingMode {
   if (setting === false) return 'off';
-  return typeof setting === 'string' && (BLOCKING_MODES as readonly string[]).includes(setting) ? (setting as BlockingMode) : 'sites';
+  return typeof setting === 'string' && (BLOCKING_MODES as readonly string[]).includes(setting)
+    ? (setting as BlockingMode)
+    : 'sites';
 }
 
 /** A domain as a person might type it ("www.Example.com", "https://example.com/page"), or null when it is not one. */
@@ -44,7 +51,12 @@ export function cleanDomain(input: unknown): string | null {
   if (typeof input !== 'string') return null;
   let text = input.trim().toLowerCase();
   if (!text || text.length > 300) return null;
-  text = text.replace(/^[a-z][a-z0-9+.-]*:\/\//, '').replace(/[/?#].*$/, '').replace(/:\d+$/, '').replace(/^www\./, '').replace(/\.$/, '');
+  text = text
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//, '')
+    .replace(/[/?#].*$/, '')
+    .replace(/:\d+$/, '')
+    .replace(/^www\./, '')
+    .replace(/\.$/, '');
   return DOMAIN.test(text) ? text : null;
 }
 
@@ -58,15 +70,29 @@ export interface StartsOffEntry {
 }
 
 /** The list for the Settings screen: the reviewed sites and the person's own, in name order. */
-export function startsOffEntries(reviewed: readonly string[], added: readonly string[] = [], removed: readonly string[] = []): StartsOffEntry[] {
-  const out: StartsOffEntry[] = reviewed.map((domain) => ({ domain, from: 'reviewed' as const, off: !removed.includes(domain) }));
+export function startsOffEntries(
+  reviewed: readonly string[],
+  added: readonly string[] = [],
+  removed: readonly string[] = [],
+): StartsOffEntry[] {
+  const out: StartsOffEntry[] = reviewed.map((domain) => ({
+    domain,
+    from: 'reviewed' as const,
+    off: !removed.includes(domain),
+  }));
   for (const domain of added) if (!reviewed.includes(domain)) out.push({ domain, from: 'you', off: true });
   return out.sort((a, b) => a.domain.localeCompare(b.domain));
 }
 
 /** The sites where blocking starts off, after the person's own changes to the reviewed list. */
-export function effectiveVerified(reviewed: readonly string[], added: readonly string[] = [], removed: readonly string[] = []): string[] {
-  return startsOffEntries(reviewed, added, removed).filter((e) => e.off).map((e) => e.domain);
+export function effectiveVerified(
+  reviewed: readonly string[],
+  added: readonly string[] = [],
+  removed: readonly string[] = [],
+): string[] {
+  return startsOffEntries(reviewed, added, removed)
+    .filter((e) => e.off)
+    .map((e) => e.domain);
 }
 
 /**
@@ -106,7 +132,12 @@ export function blockingStartsOn(site: string, verified: readonly string[]): boo
  * anywhere. "everywhere" ignores the list of sites where blocking starts
  * off; a site the person has switched off themselves stays off.
  */
-export function blockingOn(site: string | null, chosen: boolean | undefined, verified: readonly string[], mode: BlockingMode = 'sites'): boolean {
+export function blockingOn(
+  site: string | null,
+  chosen: boolean | undefined,
+  verified: readonly string[],
+  mode: BlockingMode = 'sites',
+): boolean {
   if (!site || mode === 'off') return false;
   if (typeof chosen === 'boolean') return chosen;
   return mode === 'everywhere' ? true : blockingStartsOn(site, verified);
@@ -135,7 +166,8 @@ export function listsDue(last: unknown, now: number): boolean {
 export function looksLikeFilterList(text: string): boolean {
   if (text.length < 8 || text.includes('\u0000')) return false;
   const head = text.slice(0, 400).trimStart().toLowerCase();
-  if (head.startsWith('<!doctype') || head.startsWith('<html') || head.startsWith('<?xml') || head.startsWith('{')) return false;
+  if (head.startsWith('<!doctype') || head.startsWith('<html') || head.startsWith('<?xml') || head.startsWith('{'))
+    return false;
   return text.split('\n').some((line) => {
     const t = line.trim();
     return t !== '' && !t.startsWith('!') && !t.startsWith('[');

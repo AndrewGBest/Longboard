@@ -34,7 +34,10 @@ async function listen(): Promise<void> {
   if (stop) return;
   let stream: MediaStream;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }, video: false });
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      video: false,
+    });
   } catch {
     say({ kind: 'failed', why: 'microphone' });
     return;

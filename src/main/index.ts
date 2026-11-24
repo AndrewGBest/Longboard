@@ -2,7 +2,9 @@
 import { app, nativeTheme, protocol, session } from 'electron';
 
 // The listening page's own address (main/voice.ts). It has to be declared before the app is ready.
-protocol.registerSchemesAsPrivileged([{ scheme: 'voice', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'voice', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
+]);
 import * as electron from 'electron';
 import { join } from 'node:path';
 import { parseConfig, type UserConfig } from '../shared/config';
@@ -44,7 +46,9 @@ const components = (electron as unknown as { components?: Components }).componen
 
 /** Reads <user data>/config.json. A missing file is normal; a broken one is reported and ignored. */
 function loadConfig(): { config: UserConfig; raw: unknown } {
-  const raw = readJson(join(app.getPath('userData'), 'config.json'), (why) => console.error(`[longboard] config.json could not be read: ${why}`));
+  const raw = readJson(join(app.getPath('userData'), 'config.json'), (why) =>
+    console.error(`[longboard] config.json could not be read: ${why}`),
+  );
   const { config, problems } = parseConfig(raw);
   for (const problem of problems) console.error(`[longboard] config.json: ${problem}`);
   return { config, raw };
@@ -74,7 +78,10 @@ async function main(): Promise<void> {
   if (config.hardwareDecode) {
     // Chromium's own switches for decoding video on the graphics chip on
     // Linux, which it does not promise to support. Off unless asked for.
-    app.commandLine.appendSwitch('enable-features', 'AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL');
+    app.commandLine.appendSwitch(
+      'enable-features',
+      'AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL',
+    );
   }
 
   await app.whenReady();
@@ -83,7 +90,9 @@ async function main(): Promise<void> {
     .getGPUInfo('basic')
     .then(() => {
       const status = app.getGPUFeatureStatus() as unknown as Record<string, string>;
-      console.log(`[longboard] video decode: ${status['video_decode'] ?? 'unknown'}${config.hardwareDecode ? ' (hardwareDecode is on)' : ''}`);
+      console.log(
+        `[longboard] video decode: ${status['video_decode'] ?? 'unknown'}${config.hardwareDecode ? ' (hardwareDecode is on)' : ''}`,
+      );
     })
     .catch(() => undefined);
   app.userAgentFallback = browserUserAgent(app.userAgentFallback, PRODUCT.name, app.getVersion());
@@ -117,7 +126,9 @@ async function main(): Promise<void> {
           components.whenReady().then(() => false),
           new Promise<boolean>((resolve) => setTimeout(() => resolve(true), COMPONENT_WAIT_MS)),
         ]);
-        widevine = timedOut ? `not ready after ${COMPONENT_WAIT_MS / 1000} seconds; protected playback may fail` : components.status();
+        widevine = timedOut
+          ? `not ready after ${COMPONENT_WAIT_MS / 1000} seconds; protected playback may fail`
+          : components.status();
       } catch (err) {
         widevine = `component error: ${String(err)}`;
       }
@@ -150,7 +161,9 @@ async function main(): Promise<void> {
     folder: join(data, 'filters'),
     // Read each time: the person can ask in Settings for trackers to be refused too.
     get lists() {
-      return value('filters') ? [value('filters') as string] : listsInUse(DEFAULT_FILTER_LISTS, config.filterLists, config.blockTrackers === true);
+      return value('filters')
+        ? [value('filters') as string]
+        : listsInUse(DEFAULT_FILTER_LISTS, config.filterLists, config.blockTrackers === true);
     },
     fetchBytes,
     now: () => Date.now(),
@@ -171,7 +184,10 @@ async function main(): Promise<void> {
   const indexUrl = value('catalogue') ?? DEFAULT_INDEX_URL;
   const fetchCatalogue = async (force: boolean): Promise<boolean> => {
     if (options.automation && !value('catalogue')) return false;
-    const changed = await refreshCatalogue({ folder: join(data, 'catalogue'), indexUrl, now: () => Date.now(), note, fetchBytes }, force);
+    const changed = await refreshCatalogue(
+      { folder: join(data, 'catalogue'), indexUrl, now: () => Date.now(), note, fetchBytes },
+      force,
+    );
     if (!changed) return false;
     profiles.load();
     reviewed = readReviewed();
@@ -249,7 +265,9 @@ async function main(): Promise<void> {
     downloads: app.getPath('downloads'),
     downloadsFlag: value('downloads') || undefined,
     zoomOverride: value('zoom'),
-    size: /^\d{3,5}x\d{3,5}$/.test(value('size') ?? '') ? (value('size') as string).split('x').map(Number) as [number, number] : undefined,
+    size: /^\d{3,5}x\d{3,5}$/.test(value('size') ?? '')
+      ? ((value('size') as string).split('x').map(Number) as [number, number])
+      : undefined,
     ready: componentsReady,
     profiles,
     adBlock: {
@@ -268,7 +286,11 @@ async function main(): Promise<void> {
       },
       reset: () => saveConfig(resetSettings(rawConfig)),
       refreshCatalogue: () => fetchCatalogue(true),
-      update: () => ({ words: updateWords(app.getVersion(), updater.state, updateMode(config.updates)), mode: updateMode(config.updates), canInstall: updater.canInstall() }),
+      update: () => ({
+        words: updateWords(app.getVersion(), updater.state, updateMode(config.updates)),
+        mode: updateMode(config.updates),
+        canInstall: updater.canInstall(),
+      }),
       lookForUpdate: () => lookForUpdate(true),
     },
   });
@@ -283,7 +305,8 @@ async function main(): Promise<void> {
     if (win.isMinimized()) win.restore();
     win.focus();
     const wantedApp = args.find((a) => a.startsWith('--app='))?.slice(6);
-    const given = args.find((a) => a.startsWith('--url='))?.slice(6) ?? args.slice(1).find((a) => /^https?:\/\//i.test(a));
+    const given =
+      args.find((a) => a.startsWith('--url='))?.slice(6) ?? args.slice(1).find((a) => /^https?:\/\//i.test(a));
     const address = given ? resolveAddress(given, config.search) : null;
     const ask = handBackFrom(args, options.automation);
     if (ask) browser.handBack(ask);

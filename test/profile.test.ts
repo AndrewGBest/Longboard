@@ -6,7 +6,20 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { genericRules, rulesFrom, rulesFromUntrusted, rulesReport } from '../src/layer/profile/rules';
 import { SpatialNavigator } from '../src/layer/spatial/navigator';
 import { ProfileStore, sourceLabel } from '../src/main/profiles';
-import { canvasOf, deviceOf, wantsTv, entryFor, chooseProfile, exportName, hostMatches, importKey, matchScore, validateProfile, type Profile, type StoredProfile } from '../src/shared/profile';
+import {
+  canvasOf,
+  deviceOf,
+  wantsTv,
+  entryFor,
+  chooseProfile,
+  exportName,
+  hostMatches,
+  importKey,
+  matchScore,
+  validateProfile,
+  type Profile,
+  type StoredProfile,
+} from '../src/shared/profile';
 
 const base = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
   longboard: 1,
@@ -40,7 +53,12 @@ describe('validateProfile', () => {
         scrollPrevious: ['button.prev'],
         scrollNext: ['button.next'],
       },
-      player: { container: '.player', controls: '.player button', close: '.player .close', keys: { playPause: 'k', back: 'j', forward: 'l' } },
+      player: {
+        container: '.player',
+        controls: '.player button',
+        close: '.player .close',
+        keys: { playPause: 'k', back: 'j', forward: 'l' },
+      },
       text: { search: 'input[type=search]', searchOpen: 'button.search' },
       dismiss: ['.modal .close'],
       guard: { purchase: ['.buy'] },
@@ -65,13 +83,19 @@ describe('validateProfile', () => {
     expect(problemsOf(base({ telemetry: true }))).toMatch(/unknown key "telemetry"/);
     expect(problemsOf(base({ match: { hosts: ['example.com'], ports: [1] } }))).toMatch(/unknown key "ports" in match/);
     expect(problemsOf(base({ focus: { run: 'x' } }))).toMatch(/unknown key "run" in focus/);
-    expect(problemsOf(base({ focus: { groups: [{ name: 'r', selector: '.r', axis: 'grid', onEnter: 'x' }] } }))).toMatch(/unknown key "onEnter" in focus.groups\[0\]/);
-    expect(problemsOf(base({ player: { keys: { playPause: 'k', mute: 'm' } } }))).toMatch(/unknown key "mute" in player.keys/);
+    expect(
+      problemsOf(base({ focus: { groups: [{ name: 'r', selector: '.r', axis: 'grid', onEnter: 'x' }] } })),
+    ).toMatch(/unknown key "onEnter" in focus.groups\[0\]/);
+    expect(problemsOf(base({ player: { keys: { playPause: 'k', mute: 'm' } } }))).toMatch(
+      /unknown key "mute" in player.keys/,
+    );
     expect(problemsOf(base({ player: { src: 'x' } }))).toMatch(/unknown key "src" in player/);
     expect(problemsOf(base({ text: { password: 'x' } }))).toMatch(/unknown key "password" in text/);
     expect(problemsOf(base({ guard: { off: true } }))).toMatch(/unknown key "off" in guard/);
     expect(problemsOf(base({ view: { userAgent: 'x' } }))).toMatch(/unknown key "userAgent" in view/);
-    expect(problemsOf(base({ evidence: { outline: 'outline.txt', url: 'x' } }))).toMatch(/unknown key "url" in evidence/);
+    expect(problemsOf(base({ evidence: { outline: 'outline.txt', url: 'x' } }))).toMatch(
+      /unknown key "url" in evidence/,
+    );
   });
 
   it('gives nothing back when anything is wrong', () => {
@@ -89,7 +113,17 @@ describe('validateProfile', () => {
   });
 
   it('accepts only plain host names, with at most a leading "*."', () => {
-    for (const host of ['https://example.com', 'example.com/path', '*', '*.com.', 'ex*mple.com', 'EXAMPLE.com', 'a.*.example.com', '127.0.0.1', 'localhost']) {
+    for (const host of [
+      'https://example.com',
+      'example.com/path',
+      '*',
+      '*.com.',
+      'ex*mple.com',
+      'EXAMPLE.com',
+      'a.*.example.com',
+      '127.0.0.1',
+      'localhost',
+    ]) {
       expect(validateProfile(base({ match: { hosts: [host] } })).profile, host).toBeNull();
     }
     expect(problemsOf(base({ match: { hosts: [] } }))).toMatch(/at least one host/);
@@ -104,7 +138,9 @@ describe('validateProfile', () => {
     expect(problemsOf(base({ focus: { include: ['a'.repeat(301)] } }))).toMatch(/list of at most/);
     expect(problemsOf(base({ focus: { include: new Array(51).fill('a') } }))).toMatch(/list of at most/);
     expect(problemsOf(base({ focus: { initial: 7 } }))).toMatch(/must be a selector/);
-    expect(problemsOf(base({ focus: { groups: [{ name: 'r', selector: '.r', axis: 'diagonal' }] } }))).toMatch(/horizontal, vertical or grid/);
+    expect(problemsOf(base({ focus: { groups: [{ name: 'r', selector: '.r', axis: 'diagonal' }] } }))).toMatch(
+      /horizontal, vertical or grid/,
+    );
     expect(problemsOf(base({ focus: { groups: [{ name: 'r', axis: 'grid' }] } }))).toMatch(/selector" is required/);
     expect(problemsOf(base({ player: { keys: { playPause: 'F5' } } }))).toMatch(/must be one of/);
     expect(problemsOf(base({ player: { keys: { playPause: 'Meta+q' } } }))).toMatch(/must be one of/);
@@ -114,7 +150,8 @@ describe('validateProfile', () => {
 
   it('needs evidence, named by a plain relative path', () => {
     expect(problemsOf(base({ evidence: undefined }))).toMatch(/"evidence" is required/);
-    for (const outline of ['', '../../etc/passwd', '/etc/passwd', 'a\\b']) expect(validateProfile(base({ evidence: { outline } })).profile, outline).toBeNull();
+    for (const outline of ['', '../../etc/passwd', '/etc/passwd', 'a\\b'])
+      expect(validateProfile(base({ evidence: { outline } })).profile, outline).toBeNull();
   });
 });
 
@@ -170,12 +207,21 @@ describe('chooseProfile', () => {
     const choice = chooseProfile(url, without('local'), {});
     expect(choice.kind).toBe('ask');
     expect(choice).toMatchObject({ profile: { id: 'imp' }, fallback: { source: 'catalogue' } });
-    expect(chooseProfile(url, without('local', 'catalogue', 'builtin'), {})).toMatchObject({ kind: 'ask', fallback: null });
+    expect(chooseProfile(url, without('local', 'catalogue', 'builtin'), {})).toMatchObject({
+      kind: 'ask',
+      fallback: null,
+    });
   });
 
   it('uses an imported profile once agreed to, and passes over one that was refused', () => {
-    expect(chooseProfile(url, without('local'), { 'imp@1.0.0': 'yes' })).toMatchObject({ kind: 'use', source: 'imported' });
-    expect(chooseProfile(url, without('local'), { 'imp@1.0.0': 'no' })).toMatchObject({ kind: 'use', source: 'catalogue' });
+    expect(chooseProfile(url, without('local'), { 'imp@1.0.0': 'yes' })).toMatchObject({
+      kind: 'use',
+      source: 'imported',
+    });
+    expect(chooseProfile(url, without('local'), { 'imp@1.0.0': 'no' })).toMatchObject({
+      kind: 'use',
+      source: 'catalogue',
+    });
   });
 
   it('asks again when an imported profile changes version', () => {
@@ -186,7 +232,10 @@ describe('chooseProfile', () => {
 
   it('prefers the catalogue to what is built in, and has nothing for other sites', () => {
     expect(chooseProfile(url, without('local', 'imported'), {})).toMatchObject({ kind: 'use', source: 'catalogue' });
-    expect(chooseProfile(url, without('local', 'imported', 'catalogue'), {})).toMatchObject({ kind: 'use', source: 'builtin' });
+    expect(chooseProfile(url, without('local', 'imported', 'catalogue'), {})).toMatchObject({
+      kind: 'use',
+      source: 'builtin',
+    });
     expect(chooseProfile('https://other.test/', all, {})).toEqual({ kind: 'none' });
   });
 
@@ -221,7 +270,14 @@ describe('the interpreter', () => {
   it('turns a profile into what the layer works from', () => {
     const rules = rulesFromUntrusted(
       base({
-        focus: { include: ['a.card'], exclude: ['.banner'], initial: 'a.card', scrollPrevious: ['.prev'], scrollNext: ['.next'], groups: [{ name: 'r', selector: '.row', axis: 'horizontal' }] },
+        focus: {
+          include: ['a.card'],
+          exclude: ['.banner'],
+          initial: 'a.card',
+          scrollPrevious: ['.prev'],
+          scrollNext: ['.next'],
+          groups: [{ name: 'r', selector: '.row', axis: 'horizontal' }],
+        },
         player: { container: '.player', controls: '.player button', close: '.x', keys: { playPause: 'k' } },
         text: { search: 'input.q', searchOpen: 'button.q' },
         dismiss: ['.close'],
@@ -247,7 +303,12 @@ describe('the interpreter', () => {
   });
 
   it('drops selectors the browser cannot parse instead of failing', () => {
-    const rules = rulesFrom(valid({ focus: { include: ['a.ok', '>>bad<<'], initial: ':::', groups: [{ name: 'r', selector: '((', axis: 'grid' }] } }), document);
+    const rules = rulesFrom(
+      valid({
+        focus: { include: ['a.ok', '>>bad<<'], initial: ':::', groups: [{ name: 'r', selector: '((', axis: 'grid' }] },
+      }),
+      document,
+    );
     expect(rules.selectors.extraFocusable).toEqual(['a.ok']);
     expect(rules.initial).toBeNull();
     expect(rules.groups).toEqual([]);
@@ -266,7 +327,17 @@ describe('groups and the starting point', () => {
   beforeEach(() => {
     Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
       const [left = 0, top = 0, width = 0, height = 0] = (this.getAttribute('data-rect') ?? '').split(',').map(Number);
-      return { left, top, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON: () => ({}) };
+      return {
+        left,
+        top,
+        width,
+        height,
+        right: left + width,
+        bottom: top + height,
+        x: left,
+        y: top,
+        toJSON: () => ({}),
+      };
     };
     Element.prototype.scrollIntoView = () => undefined;
     window.scrollTo = (() => undefined) as typeof window.scrollTo;
@@ -292,7 +363,7 @@ describe('groups and the starting point', () => {
     expect(bad.focused?.id).toBe('m1');
   });
 
-  it("left and right never leave a row the profile names; without the group they would", () => {
+  it('left and right never leave a row the profile names; without the group they would', () => {
     const plain = new SpatialNavigator(document);
     plain.focus(el('a3'));
     plain.move('right');
@@ -383,7 +454,10 @@ describe('the profile store', () => {
     expect(new ProfileStore(folders(), () => undefined).choose('https://example.com/').kind).toBe('ask');
     // A real answer is kept.
     store.answer(choice.profile, true, true);
-    expect(new ProfileStore(folders(), () => undefined).choose('https://example.com/')).toMatchObject({ kind: 'use', source: 'imported' });
+    expect(new ProfileStore(folders(), () => undefined).choose('https://example.com/')).toMatchObject({
+      kind: 'use',
+      source: 'imported',
+    });
     // Another file under the same name and version, saying something else, was not what was agreed to.
     put(join(usb, 'given.longboard-profile.json'), base({ id: 'given', focus: { include: ['.something-else'] } }));
     const again = new ProfileStore(folders(), () => undefined);
@@ -405,7 +479,9 @@ describe('a site with an interface for TVs', () => {
     expect(wantsTv(valid())).toBe(false);
     expect(wantsTv(null)).toBe(false);
     for (const device of ['console', 'TV', 'phone', 'Mozilla/5.0 (Another Browser)', true, { tv: true }]) {
-      expect(validateProfile(base({ view: { device } })).problems.join()).toContain('"view.device" can only be "tv" or "tv-browser"');
+      expect(validateProfile(base({ view: { device } })).problems.join()).toContain(
+        '"view.device" can only be "tv" or "tv-browser"',
+      );
     }
     // The second word: a larger layout of the ordinary pages. Longboard goes on driving those itself.
     expect(deviceOf(valid({ view: { device: 'tv-browser' } }))).toBe('tv-browser');
@@ -426,7 +502,10 @@ describe('a site with an interface for TVs', () => {
 });
 
 describe('a site whose interface for TVs lives at an address of its own', () => {
-  const tv = valid({ match: { hosts: ['example.com', 'www.example.com'], paths: ['/tv'] }, view: { device: 'tv', entry: '/tv', carry: ['v'] } });
+  const tv = valid({
+    match: { hosts: ['example.com', 'www.example.com'], paths: ['/tv'] },
+    view: { device: 'tv', entry: '/tv', carry: ['v'] },
+  });
   const stored: StoredProfile[] = [{ profile: tv, source: 'catalogue' }];
   const use = (url: string): Profile | null => {
     const c = chooseProfile(url, stored, {});
@@ -441,8 +520,12 @@ describe('a site whose interface for TVs lives at an address of its own', () => 
   });
 
   it('keeps what the address pointed at only as far as the profile says', () => {
-    expect(entryFor('https://www.example.com/watch?v=a-B_1&t=30&track=x', stored, use)).toBe('https://www.example.com/tv?v=a-B_1');
-    expect(entryFor('https://www.example.com/watch?v=a%26b%3Dc', stored, use)).toBe('https://www.example.com/tv?v=a%26b%3Dc');
+    expect(entryFor('https://www.example.com/watch?v=a-B_1&t=30&track=x', stored, use)).toBe(
+      'https://www.example.com/tv?v=a-B_1',
+    );
+    expect(entryFor('https://www.example.com/watch?v=a%26b%3Dc', stored, use)).toBe(
+      'https://www.example.com/tv?v=a%26b%3Dc',
+    );
   });
 
   it('leaves alone what is already there, other sites, and other kinds of address', () => {
@@ -459,13 +542,26 @@ describe('a site whose interface for TVs lives at an address of its own', () => 
   });
 
   it('takes a plain path on the site and plain parameter names, and nothing else', () => {
-    for (const entry of ['https://elsewhere.example/tv', '//elsewhere.example/tv', '/tv?x=1', '/tv#/watch', 'tv', '/', '/a b', 7]) {
+    for (const entry of [
+      'https://elsewhere.example/tv',
+      '//elsewhere.example/tv',
+      '/tv?x=1',
+      '/tv#/watch',
+      'tv',
+      '/',
+      '/a b',
+      7,
+    ]) {
       expect(validateProfile(base({ view: { entry } })).problems.join()).toContain('"view.entry" must be a plain path');
     }
     expect(valid({ view: { entry: '/tv' } }).view?.entry).toBe('/tv');
     for (const carry of [['v=1'], ['a b'], [], 'v', [7], Array.from({ length: 11 }, (_, i) => `p${i}`)]) {
-      expect(validateProfile(base({ view: { entry: '/tv', carry } })).problems.join()).toContain('"view.carry" must be a short list');
+      expect(validateProfile(base({ view: { entry: '/tv', carry } })).problems.join()).toContain(
+        '"view.carry" must be a short list',
+      );
     }
-    expect(validateProfile(base({ view: { carry: ['v'] } })).problems.join()).toContain('"view.carry" needs "view.entry"');
+    expect(validateProfile(base({ view: { carry: ['v'] } })).problems.join()).toContain(
+      '"view.carry" needs "view.entry"',
+    );
   });
 });
