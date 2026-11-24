@@ -12,6 +12,7 @@ a game controller or a keyboard.
 [![Latest release](https://img.shields.io/github/v/release/AndrewGBest/Longboard?label=release)](https://github.com/AndrewGBest/Longboard/releases/latest)
 [![Checks](https://github.com/AndrewGBest/Longboard/actions/workflows/ci.yml/badge.svg)](https://github.com/AndrewGBest/Longboard/actions/workflows/ci.yml)
 [![Licence: GPL-3.0](https://img.shields.io/badge/licence-GPL--3.0-blue)](LICENSE)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/AndrewGBest/Longboard/badge)](https://scorecard.dev/viewer/?uri=github.com/AndrewGBest/Longboard)
 
 <img src="site/images/highlight.png" width="820" alt="Longboard showing a streaming page, with a white highlight around one of a row of cards">
 
@@ -87,8 +88,10 @@ chmod +x Longboard-x86_64.AppImage
 `flatpak run` it or pick it from your app list. It is a file, not on Flathub,
 so it does not update itself.
 
-Releases are not signed. GitHub shows a SHA-256 digest beside each file on
-the [release page](https://github.com/AndrewGBest/Longboard/releases/latest).
+Each file's SHA-256 digest is on the
+[release page](https://github.com/AndrewGBest/Longboard/releases/latest).
+From 0.3.28 a release also says, verifiably, that it was built by this
+repository's workflow: `gh attestation verify <file> -R AndrewGBest/Longboard`.
 The ARM packages are built and tested by script on ARM machines and have not
 yet been tried on an ARM TV box.
 
@@ -181,7 +184,9 @@ npm run tv         # full screen, as on a TV
 ```
 
 [CONTRIBUTING.md](CONTRIBUTING.md) says how to help: report a site, write a
-profile (no programming needed), or change the code.
+profile (no programming needed), or change the code. Questions go to
+[Discussions](https://github.com/AndrewGBest/Longboard/discussions);
+[SUPPORT.md](SUPPORT.md) says what goes where.
 
 ## Documents
 
@@ -198,6 +203,7 @@ profile (no programming needed), or change the code.
 | [docs/SCORECARD.md](docs/SCORECARD.md) | How it did on a fixed list of public sites |
 | Research: [browsers](docs/RESEARCH-BROWSERS.md), [store and ARM](docs/RESEARCH-STORE-ARM.md), [Android](docs/RESEARCH-ANDROID.md), [voice](docs/RESEARCH-VOICE.md) | What others do and what was found, with sources |
 | [SECURITY.md](SECURITY.md) | How to report a security problem |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | How people here treat each other |
 | [CLAUDE.md](CLAUDE.md) | Working rules for every contributor, human or AI |
 
 ## How it is made

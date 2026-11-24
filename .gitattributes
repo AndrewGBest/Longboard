@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.png binary
+
+# Not counted as the project's code on GitHub
+package-lock.json linguist-generated
+test/fixtures/** linguist-vendored
+site/** linguist-documentation
+docs/** linguist-documentation

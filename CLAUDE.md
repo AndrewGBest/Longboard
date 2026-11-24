@@ -143,7 +143,8 @@ necessary, not sufficient.
 ## Commands
 
 ```
-npm run check        # typecheck + unit tests + build + rule checks
+npm run check        # typecheck + lint + format check + unit tests + build + rule checks
+npm run format       # lay the code out with Prettier
 npm run e2e          # the real app against the invented fixtures, driven over the DevTools protocol
 npm run scorecard    # generic mode against the fixed list of public sites (test/scorecard/)
 npm start            # a window; add an address to open it

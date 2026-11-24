@@ -1,0 +1,24 @@
+# Dependabot opens pull requests for newer versions, once a week, grouped so
+# there are a few to look at and not dozens. The engine (castLabs' build of
+# Electron) is fetched from GitHub by tag and is not covered: it is updated
+# by hand at each stable release (CLAUDE.md, rule 14).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      development:
+        dependency-type: development
+        update-types: [minor, patch]
+      runtime:
+        dependency-type: production
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

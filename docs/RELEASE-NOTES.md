@@ -314,6 +314,12 @@ the menu; Ctrl+Q quits.
 - **tar.gz, Flatpak:** these are told when a new version is out, and do not
   replace themselves.
 
+**Checking a file:** `SHA256SUMS.txt` lists each file's SHA-256 sum. From
+0.3.28 each release also carries a build attestation: a signed statement,
+kept by GitHub, that the files were built by this repository's release
+workflow. With GitHub's command-line tool:
+`gh attestation verify Longboard-x86_64.AppImage -R AndrewGBest/Longboard`.
+
 What exists and what has been checked is in `docs/STATUS.md`; what is
 missing is in the README.
 

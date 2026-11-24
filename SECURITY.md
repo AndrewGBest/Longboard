@@ -23,9 +23,19 @@ updated by hand.
 
 Said plainly, so nobody has to find out the hard way:
 
-- **Releases are not signed.** GitHub shows a SHA-256 digest beside each
-  file on the release page, and the updater in the AppImage checks the
-  file it downloads against that digest before using it.
+- **Releases are not signed with a key of the project's own.** GitHub
+  shows a SHA-256 digest beside each file on the release page, and the
+  updater in the AppImage checks the file it downloads against that digest
+  before using it. From 0.3.28 a release also carries `SHA256SUMS.txt` and
+  a build attestation, which says the files were built by this
+  repository's release workflow from the tagged commit:
+  `gh attestation verify <file> -R AndrewGBest/Longboard`. Releases are
+  immutable: once published, the tag and the files cannot be changed.
+- **Known in a dependency:** the library that unpacks extension files
+  (`adm-zip`) has open advisories with no fixed version (reading a crafted
+  archive can use a great deal of memory). Longboard unpacks only files
+  from the Chrome Web Store whose signature it has checked, and writes
+  each entry itself. Replacing the library is on the list.
 - **There is no Safe Browsing.** Nothing warns about known phishing or
   malware sites.
 - **The engine comes from castLabs' build of Electron**, which follows
