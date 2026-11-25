@@ -3,7 +3,7 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
-New in 0.3.29 (not released yet):
+New in 0.3.29:
 
 - **A warning before sites that may be harmful.** Longboard now asks
   before opening a site that is on a public list of sites that hand out
