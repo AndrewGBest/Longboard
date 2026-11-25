@@ -8,7 +8,9 @@
   button { font: inherit; margin: 20px; padding: 10px 20px; }
 </style>
 <!-- An invented app that answers the remote itself, as apps made for TVs do:
-     it listens for the arrow keys and moves its own mark. -->
+     it listens for the arrow keys and moves its own mark. Like such apps it
+     adds to the page's history as it is used, goes back by its own Back key
+     (Escape), and closes itself when that is pressed at its top level. -->
 <div id="tiles"><div class="tile on"></div><div class="tile"></div><div class="tile"></div></div>
 <button id="join">Sign up</button>
 <a href="/home.html" id="leave">Somewhere else</a>
@@ -20,7 +22,15 @@
   document.getElementById('join').addEventListener('click', () => { window.pressed += 1; });
   addEventListener('keydown', (e) => {
     window.seen.push(e.key);
-    if (e.key === 'ArrowRight') at = Math.min(tiles.length - 1, at + 1);
+    if (e.key === 'ArrowRight') {
+      at = Math.min(tiles.length - 1, at + 1);
+      history.pushState(null, '', `#tile-${at}`);
+    }
+    if (e.key === 'Escape') {
+      if (at === 0) window.close();
+      at = 0;
+      history.pushState(null, '', '#top');
+    }
     if (e.key === 'ArrowLeft') at = Math.max(0, at - 1);
     if (e.key === 'ArrowDown') document.getElementById('join').focus();
     if (e.key === 'ArrowUp') document.getElementById('join').blur();

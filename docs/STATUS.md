@@ -98,9 +98,18 @@ do currently."
   none of the survey's 78 well-known sites. **Not checked:** a real
   harmful site was not opened, on purpose; the first fetch of all three
   on a TV box; how often the lists are wrong.
-- **Tests:** 656 unit tests; 636 end-to-end checks, passing from source.
+- **Tests:** 656 unit tests; 640 end-to-end checks, passing from source.
   Against the package with every fuse set: the 624 that existed before
   the warning was added.
+- **Fixed, reported by Andrew 2026-11-25: Back on YouTube went through
+  every video watched.** The cause and the measurements are in
+  DECISIONS.md under that date. Every Back in an app made for TVs is now
+  the app's own, and a page that closes itself gives way to Home. Checked
+  by script on the live app as a guest: with a remote's Back key, video
+  to list to side list to first screen, and once more to Longboard's
+  Home. **Not checked:** signed in, and by a person with a remote or a
+  controller. The harness cannot press a controller's buttons, so the
+  controller is covered only by sharing the same code path as the key.
 - **Found and fixed: Longboard's own screen stayed in front after "Go
   back" on the warning.** This was the check that failed twice on the ARM
   builder and then once on x64. It was not the question: the printing

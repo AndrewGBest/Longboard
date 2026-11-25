@@ -36,6 +36,13 @@ export function createBack(
   core.playerMenuSeen = false;
   core.browseUrl = null;
   const back = (): void => {
+    // An app made for TVs does its own going back, whichever key or button
+    // asked for it. The page's history is no guide: such an app adds to it
+    // each time a video is left, and going back through it opens them again.
+    if (core.rules.ownRemote) {
+      core.pressKey('close');
+      return;
+    }
     const active = deepActiveElement(core.doc);
     if (isTextEntry(active)) {
       (active as HTMLElement).blur();

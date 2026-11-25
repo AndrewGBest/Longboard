@@ -52,6 +52,71 @@ export default async function run() {
   // for TVs. Longboard then adds, for that site only, that it is running as a
   // TV; and the site answers the remote itself.
   await scenario(
+    'Back in an app made for TVs',
+    {
+      url: `http://profile.test:${port}/`,
+      args: [mapHost],
+      seed: (data) => {
+        mkdirSync(join(data, 'profiles'), { recursive: true });
+        copyFileSync(join(root, 'test/fixtures/profiles/tvapp.json'), join(data, 'profiles/tvapp.json'));
+      },
+    },
+    async (app) => {
+      const page = await app.page('http://profile.test');
+      const chrome = await app.chrome();
+      await sleep(800);
+      await page.press('ArrowRight');
+      await page.press('ArrowRight');
+      // A remote's Back key, which is not a key the app knows. (Only pressed down: the
+      // DevTools channel never answers for this key's release, and the press is what counts.)
+      const backKey = async (wait = 500) => {
+        await page.keyDown('BrowserBack');
+        await sleep(wait);
+      };
+      await backKey();
+      check(
+        "a remote's Back key reaches the app as its own Back, and the page's history is not gone back through",
+        await page.evaluate('[where(), seen.at(-1), location.hash, history.length > 3]'),
+        [0, 'Escape', '#top', true],
+      );
+      await page.press('ArrowRight');
+      await page.press('ContextMenu', 500);
+      for (let i = 0; i < 30 && (await chrome.focused()) !== 'menu-back'; i++) await chrome.press('ArrowDown');
+      await chrome.press('Enter', 600);
+      check("the menu's Back does the same", await page.evaluate('[where(), seen.at(-1), location.hash]'), [
+        0,
+        'Escape',
+        '#top',
+      ]);
+      // Back at the app's top level: the app closes itself, which is how such an app is left.
+      await backKey(300).catch(() => undefined);
+      check(
+        'Back at the top of the app, where the app closes itself, shows Home',
+        [
+          await until(
+            () => chrome.evaluate('document.querySelector("#home h1") ? document.visibilityState : null'),
+            (v) => v === 'visible',
+            50,
+          ),
+          /the page closed itself/.test(app.log),
+        ],
+        ['visible', true],
+      );
+      for (let i = 0; i < 5 && (await chrome.focused()) !== 'address'; i++) await chrome.press('ArrowLeft');
+      await chrome.press('Enter', 400);
+      await chrome.press('Escape', 200);
+      await chrome.type(`127.0.0.1:${port}/article.html`);
+      await chrome.press('Enter', 1500);
+      const again = await app.page(`${site.origin}/article.html`);
+      check(
+        'and a site opens again afterwards',
+        !!again && (await again.evaluate('location.pathname')),
+        '/article.html',
+      );
+    },
+  );
+
+  await scenario(
     'a site with an interface for TVs',
     {
       // The site's front page is asked for; the profile says its TV interface starts elsewhere.

@@ -139,8 +139,10 @@ const OWN_REMOTE_KEYS = new Set([
 
 /**
  * True when a key press belongs to a site that answers the remote itself
- * (a profile's `view.device: "tv"`). Back is the site's only as the keys
- * such apps know as Back; the menu, the pointer and the rest stay Longboard's.
+ * (a profile's `view.device: "tv"`) and is left untouched. For Back that is
+ * only the keys such apps know as Back; any other Back is pressed for the
+ * site as its own (parts/back.ts). The menu, the pointer and the rest stay
+ * Longboard's.
  */
 export function ownRemoteKey(action: string, key: string): boolean {
   if (action === 'back') return key === 'Escape' || key === 'Backspace';

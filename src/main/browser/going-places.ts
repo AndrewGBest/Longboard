@@ -22,6 +22,7 @@ import {
 import { readJson, writeJson } from '../store';
 import { MENU_TIP } from '../../shared/about';
 import { addVisit, titleVisit } from '../../shared/history';
+import { wantsTv } from '../../shared/profile';
 import { keepsTabs, parseTabs, tabsToKeep, type KeptTab } from '../../shared/tabs';
 import type { Core } from './core';
 import { isNotice } from './core';
@@ -249,7 +250,40 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
     wc.on('page-title-updated', saveTabsSoon);
   });
   // The last word before the window goes, while the pages can still be asked where they are.
-  core.win.on('close', saveTabs);
+  let windowClosing = false;
+  core.win.on('close', () => {
+    saveTabs();
+    windowClosing = true;
+  });
+  // A page can close itself. An app made for TVs does, when Back is pressed
+  // at its top level: that is how such an app is left. (Seen on a video
+  // site's TV app, 2026-11-25: the view was gone and the window was left
+  // showing nothing.) A new, empty view takes the place of the one that
+  // went, and Home is shown if that one was in front.
+  core.eachPage((wc) =>
+    // 'close' is what the engine says when the page asked to be closed; the view is gone a moment after.
+    (wc as NodeJS.EventEmitter).once('close', () => {
+      // A view Longboard closes is taken off the list first, so one still on it closed itself.
+      const place = [...core.views].find(([, view]) => view.webContents === wc)?.[0];
+      if (place === undefined) return;
+      const gone = core.views.get(place);
+      setImmediate(() => {
+        if (windowClosing || core.win.isDestroyed() || core.views.get(place) !== gone) return;
+        core.views.delete(place);
+        if (gone) core.win.contentView.removeChildView(gone);
+        if (place === core.partition) {
+          console.error('[longboard] the page closed itself: Home is shown');
+          releaseDisplay();
+          core.pageView = core.makeView(place);
+          core.page = core.pageView.webContents;
+          pageShown = false;
+          core.surface = 'home';
+          showHome();
+        } else core.layout();
+        saveTabs();
+      });
+    }),
+  );
   const restoreTabs = (): void => {
     if (!keepsTabs(core.config)) {
       rmSync(tabsFile, { force: true });
@@ -358,6 +392,15 @@ export function createGoingPlaces(core: Core): Omit<GoingPlacesPart, 'retryTimer
   };
   const goBack = (): void => {
     clearTimeout(core.retryTimer);
+    // An app made for TVs has its own idea of Back, and keeps a history that
+    // is no guide to it: it adds a page each time a video is left, so going
+    // back through them opens the videos again. It is given its own Back key.
+    if (wantsTv(core.profileFor(core.page.getURL())?.profile ?? null)) {
+      core.ownKeys.push({ to: core.page, key: 'Escape', until: Date.now() + 600 });
+      core.page.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+      core.page.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+      return;
+    }
     const i = backIndex();
     if (i >= 0) core.page.navigationHistory.goToIndex(i);
     else showHome();

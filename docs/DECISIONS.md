@@ -3,6 +3,37 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-25: in an app made for TVs, every Back is the app's own
+
+Andrew reported that on YouTube, after a few videos, Back went through
+every video watched and the app's first screen could not be reached
+cleanly. Measured the same day on the live TV app, as a guest, by script
+with `--automation`:
+
+- The app adds a page to the browser's history when a video is opened
+  **and again when it is left**, and one for each entry of its side list
+  the highlight passes. After three videos the history held 14 pages.
+- The app's own Back (the Escape key) is not history: it goes from the
+  video to the list, to the side list, to the app's first screen.
+- Longboard gave the app Escape and Backspace untouched, but a Back from
+  any other source (a remote's Back key, a controller, the menu) went
+  back through history, which opened the videos again one after another.
+- Back at the app's top level makes the app close its own page. Longboard
+  had nothing for that: the view was gone and the window showed nothing.
+
+Decided by the agent (**assumptions**):
+
+- On a page whose profile says `view.device: "tv"`, every Back, whatever
+  asked for it, is pressed for the app as Escape. The page's history is
+  never used there.
+- A page that closes itself is replaced by a new, empty view, and Home is
+  shown if it was in front. This holds for any site, not only TV apps:
+  the alternative is a window with nothing in it. For a TV app it is what
+  leaving the app means.
+
+Not measured: signed in, where the app may ask "leave?" before it closes.
+That question would be the app's own and is answered with its own keys.
+
 ## 2026-11-24: a warning before sites on public lists of harmful sites
 
 The roadmap had "Safe Browsing or an equivalent, if one can be had on

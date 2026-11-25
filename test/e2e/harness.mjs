@@ -114,6 +114,7 @@ const VK = {
   Backspace: 8,
   ContextMenu: 93,
   BrowserHome: 172,
+  BrowserBack: 166,
   Tab: 9,
   F2: 113,
   F4: 115,

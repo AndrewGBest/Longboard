@@ -36,6 +36,14 @@ New in 0.3.29 (not released yet):
   only the code in its own archive. Nothing Longboard does used them.
   Longboard's own screens are no longer a `file:` page, and `file:` pages
   get no special treatment.
+- **Back works properly in apps made for TVs** (YouTube's, for one).
+  Back from a remote's Back key, a controller or the menu went back
+  through the page's history, and such an app adds to that every time a
+  video is left: after a few videos, Back opened them again one by one
+  and the app's first screen could not be reached. Every Back is now
+  given to the app as its own Back, so it goes from the video to the
+  list to the app's first screen. Back there leaves the app, and
+  Longboard shows Home; before, the window was left showing nothing.
 - **Longboard's "on its way" screen no longer hangs after a refused
   redirect.** When a page sent its visitor on at once to an address
   Longboard refuses (a site outside the lock, or now a listed one), the
