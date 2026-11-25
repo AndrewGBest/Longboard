@@ -2,16 +2,15 @@
 
 Update this at the end of every working session. Newest first.
 
-## Where things stand (rewritten 2026-11-24, at 0.3.28)
+## Where things stand (rewritten 2026-11-24; brought up to 0.3.29 on 2026-11-25)
 
 A summary, so nobody has to read the whole file to know. The entries below
 it are the record. **Headings up to 0.3.27 run up to a day ahead of the
 calendar in places** (the agent's slip; the commit dates are right).
 
-- **Released:** 0.3.28, for Intel/AMD and ARM, as AppImage (updates
+- **Released:** 0.3.29, for Intel/AMD and ARM, as AppImage (updates
   itself), a Flatpak file and tar.gz, with checksums and a build
-  attestation. **Built, not released:** 0.3.29 (below). Releases are made
-  only at Andrew's word.
+  attestation. Releases are made only at Andrew's word.
 - **Tested by Andrew at his TV with a remote:** general browsing, and a
   number of well-known services signed in. What he reported is answered up
   to 0.3.27; whether each fix holds on his TV is known only where an entry
@@ -32,6 +31,23 @@ calendar in places** (the agent's slip; the commit dates are right).
   highlight could not get into (pointer mode gets out of it).
 - **Waiting on others:** castLabs' December release (then the AC-3
   stopgap goes).
+
+## 2026-11-25: 0.3.29 released
+
+Andrew: "release it".
+
+- **0.3.29** is out (tag on b3ef396). Before the tag, "Build packages"
+  passed for both processors on 34cad32, which differs from the tagged
+  commit only in the release notes and one line of the website; its x64
+  AppImage was unpacked here and passed the scenario "Back in an app made
+  for TVs". After: seven files on the release, `SHA256SUMS.txt` matches
+  the AppImage downloaded from the release page, GitHub lists two
+  attestations for it, and the release is marked immutable.
+  `gh attestation verify` was again **not run** (the `gh` here is too old).
+- The website no longer lists tabs that survive a restart as missing, and
+  says what the harmful-site warning is and is not.
+- **Not verified:** Back in YouTube's TV app signed in, or with a real
+  remote or controller in a person's hand.
 
 ## 2026-11-24, later: 0.3.28 released; the roadmap's items (0.3.29, not released)
 
