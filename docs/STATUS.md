@@ -2,16 +2,15 @@
 
 Update this at the end of every working session. Newest first.
 
-## Where things stand (rewritten 2026-11-24; brought up to 0.3.29 on 2026-11-25)
+## Where things stand (rewritten 2026-11-24; brought up to 0.3.30 on 2026-11-26)
 
 A summary, so nobody has to read the whole file to know. The entries below
 it are the record. **Headings up to 0.3.27 run up to a day ahead of the
 calendar in places** (the agent's slip; the commit dates are right).
 
-- **Released:** 0.3.29, for Intel/AMD and ARM, as AppImage (updates
+- **Released:** 0.3.30, for Intel/AMD and ARM, as AppImage (updates
   itself), a Flatpak file and tar.gz, with checksums and a build
-  attestation. **Built, not released:** 0.3.30 (below). Releases are made
-  only at Andrew's word.
+  attestation. Releases are made only at Andrew's word.
 - **Tested by Andrew at his TV with a remote:** general browsing, and a
   number of well-known services signed in. What he reported is answered up
   to 0.3.27; whether each fix holds on his TV is known only where an entry
@@ -33,7 +32,7 @@ calendar in places** (the agent's slip; the commit dates are right).
 - **Waiting on others:** castLabs' December release (then the AC-3
   stopgap goes).
 
-## 2026-11-26: Longboard's own entry shows Home (0.3.30, not released)
+## 2026-11-26: Longboard's own entry shows Home (0.3.30, released)
 
 Andrew, at his Plasma Bigscreen TV: opening Longboard went back to the web
 app last used; he wants Home.
@@ -46,6 +45,12 @@ app last used; he wants Home.
   Plasma Bigscreen, by anyone. That the running copy was the cause on
   Andrew's TV is the agent's reading (DECISIONS, 2026-11-26); if his
   "Open with" is set to the last site, a fresh start still opens it.
+- **0.3.30 is out** (Andrew: "Releaase it"; tag on 21e4c65). Before the
+  tag, "Build packages" passed for both processors on that same commit and
+  its x64 AppImage, unpacked here, passed the new scenario. After: seven
+  files on the release, `SHA256SUMS.txt` matches the AppImage downloaded
+  from the release page, two attestations, marked immutable.
+  `gh attestation verify` **not run** (the `gh` here is too old).
 - Andrew also confirmed Back in YouTube's TV app works in 0.3.29 on his TV
   once Longboard had been restarted.
 
