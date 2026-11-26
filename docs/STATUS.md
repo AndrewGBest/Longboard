@@ -10,7 +10,8 @@ calendar in places** (the agent's slip; the commit dates are right).
 
 - **Released:** 0.3.29, for Intel/AMD and ARM, as AppImage (updates
   itself), a Flatpak file and tar.gz, with checksums and a build
-  attestation. Releases are made only at Andrew's word.
+  attestation. **Built, not released:** 0.3.30 (below). Releases are made
+  only at Andrew's word.
 - **Tested by Andrew at his TV with a remote:** general browsing, and a
   number of well-known services signed in. What he reported is answered up
   to 0.3.27; whether each fix holds on his TV is known only where an entry
@@ -31,6 +32,22 @@ calendar in places** (the agent's slip; the commit dates are right).
   highlight could not get into (pointer mode gets out of it).
 - **Waiting on others:** castLabs' December release (then the AC-3
   stopgap goes).
+
+## 2026-11-26: Longboard's own entry shows Home (0.3.30, not released)
+
+Andrew, at his Plasma Bigscreen TV: opening Longboard went back to the web
+app last used; he wants Home.
+
+- Started again while running and asked for nothing, Longboard now shows
+  Home over the site in front (`src/main/index.ts`, second start). The
+  site stays loaded. An entry that names a site or app is unchanged.
+- **Tested:** a new end-to-end scenario on invented pages ("Longboard's
+  own entry, chosen while a site is open", 4 checks). **Not tested:** on
+  Plasma Bigscreen, by anyone. That the running copy was the cause on
+  Andrew's TV is the agent's reading (DECISIONS, 2026-11-26); if his
+  "Open with" is set to the last site, a fresh start still opens it.
+- Andrew also confirmed Back in YouTube's TV app works in 0.3.29 on his TV
+  once Longboard had been restarted.
 
 ## 2026-11-25: 0.3.29 released
 

@@ -789,4 +789,30 @@ export default async function run() {
       check('the site opens, and the list was never fetched', [!!there, /harmful sites:/.test(app.log)], [true, false]);
     },
   );
+
+  await scenario(
+    "Longboard's own entry, chosen while a site is open",
+    { url: `${site.origin}/home.html` },
+    async (app) => {
+      const page = await app.page(`${site.origin}/home.html`);
+      const chrome = await app.chrome();
+      const front = () => chrome.evaluate('document.visibilityState');
+      await sleep(1200);
+      check('the site is in front', await front(), 'hidden');
+      // Started again and asked for nothing, as the entry in a TV's app list does.
+      await app.again([]);
+      check('Home is shown', await until(front, (v) => v === 'visible', 40), 'visible');
+      check(
+        'and the site is still loaded behind it',
+        await page.evaluate('location.pathname').catch(() => null),
+        '/home.html',
+      );
+      await app.again([`--url=${site.origin}/article.html`]);
+      check(
+        'an entry that names a site still opens that site',
+        !!(await app.page(`${site.origin}/article.html`)),
+        true,
+      );
+    },
+  );
 }

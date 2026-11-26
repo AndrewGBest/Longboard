@@ -117,6 +117,9 @@ export function createBrowser(deps: BrowserDeps): Browser {
     win: core.win,
     openApp: core.openApp,
     openAddress: (url: string) => core.open(url, true),
+    showHome: () => {
+      if (core.surface === 'page') core.showHome();
+    },
     handBack: core.handBack,
     clearSiteData: core.clearSiteData,
   };

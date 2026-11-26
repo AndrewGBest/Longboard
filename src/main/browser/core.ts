@@ -110,6 +110,8 @@ export interface Browser {
   openApp: (id: string) => boolean;
   /** Opens an address as if the person had asked for it: it is put on Home. */
   openAddress: (url: string) => void;
+  /** Shows Home over a site in front, which stays loaded: what a start that asks for nothing does when Longboard is already running. */
+  showHome: () => void;
   /** Opens the sign-in page for something another program asked to be handed back (main/handback.ts). */
   handBack: (ask: HandBack) => void;
   /** Clears what every site has stored, for "clear when Longboard closes". */

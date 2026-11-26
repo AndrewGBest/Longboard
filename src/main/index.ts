@@ -338,7 +338,9 @@ async function main(): Promise<void> {
   const { win } = browser;
   if (startAsk) void componentsReady.then(() => browser.handBack(startAsk));
   // Started again while already running (an entry in the TV's app list was
-  // chosen): the window comes forward and opens what was asked for.
+  // chosen): the window comes forward and opens what was asked for. Asked
+  // for nothing, it shows Home, as a fresh start does: Longboard's own entry
+  // means Longboard, and the site left open is one press away on Home.
   app.on('second-instance', (_event, args) => {
     if (win.isMinimized()) win.restore();
     win.focus();
@@ -350,6 +352,7 @@ async function main(): Promise<void> {
     if (ask) browser.handBack(ask);
     else if (wantedApp) browser.openApp(wantedApp);
     else if (address) browser.openAddress(address);
+    else browser.showHome();
   });
   // New versions are looked for at start and once a day, unless Settings
   // says not to. The timer runs every hour and `updater.check` decides

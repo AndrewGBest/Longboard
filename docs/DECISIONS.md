@@ -3,6 +3,27 @@
 Newest first. Each entry says who decided and why, so a later session does not
 re-argue it without new information.
 
+## 2026-11-26: Longboard's own entry shows Home when it is already running
+
+Andrew: "When I open the longboard app on my plasma bigscreen linux tv, it
+goes back to my webapp I was last using, I think its better if it goes to
+the longboard home instead, only going back to the webapp when you click
+the webapp itself."
+
+- **Decided by Andrew:** Longboard's own entry means Home.
+- **Assumption (the agent's reading of the cause, not confirmed on his
+  TV):** his copy was still running behind Plasma Bigscreen, and choosing
+  the entry started it again with nothing asked for, which only brought
+  the window forward as it was. A fresh start already shows Home unless
+  "Open with" is set to the last site. So the change is to the second
+  start: asked for nothing, it shows Home over the site, which stays
+  loaded.
+- **Assumption:** "Open with: the last site" is left as it is. It is the
+  person's own choice and is off unless chosen. If Andrew has it on, he
+  will still get the last site at a fresh start.
+- **Cost:** somebody at a desk who chooses the entry to bring the window
+  forward now sees Home, one press from the site.
+
 ## 2026-11-25: in an app made for TVs, every Back is the app's own
 
 Andrew reported that on YouTube, after a few videos, Back went through

@@ -3,6 +3,14 @@ game controller. Its owner has tested it at a TV with a remote, and it is checke
 by automated tests; not every part has been tried by hand. Expect rough
 edges.
 
+New in 0.3.30 (not released yet):
+
+- **Choosing Longboard in the TV's app list shows Home.** When Longboard
+  was still running with a site open, choosing it again brought that site
+  back. Now it shows Home, as a fresh start does; the site is still
+  loaded, and "Back to" in the menu returns to it. An entry made for one site
+  or app still opens that site or app.
+
 New in 0.3.29:
 
 - **A warning before sites that may be harmful.** Longboard now asks
